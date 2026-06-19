@@ -1,0 +1,12 @@
+[Unit]
+Description=Jetson Smart Cockpit Vehicle Data Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/smart-cockpit-system/bin/vehicle-data-service --config /etc/smart-cockpit-system/config.yaml --forever
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

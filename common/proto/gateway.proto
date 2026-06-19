@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package cockpit.gateway;
+
+import "common.proto";
+import "vehicle_state.proto";
+
+message CockpitEvent {
+  int64 timestamp_ms = 1;
+  oneof payload {
+    cockpit.vehicle.VehicleState vehicle_state = 2;
+    cockpit.common.Error error = 10;
+  }
+}
+
+message SubscribeCockpitEventsRequest {
+  string client_id = 1;
+  int32 max_hz = 2;
+}
+
+service CockpitGateway {
+  rpc SubscribeCockpitEvents(SubscribeCockpitEventsRequest) returns (stream CockpitEvent);
+}

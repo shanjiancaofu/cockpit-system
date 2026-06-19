@@ -1,3 +1,12 @@
+build/
+out/
+bin/
+logs/
+*.user
+*.log
+*.log.1
+compile_commands.json
+
 # Prerequisites
 *.d
 

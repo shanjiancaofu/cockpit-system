@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package cockpit.common;
+
+message Error {
+  int32 code = 1;
+  string message = 2;
+}
+
+message Empty {
+}

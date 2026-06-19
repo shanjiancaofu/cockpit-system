@@ -1,0 +1,46 @@
+vehicle:
+  id: car_001
+  source: mock
+  publish_interval_ms: 200
+
+can:
+  interface: vcan0
+  simulator_interval_ms: 100
+
+topics:
+  backend: file
+  dir: logs/topics
+
+gateway:
+  grpc_port: 50051
+  websocket_port: 18080
+
+mqtt:
+  broker: tcp://127.0.0.1:1883
+  telemetry_topic: vehicle/status
+  qos: 1
+
+audio:
+  capture_backend: alsa
+  playback_backend: alsa
+  input_device: default
+  output_device: default
+  sample_rate_hz: 16000
+  channels: 1
+  frame_ms: 20
+
+voice:
+  enabled: false
+  mode: push_to_talk
+  asr_provider: mock
+  tts_provider: mock
+
+ai:
+  provider: mock
+  model: local-demo
+  request_timeout_ms: 10000
+
+logging:
+  dir: logs
+  level: info
+  max_bytes: 2097152

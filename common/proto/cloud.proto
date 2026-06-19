@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package cockpit.cloud;
+
+message VehicleStatusReport {
+  enum AbnormalReason {
+    NONE = 0;
+    PULL_CONFIG_FAILED = 1;
+    CAR_CLOUD_SERVER_ERROR = 2;
+    CONFIG_ABNORMAL = 3;
+  }
+
+  string vehicle_id = 1;
+  bool cloud_enabled = 2;
+  bool report_ok = 3;
+  int64 timestamp_ms = 4;
+  AbnormalReason abnormal_reason = 5;
+}
+
+message PlatformConfigPullRequest {
+  string vehicle_id = 1;
+  string platform_config_checksum = 2;
+}
+
+message VehicleConfigPullRequest {
+  string vehicle_id = 1;
+}

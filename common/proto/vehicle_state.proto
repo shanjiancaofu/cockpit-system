@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package cockpit.vehicle;
+
+message VehicleState {
+  int64 timestamp_ms = 1;
+  double speed_kph = 2;
+  int32 gear = 3;
+  int32 soc_percent = 4;
+  bool cloud_enabled = 5;
+  string source = 6;
+}
+
+message SensorState {
+  int64 timestamp_ms = 1;
+  double cabin_temperature_c = 2;
+  double humidity_percent = 3;
+  double imu_yaw_deg = 4;
+}
+
+service VehicleDataService {
+  rpc SubscribeVehicleState(SubscribeVehicleStateRequest) returns (stream VehicleState);
+}
+
+message SubscribeVehicleStateRequest {
+  string consumer = 1;
+  int32 max_hz = 2;
+}
