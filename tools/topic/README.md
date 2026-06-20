@@ -2,8 +2,8 @@
 
 Local topic debugging tool, inspired by ROS topic commands.
 
-This is a development tool for the current single-Jetson stage. It uses a file-backed local topic
-store under `tools.topic.dir` from `configs/config.yaml`.
+This is a development tool for the current single-Jetson stage. It supports a file-backed local
+store and live gRPC subscription through `cockpit-gateway-service`.
 
 ## Commands
 
@@ -13,6 +13,8 @@ build/bin/topic info /vehicle/state --config configs/config.yaml
 build/bin/topic pub /vehicle/state '{"speed_kph":12.3}' --config configs/config.yaml
 build/bin/topic echo /vehicle/state --tail 5 --config configs/config.yaml
 build/bin/topic hz /vehicle/state --window 100 --config configs/config.yaml
+build/bin/topic echo /vehicle/state --backend grpc --count 5 --config configs/config.yaml
+build/bin/topic hz /vehicle/state --backend grpc --window 20 --count 20 --config configs/config.yaml
 ```
 
 Messages are stored as JSON lines:
@@ -32,6 +34,7 @@ Current scope:
 - `echo --follow`
 - `hz`
 - `hz --follow`
+- live `/vehicle/state` gRPC `echo` and `hz`
 
 ## Source Layout
 
@@ -44,6 +47,7 @@ topic_info.cc/.h
 topic_pub.cc/.h
 topic_echo.cc/.h
 topic_hz.cc/.h
+topic_grpc_subscriber.cc/.h
 topic_command_line.cc/.h
 topic_store.cc/.h
 topic_message.cc/.h
@@ -63,24 +67,24 @@ cockpit::topic
 CMake visibility:
 
 - `topic_commands` publishes only its local include directory.
-- `topic_commands` links `config` and `utils` for storage and timestamps.
+- `topic_commands` links `config`, `contracts`, and `utils`.
 - `topic` links `config` because `main.cc` loads runtime configuration.
 - `topic` links `topic_commands` privately.
 
 Future scope:
 
-- connect service publishers to this tool
 - add typed topic schemas from protobuf
-- add gRPC gateway backend for native services and CLI subscription
+- extend the gRPC backend beyond `/vehicle/state`
 - add WebSocket gateway backend for browser dashboard subscription
 - keep MQTT for cloud/remote publish and optional remote subscription
 
 ## Backend Direction
 
-Current backend:
+Current backends:
 
 ```text
 topic CLI -> file backend -> logs/topics/*.jsonl
+topic echo/hz -> gRPC -> cockpit-gateway-service -> vehicle-data-service
 ```
 
 Recommended runtime backend later:
@@ -91,6 +95,5 @@ browser dashboard  -> WebSocket      -> cockpit-gateway-service
 cloud/remote       -> MQTT           -> cloud-uplink-service
 ```
 
-So `topic echo` and `topic hz` should eventually subscribe through the gateway gRPC stream on the
-Jetson. WebSocket is mainly for browser clients. MQTT is better kept for cloud or remote devices,
-not as the first local service bus.
+`topic echo` and `topic hz` can now subscribe through the gateway gRPC stream on the Jetson.
+WebSocket remains intended for browser clients. MQTT is kept for cloud or remote devices.

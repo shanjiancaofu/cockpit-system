@@ -9,11 +9,13 @@ Current:
 - Load config and initialize logging.
 - Subscribe to the vehicle-data gRPC stream.
 - Retry interrupted streams and discard duplicate timestamps.
-- Preserve the downstream gRPC/WebSocket boundary.
+- Serve `CockpitGateway.SubscribeCockpitEvents` to local clients.
+- Forward the latest VehicleState as a typed CockpitEvent stream.
+- Preserve the downstream WebSocket boundary.
 
 Later phases:
 
-- Provide `CockpitGateway.SubscribeCockpitEvents` for Qt/QML.
+- Connect `CockpitGateway.SubscribeCockpitEvents` to Qt/QML.
 - Provide WebSocket JSON state for `apps/web-dashboard`.
 - Apply throttling and filtering before UI delivery.
 

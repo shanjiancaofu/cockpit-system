@@ -309,8 +309,8 @@ void SystemConfig::Validate() const {
   RequirePositive(hardware_.audio.channels, "hardware.audio.channels");
   RequirePositive(hardware_.audio.frame_ms, "hardware.audio.frame_ms");
   RequirePositive(features_.ai.request_timeout_ms, "features.ai.request_timeout_ms");
-  if (tools_.topic.backend != "file") {
-    throw std::runtime_error("tools.topic.backend currently supports only file");
+  if (!IsOneOf(tools_.topic.backend, "file", "grpc")) {
+    throw std::runtime_error("tools.topic.backend must be file or grpc");
   }
   RequireNotEmpty(tools_.topic.dir, "tools.topic.dir");
 }

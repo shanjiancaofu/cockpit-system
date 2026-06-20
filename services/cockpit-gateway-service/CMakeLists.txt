@@ -1,4 +1,5 @@
 add_executable(cockpit-gateway-service
+    gateway_grpc_service.cc
     main.cc
     vehicle_state_client.cc
 )

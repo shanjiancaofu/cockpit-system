@@ -15,6 +15,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Vehicle state model, prototype CAN codec, and SocketCAN RAII wrapper.
 - Generated protobuf/gRPC contracts for common, vehicle, gateway, and cloud.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
+- CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.
 - Runnable placeholders for:
   - `vehicle-data-service`
   - `cockpit-gateway-service`
@@ -26,7 +27,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Old project analysis in `docs/reference_projects.md`.
 - Modularization strategy based on `zelos/znavigator`: one main project, small internal modules,
   and future split-ready boundaries.
-- Local file-backed topic debugging tool with `list`, `info`, `pub`, `echo`, and `hz` commands.
+- Topic debugging tool with file-backed commands and live gRPC `echo`/`hz` for `/vehicle/state`.
 - CAN simulator with `stdout` and `socketcan` backends.
 - `vehicle-data-service` with `mock` and `socketcan` sources.
 
@@ -78,8 +79,8 @@ Result:
 
 Default smoke output remains mock/stdout based. `scripts/run_vcan_smoke.sh` provides an additional
 `vcan0` send/receive path. The default smoke starts vehicle-data-service and gateway as separate
-processes and verifies three VehicleState messages over gRPC. WebSocket and MQTT remain follow-up
-implementation work.
+processes, verifies the upstream VehicleState stream, and verifies downstream `topic echo/hz`
+through CockpitEvent gRPC. WebSocket and MQTT remain follow-up implementation work.
 
 The `vcan0` path was verified on 2026-06-21: `can-simulator` sent three prototype VehicleState
 frames through SocketCAN and `vehicle-data-service` received and decoded all three successfully.

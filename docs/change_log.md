@@ -5,6 +5,30 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-21 - 网关事件流与 topic gRPC / Gateway Events and topic gRPC
+
+### 变更内容 / Changed
+
+- `cockpit-gateway-service` 实现 `SubscribeCockpitEvents` server-streaming 服务。
+- VehicleState 上游消息转换为 CockpitEvent，并以“最新值 + 版本号”方式转发。
+- `topic echo` 和 `topic hz` 新增共享 gRPC 订阅后端，当前支持 `/vehicle/state`。
+- 新增 `--backend grpc`、`--count` 和 `--max-hz` 参数。
+- 默认 smoke 覆盖 vehicle → gateway → topic 的双段 gRPC 数据流。
+
+### 设计决定 / Design Decisions
+
+- 文件后端继续保留，用于离线调试；gRPC 后端用于运行中服务订阅。
+- 网关和 topic 使用生成的 protobuf 类型，不增加无类型内部消息总线。
+- 当前只公开已有 schema 的 `/vehicle/state`，未知 topic 明确返回错误。
+- gRPC 服务和客户端使用显式 Start/Stream/Shutdown 生命周期，不隐藏后台线程。
+
+### 验证结果 / Verification
+
+- 增量构建通过，CTest 2/2 通过。
+- `topic echo` 通过网关连续收到 3 条 VehicleState CockpitEvent。
+- `topic hz` 通过网关测得约 4.963 Hz，与 200 ms mock 发布周期一致。
+- 完整 CAN/stdout、双段 gRPC、cloud placeholder 和文件 topic smoke 通过。
+
 ## 2026-06-21 - zcarcloud 配置架构参考 / zcarcloud Configuration Reference
 
 ### 变更内容 / Changed

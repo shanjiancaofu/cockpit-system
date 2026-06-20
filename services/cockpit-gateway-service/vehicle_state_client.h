@@ -4,6 +4,7 @@
 
 #include <grpcpp/grpcpp.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -12,9 +13,13 @@ namespace gateway {
 
 class VehicleStateClient {
  public:
+  using StateHandler = std::function<void(const proto::vehicle::VehicleState&)>;
+  using ContinueHandler = std::function<bool()>;
+
   VehicleStateClient(const std::string& address, int stream_timeout_ms, int retry_delay_ms);
 
-  int Stream(int sample_count, int max_hz);
+  int Stream(int sample_count, int max_hz, const StateHandler& handler,
+             const ContinueHandler& should_continue);
 
  private:
   std::shared_ptr<grpc::Channel> channel_;

@@ -1,5 +1,7 @@
 #include "topic_hz.h"
 
+#include "core/config/system_config.h"
+#include "topic_grpc_subscriber.h"
 #include "topic_message.h"
 #include "topic_store.h"
 
@@ -72,9 +74,41 @@ int RunHzCommand(const cockpit::config::SystemConfig& config, const CommandLine&
   }
 
   const std::string topic = line.positionals[0];
+  const auto window = static_cast<std::size_t>(std::max(2, OptionInt(line, "window", 100)));
+  const std::string backend = Option(line, "backend", config.tools().topic.backend);
+  if (backend == "grpc") {
+    std::vector<std::int64_t> timestamps;
+    auto last_report = std::chrono::steady_clock::now();
+    const int count = HasFlag(line, "follow")
+                          ? 0
+                          : std::max(2, OptionInt(line, "count", static_cast<int>(window)));
+    const int max_hz = std::max(1, OptionInt(line, "max-hz", 100));
+    const auto& gateway = config.services().gateway;
+    const int timeout_ms = std::max(
+        1, OptionInt(line, "timeout-ms", std::max(gateway.stream_timeout_ms, count * 1000)));
+    const TopicGrpcSubscriber subscriber(
+        gateway.grpc.listen_address, timeout_ms);
+    const int result = subscriber.Stream(
+        topic, count, max_hz, [&](const TopicSample& sample) {
+          PushTimestamp(&timestamps, sample.timestamp_ms, window);
+          const auto now = std::chrono::steady_clock::now();
+          if (HasFlag(line, "follow") && now - last_report >= std::chrono::seconds(1)) {
+            PrintHzStats(timestamps);
+            last_report = now;
+          }
+        });
+    if (!HasFlag(line, "follow")) {
+      PrintHzStats(timestamps);
+    }
+    return result;
+  }
+  if (backend != "file") {
+    std::cerr << "unsupported topic backend: " << backend << '\n';
+    return 2;
+  }
+
   const TopicStore store(config);
   const auto path = store.TopicFile(topic);
-  const auto window = static_cast<std::size_t>(std::max(2, OptionInt(line, "window", 100)));
   auto timestamps = ExtractTimestamps(store.ReadLastLines(path, static_cast<int>(window)));
   while (timestamps.size() > window) {
     timestamps.erase(timestamps.begin());
