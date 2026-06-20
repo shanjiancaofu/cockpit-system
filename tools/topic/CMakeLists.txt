@@ -1,6 +1,7 @@
 add_library(topic_commands STATIC
     topic_command_line.cc
     topic_echo.cc
+    topic_grpc_discovery.cc
     topic_grpc_subscriber.cc
     topic_hz.cc
     topic_info.cc

@@ -29,6 +29,8 @@ sleep 0.2
   >"${gateway_log}" 2>&1 &
 gateway_pid="$!"
 sleep 0.2
+"${bin_dir}/topic" list --backend grpc --config "${config_path}"
+"${bin_dir}/topic" info /vehicle/state --backend grpc --config "${config_path}"
 "${bin_dir}/topic" echo /vehicle/state --backend grpc --count 3 --config "${config_path}"
 "${bin_dir}/topic" hz /vehicle/state --backend grpc --window 3 --count 3 \
   --config "${config_path}"

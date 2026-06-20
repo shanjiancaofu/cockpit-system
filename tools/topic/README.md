@@ -13,6 +13,8 @@ build/bin/topic info /vehicle/state --config configs/config.yaml
 build/bin/topic pub /vehicle/state '{"speed_kph":12.3}' --config configs/config.yaml
 build/bin/topic echo /vehicle/state --tail 5 --config configs/config.yaml
 build/bin/topic hz /vehicle/state --window 100 --config configs/config.yaml
+build/bin/topic list --backend grpc --config configs/config.yaml
+build/bin/topic info /vehicle/state --backend grpc --config configs/config.yaml
 build/bin/topic echo /vehicle/state --backend grpc --count 5 --config configs/config.yaml
 build/bin/topic hz /vehicle/state --backend grpc --window 20 --count 20 --config configs/config.yaml
 ```
@@ -35,6 +37,7 @@ Current scope:
 - `hz`
 - `hz --follow`
 - live `/vehicle/state` gRPC `echo` and `hz`
+- live gRPC `list` and typed `info`
 
 ## Source Layout
 
@@ -47,6 +50,7 @@ topic_info.cc/.h
 topic_pub.cc/.h
 topic_echo.cc/.h
 topic_hz.cc/.h
+topic_grpc_discovery.cc/.h
 topic_grpc_subscriber.cc/.h
 topic_command_line.cc/.h
 topic_store.cc/.h
@@ -74,7 +78,8 @@ CMake visibility:
 Future scope:
 
 - add typed topic schemas from protobuf
-- extend the gRPC backend beyond `/vehicle/state`
+- extend discovery and subscription beyond `/vehicle/state`
+- add publishable command topics before enabling gRPC `pub`
 - add WebSocket gateway backend for browser dashboard subscription
 - keep MQTT for cloud/remote publish and optional remote subscription
 

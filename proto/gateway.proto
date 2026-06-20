@@ -18,6 +18,29 @@ message SubscribeCockpitEventsRequest {
   int32 max_hz = 2;
 }
 
+message TopicMetadata {
+  string name = 1;
+  string message_type = 2;
+  string source = 3;
+  bool subscribable = 4;
+  bool publishable = 5;
+}
+
+message ListTopicsRequest {
+  string client_id = 1;
+}
+
+message ListTopicsResponse {
+  repeated TopicMetadata topics = 1;
+}
+
+message GetTopicInfoRequest {
+  string client_id = 1;
+  string topic = 2;
+}
+
 service CockpitGateway {
+  rpc ListTopics(ListTopicsRequest) returns (ListTopicsResponse);
+  rpc GetTopicInfo(GetTopicInfoRequest) returns (TopicMetadata);
   rpc SubscribeCockpitEvents(SubscribeCockpitEventsRequest) returns (stream CockpitEvent);
 }

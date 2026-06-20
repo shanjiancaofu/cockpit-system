@@ -7,6 +7,19 @@
 
 namespace cockpit {
 namespace gateway {
+namespace {
+
+proto::gateway::TopicMetadata VehicleStateMetadata() {
+  proto::gateway::TopicMetadata metadata;
+  metadata.set_name("/vehicle/state");
+  metadata.set_message_type("cockpit.proto.vehicle.VehicleState");
+  metadata.set_source("vehicle-data-service");
+  metadata.set_subscribable(true);
+  metadata.set_publishable(false);
+  return metadata;
+}
+
+}  // namespace
 
 GatewayGrpcService::~GatewayGrpcService() {
   Shutdown();
@@ -48,6 +61,27 @@ void GatewayGrpcService::Shutdown() {
     server_->Shutdown();
     server_.reset();
   }
+}
+
+grpc::Status GatewayGrpcService::ListTopics(
+    grpc::ServerContext*, const proto::gateway::ListTopicsRequest* request,
+    proto::gateway::ListTopicsResponse* response) {
+  *response->add_topics() = VehicleStateMetadata();
+  LOG_DEBUG("topic list requested client_id=" + request->client_id());
+  return grpc::Status::OK;
+}
+
+grpc::Status GatewayGrpcService::GetTopicInfo(
+    grpc::ServerContext*, const proto::gateway::GetTopicInfoRequest* request,
+    proto::gateway::TopicMetadata* response) {
+  if (request->topic() != "/vehicle/state") {
+    return grpc::Status(grpc::StatusCode::NOT_FOUND,
+                        "topic is not exposed by cockpit gateway");
+  }
+  *response = VehicleStateMetadata();
+  LOG_DEBUG("topic info requested client_id=" + request->client_id() +
+            " topic=" + request->topic());
+  return grpc::Status::OK;
 }
 
 grpc::Status GatewayGrpcService::SubscribeCockpitEvents(

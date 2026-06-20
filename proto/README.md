@@ -12,6 +12,9 @@ Current local endpoint:
 
 ```text
 vehicle-data-service  127.0.0.1:50050  VehicleDataService/SubscribeVehicleState
+cockpit-gateway       127.0.0.1:50051  CockpitGateway/ListTopics
+cockpit-gateway       127.0.0.1:50051  CockpitGateway/GetTopicInfo
+cockpit-gateway       127.0.0.1:50051  CockpitGateway/SubscribeCockpitEvents
 ```
 
 The connection currently uses insecure credentials because it is limited to local vehicle-side

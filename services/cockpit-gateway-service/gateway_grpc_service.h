@@ -26,6 +26,14 @@ class GatewayGrpcService final : public proto::gateway::CockpitGateway::Service 
   void Shutdown();
 
  private:
+  grpc::Status ListTopics(
+      grpc::ServerContext* context,
+      const proto::gateway::ListTopicsRequest* request,
+      proto::gateway::ListTopicsResponse* response) override;
+  grpc::Status GetTopicInfo(
+      grpc::ServerContext* context,
+      const proto::gateway::GetTopicInfoRequest* request,
+      proto::gateway::TopicMetadata* response) override;
   grpc::Status SubscribeCockpitEvents(
       grpc::ServerContext* context,
       const proto::gateway::SubscribeCockpitEventsRequest* request,

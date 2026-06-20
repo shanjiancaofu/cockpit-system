@@ -10,6 +10,7 @@ Current:
 - Subscribe to the vehicle-data gRPC stream.
 - Retry interrupted streams and discard duplicate timestamps.
 - Serve `CockpitGateway.SubscribeCockpitEvents` to local clients.
+- Serve `ListTopics` and `GetTopicInfo` for runtime discovery.
 - Forward the latest VehicleState as a typed CockpitEvent stream.
 - Preserve the downstream WebSocket boundary.
 

@@ -5,6 +5,27 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-21 - gRPC topic 发现 / gRPC Topic Discovery
+
+### 变更内容 / Changed
+
+- Gateway 协议新增 `TopicMetadata`、`ListTopics` 和 `GetTopicInfo`。
+- 网关公开 `/vehicle/state` 的消息类型、来源和读写能力。
+- `topic list/info --backend grpc` 可查询运行中网关，不再依赖文件 registry。
+- 默认 smoke 新增 gRPC topic 发现和类型信息验证。
+
+### 设计决定 / Design Decisions
+
+- 当前元数据由网关显式维护，不提前引入动态注册中心。
+- `/vehicle/state` 标记为可订阅、不可发布，避免调试工具伪造车辆状态。
+- gRPC 连接和错误映射集中在 `TopicGrpcDiscovery`，命令文件只处理展示。
+
+### 验证结果 / Verification
+
+- proto 重新生成、增量构建和 CTest 2/2 通过。
+- 完整 smoke 中 `topic list` 返回 `/vehicle/state`，`topic info` 返回类型、来源和读写能力。
+- discovery、echo、hz 以及上游断线自动重连链路均验证通过。
+
 ## 2026-06-21 - 网关事件流与 topic gRPC / Gateway Events and topic gRPC
 
 ### 变更内容 / Changed
