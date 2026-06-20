@@ -3,12 +3,16 @@
 #include "core/runtime/ServiceRuntime.h"
 #include "modules/vehicle/VehicleState.h"
 
+#include <functional>
+
 namespace cockpit {
 namespace vehicle {
 
 class VehicleDataService {
  public:
-  explicit VehicleDataService(runtime::ServiceRuntime& runtime);
+  using StateSink = std::function<void(const VehicleState&)>;
+
+  VehicleDataService(runtime::ServiceRuntime& runtime, StateSink state_sink);
 
   int Run();
 
@@ -18,6 +22,7 @@ class VehicleDataService {
   void Publish(const VehicleState& state) const;
 
   runtime::ServiceRuntime& runtime_;
+  StateSink state_sink_;
 };
 
 }  // namespace vehicle

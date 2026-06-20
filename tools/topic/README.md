@@ -3,7 +3,7 @@
 Local topic debugging tool, inspired by ROS topic commands.
 
 This is a development tool for the current single-Jetson stage. It uses a file-backed local topic
-store under `topics.dir` from `configs/config.yaml`.
+store under `tools.topic.dir` from `configs/config.yaml`.
 
 ## Commands
 

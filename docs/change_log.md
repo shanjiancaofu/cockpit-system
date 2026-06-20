@@ -5,6 +5,55 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-21 - zcarcloud 配置架构参考 / zcarcloud Configuration Reference
+
+### 变更内容 / Changed
+
+- 审计 `z-car-cloud.yaml`、`CarCloud::InitEnv`、`ConfigManager`、listener runtime 和各 target 依赖。
+- 新增 `docs/configuration.md`，确定当前项目的配置分区、类型归属和启动校验规则。
+- Ubuntu 依赖增加 `libyaml-cpp-dev`，用于替换当前两层标量解析器。
+- 新增不可变 `SystemConfig` 与 system、paths、logging、services、hardware、features、tools
+  类型化子配置。
+- `config.yaml` 按职责重新分区，全部服务和工具移除 dotted string key 读取。
+- 日志 `mirror_stderr`、gRPC stream timeout/retry 参数开始实际生效。
+- 删除重复且未使用的 `configs/logging.yaml`。
+
+### 设计决定 / Design Decisions
+
+- 采用 zcarcloud 的配置驱动、类型化转换和显式组件生命周期。
+- 不复制全局 ConfigManager 单例、Zoo service locator 或 zelos 平台专用依赖。
+- gRPC、CAN、MQTT 等组件读取类型化子配置，不再长期保留 dotted string key。
+
+### 验证结果 / Verification
+
+- yaml-cpp 0.7.0 配置库编译通过。
+- `system_config_test` 验证真实配置加载和非法 gRPC 地址路径提示。
+- CTest 2/2 通过，完整 gRPC/CAN/topic smoke 通过。
+
+## 2026-06-21 - VehicleState gRPC 数据流 / VehicleState gRPC Stream
+
+### 变更内容 / Changed
+
+- 新增 `proto/CMakeLists.txt`，通过 `protoc` 和 `grpc_cpp_plugin` 生成 `contracts` target。
+- proto package 统一为 `cockpit.proto.*`，避免生成类型与领域模型同名冲突。
+- `vehicle-data-service` 新增同步 server-streaming 服务，将最新 VehicleState 推送给订阅者。
+- `cockpit-gateway-service` 新增 streaming 客户端、10 秒限时重连和时间戳去重。
+- 默认 smoke 改为双进程 gRPC 集成测试，自动启动和停止 vehicle 服务。
+
+### 设计决定 / Design Decisions
+
+- 生成代码只进入 `build/proto/generated`，不提交到仓库。
+- 服务端只保存最新状态和版本号，不无限缓存过期车辆状态。
+- 本机 gRPC 使用 insecure credentials；远程接口不得直接复用该安全配置。
+- Vehicle gRPC 默认只监听 `127.0.0.1:50050`，不暴露到 Jetson 外部网卡。
+- 本机 channel 显式关闭 HTTP proxy，避免系统代理干扰 localhost 服务通信。
+
+### 验证结果 / Verification
+
+- protobuf 3.12.4、gRPC 1.30.2 代码生成和编译通过。
+- `cockpit_smoke_test` 通过。
+- gateway 通过 `127.0.0.1:50050` 连续收到 3 条 VehicleState，完整 smoke 通过。
+
 ## 2026-06-21 - gRPC 构建前置 / gRPC Build Prerequisites
 
 ### 变更内容 / Changed
@@ -20,7 +69,7 @@ changes, design decisions, and verification results.
 
 ### 验证结果 / Verification
 
-- apt 包名和候选版本已确认；安装需要在交互终端输入 `sudo` 密码。
+- 依赖已在 WSL2 安装，`protoc`、`grpc_cpp_plugin` 和 pkg-config 检查通过。
 
 ## 2026-06-21 - SocketCAN 车辆数据链路 / SocketCAN Vehicle Data Path
 
@@ -146,7 +195,7 @@ changes, design decisions, and verification results.
 - 新增 `CanFrame`，支持标准帧/扩展帧 ID、DLC、标志位校验和 candump 格式输出。
 - 新增 `SocketCan`，支持 fd RAII、移动语义、接口绑定、发送、poll 超时和接收。
 - `can-simulator` 新增 `--backend stdout|socketcan`。
-- 新增 `can.simulator_backend` 配置，安全默认值为 `stdout`。
+- 当时新增 `can.simulator_backend` 配置（现为 `hardware.can.simulator_backend`），安全默认值为 `stdout`。
 - `cockpit_smoke_test` 增加 CAN 帧测试。
 - 参考并审计 `/home/ffz/code/project/无人车/can/can_ws/src/can_analyze`。
 - 变更记录调整为中英双语格式。

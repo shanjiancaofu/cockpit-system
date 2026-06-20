@@ -12,7 +12,7 @@
 namespace cockpit {
 namespace topic {
 
-int RunEchoCommand(const cockpit::config::Config& config, const CommandLine& line) {
+int RunEchoCommand(const cockpit::config::SystemConfig& config, const CommandLine& line) {
   if (line.positionals.empty()) {
     std::cerr << "topic echo requires <topic>\n";
     return 2;

@@ -8,7 +8,7 @@
 namespace cockpit {
 namespace topic {
 
-int RunInfoCommand(const cockpit::config::Config& config, const CommandLine& line) {
+int RunInfoCommand(const cockpit::config::SystemConfig& config, const CommandLine& line) {
   if (line.positionals.empty()) {
     std::cerr << "topic info requires <topic>\n";
     return 2;

@@ -24,8 +24,8 @@ vcan0 123#0001020304050607
 
 ## Config
 
-- `can.interface`
-- `can.simulator_backend`
-- `can.simulator_interval_ms`
-- `logging.dir`
+- `hardware.can.interface`
+- `hardware.can.simulator_backend`
+- `hardware.can.simulator_interval_ms`
+- `paths.log_dir`
 - `logging.level`

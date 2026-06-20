@@ -1,0 +1,4 @@
+services:
+  vehicle_data:
+    grpc:
+      listen_address: missing-port

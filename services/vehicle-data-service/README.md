@@ -4,32 +4,32 @@
 
 Own vehicle state ingestion and normalization.
 
-First phase:
+Current:
 
-- Generate mock `VehicleState`.
-- Keep the future SocketCAN/vcan0 boundary explicit.
-- Publish a JSON line for local smoke runs.
+- Read mock or SocketCAN input.
+- Decode the prototype VehicleState CAN frame.
+- Publish JSON for diagnostics and a gRPC VehicleState stream.
 
 Later phases:
 
-- Read SocketCAN from `vcan0` or `can0`.
-- Decode speed, gear, SOC, and selected sensor fields.
-- Expose `VehicleDataService.SubscribeVehicleState` through gRPC.
+- Replace the prototype CAN mapping with an approved DBC.
+- Decode additional chassis and sensor fields.
 
 ## Input
 
 - `configs/config.yaml`
-- Future: SocketCAN frames from `can.interface`
+- SocketCAN frames from `hardware.can.interface`
 
 ## Output
 
-- Current: JSON lines and service log.
-- Future: gRPC stream `cockpit.vehicle.VehicleState`.
+- JSON lines, service log, and `cockpit.proto.vehicle.VehicleState` gRPC stream.
 
 ## Config
 
-- `vehicle.id`
-- `vehicle.publish_interval_ms`
-- `can.interface`
-- `logging.dir`
+- `system.vehicle_id`
+- `services.vehicle_data.source`
+- `services.vehicle_data.publish_interval_ms`
+- `services.vehicle_data.grpc.listen_address`
+- `hardware.can.interface`
+- `paths.log_dir`
 - `logging.level`

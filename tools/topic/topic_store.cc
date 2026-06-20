@@ -1,6 +1,6 @@
 #include "topic_store.h"
 
-#include "core/config/Config.h"
+#include "core/config/system_config.h"
 
 #include <cctype>
 #include <fstream>
@@ -9,8 +9,8 @@
 namespace cockpit {
 namespace topic {
 
-TopicStore::TopicStore(const cockpit::config::Config& config)
-    : topic_dir_(config.GetString("topics.dir", "logs/topics")) {}
+TopicStore::TopicStore(const cockpit::config::SystemConfig& config)
+    : topic_dir_(config.tools().topic.dir) {}
 
 std::string TopicStore::SanitizeTopicFileName(const std::string& topic) {
   std::string result;

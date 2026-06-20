@@ -22,10 +22,10 @@ Current implementation boundary:
 - The project stays as one repository/folder for now. It should grow through internal CMake
   libraries and service modules, not early repository splitting.
 - C++ source files use `.cc` consistently to match the zelos C++ repositories.
-- gRPC/protobuf files are defined in `proto`, but C++ generation is deferred.
-- YAML is represented by a lightweight parser so the scaffold can build without external packages.
-- `vehicle-data-service`, `cockpit-gateway-service`, `cloud-uplink-service`, and
-  `can-simulator` are runnable placeholders.
+- `proto` generates a C++ `contracts` target through CMake.
+- yaml-cpp loads an immutable typed `SystemConfig` and validates component settings at startup.
+- `vehicle-data-service` exposes a VehicleState gRPC stream consumed by `cockpit-gateway-service`.
+- `cloud-uplink-service` remains a transport placeholder; `can-simulator` is runnable.
 - Qt/QML, WebSocket, MQTT, GStreamer, WebRTC, SQLite, shared memory, audio, voice interaction, and
   AI integration remain explicit module boundaries for later phases.
 
@@ -76,9 +76,6 @@ Voice/AI scope for this Jetson project:
 
 Immediate next engineering tasks:
 
-1. Let `vehicle-data-service` support `mock|socketcan` sources.
-2. Decode selected chassis frames into `VehicleState`.
-3. Replace the lightweight config reader with `yaml-cpp` and typed config structs.
-4. Add protobuf and gRPC generation through CMake.
-5. Implement `cockpit-gateway-service` streaming fan-out.
-6. Add an audio hardware probe tool for microphone/speaker before implementing voice AI.
+1. Implement the gateway-facing CockpitEvent streaming server for Qt/Web clients.
+2. Decode production chassis frames after an approved DBC or signal specification is available.
+3. Add an audio hardware probe tool for microphone/speaker before implementing voice AI.

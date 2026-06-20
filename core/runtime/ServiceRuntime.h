@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/config/Config.h"
+#include "core/config/system_config.h"
 #include "core/runtime/Args.h"
 
 #include <string>
@@ -13,7 +13,7 @@ class ServiceRuntime {
   static ServiceRuntime Create(int argc, char** argv, const std::string& service_name);
 
   const Args& args() const { return args_; }
-  const config::Config& config() const { return config_; }
+  const config::SystemConfig& config() const { return config_; }
   const std::string& config_path() const { return config_path_; }
   const std::string& service_name() const { return service_name_; }
 
@@ -24,12 +24,12 @@ class ServiceRuntime {
   ServiceRuntime(std::string service_name,
                  std::string config_path,
                  Args args,
-                 config::Config config);
+                 config::SystemConfig config);
 
   std::string service_name_;
   std::string config_path_;
   Args args_;
-  config::Config config_;
+  config::SystemConfig config_;
 };
 
 }  // namespace runtime

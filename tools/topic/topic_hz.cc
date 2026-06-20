@@ -65,7 +65,7 @@ bool PrintHzStats(const std::vector<std::int64_t>& timestamps) {
 
 }  // namespace
 
-int RunHzCommand(const cockpit::config::Config& config, const CommandLine& line) {
+int RunHzCommand(const cockpit::config::SystemConfig& config, const CommandLine& line) {
   if (line.positionals.empty()) {
     std::cerr << "topic hz requires <topic>\n";
     return 2;

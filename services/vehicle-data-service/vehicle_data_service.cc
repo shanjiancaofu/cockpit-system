@@ -8,15 +8,18 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <utility>
 
 namespace cockpit {
 namespace vehicle {
 
-VehicleDataService::VehicleDataService(runtime::ServiceRuntime& runtime) : runtime_(runtime) {}
+VehicleDataService::VehicleDataService(runtime::ServiceRuntime& runtime, StateSink state_sink)
+    : runtime_(runtime), state_sink_(std::move(state_sink)) {}
 
 int VehicleDataService::Run() {
+  const auto& vehicle_config = runtime_.config().services().vehicle_data;
   const std::string source = runtime_.args().GetString(
-      "source", runtime_.config().GetString("vehicle.source", "mock"));
+      "source", vehicle_config.source);
   if (source == "mock") {
     return RunMock();
   }
@@ -28,7 +31,7 @@ int VehicleDataService::Run() {
 }
 
 int VehicleDataService::RunMock() {
-  const int interval_ms = runtime_.config().GetInt("vehicle.publish_interval_ms", 200);
+  const int interval_ms = runtime_.config().services().vehicle_data.publish_interval_ms;
   const int samples = runtime_.args().GetInt("samples", 5);
   const bool forever = runtime_.args().HasFlag("forever");
 
@@ -43,9 +46,10 @@ int VehicleDataService::RunMock() {
 
 int VehicleDataService::RunSocketCan() {
   const auto& config = runtime_.config();
-  const std::string interface_name = config.GetString("can.interface", "vcan0");
-  const int timeout_ms = config.GetInt("can.receive_timeout_ms", 500);
-  const int max_idle_timeouts = config.GetInt("can.max_idle_timeouts", 10);
+  const auto& can_config = config.hardware().can;
+  const std::string& interface_name = can_config.interface;
+  const int timeout_ms = can_config.receive_timeout_ms;
+  const int max_idle_timeouts = can_config.max_idle_timeouts;
   const int samples = runtime_.args().GetInt("samples", 5);
   const bool forever = runtime_.args().HasFlag("forever");
 
@@ -97,6 +101,9 @@ void VehicleDataService::Publish(const VehicleState& state) const {
   const std::string json = state.ToJson();
   LOG_INFO("publish VehicleState " + json);
   std::cout << json << std::endl;
+  if (state_sink_) {
+    state_sink_(state);
+  }
 }
 
 }  // namespace vehicle

@@ -4,11 +4,11 @@
 
 namespace cockpit {
 namespace config {
-class Config;
+class SystemConfig;
 }  // namespace config
 namespace topic {
 
-int RunHzCommand(const cockpit::config::Config& config, const CommandLine& line);
+int RunHzCommand(const cockpit::config::SystemConfig& config, const CommandLine& line);
 
 }  // namespace topic
 }  // namespace cockpit

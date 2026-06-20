@@ -11,8 +11,10 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 
 - Top-level CMake project with Linux/WSL shell scripts.
 - Core config, logging, runtime, and time helpers.
+- yaml-cpp `SystemConfig` with typed sections and startup validation.
 - Vehicle state model, prototype CAN codec, and SocketCAN RAII wrapper.
-- Proto contract drafts for common, vehicle, gateway, and cloud.
+- Generated protobuf/gRPC contracts for common, vehicle, gateway, and cloud.
+- VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - Runnable placeholders for:
   - `vehicle-data-service`
   - `cockpit-gateway-service`
@@ -20,7 +22,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
   - `can-simulator`
   - `topic`
 - Qt/QML and local Jetson debug dashboard placeholder directories.
-- `configs/config.yaml`, `configs/logging.yaml`, and a systemd example.
+- Unified `configs/config.yaml` and a systemd example.
 - Old project analysis in `docs/reference_projects.md`.
 - Modularization strategy based on `zelos/znavigator`: one main project, small internal modules,
   and future split-ready boundaries.
@@ -30,7 +32,6 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 
 ## Not implemented yet
 
-- Real gRPC/protobuf code generation.
 - Production vehicle CAN mapping from an approved DBC or signal specification.
 - MQTT client.
 - Qt/QML gRPC client.
@@ -54,6 +55,7 @@ Toolchain:
 - CMake available.
 - g++ 11.4.0.
 - Ninja 1.10.1.
+- yaml-cpp 0.7.0.
 
 Commands:
 
@@ -66,7 +68,7 @@ bash scripts/run_smoke.sh
 Result:
 
 - CMake configure and generate succeeded.
-- Ninja build completed, including `can-simulator`.
+- Ninja build completed, including generated protobuf/gRPC code.
 - `ctest` passed `cockpit_smoke_test`.
 - Smoke chain ran:
   - `can-simulator`
@@ -75,7 +77,9 @@ Result:
   - `cloud-uplink-service`
 
 Default smoke output remains mock/stdout based. `scripts/run_vcan_smoke.sh` provides an additional
-`vcan0` send/receive path. gRPC, WebSocket, and MQTT remain follow-up implementation work.
+`vcan0` send/receive path. The default smoke starts vehicle-data-service and gateway as separate
+processes and verifies three VehicleState messages over gRPC. WebSocket and MQTT remain follow-up
+implementation work.
 
 The `vcan0` path was verified on 2026-06-21: `can-simulator` sent three prototype VehicleState
 frames through SocketCAN and `vehicle-data-service` received and decoded all three successfully.

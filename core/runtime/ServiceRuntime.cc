@@ -28,12 +28,13 @@ ServiceRuntime ServiceRuntime::Create(int argc, char** argv, const std::string& 
   InstallSignalHandlers();
   Args args = Args::Parse(argc, argv);
   const std::string config_path = args.GetString("config", "configs/config.yaml");
-  auto config = config::Config::LoadFromFile(config_path);
+  auto config = config::SystemConfig::LoadFromFile(config_path);
 
-  const std::string log_dir = config.GetString("logging.dir", "logs");
-  const int max_bytes = config.GetInt("logging.max_bytes", 2 * 1024 * 1024);
-  const auto log_level = logging::ParseLevel(config.GetString("logging.level", "info"));
-  logging::InitLogger(service_name, log_dir, log_level, max_bytes);
+  const std::string& log_dir = config.paths().log_dir;
+  const int max_bytes = config.logging().max_bytes;
+  const auto log_level = logging::ParseLevel(config.logging().level);
+  logging::InitLogger(
+      service_name, log_dir, log_level, max_bytes, config.logging().mirror_stderr);
   LOG_INFO(service_name + " started config=" + config_path);
 
   return ServiceRuntime(service_name, config_path, args, config);
@@ -42,7 +43,7 @@ ServiceRuntime ServiceRuntime::Create(int argc, char** argv, const std::string& 
 ServiceRuntime::ServiceRuntime(std::string service_name,
                                std::string config_path,
                                Args args,
-                               config::Config config)
+                               config::SystemConfig config)
     : service_name_(std::move(service_name)),
       config_path_(std::move(config_path)),
       args_(std::move(args)),

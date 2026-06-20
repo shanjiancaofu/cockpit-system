@@ -509,7 +509,6 @@ cockpit-system
 │
 ├── configs
 │   ├── config.yaml
-│   ├── logging.yaml
 │   ├── shm.yaml
 │   ├── services.yaml
 │   ├── mqtt.yaml
@@ -741,7 +740,7 @@ proto
 ```proto
 syntax = "proto3";
 
-package cockpit.common;
+package cockpit.proto.common;
 
 message Empty {}
 
@@ -770,7 +769,7 @@ enum ServiceState {
 ```proto
 syntax = "proto3";
 
-package cockpit.vehicle;
+package cockpit.proto.vehicle;
 
 message VehicleState {
   uint64 timestamp_ms = 1;
@@ -847,7 +846,7 @@ message RadarFrame {
 ```proto
 syntax = "proto3";
 
-package cockpit.gateway;
+package cockpit.proto.gateway;
 
 import "common.proto";
 import "vehicle_state.proto";
@@ -866,7 +865,7 @@ message CockpitEvent {
   uint64 timestamp_ms = 1;
 
   oneof payload {
-    cockpit.vehicle.VehicleState vehicle_state = 2;
+    cockpit.proto.vehicle.VehicleState vehicle_state = 2;
     cockpit.sensor.SensorState sensor_state = 3;
     cockpit.camera.CameraFrameMeta camera_frame = 4;
     cockpit.radar.RadarFrame radar_frame = 5;
@@ -888,7 +887,7 @@ message ControlCommand {
 }
 
 message ControlReply {
-  cockpit.common.Status status = 1;
+  cockpit.proto.common.Status status = 1;
   string payload_json = 2;
 }
 ```

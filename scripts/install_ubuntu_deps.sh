@@ -10,6 +10,7 @@ sudo apt-get install -y \
   kmod \
   libgrpc++-dev \
   libprotobuf-dev \
+  libyaml-cpp-dev \
   ninja-build \
   pkg-config \
   protobuf-compiler \
@@ -19,4 +20,4 @@ cmake --version
 g++ --version
 ninja --version
 protoc --version
-grpc_cpp_plugin --version || true
+command -v grpc_cpp_plugin

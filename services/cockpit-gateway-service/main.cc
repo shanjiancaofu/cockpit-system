@@ -1,22 +1,23 @@
 #include "core/logging/Logger.h"
 #include "core/runtime/ServiceRuntime.h"
-#include "modules/vehicle/VehicleState.h"
+#include "vehicle_state_client.h"
 
-#include <iostream>
 #include <string>
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "cockpit-gateway-service");
-  const auto& config = runtime.config();
-  const int grpc_port = config.GetInt("gateway.grpc_port", 50051);
-  const int websocket_port = config.GetInt("gateway.websocket_port", 18080);
-  LOG_INFO("gateway listen plan grpc_port=" + std::to_string(grpc_port) +
-           " websocket_port=" + std::to_string(websocket_port));
+  const auto& config = runtime.config().services().gateway;
+  const std::string& grpc_address = config.grpc.listen_address;
+  const std::string& websocket_address = config.websocket.listen_address;
+  const std::string& vehicle_data_address = config.vehicle_data_address;
+  const int samples = runtime.args().GetInt("samples", 3);
+  const int max_hz = runtime.args().GetInt("max-hz", 10);
+  LOG_INFO("gateway listen plan grpc_address=" + grpc_address +
+           " websocket_address=" + websocket_address);
 
-  const auto state = cockpit::vehicle::MakeMockVehicleState(0);
-  std::cout << "gateway snapshot: " << state.ToJson() << std::endl;
-  LOG_INFO("gateway emitted mock snapshot");
-  LOG_WARN("gRPC and WebSocket transports are interface placeholders in this scaffold");
+  cockpit::gateway::VehicleStateClient client(
+      vehicle_data_address, config.stream_timeout_ms, config.retry_delay_ms);
+  const int result = client.Stream(samples, max_hz);
   runtime.MarkStopped();
-  return 0;
+  return result;
 }

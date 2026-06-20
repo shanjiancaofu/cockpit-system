@@ -29,9 +29,10 @@ Later phases:
 
 ## Config
 
-- `vehicle.id`
-- `mqtt.broker`
-- `mqtt.telemetry_topic`
-- `mqtt.qos`
-- `logging.dir`
+- `system.vehicle_id`
+- `services.cloud_uplink.enabled`
+- `services.cloud_uplink.mqtt.broker`
+- `services.cloud_uplink.mqtt.telemetry_topic`
+- `services.cloud_uplink.mqtt.qos`
+- `paths.log_dir`
 - `logging.level`

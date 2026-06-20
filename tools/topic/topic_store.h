@@ -10,7 +10,7 @@
 
 namespace cockpit {
 namespace config {
-class Config;
+class SystemConfig;
 }  // namespace config
 namespace topic {
 
@@ -18,7 +18,7 @@ using Registry = std::map<std::string, std::pair<std::int64_t, std::string>>;
 
 class TopicStore {
  public:
-  explicit TopicStore(const cockpit::config::Config& config);
+  explicit TopicStore(const cockpit::config::SystemConfig& config);
 
   const std::filesystem::path& topic_dir() const { return topic_dir_; }
   std::filesystem::path TopicFile(const std::string& topic) const;

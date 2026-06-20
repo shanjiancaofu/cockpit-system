@@ -1,4 +1,4 @@
-#include "core/config/Config.h"
+#include "core/config/system_config.h"
 #include "topic_command_line.h"
 #include "topic_echo.h"
 #include "topic_hz.h"
@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
   }
 
   const std::string config_path = Option(line, "config", "configs/config.yaml");
-  auto config = cockpit::config::Config::LoadFromFile(config_path);
+  auto config = cockpit::config::SystemConfig::LoadFromFile(config_path);
 
   if (line.command == "list") {
     return RunListCommand(config, line);

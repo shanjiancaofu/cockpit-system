@@ -4,15 +4,15 @@
 
 Aggregate local service state and provide stable UI/debug interfaces.
 
-First phase:
+Current:
 
 - Load config and initialize logging.
-- Emit a mock vehicle snapshot.
-- Preserve the gRPC/WebSocket boundary.
+- Subscribe to the vehicle-data gRPC stream.
+- Retry interrupted streams and discard duplicate timestamps.
+- Preserve the downstream gRPC/WebSocket boundary.
 
 Later phases:
 
-- Subscribe to `vehicle-data-service`.
 - Provide `CockpitGateway.SubscribeCockpitEvents` for Qt/QML.
 - Provide WebSocket JSON state for `apps/web-dashboard`.
 - Apply throttling and filtering before UI delivery.
@@ -29,7 +29,10 @@ Later phases:
 
 ## Config
 
-- `gateway.grpc_port`
-- `gateway.websocket_port`
-- `logging.dir`
+- `services.gateway.vehicle_data_address`
+- `services.gateway.stream_timeout_ms`
+- `services.gateway.retry_delay_ms`
+- `services.gateway.grpc.listen_address`
+- `services.gateway.websocket.listen_address`
+- `paths.log_dir`
 - `logging.level`

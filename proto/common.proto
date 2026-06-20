@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package cockpit.common;
+package cockpit.proto.common;
 
 message Error {
   int32 code = 1;

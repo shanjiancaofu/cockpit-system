@@ -18,7 +18,9 @@
    - 一个主仓库、多个内部模块以及未来拆库条件。
 5. [implementation_status.md](implementation_status.md)
    - 已完成、未完成和验证状态。
-6. [change_log.md](change_log.md)
+6. [configuration.md](configuration.md)
+   - 参考 zcarcloud 后确定的 YAML 分区、类型化与校验规则。
+7. [change_log.md](change_log.md)
    - 每批改动的中英双语记录。
 
 ## 参考与专项

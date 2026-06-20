@@ -8,9 +8,10 @@
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "cloud-uplink-service");
   const auto& config = runtime.config();
-  const std::string broker = config.GetString("mqtt.broker", "tcp://127.0.0.1:1883");
-  const std::string topic = config.GetString("mqtt.telemetry_topic", "vehicle/status");
-  const std::string vehicle_id = config.GetString("vehicle.id", "car_001");
+  const auto& mqtt = config.services().cloud_uplink.mqtt;
+  const std::string& broker = mqtt.broker;
+  const std::string& topic = mqtt.telemetry_topic;
+  const std::string& vehicle_id = config.system().vehicle_id;
 
   auto state = cockpit::vehicle::MakeMockVehicleState(1);
   LOG_INFO("cloud uplink plan vehicle_id=" + vehicle_id + " broker=" + broker);

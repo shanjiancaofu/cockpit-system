@@ -22,12 +22,12 @@ cockpit::can::CanFrame MakeMockCanFrame(int sequence) {
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "can-simulator");
-  const auto& config = runtime.config();
+  const auto& config = runtime.config().hardware().can;
 
-  const std::string can_if = config.GetString("can.interface", "vcan0");
+  const std::string& can_if = config.interface;
   const std::string backend =
-      runtime.args().GetString("backend", config.GetString("can.simulator_backend", "stdout"));
-  const int interval_ms = config.GetInt("can.simulator_interval_ms", 100);
+      runtime.args().GetString("backend", config.simulator_backend);
+  const int interval_ms = config.simulator_interval_ms;
   const int samples = runtime.args().GetInt("samples", 10);
 
   cockpit::can::SocketCan socket;

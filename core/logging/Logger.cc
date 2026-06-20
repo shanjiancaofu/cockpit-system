@@ -19,6 +19,7 @@ std::mutex g_mutex;
 std::ofstream g_output;
 std::string g_log_path;
 Level g_min_level = Level::kInfo;
+bool g_mirror_stderr = true;
 
 std::string LevelName(Level level) {
   switch (level) {
@@ -70,7 +71,8 @@ void RotateIfNeeded(const std::string& path, long long max_bytes) {
 void InitLogger(const std::string& service_name,
                 const std::string& log_dir,
                 Level min_level,
-                long long max_bytes) {
+                long long max_bytes,
+                bool mirror_stderr) {
   std::lock_guard<std::mutex> lock(g_mutex);
   namespace fs = std::filesystem;
   fs::create_directories(log_dir);
@@ -81,6 +83,7 @@ void InitLogger(const std::string& service_name,
   }
   g_output.open(g_log_path, std::ios::app);
   g_min_level = min_level;
+  g_mirror_stderr = mirror_stderr;
   if (g_output.is_open()) {
     g_output << "\n--- log started " << NowString() << " service=" << service_name << " ---\n";
     g_output.flush();
@@ -100,7 +103,9 @@ void Log(Level level, const char* file, int line, const std::string& message) {
     g_output << line_text << '\n';
     g_output.flush();
   }
-  std::cerr << line_text << '\n';
+  if (g_mirror_stderr) {
+    std::cerr << line_text << '\n';
+  }
 }
 
 Level ParseLevel(const std::string& value, Level default_level) {

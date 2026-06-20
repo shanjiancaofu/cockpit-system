@@ -17,13 +17,14 @@
 - 统一配置、日志、服务生命周期和车辆状态模型。
 - `CanFrame` 与 Linux SocketCAN RAII 封装。
 - `VehicleCanCodec` 与 `vehicle-data-service --source mock|socketcan`。
+- protobuf/gRPC C++ 自动生成与 VehicleState server-streaming 链路。
 - `can-simulator --backend stdout|socketcan`。
-- `vehicle-data-service` mock 车辆状态输出。
-- `cockpit-gateway-service`、`cloud-uplink-service` 服务边界。
+- `vehicle-data-service` 提供 mock/SocketCAN 数据源和 gRPC 状态流。
+- `cockpit-gateway-service` 订阅车辆状态，支持断线重连与消息去重。
 - ROS 风格 `topic list/info/pub/echo/hz` 调试工具。
 - Qt/QML cockpit UI 和本地 Web dashboard 目录骨架。
 
-尚未完成的真实传输包括：vehicle-data-service SocketCAN 接收、gRPC、WebSocket 和 MQTT。
+尚未完成的真实传输包括：gateway 对 UI 的 gRPC/WebSocket 输出和 MQTT。
 
 ## 目录
 
@@ -59,7 +60,8 @@ build/bin/can-simulator --backend stdout --samples 3
 build/bin/can-simulator --backend socketcan --samples 3
 build/bin/vehicle-data-service --config configs/config.yaml --samples 3
 build/bin/vehicle-data-service --source socketcan --config configs/config.yaml --samples 3
-build/bin/cockpit-gateway-service --config configs/config.yaml
+build/bin/vehicle-data-service --config configs/config.yaml --forever
+build/bin/cockpit-gateway-service --config configs/config.yaml --samples 3
 build/bin/cloud-uplink-service --config configs/config.yaml --once
 build/bin/topic list --config configs/config.yaml
 build/bin/topic echo /dev/smoke --tail 1 --config configs/config.yaml

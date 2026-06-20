@@ -14,7 +14,7 @@
 namespace cockpit {
 namespace topic {
 
-int RunPubCommand(const cockpit::config::Config& config, const CommandLine& line) {
+int RunPubCommand(const cockpit::config::SystemConfig& config, const CommandLine& line) {
   if (line.positionals.empty()) {
     std::cerr << "topic pub requires <topic> and <payload>\n";
     return 2;
