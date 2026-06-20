@@ -5,7 +5,7 @@ ApplicationWindow {
     width: 1280
     height: 720
     visible: true
-    title: "Smart Cockpit"
+    title: "cockpit-system"
 
     StackView {
         anchors.fill: parent

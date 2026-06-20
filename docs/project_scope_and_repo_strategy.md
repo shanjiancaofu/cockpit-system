@@ -1,10 +1,10 @@
 # Project Scope and Repository Strategy
 
-This document records the current scope decision for `system`.
+This document records the current scope decision for `cockpit-system`.
 
 ## Current Project Goal
 
-`system` is the Jetson-side smart cockpit project.
+`cockpit-system` is the Jetson-side smart cockpit project.
 
 The first goal is not to build a full cloud platform. The first goal is to build a usable local
 Jetson vehicle smart cockpit system:
@@ -25,7 +25,7 @@ current first-stage scope.
 Current decision:
 
 ```text
-Use one repository/folder: system
+Use one repository/folder: cockpit-system
 Do not create backend/frontend repositories yet
 Do not split common modules into separate external libraries yet
 ```
@@ -43,7 +43,7 @@ Reason:
 Recommended current shape:
 
 ```text
-system/
+cockpit-system/
   apps/                 # Qt/QML cockpit UI and local debug dashboard
   common/               # shared in-repo libraries
   configs/              # runtime config and systemd examples
@@ -58,17 +58,21 @@ system/
 The project should still use internal CMake libraries. This keeps code modular without creating
 separate repositories.
 
-Current internal library:
+Current internal libraries:
 
 ```text
-core
+config
+logging
+runtime
+utils
+vehicle
+can
+core    # compatibility aggregate
 ```
 
 Planned internal libraries:
 
 ```text
-core    # runtime, config, logging, time, base vehicle models
-can     # SocketCAN access and CAN frame helpers
 audio   # microphone, speaker, capture/playback helpers
 ai      # ASR, TTS, LLM provider adapters and orchestration helpers
 proto   # protobuf contracts and generated code
@@ -93,7 +97,7 @@ Possible future shape:
 
 ```text
 project/
-  system/               # Jetson cockpit client
+  cockpit-system/       # Jetson cockpit client
   local-server/         # optional local data backend
   web-dashboard/        # optional browser dashboard
   shared-proto/         # optional shared protocol package

@@ -501,4 +501,30 @@ failure cleanup
 6. `cloud-uplink-service`
    - 先实现 HTTP config pull workflow
    - MQTT telemetry 放到配置拉取之后
+## 13. CAN reference update
 
+The SocketCAN foundation also references:
+
+- `/home/ffz/code/project/无人车/can/can_ws/src/can_analyze/include/CanSocket.h`
+- `/home/ffz/code/project/无人车/can/can_ws/src/can_analyze/src/CanSocket.cpp`
+- `/home/ffz/code/project/无人车/can/can_ws/src/can_analyze/src/CanHandler.cpp`
+
+Reused ideas:
+
+- Linux PF_CAN/SOCK_RAW/CAN_RAW socket setup.
+- SIOCGIFINDEX interface lookup and sockaddr_can bind.
+- Native can_frame read/write flow.
+- Chassis and battery frame IDs as future decoder references.
+
+Not copied:
+
+- ROS2 dependencies and message publishers.
+- Global sockets, buffers, flags, mutexes, and condition variables.
+- Detached read threads and manual lock/unlock paths.
+- Fixed-size cycle buffers without index bounds checks.
+
+Implemented in this repository:
+
+- `common/can/CanFrame`
+- `common/can/SocketCan`
+- `can-simulator --backend stdout|socketcan`

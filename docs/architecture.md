@@ -1,6 +1,6 @@
 # Architecture Snapshot
 
-Source document: `../architecture_refined_v0.3.md`.
+Source document: `docs/architecture_refined_v0.3.md`.
 
 Scope and repository decision: see `docs/project_scope_and_repo_strategy.md`.
 
@@ -32,9 +32,10 @@ Current implementation boundary:
 Current directory shape:
 
 ```text
-system/
+cockpit-system/
   apps/                 # Qt/QML cockpit and local Jetson debug dashboard placeholders
   common/
+    can/                # CAN frame model and Linux SocketCAN
     config/             # config file reader, later yaml-cpp
     logging/            # service logger
     proto/              # protobuf contracts
@@ -72,11 +73,9 @@ Voice/AI scope for this Jetson project:
 
 Immediate next engineering tasks:
 
-1. Add `common/can` with fd RAII and poll timeout, based on the transport-layer style audited in
-   `docs/reference_code_audit.md`.
-2. Let `can-simulator` support `stdout|socketcan` backends.
-3. Let `vehicle-data-service` support `mock|socketcan` sources.
-4. Replace the lightweight config reader with `yaml-cpp` and typed config structs.
-5. Add protobuf and gRPC generation through CMake.
-6. Implement `cockpit-gateway-service` streaming fan-out.
-7. Add an audio hardware probe tool for microphone/speaker before implementing voice AI.
+1. Let `vehicle-data-service` support `mock|socketcan` sources.
+2. Decode selected chassis frames into `VehicleState`.
+3. Replace the lightweight config reader with `yaml-cpp` and typed config structs.
+4. Add protobuf and gRPC generation through CMake.
+5. Implement `cockpit-gateway-service` streaming fan-out.
+6. Add an audio hardware probe tool for microphone/speaker before implementing voice AI.

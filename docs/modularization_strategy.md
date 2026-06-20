@@ -1,23 +1,39 @@
 # Modularization Strategy
 
-This document records the current code organization decision for `system`.
+This document records the current code organization decision for `cockpit-system`.
 
 ## Decision
 
 Keep one main project:
 
 ```text
-system/
+cockpit-system/
 ```
 
 Use internal modules inside this project:
 
 ```text
-core
+config
+logging
+runtime
+utils
+vehicle
 can
 audio
 ai
 proto
+```
+
+Implemented internal targets:
+
+```text
+config
+logging
+runtime
+utils
+vehicle
+can
+core    # compatibility aggregate
 ```
 
 Do not create separate repositories yet. The code should still be organized so that a module can
@@ -51,7 +67,23 @@ navigator
   -> navigator.title_edit
 ```
 
-Useful ideas for `system`:
+Applied CMake pattern:
+
+```text
+common/CMakeLists.txt
+  -> add_subdirectory(config)
+  -> add_subdirectory(logging)
+  -> add_subdirectory(runtime)
+  -> add_subdirectory(utils)
+  -> add_subdirectory(vehicle)
+  -> add_subdirectory(can)
+
+common/<module>/CMakeLists.txt
+  -> source files
+  -> direct target dependencies
+```
+
+Useful ideas for `cockpit-system`:
 
 - Keep entry binaries thin.
 - Put real behavior in internal modules.
@@ -71,7 +103,7 @@ Ideas not copied directly:
 Short-term layout:
 
 ```text
-system/
+cockpit-system/
   common/
     config/
     logging/
@@ -96,8 +128,13 @@ system/
 CMake targets:
 
 ```text
-core     # config, logging, runtime, utils, base vehicle models
+config   # runtime configuration
+logging  # logging implementation
+runtime  # service lifecycle; depends on config and logging
+utils    # low-level helpers
+vehicle  # base vehicle models; depends on utils
 can      # SocketCAN and CAN frame helpers
+core     # temporary compatibility aggregate
 audio    # microphone/speaker capture and playback helpers
 ai       # ASR/TTS/LLM adapters and orchestration helpers
 proto    # protobuf contracts and generated code
@@ -120,15 +157,17 @@ Default dependency direction:
 
 ```text
 apps/services/tools
-  -> proto
-  -> ai/audio/can
-  -> core
+  -> required feature modules
+  -> runtime/config/logging/utils
 ```
 
 Rules:
 
-- `core` must not depend on `can`, `audio`, `ai`, or service code.
-- `can`, `audio`, and `ai` may depend on `core`.
+- Every `common/<module>` directory owns its `CMakeLists.txt`.
+- Every target declares direct dependencies instead of relying on global link state.
+- `core` is only a compatibility aggregate and must not include `can`, `audio`, or `ai`.
+- New binaries should link the smallest module targets they need.
+- `can`, `audio`, and `ai` may depend on low-level modules, but not service code.
 - `proto` should stay mostly independent; generated code can be linked by services and gateway.
 - UI code must not access hardware modules directly.
 - Hardware access belongs in service/tool modules.

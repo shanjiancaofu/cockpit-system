@@ -1,61 +1,86 @@
-# Smart-Cockpit-System
+# cockpit-system
 
-`system` 是新的 Jetson 智能车机 / 座舱原型工程落点，也就是运行在 Jetson 上的车端客户端，依据
-`../architecture_refined_v0.3.md` 初始化。
+运行在 Jetson Orin / Linux 上的智能车机与座舱原型系统。
 
-云端不放在本目录中：
+当前主仓库：
 
-- `../cloud-backend`：云端后端服务。
-- `../cloud-frontend`：云端管理前端。
-
-当前阶段的目标不是一次性把所有旧项目代码搬进来，而是先完成可继续演进的工程骨架：
-
-- `common/config`：轻量运行配置读取，后续替换为 `yaml-cpp`。
-- `common/logging`：统一日志入口，支持文件输出和简单滚动。
-- `common/proto`：保留 gRPC/protobuf 接口草案。
-- `services/vehicle-data-service`：车辆状态服务占位，当前输出 mock `VehicleState`。
-- `services/cockpit-gateway-service`：网关聚合服务占位，当前保留服务边界。
-- `services/cloud-uplink-service`：车云上报服务占位，参考车云 HTTP/proto 字段。
-- `tools/can-simulator`：CAN 模拟器占位，后续接 SocketCAN/vcan0。
-- `docs/reference_projects.md`：旧项目复用分析和新工程决策入口。
-- `docs/project_scope_and_repo_strategy.md`：当前项目范围、是否拆库、可用性/可行性/可拓展性决策。
-
-`apps/web-dashboard` 如果保留，只代表 Jetson 本地调试页面，不代表云端管理前端。
-
-## 源文件后缀
-
-本工程统一使用 `.cc` 作为 C++ 源文件后缀。`.cc` 和 `.cpp` 没有语言层面的优劣，
-选择 `.cc` 是为了贴近当前参考的 zelos C++ 代码库和 protobuf/gRPC 工程习惯。
-
-## 构建
-
-```bash
-bash scripts/build.sh
+```text
+/home/ffz/code/github/cockpit-system
 ```
 
-Windows 主机建议在 WSL2 发行版内执行：
+项目采用一个主仓库、多个内部 CMake 模块的方式开发。当前先完成 Jetson 本机链路，
+云端后端和云端管理前端仅保留为未来可选扩展，不在现阶段创建独立仓库。
+
+## 当前能力
+
+- C++17 + CMake + Ninja 构建链路。
+- 统一配置、日志、服务生命周期和车辆状态模型。
+- `CanFrame` 与 Linux SocketCAN RAII 封装。
+- `can-simulator --backend stdout|socketcan`。
+- `vehicle-data-service` mock 车辆状态输出。
+- `cockpit-gateway-service`、`cloud-uplink-service` 服务边界。
+- ROS 风格 `topic list/info/pub/echo/hz` 调试工具。
+- Qt/QML cockpit UI 和本地 Web dashboard 目录骨架。
+
+尚未完成的真实传输包括：vehicle-data-service SocketCAN 接收、gRPC、WebSocket 和 MQTT。
+
+## 目录
+
+```text
+apps/       Qt/QML UI 与本地浏览器调试页面
+common/     core、can、proto 等内部模块
+configs/    YAML 与 systemd 配置
+docs/       架构、范围、参考审计和变更记录
+services/   Jetson 本机常驻服务
+tools/      CAN 模拟器、topic 等开发工具
+tests/      smoke 与单元测试
+```
+
+## 构建与验证
 
 ```bash
-cd /mnt/e/code/project/system
-bash scripts/install_ubuntu_deps.sh   # only needed once on a fresh Ubuntu distro
+cd /home/ffz/code/github/cockpit-system
+rm -rf build
 bash scripts/build.sh
 bash scripts/run_smoke.sh
 ```
 
-## 运行
+从旧目录复制过来的 `build/` 可能保存旧 CMake 路径。遇到 cache path mismatch 时删除
+`build/`，然后重新执行标准构建脚本。
+
+## 常用命令
 
 ```bash
+build/bin/can-simulator --backend stdout --samples 3
+build/bin/can-simulator --backend socketcan --samples 3
 build/bin/vehicle-data-service --config configs/config.yaml --samples 3
 build/bin/cockpit-gateway-service --config configs/config.yaml
 build/bin/cloud-uplink-service --config configs/config.yaml --once
-build/bin/can-simulator --config configs/config.yaml --samples 5
+build/bin/topic list --config configs/config.yaml
+build/bin/topic echo /dev/smoke --tail 1 --config configs/config.yaml
+build/bin/topic hz /dev/smoke --window 100 --config configs/config.yaml
 ```
 
-如果本机没有 Ninja，`scripts/build.sh` 会自动退回 CMake 默认生成器。
+SocketCAN 模式需要已经启动的 `vcan0` 或真实 `can0`。
 
-## 旧项目参考边界
+## 文档
 
-- `../vehicle-system`：Qt Widgets 车机壳、日志滚动、进程启动模式，适合参考和改造。
-- `../zelos/car_cloud_server`：车辆侧配置拉取、状态上报、数据库仓储分层，适合沉淀协议与云端流程。
-- `../zelos/zcarcloud*` 和 `../zelos/safe_ota`：C++17、xmake、protobuf、YAML、信号退出、包安装经验，适合总结规则，不直接复制。
-- `../车机项目`、`../VechicleSystem-main`、`../无人车`：硬件 demo 和历史资料，只作为驱动、设备树、Qt demo 参考。
+文档入口见 [docs/README.md](docs/README.md)。
+
+重要文档：
+
+- [总体架构蓝图](docs/architecture_refined_v0.3.md)
+- [当前架构快照](docs/architecture.md)
+- [项目范围与仓库策略](docs/project_scope_and_repo_strategy.md)
+- [模块化策略](docs/modularization_strategy.md)
+- [实施状态](docs/implementation_status.md)
+- [变更记录](docs/change_log.md)
+- [旧代码审计](docs/reference_code_audit.md)
+
+## 工程约定
+
+- C++ 源文件统一使用 `.cc`。
+- C++ namespace 统一使用 `cockpit::...`。
+- 硬件模块先支持 mock，再接真实设备。
+- 公开接口与私有实现需要在头文件中明确区分。
+- 每批代码改动同步更新 `docs/change_log.md`。

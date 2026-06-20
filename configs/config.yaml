@@ -5,6 +5,7 @@ vehicle:
 
 can:
   interface: vcan0
+  simulator_backend: stdout
   simulator_interval_ms: 100
 
 topics:
