@@ -1,5 +1,6 @@
-#include "common/can/can_frame.h"
-#include "common/vehicle/VehicleState.h"
+#include "modules/can/can_frame.h"
+#include "modules/vehicle/VehicleState.h"
+#include "modules/vehicle/vehicle_can_codec.h"
 
 #include <array>
 #include <iostream>
@@ -19,5 +20,31 @@ int main() {
     std::cerr << "invalid CAN frame formatting" << std::endl;
     return 1;
   }
+
+  const auto encoded = cockpit::vehicle::VehicleCanCodec::Encode(state);
+  cockpit::vehicle::VehicleState decoded;
+  if (cockpit::vehicle::VehicleCanCodec::Decode(encoded, &decoded) !=
+          cockpit::vehicle::VehicleCanDecodeStatus::kDecoded ||
+      decoded.speed_kph != state.speed_kph || decoded.gear != state.gear ||
+      decoded.soc_percent != state.soc_percent || decoded.source != "socketcan") {
+    std::cerr << "vehicle CAN codec round trip failed" << std::endl;
+    return 1;
+  }
+
+  const cockpit::can::CanFrame unrelated(0x456, data, 5);
+  if (cockpit::vehicle::VehicleCanCodec::Decode(unrelated, &decoded) !=
+      cockpit::vehicle::VehicleCanDecodeStatus::kIgnored) {
+    std::cerr << "unrelated CAN frame was not ignored" << std::endl;
+    return 1;
+  }
+
+  const cockpit::can::CanFrame truncated(
+      cockpit::vehicle::VehicleCanCodec::kStateFrameId, data, 4);
+  if (cockpit::vehicle::VehicleCanCodec::Decode(truncated, &decoded) !=
+      cockpit::vehicle::VehicleCanDecodeStatus::kInvalid) {
+    std::cerr << "truncated vehicle CAN frame was accepted" << std::endl;
+    return 1;
+  }
+
   return 0;
 }

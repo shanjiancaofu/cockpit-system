@@ -7,6 +7,8 @@ can:
   interface: vcan0
   simulator_backend: stdout
   simulator_interval_ms: 100
+  receive_timeout_ms: 500
+  max_idle_timeouts: 10
 
 topics:
   backend: file

@@ -52,7 +52,7 @@
 3. **先用户态，后驱动**：CAN、传感器、摄像头、雷达先用用户态方案跑通，后续再补 Linux 驱动、设备树和内核模块。
 4. **先 mock，后真设备**：新模块先支持 mock 数据或模拟器，确认链路后再接真实硬件。
 5. **大数据和控制面分离**：车辆状态、控制命令走 gRPC；视频帧、点云等大块数据走共享内存或媒体管线。
-6. **日志和配置是基础设施**：所有服务必须统一使用 `common/logging` 和 `common/config`，避免每个模块自行实现一套。
+6. **日志和配置是基础设施**：所有服务必须统一使用 `core/logging` 和 `core/config`，避免每个模块自行实现一套。
 7. **工程工具链先统一**：格式化、静态检查、测试、Sanitizer、CI、打包部署规则必须在项目早期确定。
 8. **旧项目经验优先沉淀为规则**：旧项目中的启动流程、日志习惯、网络重连、打包脚本、协议处理方式，优先总结为文档和模板，再决定是否复用代码。
 
@@ -87,11 +87,11 @@ flowchart TB
     end
 
     subgraph COMMON[公共基础设施]
-        PROTO[common/proto\nprotobuf 定义]
-        LOG[common/logging\n日志宏 / spdlog / journald]
-        CONFIG[common/config\nYAML 配置]
-        SHM[common/shm\n共享内存 RingBuffer]
-        DB[common/database\nSQLite 封装]
+        PROTO[proto\nprotobuf 定义]
+        LOG[core/logging\n日志宏 / spdlog / journald]
+        CONFIG[core/config\nYAML 配置]
+        SHM[core/shm\n共享内存 RingBuffer]
+        DB[core/database\nSQLite 封装]
     end
 
     subgraph HARDWARE[硬件与系统接口]
@@ -234,12 +234,12 @@ flowchart TB
 
 | 模块 | 目录 | 说明 |
 |---|---|---|
-| 配置 | `common/config` | 读取 YAML，提供类型化配置 |
-| 日志 | `common/logging` | 封装日志宏、日志等级、滚动文件 |
-| 协议 | `common/proto` | protobuf 和 gRPC service 定义 |
-| 共享内存 | `common/shm` | RingBuffer、Writer、Reader、metadata |
-| 数据库 | `common/database` | SQLite 封装、表初始化、DAO |
-| 工具 | `common/utils` | 时间戳、线程、文件、字符串、错误码等 |
+| 配置 | `core/config` | 读取 YAML，提供类型化配置 |
+| 日志 | `core/logging` | 封装日志宏、日志等级、滚动文件 |
+| 协议 | `proto` | protobuf 和 gRPC service 定义 |
+| 共享内存 | `core/shm` | RingBuffer、Writer、Reader、metadata |
+| 数据库 | `core/database` | SQLite 封装、表初始化、DAO |
+| 工具 | `core/utils` | 时间戳、线程、文件、字符串、错误码等 |
 
 ---
 
@@ -357,7 +357,7 @@ flowchart TB
     S5[recorder-service]
     S6[cloud-uplink-service]
 
-    LOG[common/logging\nLOG_INFO / LOG_WARN / LOG_ERROR]
+    LOG[core/logging\nLOG_INFO / LOG_WARN / LOG_ERROR]
     FILES[/data/logs/*.log\n滚动日志文件]
     JOURNAL[journald]
     EVENTDB[(events.db\n关键事件)]
@@ -458,23 +458,22 @@ cockpit-system
 │   ├── cloud-uplink-service
 │   └── system-monitor-service
 │
-├── common
-│   ├── proto
-│   │   ├── common.proto
-│   │   ├── gateway.proto
-│   │   ├── vehicle_state.proto
-│   │   ├── sensor_state.proto
-│   │   ├── camera.proto
-│   │   ├── radar.proto
-│   │   ├── media.proto
-│   │   ├── recorder.proto
-│   │   ├── weather.proto
-│   │   ├── backup.proto
-│   │   ├── log.proto
-│   │   ├── storage.proto
-│   │   ├── system_status.proto
-│   │   └── cloud.proto
-│   ├── generated
+├── proto
+│   ├── common.proto
+│   ├── gateway.proto
+│   ├── vehicle_state.proto
+│   ├── sensor_state.proto
+│   ├── camera.proto
+│   ├── radar.proto
+│   ├── media.proto
+│   ├── recorder.proto
+│   ├── weather.proto
+│   ├── backup.proto
+│   ├── log.proto
+│   ├── storage.proto
+│   ├── system_status.proto
+│   └── cloud.proto
+├── core
 │   ├── config
 │   │   ├── ConfigManager.h
 │   │   ├── ConfigManager.cpp
@@ -494,7 +493,14 @@ cockpit-system
 │   ├── database
 │   └── utils
 │
+├── modules
+│   ├── vehicle
+│   ├── can
+│   ├── audio
+│   └── ai
+│
 ├── drivers
+│   ├── socketcan
 │   ├── char_demo
 │   ├── gpio_irq
 │   ├── i2c_sensor
@@ -680,7 +686,7 @@ cockpit-system
 4. 清理旧日志。
 5. 给 Qt LogPage 和 Web Dashboard 提供接口。
 
-注意：`log-service` 不负责替业务服务产生日志。业务服务通过 `common/logging` 自己写日志。
+注意：`log-service` 不负责替业务服务产生日志。业务服务通过 `core/logging` 自己写日志。
 
 ### 8.10 storage-manager-service
 
@@ -713,7 +719,7 @@ cockpit-system
 ### 9.1 proto 文件列表
 
 ```text
-common/proto
+proto
 ├── common.proto
 ├── gateway.proto
 ├── vehicle_state.proto
@@ -1684,7 +1690,10 @@ option(BUILD_RECORDER_SERVICE "Build recorder service" OFF)
 option(BUILD_CLOUD_UPLINK_SERVICE "Build cloud uplink service" OFF)
 option(BUILD_TESTS "Build unit tests" ON)
 
-add_subdirectory(common)
+include(cmake/AddCockpitLibrary.cmake)
+add_subdirectory(core)
+add_subdirectory(modules)
+add_subdirectory(drivers)
 add_subdirectory(services/vehicle-data-service)
 add_subdirectory(services/cockpit-gateway-service)
 add_subdirectory(tools/can-simulator)
@@ -1836,9 +1845,9 @@ mkdir -p cockpit-system/common/{proto,config,logging,utils,generated}
 
 | 模块 | 最小实现 |
 |---|---|
-| `common/config` | 读取 config.yaml |
-| `common/logging` | 初始化日志、LOG_INFO/ERROR 宏 |
-| `common/proto` | VehicleState、CockpitGateway |
+| `core/config` | 读取 config.yaml |
+| `core/logging` | 初始化日志、LOG_INFO/ERROR 宏 |
+| `proto` | VehicleState、CockpitGateway |
 | `vehicle-data-service` | 读取 vcan0 或模拟 VehicleState |
 | `cockpit-gateway-service` | gRPC server，转发 VehicleState |
 | `apps/cockpit-ui` | 显示车速、挡位、SOC |
@@ -1859,10 +1868,10 @@ mkdir -p cockpit-system/common/{proto,config,logging,utils,generated}
 4. 业务服务不直接依赖 Qt。
 5. Qt UI 只通过 gRPC client 获取数据。
 6. QML 不直接访问硬件，不直接读文件数据库。
-7. protobuf 文件放在 `common/proto`。
-8. 生成代码放在 `common/generated` 或 build 目录。
-9. 日志统一使用 `common/logging`，不要直接散落 `std::cout`。
-10. 配置统一使用 `common/config` 读取 YAML。
+7. protobuf 文件放在 `proto`。
+8. 生成代码放在 `build/generated` 或 build 目录。
+9. 日志统一使用 `core/logging`，不要直接散落 `std::cout`。
+10. 配置统一使用 `core/config` 读取 YAML。
 11. 大块数据不要走 gRPC，走共享内存，gRPC 只传 metadata。
 12. 每个模块需要 README，说明职责、输入、输出、配置、启动方式。
 
@@ -1912,8 +1921,8 @@ mkdir -p cockpit-system/common/{proto,config,logging,utils,generated}
 你现在要在 cockpit-system 项目中实现一个模块。请遵守以下架构约束：
 
 1. 项目使用 C++17 + CMake。
-2. 日志统一使用 common/logging，不要使用 std::cout。
-3. 配置统一从 YAML 读取，使用 common/config。
+2. 日志统一使用 core/logging，不要使用 std::cout。
+3. 配置统一从 YAML 读取，使用 core/config。
 4. 本机服务接口使用 gRPC + protobuf。
 5. 普通状态数据走 gRPC，视频帧/点云等大块数据不要走 gRPC。
 6. 每个类要职责单一，注意 RAII 和线程退出。

@@ -23,8 +23,8 @@ push-to-talk
 ```text
 services/audio-service
 services/voice-interaction-service
-common/audio
-common/ai
+modules/audio
+modules/ai
 tools/audio-probe
 ```
 
@@ -57,7 +57,7 @@ Responsibilities:
 
 The first version should prefer push-to-talk. Wake word can come later.
 
-### common/ai
+### modules/ai
 
 Responsibilities:
 
@@ -117,7 +117,7 @@ ai:
 ## Build Order
 
 1. `tools/audio-probe`: list input/output devices and record/play a short test file.
-2. `common/audio`: RAII wrappers for audio device/session.
+2. `modules/audio`: RAII wrappers for audio device/session.
 3. `audio-service`: service boundary and status reporting.
 4. `voice-interaction-service`: mock ASR/TTS/LLM pipeline.
 5. Replace mock provider with local or remote model.

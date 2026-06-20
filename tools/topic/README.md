@@ -63,8 +63,8 @@ cockpit::topic
 CMake visibility:
 
 - `topic_commands` publishes only its local include directory.
-- `core` is private to `topic_commands` for command implementations.
-- `topic` links `core` privately because `main.cc` loads config.
+- `topic_commands` links `config` and `utils` for storage and timestamps.
+- `topic` links `config` because `main.cc` loads runtime configuration.
 - `topic` links `topic_commands` privately.
 
 Future scope:

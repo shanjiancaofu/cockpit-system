@@ -16,6 +16,7 @@
 - C++17 + CMake + Ninja 构建链路。
 - 统一配置、日志、服务生命周期和车辆状态模型。
 - `CanFrame` 与 Linux SocketCAN RAII 封装。
+- `VehicleCanCodec` 与 `vehicle-data-service --source mock|socketcan`。
 - `can-simulator --backend stdout|socketcan`。
 - `vehicle-data-service` mock 车辆状态输出。
 - `cockpit-gateway-service`、`cloud-uplink-service` 服务边界。
@@ -28,7 +29,10 @@
 
 ```text
 apps/       Qt/QML UI 与本地浏览器调试页面
-common/     core、can、proto 等内部模块
+core/       配置、日志、生命周期和基础工具
+modules/    vehicle、can 等平台无关领域能力
+drivers/    SocketCAN 等 Linux/硬件适配层
+proto/      protobuf 与 gRPC 接口契约
 configs/    YAML 与 systemd 配置
 docs/       架构、范围、参考审计和变更记录
 services/   Jetson 本机常驻服务
@@ -54,6 +58,7 @@ bash scripts/run_smoke.sh
 build/bin/can-simulator --backend stdout --samples 3
 build/bin/can-simulator --backend socketcan --samples 3
 build/bin/vehicle-data-service --config configs/config.yaml --samples 3
+build/bin/vehicle-data-service --source socketcan --config configs/config.yaml --samples 3
 build/bin/cockpit-gateway-service --config configs/config.yaml
 build/bin/cloud-uplink-service --config configs/config.yaml --once
 build/bin/topic list --config configs/config.yaml
@@ -62,6 +67,12 @@ build/bin/topic hz /dev/smoke --window 100 --config configs/config.yaml
 ```
 
 SocketCAN 模式需要已经启动的 `vcan0` 或真实 `can0`。
+
+WSL/Ubuntu 虚拟 CAN 端到端验证：
+
+```bash
+bash scripts/run_vcan_smoke.sh
+```
 
 ## 文档
 

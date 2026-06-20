@@ -22,7 +22,7 @@ Current implementation boundary:
 - The project stays as one repository/folder for now. It should grow through internal CMake
   libraries and service modules, not early repository splitting.
 - C++ source files use `.cc` consistently to match the zelos C++ repositories.
-- gRPC/protobuf files are defined in `common/proto`, but C++ generation is deferred.
+- gRPC/protobuf files are defined in `proto`, but C++ generation is deferred.
 - YAML is represented by a lightweight parser so the scaffold can build without external packages.
 - `vehicle-data-service`, `cockpit-gateway-service`, `cloud-uplink-service`, and
   `can-simulator` are runnable placeholders.
@@ -34,14 +34,17 @@ Current directory shape:
 ```text
 cockpit-system/
   apps/                 # Qt/QML cockpit and local Jetson debug dashboard placeholders
-  common/
-    can/                # CAN frame model and Linux SocketCAN
+  core/
     config/             # config file reader, later yaml-cpp
     logging/            # service logger
-    proto/              # protobuf contracts
     runtime/            # args, config load, logger init, signal handling
     utils/              # low-level helpers
+  modules/
+    can/                # platform-independent CAN frame model
     vehicle/            # hand-written vehicle model before generated proto is enabled
+  drivers/
+    socketcan/          # Linux SocketCAN adapter
+  proto/                # protobuf contracts
   configs/              # runtime YAML and systemd examples
   docs/                 # architecture and old-project references
   services/             # long-running local services

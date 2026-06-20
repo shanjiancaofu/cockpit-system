@@ -72,7 +72,7 @@ Create business service
 
 ### 对 system 的规则
 
-当前 `common/runtime/ServiceRuntime` 已吸收了：
+当前 `core/runtime/ServiceRuntime` 已吸收了：
 
 - 命令行解析
 - 配置加载
@@ -132,7 +132,7 @@ Load(file)
   - `LoggingConfig`
   - `PathConfig`
 - `ReloadConfig()` 必须支持失败回滚。
-- 配置路径不要散落在业务代码里，应集中在 `common/config`。
+- 配置路径不要散落在业务代码里，应集中在 `core/config`。
 
 ## 3. 日志系统
 
@@ -153,7 +153,7 @@ Qt 日志实现中值得吸收的点：
 
 ### 对 system 的规则
 
-当前 `common/logging` 已支持：
+当前 `core/logging` 已支持：
 
 - 每服务独立日志文件。
 - 简单滚动。
@@ -410,7 +410,7 @@ failure cleanup
 - 上报时间戳统一 `int64 timestamp_ms`。
 - 所有外部输入都要严格校验，不接受“差不多能解析”的格式。
 
-后续 `common/database`：
+后续 `core/database`：
 
 - 本地 SQLite 表也采用 metadata + content/checksum 的结构。
 - 外部路径不要直接作为数据库唯一事实。
@@ -471,16 +471,16 @@ failure cleanup
 当前已经落地：
 
 - `.cc` 后缀统一，贴近 zelos C++ 风格。
-- `common/runtime` 吸收服务启动、配置、日志、信号退出。
-- `common/logging` 吸收每服务独立日志和滚动。
-- `common/proto/cloud.proto` 吸收车辆状态上报、配置拉取字段。
+- `core/runtime` 吸收服务启动、配置、日志、信号退出。
+- `core/logging` 吸收每服务独立日志和滚动。
+- `proto/cloud.proto` 吸收车辆状态上报、配置拉取字段。
 - `docs/reference_projects.md` 记录高层复用判断。
 
 ## 12. 建议的下一批代码任务
 
 优先级从高到低：
 
-1. `common/can`
+1. `modules/can`
    - `CanFrame`
    - `SocketCanReader`
    - `SocketCanWriter`
@@ -492,10 +492,10 @@ failure cleanup
 3. `vehicle-data-service`
    - 支持 `vehicle.source=mock|socketcan`
    - socketcan 模式从 `vcan0` 读取并解析 VehicleState
-4. `common/logging`
+4. `core/logging`
    - 重复日志压缩
    - 配置 `mirror_stderr`
-5. `common/config`
+5. `core/config`
    - 引入 `yaml-cpp`
    - typed config structs
 6. `cloud-uplink-service`
@@ -525,6 +525,7 @@ Not copied:
 
 Implemented in this repository:
 
-- `common/can/CanFrame`
-- `common/can/SocketCan`
+- `modules/can/CanFrame`
+- `drivers/socketcan/SocketCan`
+- `modules/vehicle/VehicleCanCodec`
 - `can-simulator --backend stdout|socketcan`

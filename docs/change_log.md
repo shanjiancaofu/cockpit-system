@@ -5,13 +5,104 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
-## 2026-06-20 - common 构建模块化 / Common Build Modularization
+## 2026-06-21 - gRPC 构建前置 / gRPC Build Prerequisites
 
 ### 变更内容 / Changed
 
-- 参考 `znavigator`，为 `common/config`、`logging`、`runtime`、`utils`、`vehicle`、
-  `can` 分别增加独立 `CMakeLists.txt`。
-- `common/CMakeLists.txt` 改为模块规则和 `add_subdirectory()` 聚合入口。
+- 检查 WSL2 当前工具链，确认尚未安装 `protoc` 和 gRPC C++ 开发库。
+- 确认 Ubuntu 22.04 apt 提供 protobuf 3.12.4 与 gRPC 1.30.2。
+- `scripts/install_ubuntu_deps.sh` 增加 protobuf 编译器、gRPC 插件和 C++ 开发包。
+
+### 设计决定 / Design Decisions
+
+- 当前阶段使用 Ubuntu 系统包，暂不引入 Conan、vcpkg 或源码编译 gRPC。
+- 依赖安装完成后再提交并验证 proto 生成和 gRPC 业务代码，避免未编译代码进入主链路。
+
+### 验证结果 / Verification
+
+- apt 包名和候选版本已确认；安装需要在交互终端输入 `sudo` 密码。
+
+## 2026-06-21 - SocketCAN 车辆数据链路 / SocketCAN Vehicle Data Path
+
+### 变更内容 / Changed
+
+- 新增平台无关 `VehicleCanCodec`，定义可测试的原型 `0x123` VehicleState 帧。
+- `vehicle-data-service` 支持 `--source mock|socketcan`，并将业务循环从 `main.cc` 拆出。
+- SocketCAN 接收支持 poll 超时、空闲退出、无关帧忽略和非法帧告警。
+- `can-simulator` 改为通过相同 codec 生成车辆状态帧。
+- 新增 `scripts/setup_vcan.sh` 与 `scripts/run_vcan_smoke.sh`。
+- Ubuntu 依赖增加 `can-utils`、`iproute2` 和 `kmod`。
+
+### 设计决定 / Design Decisions
+
+- CAN 字节映射属于 `modules/vehicle`，Linux socket 访问继续留在 `drivers/socketcan`。
+- `0x123` 是 WSL/Jetson 原型测试协议，不冒充旧项目或真实车辆 DBC。
+- 正式 DBC 到位后替换 codec，不改变 SocketCAN 驱动和服务生命周期。
+
+### 验证结果 / Verification
+
+- 标准 `build/` 增量构建完成，`cockpit_smoke_test` 通过。
+- codec 往返、无关帧忽略和短帧拒绝均有测试覆盖。
+- 默认 mock/stdout `scripts/run_smoke.sh` 完整通过。
+- 在 WSL2 交互终端运行 `scripts/run_vcan_smoke.sh`，成功创建并启用 `vcan0`。
+- `can-simulator` 通过 SocketCAN 发送 3 帧，`vehicle-data-service` 完整接收并解码为
+  12.0、15.5、19.0 km/h，对应挡位与 SOC 也一致。
+
+## 2026-06-20 - common 职责复核 / Common Responsibility Review
+
+### 变更内容 / Changed
+
+- 抽样检查 `znavigator`、`safe_ota`、`zcarcloud` 以及云端前后端工程的分层方式。
+- 确认 zelos 中的 `common` 主要保存组件内部共享的状态、协议结构和抽象接口，
+  并不是跨项目基础设施的固定目录。
+- 当前仓库不恢复顶层 `common`；对应职责由 `proto` 和具体 `modules` 承担。
+- 删除兼容用 `core` 聚合 target，服务和工具改为声明最小直接依赖。
+- 修正旧项目审计中被误改的 `zcarcloud/common` 原始路径。
+
+### 设计决定 / Design Decisions
+
+- `core/` 只是基础设施分类目录，不再代表“一次链接全部基础库”的 target。
+- 只有出现被多个同级模块共享、且无法归属现有领域的接口或状态类型时，才考虑
+  `modules/common`；禁止用它收纳暂时不知道放哪里的代码。
+
+### 验证结果 / Verification
+
+- 标准 `build/` 完成 38/38 构建步骤。
+- `cockpit_smoke_test` 通过。
+- 完整 `scripts/run_smoke.sh` 链路通过。
+
+## 2026-06-20 - 核心、模块与驱动分层 / Core, Module, and Driver Layers
+
+### 变更内容 / Changed
+
+- 将通用基础设施从 `common` 迁移到 `core`。
+- 将 `vehicle` 和平台无关的 `CanFrame` 迁移到 `modules`。
+- 将 Linux `SocketCan` 迁移到 `drivers/socketcan`，并新增独立 `socketcan` target。
+- protobuf 契约迁移到顶层 `proto`，生成代码继续放在 `build` 目录。
+- 顶层 CMake 仅聚合 `core`、`modules`、`drivers` 和产品目录。
+
+### 设计决定 / Design Decisions
+
+- `core` 只提供配置、日志、生命周期和基础工具，不包含领域模型或硬件访问。
+- `modules` 保存平台无关的领域能力；`drivers` 保存 Linux 与硬件适配。
+- `socketcan` 依赖 `can`，反向依赖禁止；服务和工具按需链接最小 target。
+- 内核模块和设备树可放在对应 `drivers/<device>` 下，但不进入默认用户态构建。
+
+### 验证结果 / Verification
+
+- `core`、`modules`、`drivers` 分层在标准 `build/` 中配置和构建成功。
+- 独立生成 `libcan.a` 和 `libsocketcan.a`，依赖传播正确。
+- `cockpit_smoke_test` 与完整 smoke 链路通过。
+
+## 2026-06-20 - common 构建模块化 / Common Build Modularization
+
+> 本节记录迁移前的首次模块化；当前目录边界以上一节为准。
+
+### 变更内容 / Changed
+
+- 参考 `znavigator`，当时为配置、日志、生命周期、工具、车辆与 CAN 模块分别增加
+  独立 `CMakeLists.txt`。
+- 当时由统一聚合入口管理各子目录；该入口现已拆成 `core`、`modules` 和 `drivers`。
 - 每个模块声明自己的直接依赖。
 - `core` 改为 INTERFACE 兼容聚合 target，现有服务暂时无需整体改链接方式。
 
@@ -71,4 +162,4 @@ changes, design decisions, and verification results.
 - 使用 GCC 11.4.0 和 Ninja 在标准 `build/` 目录中构建成功。
 - `cockpit_smoke_test` 通过。
 - 默认 `stdout` CAN 后端下，完整 `scripts/run_smoke.sh` 链路通过。
-- 当前主机没有配置 `vcan0`，SocketCAN 运行时验证暂待完成。
+- 本节记录时尚未配置 `vcan0`；该验证已于 2026-06-21 完成，见最新记录。

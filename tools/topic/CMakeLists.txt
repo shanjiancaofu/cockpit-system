@@ -14,7 +14,7 @@ target_include_directories(topic_commands
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
-target_link_libraries(topic_commands PRIVATE core)
+target_link_libraries(topic_commands PRIVATE config utils)
 
 add_executable(topic main.cc)
-target_link_libraries(topic PRIVATE core topic_commands)
+target_link_libraries(topic PRIVATE config topic_commands)

@@ -10,8 +10,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 ## Completed in this scaffold
 
 - Top-level CMake project with Linux/WSL shell scripts.
-- Common config, logging, runtime, time, and vehicle state helpers.
-- Common CAN frame model and SocketCAN RAII wrapper.
+- Core config, logging, runtime, and time helpers.
+- Vehicle state model, prototype CAN codec, and SocketCAN RAII wrapper.
 - Proto contract drafts for common, vehicle, gateway, and cloud.
 - Runnable placeholders for:
   - `vehicle-data-service`
@@ -26,11 +26,12 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
   and future split-ready boundaries.
 - Local file-backed topic debugging tool with `list`, `info`, `pub`, `echo`, and `hz` commands.
 - CAN simulator with `stdout` and `socketcan` backends.
+- `vehicle-data-service` with `mock` and `socketcan` sources.
 
 ## Not implemented yet
 
 - Real gRPC/protobuf code generation.
-- SocketCAN integration in `vehicle-data-service`.
+- Production vehicle CAN mapping from an approved DBC or signal specification.
 - MQTT client.
 - Qt/QML gRPC client.
 - WebSocket dashboard stream.
@@ -43,7 +44,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 
 ## Verification
 
-Verified in WSL2 / Ubuntu 22.04 on 2026-06-19.
+Verified in WSL2 / Ubuntu 22.04, most recently on 2026-06-21.
 
 SocketCAN foundation re-verified from the new repository path on 2026-06-20 using the standard
 `build/` directory.
@@ -73,6 +74,8 @@ Result:
   - `cockpit-gateway-service`
   - `cloud-uplink-service`
 
-Default smoke output remains mock/stdout based. The SocketCAN send backend is available but requires
-`vcan0` or real CAN hardware. SocketCAN receive integration, gRPC, WebSocket, and MQTT remain
-follow-up implementation work.
+Default smoke output remains mock/stdout based. `scripts/run_vcan_smoke.sh` provides an additional
+`vcan0` send/receive path. gRPC, WebSocket, and MQTT remain follow-up implementation work.
+
+The `vcan0` path was verified on 2026-06-21: `can-simulator` sent three prototype VehicleState
+frames through SocketCAN and `vehicle-data-service` received and decoded all three successfully.

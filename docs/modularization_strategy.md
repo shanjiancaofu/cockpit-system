@@ -33,7 +33,6 @@ runtime
 utils
 vehicle
 can
-core    # compatibility aggregate
 ```
 
 Do not create separate repositories yet. The code should still be organized so that a module can
@@ -70,15 +69,20 @@ navigator
 Applied CMake pattern:
 
 ```text
-common/CMakeLists.txt
+core/CMakeLists.txt
   -> add_subdirectory(config)
   -> add_subdirectory(logging)
   -> add_subdirectory(runtime)
   -> add_subdirectory(utils)
+
+modules/CMakeLists.txt
   -> add_subdirectory(vehicle)
   -> add_subdirectory(can)
 
-common/<module>/CMakeLists.txt
+drivers/CMakeLists.txt
+  -> add_subdirectory(socketcan)
+
+<layer>/<module>/CMakeLists.txt
   -> source files
   -> direct target dependencies
 ```
@@ -104,16 +108,19 @@ Short-term layout:
 
 ```text
 cockpit-system/
-  common/
+  core/
     config/
     logging/
     runtime/
     utils/
+  modules/
     vehicle/
     can/
     audio/
     ai/
-    proto/
+  drivers/
+    socketcan/
+  proto/
   services/
     vehicle-data-service/
     cockpit-gateway-service/
@@ -133,8 +140,8 @@ logging  # logging implementation
 runtime  # service lifecycle; depends on config and logging
 utils    # low-level helpers
 vehicle  # base vehicle models; depends on utils
-can      # SocketCAN and CAN frame helpers
-core     # temporary compatibility aggregate
+can      # platform-independent CAN frame model
+socketcan # Linux SocketCAN adapter; depends on can
 audio    # microphone/speaker capture and playback helpers
 ai       # ASR/TTS/LLM adapters and orchestration helpers
 proto    # protobuf contracts and generated code
@@ -158,16 +165,21 @@ Default dependency direction:
 ```text
 apps/services/tools
   -> required feature modules
+  -> required platform drivers
   -> runtime/config/logging/utils
 ```
 
 Rules:
 
-- Every `common/<module>` directory owns its `CMakeLists.txt`.
+- Every `core/<module>`, `modules/<module>`, and `drivers/<module>` owns its `CMakeLists.txt`.
 - Every target declares direct dependencies instead of relying on global link state.
-- `core` is only a compatibility aggregate and must not include `can`, `audio`, or `ai`.
+- `core/` is a directory category, not an umbrella CMake target.
+- Binaries declare the smallest direct targets they use instead of linking all core libraries.
 - New binaries should link the smallest module targets they need.
-- `can`, `audio`, and `ai` may depend on low-level modules, but not service code.
+- `can`, `audio`, and `ai` may depend on core modules, but not service code.
+- Platform-independent modules must not include Linux or hardware APIs directly.
+- User-space hardware adapters belong in `drivers/<device>` and may depend on module data types.
+- Kernel modules and device-tree sources stay under the matching driver directory and are opt-in.
 - `proto` should stay mostly independent; generated code can be linked by services and gateway.
 - UI code must not access hardware modules directly.
 - Hardware access belongs in service/tool modules.
@@ -201,6 +213,7 @@ When adding a new feature:
 
 1. Put generic reusable code in the smallest internal module.
 2. Put long-running behavior in `services/<name>/`.
-3. Put hardware probes and developer commands in `tools/<name>/`.
-4. Add a smoke path before adding a full UI integration.
-5. Keep target names short and readable.
+3. Put hardware access adapters in `drivers/<name>/`.
+4. Put hardware probes and developer commands in `tools/<name>/`.
+5. Add a smoke path before adding a full UI integration.
+6. Keep target names short and readable.

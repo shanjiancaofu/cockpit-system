@@ -2,7 +2,7 @@
 
 #include "topic_store.h"
 #include "topic_text.h"
-#include "common/utils/Time.h"
+#include "core/utils/Time.h"
 
 #include <algorithm>
 #include <chrono>

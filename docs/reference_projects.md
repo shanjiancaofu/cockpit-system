@@ -37,7 +37,7 @@
 
 - UI 初期可以参考 Widgets shell 的页面组织，但新工程保留 `apps/cockpit-ui` QML 方向。
 - 日志策略采用“每服务独立日志文件 + 滚动 + 可镜像 stderr”，已落到
-  `common/logging`。
+  `core/logging`。
 - 旧应用启动模式只作为迁移桥，不作为新架构长期方案。
 - 硬件访问必须从 UI 中剥离到 service/platform 层。
 
@@ -99,7 +99,7 @@
 
 新工程决策：
 
-- YAML 和日志是所有服务共同基础设施，已优先创建 `common/config` 和 `common/logging`。
+- YAML 和日志是所有服务共同基础设施，已优先创建 `core/config` 和 `core/logging`。
 - 后续业务复杂后可以引入 factory，但当前阶段不提前抽象。
 - 工具类二进制统一放在 `tools/`，安装时进入 `bin/tools/...`。
 

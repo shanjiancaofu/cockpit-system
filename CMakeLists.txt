@@ -16,7 +16,11 @@ option(BUILD_COCKPIT_UI "Build Qt cockpit UI" OFF)
 option(BUILD_WEB_DASHBOARD "Build web dashboard" OFF)
 option(BUILD_TESTS "Build unit tests" ON)
 
-add_subdirectory(common)
+include(cmake/AddCockpitLibrary.cmake)
+
+add_subdirectory(core)
+add_subdirectory(modules)
+add_subdirectory(drivers)
 add_subdirectory(services/vehicle-data-service)
 add_subdirectory(services/cockpit-gateway-service)
 add_subdirectory(services/cloud-uplink-service)

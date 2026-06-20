@@ -1,6 +1,6 @@
 #include "topic_store.h"
 
-#include "common/config/Config.h"
+#include "core/config/Config.h"
 
 #include <cctype>
 #include <fstream>

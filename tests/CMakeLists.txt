@@ -1,3 +1,3 @@
 add_executable(cockpit_smoke_test smoke_test.cc)
-target_link_libraries(cockpit_smoke_test PRIVATE can core)
+target_link_libraries(cockpit_smoke_test PRIVATE can vehicle)
 add_test(NAME cockpit_smoke_test COMMAND cockpit_smoke_test)

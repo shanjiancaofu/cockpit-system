@@ -45,7 +45,10 @@ Recommended current shape:
 ```text
 cockpit-system/
   apps/                 # Qt/QML cockpit UI and local debug dashboard
-  common/               # shared in-repo libraries
+  core/                 # process-independent infrastructure
+  modules/              # reusable domain and product capabilities
+  drivers/              # Linux and hardware adapters
+  proto/                # service contracts
   configs/              # runtime config and systemd examples
   docs/                 # architecture, reference notes, plans
   services/             # long-running local services
@@ -67,7 +70,7 @@ runtime
 utils
 vehicle
 can
-core    # compatibility aggregate
+socketcan
 ```
 
 Planned internal libraries:
@@ -161,7 +164,7 @@ Rules:
 - `cockpit-gateway-service` aggregates and throttles data for UI.
 - Large data such as video/audio frames should not be pushed through gRPC as raw payloads.
 - Every service has a README describing responsibility, input, output, config, and startup.
-- Protocol files live under `common/proto` until shared externally.
+- Protocol files live under `proto` until shared externally.
 
 Target service boundary:
 

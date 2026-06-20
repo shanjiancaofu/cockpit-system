@@ -31,7 +31,7 @@
 
 ```text
 当前：cockpit-system 一个主仓库
-内部：core / can / 后续 audio / ai / proto
+内部：core 基础设施 / modules 领域能力 / drivers 硬件适配 / proto 接口契约
 未来：出现独立部署和发布边界后，再考虑 cloud-backend / cloud-frontend
 ```
 

@@ -1,6 +1,6 @@
-#include "common/logging/Logger.h"
-#include "common/runtime/ServiceRuntime.h"
-#include "common/vehicle/VehicleState.h"
+#include "core/logging/Logger.h"
+#include "core/runtime/ServiceRuntime.h"
+#include "modules/vehicle/VehicleState.h"
 
 #include <iostream>
 #include <string>
