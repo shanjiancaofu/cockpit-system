@@ -128,5 +128,6 @@ ai:
 9. `voice-interaction-service`: mock intent and response pipeline. Completed.
 10. Add a typed action dispatcher with explicit execution results. Completed.
 11. Add text-only Speak RPC, mock TTS, and asynchronous speaker playback. Completed.
-12. Connect the first real ActionDispatcher handler through a local service API. Next.
-13. Replace mock providers with local or remote models and optionally add WebRTC VAD.
+12. Connect query-vehicle-status through the gateway local service API. Completed.
+13. Add the next typed local action provider, starting with recorder control. Next.
+14. Replace mock providers with local or remote models and optionally add WebRTC VAD.

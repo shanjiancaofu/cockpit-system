@@ -65,6 +65,7 @@ struct AudioServiceConfig {
 
 struct VoiceInteractionServiceConfig {
   std::string audio_address = "127.0.0.1:50052";
+  std::string gateway_address = "127.0.0.1:50051";
   int stream_timeout_ms = 10000;
   int retry_delay_ms = 200;
   GrpcServerConfig grpc{"127.0.0.1:50053"};

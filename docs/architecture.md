@@ -37,6 +37,8 @@ Current implementation boundary:
   mock TTS and bounded asynchronous ALSA playback without moving PCM between processes.
 - `voice-interaction-service` owns intent/action orchestration and sends response text to
   `audio-service`; it never opens ALSA devices.
+- Vehicle-status voice actions query the gateway's latest snapshot through a unary gRPC method.
+  The gateway rejects missing or older-than-two-second state instead of serving stale data.
 - Qt/QML, WebSocket, MQTT, GStreamer, WebRTC, SQLite, shared memory, real model providers, and
   broader AI integration remain explicit module boundaries for later phases.
 

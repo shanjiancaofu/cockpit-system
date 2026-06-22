@@ -40,6 +40,8 @@ message GetTopicInfoRequest {
 }
 
 service CockpitGateway {
+  rpc GetLatestVehicleState(cockpit.proto.common.Empty)
+      returns (cockpit.proto.vehicle.VehicleState);
   rpc ListTopics(ListTopicsRequest) returns (ListTopicsResponse);
   rpc GetTopicInfo(GetTopicInfoRequest) returns (TopicMetadata);
   rpc SubscribeCockpitEvents(SubscribeCockpitEventsRequest) returns (stream CockpitEvent);

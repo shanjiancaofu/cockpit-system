@@ -31,6 +31,10 @@ add_executable(mock_voice_assistant_test mock_voice_assistant_test.cc)
 target_link_libraries(mock_voice_assistant_test PRIVATE voice)
 add_test(NAME mock_voice_assistant_test COMMAND mock_voice_assistant_test)
 
+add_executable(cockpit_action_dispatcher_test cockpit_action_dispatcher_test.cc)
+target_link_libraries(cockpit_action_dispatcher_test PRIVATE voice)
+add_test(NAME cockpit_action_dispatcher_test COMMAND cockpit_action_dispatcher_test)
+
 add_executable(audio_service_test audio_service_test.cc)
 target_link_libraries(audio_service_test PRIVATE audio_service)
 add_test(NAME audio_service_test COMMAND audio_service_test)

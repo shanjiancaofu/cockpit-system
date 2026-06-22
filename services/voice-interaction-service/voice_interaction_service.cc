@@ -53,12 +53,16 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
       if (dispatcher_ == nullptr) {
         response.action_status = ActionExecutionStatus::kNotImplemented;
         response.action_message = "No action dispatcher is configured.";
+        response.response_text = response.action_message;
         actions_failed_.fetch_add(1U);
       } else {
         const ActionExecutionResult execution =
             dispatcher_->Execute(result.action);
         response.action_status = execution.status;
         response.action_message = execution.message;
+        if (!execution.message.empty()) {
+          response.response_text = execution.message;
+        }
         if (execution.status == ActionExecutionStatus::kSucceeded) {
           actions_succeeded_.fetch_add(1U);
         } else {

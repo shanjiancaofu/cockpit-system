@@ -43,6 +43,7 @@ void GatewayGrpcService::PublishVehicleState(const proto::vehicle::VehicleState&
     std::lock_guard<std::mutex> lock(mutex_);
     latest_event_.set_timestamp_ms(state.timestamp_ms());
     *latest_event_.mutable_vehicle_state() = state;
+    latest_vehicle_update_ = std::chrono::steady_clock::now();
     ++version_;
   }
   event_changed_.notify_all();
@@ -61,6 +62,23 @@ void GatewayGrpcService::Shutdown() {
     server_->Shutdown();
     server_.reset();
   }
+}
+
+grpc::Status GatewayGrpcService::GetLatestVehicleState(
+    grpc::ServerContext*, const proto::common::Empty*,
+    proto::vehicle::VehicleState* response) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!latest_event_.has_vehicle_state()) {
+    return grpc::Status(grpc::StatusCode::UNAVAILABLE,
+                        "vehicle state is not available yet");
+  }
+  if (std::chrono::steady_clock::now() - latest_vehicle_update_ >
+      std::chrono::seconds(2)) {
+    return grpc::Status(grpc::StatusCode::UNAVAILABLE,
+                        "vehicle state is stale");
+  }
+  *response = latest_event_.vehicle_state();
+  return grpc::Status::OK;
 }
 
 grpc::Status GatewayGrpcService::ListTopics(

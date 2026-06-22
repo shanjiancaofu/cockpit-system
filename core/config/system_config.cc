@@ -208,6 +208,10 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(voice_interaction, "audio_address",
            config.services_.voice_interaction.audio_address,
            "services.voice_interaction.audio_address");
+  config.services_.voice_interaction.gateway_address =
+      Read(voice_interaction, "gateway_address",
+           config.services_.voice_interaction.gateway_address,
+           "services.voice_interaction.gateway_address");
   config.services_.voice_interaction.stream_timeout_ms =
       Read(voice_interaction, "stream_timeout_ms",
            config.services_.voice_interaction.stream_timeout_ms,
@@ -389,6 +393,8 @@ void SystemConfig::Validate() const {
   }
   ValidateAddress(services_.voice_interaction.audio_address,
                   "services.voice_interaction.audio_address");
+  ValidateAddress(services_.voice_interaction.gateway_address,
+                  "services.voice_interaction.gateway_address");
   ValidateAddress(services_.voice_interaction.grpc.listen_address,
                   "services.voice_interaction.grpc.listen_address");
   RequirePositive(services_.voice_interaction.stream_timeout_ms,

@@ -32,6 +32,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
   mock allowlist execution, response fields, and execution metrics.
 - Text-only audio Speak RPC, mock SpeechSynthesizer, bounded playback worker, ALSA AudioPlayer,
   audio/voice delivery metrics, and audio-probe speak diagnostics.
+- Real query-vehicle-status action through the gateway's fresh VehicleState snapshot RPC, with
+  typed provider failure handling and spoken result text.
 - Generated protobuf/gRPC contracts for common, vehicle, gateway, audio, and cloud.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.

@@ -5,6 +5,29 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - 真实车辆状态语音动作 / Real Vehicle Status Voice Action
+
+### 变更内容 / Changed
+
+- gateway 新增 GetLatestVehicleState unary RPC，并拒绝缺失或超过 2 秒的旧快照。
+- 新增平台无关 VehicleStatusProvider 和 CockpitActionDispatcher。
+- voice service 新增 GatewayVehicleStatusClient，query_vehicle_status 不再使用 mock action。
+- 动作结果成为最终 response text，可直接播报实时车速、电量和 gear code。
+- voice interaction 配置新增 gateway_address；其他动作继续返回 not_implemented。
+- smoke 改为 audio、vehicle、gateway、voice 四服务并行联调。
+
+### 设计决定 / Design Decisions
+
+- voice 只访问 gateway 聚合接口，不直接依赖 vehicle-data-service 的底层 streaming API。
+- 每种真实动作使用独立类型化 provider，不引入通用 shell 或任意 RPC 调用能力。
+- 车辆 gear 尚无正式信号规范，因此播报 gear code，不猜测 P/R/N/D 语义。
+
+### 验证结果 / Verification
+
+- dispatcher 测试覆盖真实快照格式化、provider 失败、缺失和未实现动作。
+- CTest 15/15 通过。
+- 完整 smoke 返回实时车辆状态，action succeeded、speech accepted，TTS played=2/failed=0。
+
 ## 2026-06-23 - TTS 与扬声器输出 / TTS and Speaker Output
 
 ### 变更内容 / Changed

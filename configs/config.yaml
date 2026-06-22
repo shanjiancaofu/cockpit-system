@@ -40,6 +40,7 @@ services:
       max_segment_ms: 15000
   voice_interaction:
     audio_address: 127.0.0.1:50052
+    gateway_address: 127.0.0.1:50051
     stream_timeout_ms: 10000
     retry_delay_ms: 200
     grpc:

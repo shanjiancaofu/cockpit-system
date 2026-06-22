@@ -1,8 +1,9 @@
 #include "audio_speech_client.h"
 #include "audio_transcript_client.h"
 #include "core/runtime/ServiceRuntime.h"
+#include "gateway_vehicle_status_client.h"
+#include "modules/voice/cockpit_action_dispatcher.h"
 #include "modules/voice/mock_voice_assistant.h"
-#include "modules/voice/mock_action_dispatcher.h"
 #include "voice_grpc_service.h"
 #include "voice_interaction_service.h"
 
@@ -13,13 +14,16 @@
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(
       argc, argv, "voice-interaction-service");
-  const bool enabled = runtime.config().features().voice.enabled;
+  const bool enabled = runtime.config().features().voice.enabled ||
+                       runtime.args().HasFlag("enable");
   std::unique_ptr<cockpit::voice::VoiceAssistant> assistant;
   std::unique_ptr<cockpit::voice::ActionDispatcher> dispatcher;
   std::unique_ptr<cockpit::voice::VoiceResponseSink> output;
   if (enabled) {
     assistant = std::make_unique<cockpit::voice::MockVoiceAssistant>();
-    dispatcher = std::make_unique<cockpit::voice::MockActionDispatcher>();
+    dispatcher = std::make_unique<cockpit::voice::CockpitActionDispatcher>(
+        std::make_unique<cockpit::voice::GatewayVehicleStatusClient>(
+            runtime.config().services().voice_interaction.gateway_address));
     output = std::make_unique<cockpit::voice::AudioSpeechClient>(
         runtime.config().services().voice_interaction.audio_address);
   }

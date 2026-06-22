@@ -64,6 +64,11 @@ services:
     speech_segment:
       pre_roll_ms: 100
       max_segment_ms: 15000
+  voice_interaction:
+    audio_address: 127.0.0.1:50052
+    gateway_address: 127.0.0.1:50051
+    grpc:
+      listen_address: 127.0.0.1:50053
   cloud_uplink:
     enabled: false
     mqtt:

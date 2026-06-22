@@ -58,11 +58,18 @@ sleep 0.1
 sleep 0.1
 "${bin_dir}/audio-probe" --status --config "${config_path}"
 "${bin_dir}/audio-probe" --stop --config "${config_path}"
-kill "${audio_pid}"
-wait "${audio_pid}" || true
-audio_pid=""
-cat "${audio_log}"
-"${bin_dir}/voice-interaction-service" --config "${config_path}" >"${voice_log}" 2>&1 &
+"${bin_dir}/vehicle-data-service" --config "${config_path}" --forever >"${vehicle_log}" 2>&1 &
+vehicle_pid="$!"
+sleep 0.2
+"${bin_dir}/cockpit-gateway-service" --config "${config_path}" \
+  >"${gateway_log}" 2>&1 &
+gateway_pid="$!"
+sleep 0.2
+"${bin_dir}/topic" list --backend grpc --config "${config_path}"
+"${bin_dir}/topic" info /vehicle/state --backend grpc --config "${config_path}"
+"${bin_dir}/topic" echo /vehicle/state --backend grpc --count 1 --config "${config_path}"
+"${bin_dir}/voice-interaction-service" --enable --config "${config_path}" \
+  >"${voice_log}" 2>&1 &
 voice_pid="$!"
 voice_ready="false"
 for _ in {1..20}; do
@@ -77,20 +84,14 @@ if [[ "${voice_ready}" != "true" ]]; then
   echo "voice-interaction-service did not become ready" >&2
   exit 1
 fi
+"${bin_dir}/voice-ctl" --process "show vehicle status" --config "${config_path}"
+sleep 0.1
 "${bin_dir}/voice-ctl" --status --config "${config_path}"
+"${bin_dir}/audio-probe" --status --config "${config_path}"
 kill "${voice_pid}"
 wait "${voice_pid}" || true
 voice_pid=""
 cat "${voice_log}"
-"${bin_dir}/vehicle-data-service" --config "${config_path}" --forever >"${vehicle_log}" 2>&1 &
-vehicle_pid="$!"
-sleep 0.2
-"${bin_dir}/cockpit-gateway-service" --config "${config_path}" \
-  >"${gateway_log}" 2>&1 &
-gateway_pid="$!"
-sleep 0.2
-"${bin_dir}/topic" list --backend grpc --config "${config_path}"
-"${bin_dir}/topic" info /vehicle/state --backend grpc --config "${config_path}"
 "${bin_dir}/topic" echo /vehicle/state --backend grpc --count 3 --config "${config_path}"
 "${bin_dir}/topic" hz /vehicle/state --backend grpc --window 3 --count 3 \
   --config "${config_path}"
@@ -100,6 +101,10 @@ gateway_pid=""
 kill "${vehicle_pid}"
 wait "${vehicle_pid}" || true
 vehicle_pid=""
+kill "${audio_pid}"
+wait "${audio_pid}" || true
+audio_pid=""
+cat "${audio_log}"
 cat "${vehicle_log}"
 cat "${gateway_log}"
 "${bin_dir}/cloud-uplink-service" --config "${config_path}" --once
