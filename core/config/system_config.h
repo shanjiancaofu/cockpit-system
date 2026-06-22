@@ -43,9 +43,18 @@ struct GatewayConfig {
   WebSocketServerConfig websocket{"127.0.0.1:18080"};
 };
 
+struct VadConfig {
+  bool enabled = true;
+  std::string backend = "energy";
+  double speech_threshold_dbfs = -40.0;
+  int speech_start_frames = 3;
+  int speech_end_frames = 10;
+};
+
 struct AudioServiceConfig {
   bool auto_start = false;
   GrpcServerConfig grpc{"127.0.0.1:50052"};
+  VadConfig vad;
 };
 
 struct MqttConfig {

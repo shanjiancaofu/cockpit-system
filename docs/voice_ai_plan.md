@@ -122,5 +122,6 @@ ai:
 3. `AudioFrame` and lock-free SPSC ring buffer. Completed.
 4. ALSA poll/status results and `AudioCaptureStream`. Completed.
 5. `audio-service`: microphone capture boundary and status reporting. Completed.
-6. Local frame consumer/VAD boundary and `voice-interaction-service` mock pipeline. Next.
-7. Replace mock provider with local or remote model.
+6. Local frame consumer and dependency-free energy VAD boundary. Completed.
+7. `voice-interaction-service`: mock ASR/TTS/LLM pipeline. Next.
+8. Replace mock provider with local or remote model and optionally add WebRTC VAD.

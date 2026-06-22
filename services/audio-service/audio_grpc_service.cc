@@ -22,6 +22,16 @@ proto::audio::CaptureState ToProtoState(AudioCaptureState state) {
   return proto::audio::CAPTURE_STATE_UNSPECIFIED;
 }
 
+proto::audio::VoiceActivityState ToProtoVoiceActivityState(
+    const AudioServiceStatus& status) {
+  if (!status.vad_enabled) {
+    return proto::audio::VOICE_ACTIVITY_STATE_DISABLED;
+  }
+  return status.voice_activity_state == VoiceActivityState::kSpeech
+             ? proto::audio::VOICE_ACTIVITY_STATE_SPEECH
+             : proto::audio::VOICE_ACTIVITY_STATE_SILENCE;
+}
+
 }  // namespace
 
 AudioGrpcService::AudioGrpcService(AudioService& audio_service)
@@ -86,6 +96,8 @@ void AudioGrpcService::FillStatus(const AudioServiceStatus& status,
   response->set_channels(status.channels);
   response->set_frame_ms(status.frame_ms);
   response->set_last_error(status.last_error);
+  response->set_voice_activity_state(ToProtoVoiceActivityState(status));
+  response->set_input_level_dbfs(status.input_level_dbfs);
   auto* metrics = response->mutable_metrics();
   metrics->set_pcm_frames_read(status.metrics.pcm_frames_read);
   metrics->set_audio_frames_published(status.metrics.audio_frames_published);
@@ -93,6 +105,10 @@ void AudioGrpcService::FillStatus(const AudioServiceStatus& status,
   metrics->set_timeouts(status.metrics.timeouts);
   metrics->set_xruns(status.metrics.xruns);
   metrics->set_device_errors(status.metrics.device_errors);
+  metrics->set_vad_frames_processed(status.vad_frames_processed);
+  metrics->set_vad_speech_frames(status.vad_speech_frames);
+  metrics->set_vad_speech_events(status.vad_speech_events);
+  metrics->set_vad_silence_events(status.vad_silence_events);
 }
 
 }  // namespace audio

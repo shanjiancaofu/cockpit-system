@@ -13,6 +13,13 @@ enum CaptureState {
   CAPTURE_STATE_FAULTED = 5;
 }
 
+enum VoiceActivityState {
+  VOICE_ACTIVITY_STATE_UNSPECIFIED = 0;
+  VOICE_ACTIVITY_STATE_DISABLED = 1;
+  VOICE_ACTIVITY_STATE_SILENCE = 2;
+  VOICE_ACTIVITY_STATE_SPEECH = 3;
+}
+
 message StartCaptureRequest {
   string input_device = 1;
 }
@@ -24,6 +31,10 @@ message AudioMetrics {
   uint64 timeouts = 4;
   uint64 xruns = 5;
   uint64 device_errors = 6;
+  uint64 vad_frames_processed = 7;
+  uint64 vad_speech_frames = 8;
+  uint64 vad_speech_events = 9;
+  uint64 vad_silence_events = 10;
 }
 
 message AudioStatus {
@@ -34,6 +45,8 @@ message AudioStatus {
   uint32 frame_ms = 5;
   AudioMetrics metrics = 6;
   string last_error = 7;
+  VoiceActivityState voice_activity_state = 8;
+  double input_level_dbfs = 9;
 }
 
 service AudioControl {

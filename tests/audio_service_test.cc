@@ -85,8 +85,10 @@ int main() {
     std::cerr << "audio service did not publish captured frames\n";
     return 1;
   }
-  if (!service.TryPopFrame().has_value()) {
-    std::cerr << "audio service data plane did not expose a frame\n";
+  if (!WaitUntil([&service] {
+        return service.status().vad_frames_processed >= 3;
+      })) {
+    std::cerr << "audio service VAD did not consume frames\n";
     return 1;
   }
 
@@ -95,7 +97,8 @@ int main() {
   if (status.capture_state != cockpit::audio::AudioCaptureState::kStopped ||
       status.input_device != "fake-input" ||
       status.metrics.audio_frames_published < 3 || !fake_state->opened.load() ||
-      !fake_state->closed.load()) {
+      !fake_state->closed.load() || status.vad_frames_processed < 3 ||
+      !status.vad_enabled) {
     std::cerr << "audio service stopped status is invalid\n";
     return 1;
   }

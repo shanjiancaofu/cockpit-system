@@ -15,6 +15,10 @@ add_executable(audio_capture_stream_test audio_capture_stream_test.cc)
 target_link_libraries(audio_capture_stream_test PRIVATE audio)
 add_test(NAME audio_capture_stream_test COMMAND audio_capture_stream_test)
 
+add_executable(energy_vad_test energy_vad_test.cc)
+target_link_libraries(energy_vad_test PRIVATE audio)
+add_test(NAME energy_vad_test COMMAND energy_vad_test)
+
 add_executable(audio_service_test audio_service_test.cc)
 target_link_libraries(audio_service_test PRIVATE audio_service)
 add_test(NAME audio_service_test COMMAND audio_service_test)
@@ -26,6 +30,7 @@ target_compile_definitions(system_config_test
         VALID_CONFIG_PATH="${PROJECT_SOURCE_DIR}/configs/config.yaml"
         INVALID_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config.yaml"
         INVALID_AUDIO_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_config.yaml"
+        INVALID_VAD_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_vad_config.yaml"
 )
 add_test(NAME system_config_test COMMAND system_config_test)
 

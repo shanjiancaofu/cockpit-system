@@ -55,7 +55,7 @@ cat "${audio_log}"
 "${bin_dir}/vehicle-data-service" --config "${config_path}" --forever >"${vehicle_log}" 2>&1 &
 vehicle_pid="$!"
 sleep 0.2
-"${bin_dir}/cockpit-gateway-service" --config "${config_path}" --samples 12 \
+"${bin_dir}/cockpit-gateway-service" --config "${config_path}" --samples 20 \
   >"${gateway_log}" 2>&1 &
 gateway_pid="$!"
 sleep 0.2

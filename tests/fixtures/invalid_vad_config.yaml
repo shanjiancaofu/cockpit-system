@@ -1,0 +1,4 @@
+services:
+  audio:
+    vad:
+      speech_threshold_dbfs: 1.0

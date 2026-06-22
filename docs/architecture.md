@@ -27,6 +27,8 @@ Current implementation boundary:
 - `vehicle-data-service` exposes a VehicleState gRPC stream consumed by `cockpit-gateway-service`.
 - `cloud-uplink-service` remains a transport placeholder; `can-simulator` is runnable.
 - ALSA microphone capture, local SPSC transport, and the audio gRPC control plane are implemented.
+- `audio-service` owns the ring consumer and runs a replaceable energy-VAD implementation; PCM
+  remains process-local while VAD state and metrics cross gRPC.
 - Qt/QML, WebSocket, MQTT, GStreamer, WebRTC, SQLite, shared memory, audio playback, voice
   interaction, and AI integration remain explicit module boundaries for later phases.
 

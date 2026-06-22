@@ -5,6 +5,28 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-22 - 本地语音活动检测 / Local Voice Activity Detection
+
+### 变更内容 / Changed
+
+- 新增平台无关 `VoiceActivityDetector` 接口和 dependency-free `EnergyVad`。
+- 能量 VAD 输出 RMS dBFS，并通过连续 speech frames 与 silence hangover 稳定状态转换。
+- `audio-service` 新增唯一 VAD consumer thread，持续消费 SPSC ring 并统计事件。
+- gRPC status 和 `audio-probe --status` 输出 VAD 状态、输入电平及处理指标。
+- YAML 新增 VAD backend、阈值和帧窗口，并校验 backend、范围与正整数约束。
+
+### 设计决定 / Design Decisions
+
+- 当前使用能量 VAD 保证 WSL/Jetson 可直接运行，不提前引入 WebRTC 依赖。
+- VAD 遇到 discontinuity 会重置 debounce，避免丢帧前后的音频被拼成一次语音。
+- VAD worker 是 ring 的唯一 consumer；后续 ASR 从语音段事件接入，不直接抢读 ring。
+
+### 验证结果 / Verification
+
+- `energy_vad_test` 覆盖 dBFS、speech debounce、silence hangover 和 discontinuity reset。
+- `audio_service_test` 验证 VAD worker 持续消费采集帧；CTest 8/8 通过。
+- 完整 smoke 通过，ALSA `null` 被识别为 silence、-120 dBFS，VAD metrics 持续增长。
+
 ## 2026-06-22 - C++ 标准基线 / C++ Standard Baseline
 
 - 全工程统一使用 C++17，不提供 C++20/23 构建开关。
@@ -17,7 +39,7 @@ changes, design decisions, and verification results.
 - 新增 `audio-service`，统一持有 ALSA capture source 和 `AudioCaptureStream`。
 - `AudioControl` gRPC 支持 start、stop、status 和实时 metrics，PCM 不通过 gRPC 传输。
 - `audio-probe` 新增 `--start/--stop/--status` 远程控制命令。
-- Start RPC 等待设备打开结果；进程内 VAD/ASR 可通过唯一 `TryPopFrame()` 入口消费数据。
+- Start RPC 等待设备打开结果；本地 PCM 保留为后续 VAD/ASR 的进程内数据面。
 - 新增 service 生命周期单元测试、ALSA `null` gRPC smoke 和 systemd 单元。
 
 ### 设计决定 / Design Decisions

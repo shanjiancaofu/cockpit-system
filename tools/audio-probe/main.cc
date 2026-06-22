@@ -175,6 +175,21 @@ const char* CaptureStateName(cockpit::proto::audio::CaptureState state) {
   return "unknown";
 }
 
+const char* VoiceActivityStateName(
+    cockpit::proto::audio::VoiceActivityState state) {
+  switch (state) {
+    case cockpit::proto::audio::VOICE_ACTIVITY_STATE_DISABLED:
+      return "disabled";
+    case cockpit::proto::audio::VOICE_ACTIVITY_STATE_SILENCE:
+      return "silence";
+    case cockpit::proto::audio::VOICE_ACTIVITY_STATE_SPEECH:
+      return "speech";
+    case cockpit::proto::audio::VOICE_ACTIVITY_STATE_UNSPECIFIED:
+      return "unspecified";
+  }
+  return "unknown";
+}
+
 void PrintStatus(const cockpit::proto::audio::AudioStatus& status) {
   const auto& metrics = status.metrics();
   std::cout << "state: " << CaptureStateName(status.capture_state()) << '\n'
@@ -184,6 +199,13 @@ void PrintStatus(const cockpit::proto::audio::AudioStatus& status) {
             << "frames read: " << metrics.pcm_frames_read() << '\n'
             << "frames published: " << metrics.audio_frames_published() << '\n'
             << "frames dropped: " << metrics.audio_frames_dropped() << '\n'
+            << "voice activity: "
+            << VoiceActivityStateName(status.voice_activity_state()) << '\n'
+            << "input level: " << status.input_level_dbfs() << " dBFS\n"
+            << "VAD frames: " << metrics.vad_frames_processed() << '\n'
+            << "VAD speech frames: " << metrics.vad_speech_frames() << '\n'
+            << "VAD speech events: " << metrics.vad_speech_events() << '\n'
+            << "VAD silence events: " << metrics.vad_silence_events() << '\n'
             << "timeouts: " << metrics.timeouts() << '\n'
             << "xruns: " << metrics.xruns() << '\n'
             << "device errors: " << metrics.device_errors() << '\n';

@@ -20,7 +20,9 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
   xrun recovery, discontinuity flags, and runtime metrics.
 - `audio-service` microphone capture owner with gRPC start/stop/status/metrics control plane.
 - `audio-probe` remote control commands and ALSA `null` service smoke coverage.
-- Generated protobuf/gRPC contracts for common, vehicle, gateway, and cloud.
+- Stateful energy VAD worker with dBFS level, speech/silence transitions, metrics, and a replaceable
+  `VoiceActivityDetector` boundary.
+- Generated protobuf/gRPC contracts for common, vehicle, gateway, audio, and cloud.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.
 - Optional Qt 6/QML cockpit UI with a worker-thread gRPC client and UI-thread vehicle model.
@@ -51,6 +53,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Shared memory ring buffer.
 - Audio playback service path for speaker output.
 - Voice interaction service for ASR/TTS/LLM orchestration.
+- WebRTC VAD backend and real microphone threshold calibration.
 - AI application layer for voice commands and large-model features.
 
 ## Verification
@@ -79,9 +82,10 @@ Result:
 
 - CMake configure and generate succeeded.
 - Ninja build completed, including generated protobuf/gRPC code.
-- `ctest` passed `cockpit_smoke_test`.
+- CTest passed all audio, config, vehicle, and UI model tests.
 - Smoke chain ran:
   - `can-simulator`
+  - `audio-service`
   - `vehicle-data-service`
   - `cockpit-gateway-service`
   - `cloud-uplink-service`

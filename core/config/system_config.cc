@@ -172,6 +172,25 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            "listen_address",
            config.services_.audio.grpc.listen_address,
            "services.audio.grpc.listen_address");
+  const YAML::Node vad = ChildMap(audio_service, "vad", "services.audio.vad");
+  config.services_.audio.vad.enabled =
+      Read(vad, "enabled", config.services_.audio.vad.enabled,
+           "services.audio.vad.enabled");
+  config.services_.audio.vad.backend =
+      Read(vad, "backend", config.services_.audio.vad.backend,
+           "services.audio.vad.backend");
+  config.services_.audio.vad.speech_threshold_dbfs =
+      Read(vad, "speech_threshold_dbfs",
+           config.services_.audio.vad.speech_threshold_dbfs,
+           "services.audio.vad.speech_threshold_dbfs");
+  config.services_.audio.vad.speech_start_frames =
+      Read(vad, "speech_start_frames",
+           config.services_.audio.vad.speech_start_frames,
+           "services.audio.vad.speech_start_frames");
+  config.services_.audio.vad.speech_end_frames =
+      Read(vad, "speech_end_frames",
+           config.services_.audio.vad.speech_end_frames,
+           "services.audio.vad.speech_end_frames");
 
   const YAML::Node cloud_uplink =
       ChildMap(services, "cloud_uplink", "services.cloud_uplink");
@@ -306,6 +325,18 @@ void SystemConfig::Validate() const {
   RequirePositive(services_.gateway.retry_delay_ms, "services.gateway.retry_delay_ms");
   ValidateAddress(services_.audio.grpc.listen_address,
                   "services.audio.grpc.listen_address");
+  if (services_.audio.vad.backend != "energy") {
+    throw std::runtime_error("services.audio.vad.backend currently supports only energy");
+  }
+  if (services_.audio.vad.speech_threshold_dbfs < -100.0 ||
+      services_.audio.vad.speech_threshold_dbfs > 0.0) {
+    throw std::runtime_error(
+        "services.audio.vad.speech_threshold_dbfs must be between -100 and 0");
+  }
+  RequirePositive(services_.audio.vad.speech_start_frames,
+                  "services.audio.vad.speech_start_frames");
+  RequirePositive(services_.audio.vad.speech_end_frames,
+                  "services.audio.vad.speech_end_frames");
 
   RequireNotEmpty(services_.cloud_uplink.mqtt.broker, "services.cloud_uplink.mqtt.broker");
   RequireNotEmpty(services_.cloud_uplink.mqtt.telemetry_topic,

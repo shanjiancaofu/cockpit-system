@@ -29,6 +29,12 @@ services:
     auto_start: false
     grpc:
       listen_address: 127.0.0.1:50052
+    vad:
+      enabled: true
+      backend: energy
+      speech_threshold_dbfs: -40.0
+      speech_start_frames: 3
+      speech_end_frames: 10
   cloud_uplink:
     enabled: false
     mqtt:

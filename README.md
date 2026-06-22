@@ -23,6 +23,7 @@
 - `cockpit-gateway-service` 订阅车辆状态，支持断线重连与消息去重。
 - ROS 风格 `topic list/info/pub/echo/hz` 调试工具。
 - `audio-service` 麦克风采集控制面和 `audio-probe --start/--stop/--status`。
+- 本地能量 VAD、输入 dBFS、speech/silence 状态和运行指标。
 - Qt/QML cockpit UI 和本地 Web dashboard 目录骨架。
 
 尚未完成的真实传输包括：gateway 对 UI 的 gRPC/WebSocket 输出和 MQTT。

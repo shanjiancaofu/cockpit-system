@@ -51,6 +51,16 @@ services:
       listen_address: 127.0.0.1:50051
     websocket:
       listen_address: 127.0.0.1:18080
+  audio:
+    auto_start: false
+    grpc:
+      listen_address: 127.0.0.1:50052
+    vad:
+      enabled: true
+      backend: energy
+      speech_threshold_dbfs: -40.0
+      speech_start_frames: 3
+      speech_end_frames: 10
   cloud_uplink:
     enabled: false
     mqtt:
@@ -93,5 +103,5 @@ the YAML path.
 - `core/config/SystemConfig` is loaded once by `ServiceRuntime` through yaml-cpp.
 - All service, CAN, MQTT placeholder, logging, and topic settings use typed child structures.
 - The former dotted-string getters and separate `configs/logging.yaml` have been removed.
-- CTest covers the real configuration and rejects invalid gRPC and audio backend values with their
-  YAML paths.
+- CTest covers the real configuration and rejects invalid gRPC, audio backend, and VAD threshold
+  values with their YAML paths.
