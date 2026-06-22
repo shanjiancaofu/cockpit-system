@@ -11,6 +11,10 @@ add_executable(audio_frame_buffer_test audio_frame_buffer_test.cc)
 target_link_libraries(audio_frame_buffer_test PRIVATE audio Threads::Threads)
 add_test(NAME audio_frame_buffer_test COMMAND audio_frame_buffer_test)
 
+add_executable(audio_capture_stream_test audio_capture_stream_test.cc)
+target_link_libraries(audio_capture_stream_test PRIVATE audio)
+add_test(NAME audio_capture_stream_test COMMAND audio_capture_stream_test)
+
 add_executable(system_config_test system_config_test.cc)
 target_link_libraries(system_config_test PRIVATE config)
 target_compile_definitions(system_config_test

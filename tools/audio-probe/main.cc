@@ -4,6 +4,7 @@
 #include "modules/audio/wav_file.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <iostream>
 #include <limits>
@@ -78,17 +79,28 @@ int Capture(const cockpit::runtime::ServiceRuntime& runtime, const std::string& 
   std::vector<std::int16_t> period(
       format.FramesPerPeriod() * static_cast<std::size_t>(format.channels));
   std::size_t captured_frames = 0;
+  const std::atomic_bool stop_requested{false};
   while (captured_frames < total_frames && !runtime.ShouldStop()) {
-    const std::size_t frames =
+    const std::size_t frame_capacity =
         std::min(format.FramesPerPeriod(), total_frames - captured_frames);
-    if (!pcm.ReadFrames(period.data(), frames, &error)) {
-      LOG_ERROR(error);
+    const auto result = pcm.PollReadFrames(period.data(), frame_capacity, 100,
+                                           stop_requested);
+    if (result.status == cockpit::audio::CaptureStatus::kTimeout ||
+        result.status == cockpit::audio::CaptureStatus::kXrunRecovered) {
+      continue;
+    }
+    if (result.status == cockpit::audio::CaptureStatus::kStopped) {
+      break;
+    }
+    if (result.status == cockpit::audio::CaptureStatus::kDeviceError) {
+      LOG_ERROR(result.message);
       return Finish(runtime, 1);
     }
     samples.insert(samples.end(), period.begin(),
                    period.begin() + static_cast<std::ptrdiff_t>(
-                                        frames * static_cast<std::size_t>(format.channels)));
-    captured_frames += frames;
+                       result.frames_read *
+                       static_cast<std::size_t>(format.channels)));
+    captured_frames += result.frames_read;
   }
   pcm.Close();
 

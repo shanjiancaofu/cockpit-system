@@ -1,7 +1,10 @@
 #include "drivers/alsa/alsa_pcm.h"
 
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <cstdlib>
+#include <poll.h>
 #include <utility>
 
 namespace cockpit {
@@ -102,7 +105,8 @@ bool AlsaPcm::Open(const std::string& device, PcmDirection direction,
   const snd_pcm_stream_t stream = direction == PcmDirection::kCapture
                                       ? SND_PCM_STREAM_CAPTURE
                                       : SND_PCM_STREAM_PLAYBACK;
-  int result = snd_pcm_open(&handle_, device.c_str(), stream, 0);
+  const int open_mode = direction == PcmDirection::kCapture ? SND_PCM_NONBLOCK : 0;
+  int result = snd_pcm_open(&handle_, device.c_str(), stream, open_mode);
   if (result < 0) {
     handle_ = nullptr;
     return Fail(AlsaError("failed to open ALSA device " + device, result), error);
@@ -151,32 +155,85 @@ bool AlsaPcm::Open(const std::string& device, PcmDirection direction,
   return true;
 }
 
-bool AlsaPcm::ReadFrames(std::int16_t* samples, std::size_t frame_count,
-                         std::string* error) {
+CaptureResult AlsaPcm::PollReadFrames(
+    std::int16_t* samples, std::size_t frame_capacity, int timeout_ms,
+    const std::atomic_bool& stop_requested) {
   if (handle_ == nullptr || direction_ != PcmDirection::kCapture) {
-    return Fail("ALSA capture device is not open", error);
+    return {CaptureStatus::kDeviceError, 0, EBADF,
+            "ALSA capture device is not open"};
   }
-  if (samples == nullptr && frame_count > 0) {
-    return Fail("ALSA capture buffer is null", error);
+  if (samples == nullptr || frame_capacity == 0) {
+    return {CaptureStatus::kDeviceError, 0, EINVAL,
+            "ALSA capture buffer is invalid"};
+  }
+  if (stop_requested.load()) {
+    return {CaptureStatus::kStopped, 0, 0, {}};
   }
 
-  std::size_t completed = 0;
-  while (completed < frame_count) {
-    const snd_pcm_sframes_t result = snd_pcm_readi(
-        handle_, samples + completed * static_cast<std::size_t>(format_.channels),
-        static_cast<snd_pcm_uframes_t>(frame_count - completed));
-    if (result < 0) {
-      if (!Recover(static_cast<int>(result), "ALSA capture failed", error)) {
-        return false;
-      }
-      continue;
-    }
-    if (result == 0) {
-      return Fail("ALSA capture made no progress", error);
-    }
-    completed += static_cast<std::size_t>(result);
+  const int descriptor_count = snd_pcm_poll_descriptors_count(handle_);
+  if (descriptor_count <= 0) {
+    return {CaptureStatus::kDeviceError, 0, descriptor_count,
+            "ALSA capture has no poll descriptors"};
   }
-  return true;
+  std::vector<pollfd> descriptors(static_cast<std::size_t>(descriptor_count));
+  int result = snd_pcm_poll_descriptors(handle_, descriptors.data(), descriptor_count);
+  if (result < 0) {
+    return {CaptureStatus::kDeviceError, 0, result,
+            AlsaError("failed to get ALSA poll descriptors", result)};
+  }
+
+  result = poll(descriptors.data(), descriptors.size(), timeout_ms);
+  if (stop_requested.load()) {
+    return {CaptureStatus::kStopped, 0, 0, {}};
+  }
+  if (result == 0 || (result < 0 && errno == EINTR)) {
+    return {CaptureStatus::kTimeout, 0, 0, {}};
+  }
+  if (result < 0) {
+    return {CaptureStatus::kDeviceError, 0, errno,
+            "ALSA capture poll failed: " + std::string(std::strerror(errno))};
+  }
+
+  unsigned short revents = 0;
+  result = snd_pcm_poll_descriptors_revents(
+      handle_, descriptors.data(), descriptor_count, &revents);
+  if (result < 0) {
+    return {CaptureStatus::kDeviceError, 0, result,
+            AlsaError("failed to read ALSA poll events", result)};
+  }
+  if ((revents & POLLERR) != 0U) {
+    const int state_error = snd_pcm_state(handle_) == SND_PCM_STATE_XRUN
+                                ? -EPIPE
+                                : -ESTRPIPE;
+    result = snd_pcm_recover(handle_, state_error, 1);
+    if (result >= 0) {
+      return {CaptureStatus::kXrunRecovered, 0, 0, {}};
+    }
+    return {CaptureStatus::kDeviceError, 0, result,
+            AlsaError("failed to recover ALSA capture", result)};
+  }
+  if ((revents & POLLIN) == 0U) {
+    return {CaptureStatus::kTimeout, 0, 0, {}};
+  }
+
+  const snd_pcm_sframes_t frames = snd_pcm_readi(
+      handle_, samples, static_cast<snd_pcm_uframes_t>(frame_capacity));
+  if (frames > 0) {
+    return {CaptureStatus::kOk, static_cast<std::size_t>(frames), 0, {}};
+  }
+  if (frames == -EAGAIN || frames == 0) {
+    return {CaptureStatus::kTimeout, 0, 0, {}};
+  }
+  if (frames == -EPIPE || frames == -ESTRPIPE) {
+    result = snd_pcm_recover(handle_, static_cast<int>(frames), 1);
+    if (result >= 0) {
+      return {CaptureStatus::kXrunRecovered, 0, 0, {}};
+    }
+    return {CaptureStatus::kDeviceError, 0, result,
+            AlsaError("failed to recover ALSA capture", result)};
+  }
+  return {CaptureStatus::kDeviceError, 0, static_cast<int>(frames),
+          AlsaError("ALSA capture failed", static_cast<int>(frames))};
 }
 
 bool AlsaPcm::WriteFrames(const std::int16_t* samples, std::size_t frame_count,

@@ -16,7 +16,7 @@ vcan0 / can-simulator
 
 Current implementation boundary:
 
-- C++17 + CMake is the main build path.
+- C++17 or newer with CMake is the main build path; C++17 is the default baseline.
 - This repository is the Jetson-side smart cockpit system. Cloud/backend/frontend projects are deferred
   until the local vehicle-side chain is stable.
 - The project stays as one repository/folder for now. It should grow through internal CMake

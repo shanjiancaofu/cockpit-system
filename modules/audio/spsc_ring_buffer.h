@@ -55,6 +55,16 @@ class SpscRingBuffer {
 
   static constexpr std::size_t capacity() { return Capacity; }
 
+  // Reset is only valid while both producer and consumer are stopped.
+  void Reset() {
+    for (auto& slot : slots_) {
+      slot.reset();
+    }
+    write_index_.store(0, std::memory_order_relaxed);
+    read_index_.store(0, std::memory_order_relaxed);
+    drop_count_.store(0, std::memory_order_relaxed);
+  }
+
  private:
   template <typename U>
   bool Emplace(U&& value) {

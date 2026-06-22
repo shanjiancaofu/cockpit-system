@@ -13,7 +13,7 @@
 
 ## 当前能力
 
-- C++17 + CMake + Ninja 构建链路。
+- C++17 及以上 + CMake + Ninja 构建链路（默认 C++17）。
 - 统一配置、日志、服务生命周期和车辆状态模型。
 - `CanFrame` 与 Linux SocketCAN RAII 封装。
 - `VehicleCanCodec` 与 `vehicle-data-service --source mock|socketcan`。

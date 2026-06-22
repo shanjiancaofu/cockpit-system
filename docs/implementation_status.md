@@ -16,6 +16,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Platform-independent PCM16 format and RIFF/WAVE read/write module.
 - ALSA PCM RAII driver and `audio-probe` list/capture/play diagnostic tool.
 - Immutable 20 ms voice frames and a fixed-capacity lock-free SPSC ring buffer.
+- Non-blocking ALSA poll capture and a threaded `AudioCaptureStream` with explicit state,
+  xrun recovery, discontinuity flags, and runtime metrics.
 - Generated protobuf/gRPC contracts for common, vehicle, gateway, and cloud.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.

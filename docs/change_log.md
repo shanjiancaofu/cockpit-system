@@ -5,6 +5,35 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-22 - C++ 标准基线 / C++ Standard Baseline
+
+- CMake 改为默认 C++17，同时允许通过 `CMAKE_CXX_STANDARD` 选择 C++20/23。
+- 配置值低于 C++17 时直接失败，明确项目要求为 C++17 及以上。
+- README、架构和配置文档统一使用 C++17+ 表述。
+
+## 2026-06-22 - 音频采集流引擎 / Audio Capture Stream Engine
+
+### 变更内容 / Changed
+
+- 新增平台无关 `AudioCaptureSource` 接口和单采集线程 `AudioCaptureStream`。
+- ALSA capture 改为 non-blocking + poll，返回 ok/timeout/xrun/stopped/device error 状态。
+- 新增 `AlsaCaptureSource` 适配器，并严格校验 16 kHz、mono、PCM16、20 ms 语音格式。
+- 支持 partial read 拼帧、XRUN 恢复标记、ring overflow 丢帧计数和错误状态查询。
+- `audio-probe --capture` 迁移到 poll/status API，不再使用阻塞 bool 读取接口。
+
+### 设计决定 / Design Decisions
+
+- `modules/audio` 保持平台无关；ALSA poll、设备句柄和 recover 仅位于 `drivers/alsa`。
+- capture thread 是唯一 producer，VAD/ASR consumer 不反向阻塞设备读取。
+- gRPC 后续只承担 start/stop/status 控制面，原始 PCM 留在进程内数据面。
+- stream 停止后可安全清空 ring；故障信息在 `Stop()` 前可查询，停止后状态归一为 stopped。
+
+### 验证结果 / Verification
+
+- audio、alsa_audio、audio-probe 和新增 stream test 编译通过。
+- fake source 覆盖 timeout、XRUN、两个半帧拼接、flags、metrics、故障和停止关闭。
+- CTest 6/6 通过；ALSA `null` 经 poll 路径成功采集 16000 帧并写入 PCM16 WAV。
+
 ## 2026-06-22 - 实时音频帧与 SPSC / Real-time Audio Frames and SPSC
 
 ### 变更内容 / Changed

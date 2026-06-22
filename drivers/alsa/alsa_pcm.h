@@ -1,5 +1,6 @@
 #pragma once
 
+#include "modules/audio/audio_capture_source.h"
 #include "modules/audio/pcm_format.h"
 
 #include <alsa/asoundlib.h>
@@ -44,8 +45,9 @@ class AlsaPcm {
 
   bool Open(const std::string& device, PcmDirection direction, const PcmFormat& format,
             std::string* error = nullptr);
-  bool ReadFrames(std::int16_t* samples, std::size_t frame_count,
-                  std::string* error = nullptr);
+  CaptureResult PollReadFrames(std::int16_t* samples, std::size_t frame_capacity,
+                               int timeout_ms,
+                               const std::atomic_bool& stop_requested);
   bool WriteFrames(const std::int16_t* samples, std::size_t frame_count,
                    std::string* error = nullptr);
   bool Drain(std::string* error = nullptr);
