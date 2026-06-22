@@ -5,6 +5,39 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-22 - Qt UI 数据新鲜度 / Qt UI Data Freshness
+
+### 变更内容 / Changed
+
+- `VehicleStateModel` 新增独立 `fresh` 属性和 1.5 秒 stale timer。
+- gRPC 已连接但车辆状态停止更新时，界面显示 STALE，不再把旧值标记为实时数据。
+- transport 断开时立即停止 timer 并清除 fresh 状态。
+- `ui_model` 拆为独立 target，新增 QtTest 覆盖初始、超时和断线行为。
+
+### 验证结果 / Verification
+
+- Qt UI 和 `vehicle_state_model_test` 编译通过。
+- CTest 3/3 通过，fresh→stale 定时测试耗时约 80 ms。
+- QML offscreen 加载无属性绑定错误，SIGTERM 后状态码 0。
+
+## 2026-06-22 - Qt UI 一键联调 / Qt UI Demo Runner
+
+### 变更内容 / Changed
+
+- 新增 `scripts/run_cockpit_ui.sh`，一条命令启动车辆服务、网关和 Qt UI。
+- 使用 gRPC topic discovery 探测网关就绪，不依赖固定启动延时。
+- UI 退出或脚本收到信号后，统一停止并等待后台服务。
+- 默认使用 mock 数据，可通过 `VEHICLE_SOURCE=socketcan` 切换 CAN 数据源。
+- 网关上游 gRPC stream 增加停止监视，信号到达后主动取消阻塞式 `Read()`。
+
+### 验证结果 / Verification
+
+- offscreen 一键链路成功启动并连接 UI、gateway 和 vehicle-data-service。
+- 单次 Ctrl+C 后 UI、gateway 和 vehicle-data-service 均完成清理，无残留进程。
+- 网关在信号到达后约 20 ms 完成上游取消并退出，不再等待 10 秒 stream deadline。
+- Codex 隔离网络中仍观察到 localhost gRPC reset；无代理对照未改善，需在普通 WSL
+  终端继续确认宿主环境表现。
+
 ## 2026-06-22 - Qt UI 信号退出 / Qt UI Signal Shutdown
 
 ### 变更内容 / Changed

@@ -13,6 +13,7 @@ Item {
     readonly property color green: "#45d483"
     readonly property color amber: "#f2b84b"
     readonly property color cyan: "#58c7e8"
+    readonly property color red: "#ef6a6a"
 
     Rectangle {
         anchors.fill: parent
@@ -51,7 +52,8 @@ Item {
                 Layout.preferredWidth: 10
                 Layout.preferredHeight: 10
                 radius: 5
-                color: vehicleState.connected ? root.green : root.amber
+                color: vehicleState.fresh ? root.green
+                                          : (vehicleState.connected ? root.amber : root.red)
             }
 
             ColumnLayout {
@@ -59,8 +61,10 @@ Item {
 
                 Label {
                     Layout.alignment: Qt.AlignRight
-                    text: vehicleState.connected ? "CONNECTED" : "WAITING"
-                    color: vehicleState.connected ? root.green : root.amber
+                    text: vehicleState.fresh ? "LIVE"
+                                             : (vehicleState.connected ? "STALE" : "DISCONNECTED")
+                    color: vehicleState.fresh ? root.green
+                                              : (vehicleState.connected ? root.amber : root.red)
                     font.pixelSize: 13
                     font.bold: true
                 }
@@ -245,7 +249,7 @@ Item {
                 }
 
                 Label {
-                    text: vehicleState.connected ? "STREAMING" : "RECONNECTING"
+                    text: vehicleState.connected ? "CONNECTED" : "RECONNECTING"
                     color: vehicleState.connected ? root.green : root.amber
                     font.pixelSize: 13
                     font.bold: true
@@ -276,8 +280,10 @@ Item {
                 }
 
                 Label {
-                    text: vehicleState.timestampMs > 0 ? "LIVE DATA" : "NO DATA"
-                    color: root.secondaryText
+                    text: vehicleState.fresh ? "LIVE DATA"
+                                             : (vehicleState.timestampMs > 0 ? "STALE DATA" : "NO DATA")
+                    color: vehicleState.fresh ? root.green
+                                              : (vehicleState.timestampMs > 0 ? root.amber : root.secondaryText)
                     font.pixelSize: 12
                 }
             }

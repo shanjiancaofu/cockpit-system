@@ -1,10 +1,14 @@
 find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2)
 
+add_library(ui_model STATIC vehicle_state_model.cc)
+set_target_properties(ui_model PROPERTIES AUTOMOC ON)
+target_include_directories(ui_model PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(ui_model PUBLIC Qt6::Core)
+
 add_executable(cockpit-ui
     gateway_client.cc
     main.cc
     qml.qrc
-    vehicle_state_model.cc
 )
 set_target_properties(cockpit-ui PROPERTIES
     AUTOMOC ON
@@ -20,4 +24,5 @@ target_link_libraries(cockpit-ui
         contracts
         logging
         runtime
+        ui_model
 )

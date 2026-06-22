@@ -76,6 +76,12 @@ WSL/Ubuntu 虚拟 CAN 端到端验证：
 bash scripts/run_vcan_smoke.sh
 ```
 
+Qt6 车机界面联调（自动启动车辆服务和网关）：
+
+```bash
+bash scripts/run_cockpit_ui.sh
+```
+
 ## 文档
 
 文档入口见 [docs/README.md](docs/README.md)。

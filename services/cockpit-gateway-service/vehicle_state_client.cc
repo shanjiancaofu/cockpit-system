@@ -1,6 +1,8 @@
 #include "vehicle_state_client.h"
 
 #include "core/logging/Logger.h"
+
+#include <atomic>
 #include <chrono>
 #include <thread>
 
@@ -43,6 +45,16 @@ int VehicleStateClient::Stream(int sample_count, int max_hz, const StateHandler&
     request.set_max_hz(max_hz);
 
     auto reader = stub_->SubscribeVehicleState(&context, request);
+    std::atomic_bool stream_finished{false};
+    std::thread stop_watcher([&context, &should_continue, &stream_finished] {
+      while (!stream_finished.load() && should_continue()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      }
+      if (!should_continue()) {
+        context.TryCancel();
+      }
+    });
+
     proto::vehicle::VehicleState message;
     while ((unlimited || received < sample_count) && reader->Read(&message)) {
       if (!should_continue()) {
@@ -61,6 +73,8 @@ int VehicleStateClient::Stream(int sample_count, int max_hz, const StateHandler&
       context.TryCancel();
     }
     last_status = reader->Finish();
+    stream_finished.store(true);
+    stop_watcher.join();
     if (should_continue() &&
         (unlimited ||
          (received < sample_count && std::chrono::system_clock::now() < bounded_deadline))) {

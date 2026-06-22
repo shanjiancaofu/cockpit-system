@@ -10,3 +10,11 @@ target_compile_definitions(system_config_test
         INVALID_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config.yaml"
 )
 add_test(NAME system_config_test COMMAND system_config_test)
+
+if(TARGET ui_model)
+    find_package(Qt6 6.2 REQUIRED COMPONENTS Test)
+    add_executable(vehicle_state_model_test vehicle_state_model_test.cc)
+    set_target_properties(vehicle_state_model_test PROPERTIES AUTOMOC ON)
+    target_link_libraries(vehicle_state_model_test PRIVATE Qt6::Test ui_model)
+    add_test(NAME vehicle_state_model_test COMMAND vehicle_state_model_test)
+endif()

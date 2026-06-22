@@ -17,6 +17,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.
 - Optional Qt 6/QML cockpit UI with a worker-thread gRPC client and UI-thread vehicle model.
+- Qt UI freshness tracking with explicit live, stale, and disconnected states.
 - Runnable placeholders for:
   - `vehicle-data-service`
   - `cockpit-gateway-service`
@@ -47,7 +48,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 
 ## Verification
 
-Verified in WSL2 / Ubuntu 22.04, most recently on 2026-06-21.
+Verified in WSL2 / Ubuntu 22.04, most recently on 2026-06-22.
 
 SocketCAN foundation re-verified from the new repository path on 2026-06-20 using the standard
 `build/` directory.

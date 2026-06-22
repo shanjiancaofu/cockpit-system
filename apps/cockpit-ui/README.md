@@ -12,9 +12,13 @@ Current rule:
 Current implementation:
 
 - `VehicleStateModel` exposes connection, speed, gear, SOC, cloud, and source properties to QML.
+- `VehicleStateModel` distinguishes transport connection from fresh vehicle data; data becomes
+  stale after 1.5 seconds without an update.
 - `GatewayClient` subscribes to `CockpitGateway.SubscribeCockpitEvents` on a worker thread.
 - Model updates cross into the Qt UI thread through queued invocations.
 - The dashboard shows live VehicleState data and reconnect status.
+- The dashboard marks LIVE, STALE, and DISCONNECTED states separately while retaining the last
+  known values for diagnosis.
 
 The target remains optional so headless service builds do not require Qt:
 
@@ -22,6 +26,24 @@ The target remains optional so headless service builds do not require Qt:
 cmake -S . -B build -G Ninja -DBUILD_COCKPIT_UI=ON
 cmake --build build
 build/bin/cockpit-ui --config configs/config.yaml
+```
+
+For a complete local demo with mock vehicle data and automatic process cleanup:
+
+```bash
+bash scripts/run_cockpit_ui.sh
+```
+
+Headless runtime verification:
+
+```bash
+bash scripts/run_cockpit_ui.sh --offscreen
+```
+
+Use SocketCAN on Jetson or `vcan0` without changing the checked-in config:
+
+```bash
+VEHICLE_SOURCE=socketcan bash scripts/run_cockpit_ui.sh
 ```
 
 ## Qt baseline
