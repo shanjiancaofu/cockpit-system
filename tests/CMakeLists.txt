@@ -6,6 +6,11 @@ add_executable(audio_wav_test audio_wav_test.cc)
 target_link_libraries(audio_wav_test PRIVATE audio)
 add_test(NAME audio_wav_test COMMAND audio_wav_test)
 
+find_package(Threads REQUIRED)
+add_executable(audio_frame_buffer_test audio_frame_buffer_test.cc)
+target_link_libraries(audio_frame_buffer_test PRIVATE audio Threads::Threads)
+add_test(NAME audio_frame_buffer_test COMMAND audio_frame_buffer_test)
+
 add_executable(system_config_test system_config_test.cc)
 target_link_libraries(system_config_test PRIVATE config)
 target_compile_definitions(system_config_test

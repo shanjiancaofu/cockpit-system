@@ -119,6 +119,8 @@ ai:
 
 1. `modules/audio`: PCM format and WAV handling. Completed.
 2. `drivers/alsa` and `tools/audio-probe`: list devices and record/play a short test file. Completed.
-3. `audio-service`: service boundary and status reporting. Next.
-4. `voice-interaction-service`: mock ASR/TTS/LLM pipeline.
-5. Replace mock provider with local or remote model.
+3. `AudioFrame` and lock-free SPSC ring buffer. Completed.
+4. ALSA poll/status results and `AudioCaptureStream`. Next.
+5. `audio-service`: service boundary and status reporting.
+6. `voice-interaction-service`: mock ASR/TTS/LLM pipeline.
+7. Replace mock provider with local or remote model.

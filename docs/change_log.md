@@ -5,6 +5,29 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-22 - 实时音频帧与 SPSC / Real-time Audio Frames and SPSC
+
+### 变更内容 / Changed
+
+- 新增不可变 `AudioFrame`，固定为 16 kHz、mono、PCM16、20 ms、320 samples。
+- frame 包含 sequence、单调时钟时间戳和 discontinuity/xrun/drop flags。
+- 新增固定容量 lock-free `SpscRingBuffer<T, Capacity>`，容量强制为 2 的幂。
+- ring 满时拒绝新帧并累计 drop count，不修改 consumer 所有的 read index。
+- 新增顺序、回绕、溢出、不可赋值约束和 5 万帧双线程并发测试。
+
+### 设计决定 / Design Decisions
+
+- 固定语音格式由类型常量表达，不在每帧重复保存 sample rate 和 channels。
+- 无效帧不进入数据面；不连续通过 flags 和 metrics 表达。
+- 320 个 PCM16 samples 直接按值传递，当前不引入复杂零拷贝内存池。
+- ring 仅支持 single producer/single consumer，控制面不得直接访问槽位。
+
+### 验证结果 / Verification
+
+- audio target 和 `audio_frame_buffer_test` 编译通过，CTest 5/5 通过。
+- 5 万帧 producer/consumer 并发测试连续运行 20 次，无乱序或数据损坏。
+- 编译期确认当前目标的 index 和 drop metric atomics 为 lock-free。
+
 ## 2026-06-22 - ALSA 驱动与音频探针 / ALSA Driver and Audio Probe
 
 ### 变更内容 / Changed

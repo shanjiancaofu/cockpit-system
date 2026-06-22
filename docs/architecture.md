@@ -40,9 +40,11 @@ cockpit-system/
     runtime/            # args, config load, logger init, signal handling
     utils/              # low-level helpers
   modules/
+    audio/              # PCM/WAV types, voice frames, local SPSC data plane
     can/                # platform-independent CAN frame model
     vehicle/            # hand-written vehicle model before generated proto is enabled
   drivers/
+    alsa/               # Linux ALSA capture/playback adapter
     socketcan/          # Linux SocketCAN adapter
   proto/                # protobuf contracts
   configs/              # runtime YAML and systemd examples
@@ -76,6 +78,6 @@ Voice/AI scope for this Jetson project:
 
 Immediate next engineering tasks:
 
-1. Implement the gateway-facing CockpitEvent streaming server for Qt/Web clients.
-2. Decode production chassis frames after an approved DBC or signal specification is available.
-3. Add an audio hardware probe tool for microphone/speaker before implementing voice AI.
+1. Add ALSA poll/status results and the threaded `AudioCaptureStream` producer.
+2. Build `audio-service` control/status APIs without sending raw PCM through gRPC.
+3. Decode production chassis frames after an approved DBC or signal specification is available.
