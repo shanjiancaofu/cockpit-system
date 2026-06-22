@@ -35,6 +35,9 @@ services:
       speech_threshold_dbfs: -40.0
       speech_start_frames: 3
       speech_end_frames: 10
+    speech_segment:
+      pre_roll_ms: 100
+      max_segment_ms: 15000
   cloud_uplink:
     enabled: false
     mqtt:

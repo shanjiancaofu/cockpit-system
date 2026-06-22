@@ -6,3 +6,7 @@ The service owns `AudioCaptureStream`, its ALSA source, and the ring's single VA
 exposes start, stop, status, and metrics only; raw PCM remains in the local SPSC data plane. Future
 ASR integration should consume speech-segment output from the VAD pipeline, not read the ring as a
 second consumer.
+
+The VAD worker also owns `SpeechSegmenter`. Completed segments include configurable pre-roll and
+are placed in an eight-entry local SPSC queue. `TryPopSpeechSegment()` is reserved for the single
+in-process ASR consumer.

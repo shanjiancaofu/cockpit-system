@@ -206,6 +206,10 @@ void PrintStatus(const cockpit::proto::audio::AudioStatus& status) {
             << "VAD speech frames: " << metrics.vad_speech_frames() << '\n'
             << "VAD speech events: " << metrics.vad_speech_events() << '\n'
             << "VAD silence events: " << metrics.vad_silence_events() << '\n'
+            << "speech segments: " << metrics.speech_segments_completed() << '\n'
+            << "segments truncated: " << metrics.speech_segments_truncated() << '\n'
+            << "segments dropped: " << metrics.speech_segments_dropped() << '\n'
+            << "last segment: " << metrics.last_segment_duration_ms() << " ms\n"
             << "timeouts: " << metrics.timeouts() << '\n'
             << "xruns: " << metrics.xruns() << '\n'
             << "device errors: " << metrics.device_errors() << '\n';

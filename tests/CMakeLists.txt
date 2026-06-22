@@ -19,6 +19,10 @@ add_executable(energy_vad_test energy_vad_test.cc)
 target_link_libraries(energy_vad_test PRIVATE audio)
 add_test(NAME energy_vad_test COMMAND energy_vad_test)
 
+add_executable(speech_segmenter_test speech_segmenter_test.cc)
+target_link_libraries(speech_segmenter_test PRIVATE audio)
+add_test(NAME speech_segmenter_test COMMAND speech_segmenter_test)
+
 add_executable(audio_service_test audio_service_test.cc)
 target_link_libraries(audio_service_test PRIVATE audio_service)
 add_test(NAME audio_service_test COMMAND audio_service_test)

@@ -51,10 +51,16 @@ struct VadConfig {
   int speech_end_frames = 10;
 };
 
+struct SpeechSegmentConfig {
+  int pre_roll_ms = 100;
+  int max_segment_ms = 15000;
+};
+
 struct AudioServiceConfig {
   bool auto_start = false;
   GrpcServerConfig grpc{"127.0.0.1:50052"};
   VadConfig vad;
+  SpeechSegmentConfig speech_segment;
 };
 
 struct MqttConfig {

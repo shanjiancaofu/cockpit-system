@@ -35,6 +35,10 @@ message AudioMetrics {
   uint64 vad_speech_frames = 8;
   uint64 vad_speech_events = 9;
   uint64 vad_silence_events = 10;
+  uint64 speech_segments_completed = 11;
+  uint64 speech_segments_truncated = 12;
+  uint64 speech_segments_dropped = 13;
+  uint64 last_segment_duration_ms = 14;
 }
 
 message AudioStatus {

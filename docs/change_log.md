@@ -5,6 +5,30 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-22 - 语音段聚合 / Speech Segment Aggregation
+
+### 变更内容 / Changed
+
+- 新增平台无关 `SpeechSegment` 与 `SpeechSegmenter`，将逐帧 VAD 结果聚合为连续 PCM16。
+- 支持 100 ms pre-roll、silence endpoint、Stop flush、discontinuity 中断和 15 秒上限。
+- `audio-service` 新增容量为 8 的 speech segment SPSC 队列及完成、截断、丢弃指标。
+- gRPC status 与 `audio-probe` 增加 segment 数量、截断、队列丢弃和最近时长。
+- YAML 新增 `speech_segment.pre_roll_ms/max_segment_ms`，并校验 frame 对齐。
+- AudioControl client 启用 wait-for-ready；smoke 中 gateway 改为脚本主动停止，消除有限样本竞态。
+
+### 设计决定 / Design Decisions
+
+- AudioFrame ring 仍由 VAD worker 独占；下一批 ASR 只消费完成的 SpeechSegment 队列。
+- pre-roll 保留 VAD debounce 前的起音，silence hangover 已包含在 segment 尾部。
+- 超长语音分段并标记 truncated；采集 discontinuity 立即封段并标记 discontinuous。
+- 原始 PCM 与 SpeechSegment 均不经过 gRPC，控制面只暴露指标。
+
+### 验证结果 / Verification
+
+- `speech_segmenter_test` 覆盖 pre-roll、endpoint、flush、truncation 和 discontinuity。
+- `audio_service_test` 验证 segment queue 与 service 指标；CTest 9/9 通过。
+- 完整 smoke 通过，null silence 不产生语音段，既有车辆 topic echo/hz 保持通过。
+
 ## 2026-06-22 - 本地语音活动检测 / Local Voice Activity Detection
 
 ### 变更内容 / Changed

@@ -3,6 +3,7 @@ add_cockpit_library(audio
     audio_frame.cc
     energy_vad.cc
     pcm_format.cc
+    speech_segmenter.cc
     wav_file.cc
 )
 

@@ -29,6 +29,8 @@ Current implementation boundary:
 - ALSA microphone capture, local SPSC transport, and the audio gRPC control plane are implemented.
 - `audio-service` owns the ring consumer and runs a replaceable energy-VAD implementation; PCM
   remains process-local while VAD state and metrics cross gRPC.
+- Speech segmentation adds pre-roll and bounded duration, then publishes completed PCM segments
+  to a local eight-entry SPSC queue for one ASR consumer.
 - Qt/QML, WebSocket, MQTT, GStreamer, WebRTC, SQLite, shared memory, audio playback, voice
   interaction, and AI integration remain explicit module boundaries for later phases.
 

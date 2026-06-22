@@ -51,6 +51,7 @@ bool AudioControlClient::GetStatus(proto::audio::AudioStatus* status,
 }
 
 void AudioControlClient::SetDeadline(grpc::ClientContext* context) {
+  context->set_wait_for_ready(true);
   context->set_deadline(std::chrono::system_clock::now() +
                         std::chrono::seconds(2));
 }

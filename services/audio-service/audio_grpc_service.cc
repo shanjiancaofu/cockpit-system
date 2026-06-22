@@ -109,6 +109,10 @@ void AudioGrpcService::FillStatus(const AudioServiceStatus& status,
   metrics->set_vad_speech_frames(status.vad_speech_frames);
   metrics->set_vad_speech_events(status.vad_speech_events);
   metrics->set_vad_silence_events(status.vad_silence_events);
+  metrics->set_speech_segments_completed(status.speech_segments_completed);
+  metrics->set_speech_segments_truncated(status.speech_segments_truncated);
+  metrics->set_speech_segments_dropped(status.speech_segments_dropped);
+  metrics->set_last_segment_duration_ms(status.last_segment_duration_ms);
 }
 
 }  // namespace audio

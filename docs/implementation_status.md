@@ -22,6 +22,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - `audio-probe` remote control commands and ALSA `null` service smoke coverage.
 - Stateful energy VAD worker with dBFS level, speech/silence transitions, metrics, and a replaceable
   `VoiceActivityDetector` boundary.
+- Speech segment aggregation with pre-roll, endpoint flush, discontinuity/truncation flags, and a
+  bounded local queue for the next ASR consumer.
 - Generated protobuf/gRPC contracts for common, vehicle, gateway, audio, and cloud.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.

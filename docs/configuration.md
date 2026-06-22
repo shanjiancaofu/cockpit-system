@@ -61,6 +61,9 @@ services:
       speech_threshold_dbfs: -40.0
       speech_start_frames: 3
       speech_end_frames: 10
+    speech_segment:
+      pre_roll_ms: 100
+      max_segment_ms: 15000
   cloud_uplink:
     enabled: false
     mqtt:
@@ -97,6 +100,9 @@ Binaries consume those objects directly instead of reading dotted string keys.
 Configuration errors are startup failures. Missing optional values receive documented defaults;
 invalid required addresses, ports, intervals, or enum-like values produce a concrete error naming
 the YAML path.
+
+Speech segmentation is bounded to 2 seconds of pre-roll and 60 seconds per segment. Both values
+must align with `hardware.audio.frame_ms`, and pre-roll must be shorter than the segment limit.
 
 ## Implemented
 

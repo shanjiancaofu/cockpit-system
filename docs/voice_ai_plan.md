@@ -123,5 +123,7 @@ ai:
 4. ALSA poll/status results and `AudioCaptureStream`. Completed.
 5. `audio-service`: microphone capture boundary and status reporting. Completed.
 6. Local frame consumer and dependency-free energy VAD boundary. Completed.
-7. `voice-interaction-service`: mock ASR/TTS/LLM pipeline. Next.
-8. Replace mock provider with local or remote model and optionally add WebRTC VAD.
+7. Speech segment aggregation with pre-roll and bounded local ASR queue. Completed.
+8. Mock ASR consumer and transcript event boundary. Next.
+9. `voice-interaction-service`: mock intent/LLM/TTS pipeline.
+10. Replace mock provider with local or remote model and optionally add WebRTC VAD.

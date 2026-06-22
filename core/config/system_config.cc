@@ -191,6 +191,16 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(vad, "speech_end_frames",
            config.services_.audio.vad.speech_end_frames,
            "services.audio.vad.speech_end_frames");
+  const YAML::Node speech_segment =
+      ChildMap(audio_service, "speech_segment", "services.audio.speech_segment");
+  config.services_.audio.speech_segment.pre_roll_ms =
+      Read(speech_segment, "pre_roll_ms",
+           config.services_.audio.speech_segment.pre_roll_ms,
+           "services.audio.speech_segment.pre_roll_ms");
+  config.services_.audio.speech_segment.max_segment_ms =
+      Read(speech_segment, "max_segment_ms",
+           config.services_.audio.speech_segment.max_segment_ms,
+           "services.audio.speech_segment.max_segment_ms");
 
   const YAML::Node cloud_uplink =
       ChildMap(services, "cloud_uplink", "services.cloud_uplink");
@@ -337,6 +347,25 @@ void SystemConfig::Validate() const {
                   "services.audio.vad.speech_start_frames");
   RequirePositive(services_.audio.vad.speech_end_frames,
                   "services.audio.vad.speech_end_frames");
+  if (services_.audio.speech_segment.pre_roll_ms < 0) {
+    throw std::runtime_error(
+        "services.audio.speech_segment.pre_roll_ms must not be negative");
+  }
+  RequirePositive(services_.audio.speech_segment.max_segment_ms,
+                  "services.audio.speech_segment.max_segment_ms");
+  if (services_.audio.speech_segment.pre_roll_ms > 2000) {
+    throw std::runtime_error(
+        "services.audio.speech_segment.pre_roll_ms must not exceed 2000");
+  }
+  if (services_.audio.speech_segment.max_segment_ms > 60000) {
+    throw std::runtime_error(
+        "services.audio.speech_segment.max_segment_ms must not exceed 60000");
+  }
+  if (services_.audio.speech_segment.pre_roll_ms >=
+      services_.audio.speech_segment.max_segment_ms) {
+    throw std::runtime_error(
+        "services.audio.speech_segment.pre_roll_ms must be less than max_segment_ms");
+  }
 
   RequireNotEmpty(services_.cloud_uplink.mqtt.broker, "services.cloud_uplink.mqtt.broker");
   RequireNotEmpty(services_.cloud_uplink.mqtt.telemetry_topic,
@@ -355,6 +384,14 @@ void SystemConfig::Validate() const {
   RequirePositive(hardware_.audio.sample_rate_hz, "hardware.audio.sample_rate_hz");
   RequirePositive(hardware_.audio.channels, "hardware.audio.channels");
   RequirePositive(hardware_.audio.frame_ms, "hardware.audio.frame_ms");
+  if (services_.audio.speech_segment.pre_roll_ms % hardware_.audio.frame_ms != 0) {
+    throw std::runtime_error(
+        "services.audio.speech_segment.pre_roll_ms must align with hardware.audio.frame_ms");
+  }
+  if (services_.audio.speech_segment.max_segment_ms % hardware_.audio.frame_ms != 0) {
+    throw std::runtime_error(
+        "services.audio.speech_segment.max_segment_ms must align with hardware.audio.frame_ms");
+  }
   if (hardware_.audio.capture_backend != "alsa") {
     throw std::runtime_error("hardware.audio.capture_backend currently supports only alsa");
   }

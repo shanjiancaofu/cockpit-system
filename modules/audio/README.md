@@ -12,6 +12,7 @@ Current scope:
 - Fixed-capacity lock-free SPSC frame transport with overflow metrics.
 - Threaded `AudioCaptureStream` with explicit timeout, xrun, stop, and device-error states.
 - Pluggable voice-activity interface and stateful energy VAD with debounce and hangover.
+- Speech segmentation with pre-roll, endpoint flush, discontinuity handling, and duration limits.
 
 `AudioFrame` is immutable after construction. `SpscRingBuffer` requires exactly one producer and
 one consumer; `Available()` is an approximate concurrent snapshot, not a synchronization API.
@@ -26,3 +27,7 @@ consumer. Platform drivers implement `AudioCaptureSource`; raw PCM does not cros
 `EnergyVad` is the dependency-free baseline for WSL and Jetson bring-up. It reports RMS dBFS and
 stable speech/silence transitions. A future WebRTC implementation should implement the same
 `VoiceActivityDetector` interface.
+
+`SpeechSegmenter` converts per-frame VAD decisions into contiguous PCM16 speech segments. The
+audio service publishes completed segments to a bounded in-process SPSC queue for the future ASR
+consumer.

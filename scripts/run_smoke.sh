@@ -55,7 +55,7 @@ cat "${audio_log}"
 "${bin_dir}/vehicle-data-service" --config "${config_path}" --forever >"${vehicle_log}" 2>&1 &
 vehicle_pid="$!"
 sleep 0.2
-"${bin_dir}/cockpit-gateway-service" --config "${config_path}" --samples 20 \
+"${bin_dir}/cockpit-gateway-service" --config "${config_path}" \
   >"${gateway_log}" 2>&1 &
 gateway_pid="$!"
 sleep 0.2
@@ -64,7 +64,8 @@ sleep 0.2
 "${bin_dir}/topic" echo /vehicle/state --backend grpc --count 3 --config "${config_path}"
 "${bin_dir}/topic" hz /vehicle/state --backend grpc --window 3 --count 3 \
   --config "${config_path}"
-wait "${gateway_pid}"
+kill "${gateway_pid}"
+wait "${gateway_pid}" || true
 gateway_pid=""
 kill "${vehicle_pid}"
 wait "${vehicle_pid}" || true

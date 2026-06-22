@@ -11,7 +11,8 @@ int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "audio-service");
   cockpit::audio::AudioService audio_service(
       runtime.config().hardware().audio,
-      runtime.config().services().audio.vad);
+      runtime.config().services().audio.vad,
+      runtime.config().services().audio.speech_segment);
   cockpit::audio::AudioGrpcService grpc_service(audio_service);
   const auto& service_config = runtime.config().services().audio;
   if (!grpc_service.Start(service_config.grpc.listen_address)) {
