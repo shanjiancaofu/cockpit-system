@@ -30,6 +30,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
   status metrics, audio transcript subscription, and the voice-ctl gRPC diagnostic tool.
 - Typed ActionDispatcher boundary with explicit success/rejected/not-implemented/failed results,
   mock allowlist execution, response fields, and execution metrics.
+- Text-only audio Speak RPC, mock SpeechSynthesizer, bounded playback worker, ALSA AudioPlayer,
+  audio/voice delivery metrics, and audio-probe speak diagnostics.
 - Generated protobuf/gRPC contracts for common, vehicle, gateway, audio, and cloud.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.
@@ -59,8 +61,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - GStreamer/V4L2 camera path.
 - SQLite storage and recorder index.
 - Shared memory ring buffer.
-- Audio playback service path for speaker output.
-- TTS synthesis and speaker playback orchestration.
+- Real speech TTS provider and Jetson microphone/speaker calibration.
 - Real ASR provider such as whisper.cpp or TensorRT-accelerated inference.
 - WebRTC VAD backend and real microphone threshold calibration.
 - AI application layer for voice commands and large-model features.

@@ -3,6 +3,7 @@
 #include "modules/voice/action_dispatcher.h"
 #include "modules/voice/speech_transcript.h"
 #include "modules/voice/voice_assistant.h"
+#include "modules/voice/voice_response_sink.h"
 
 #include <atomic>
 #include <chrono>
@@ -45,6 +46,7 @@ struct VoiceInteractionMetrics {
   std::uint64_t actions_attempted = 0;
   std::uint64_t actions_succeeded = 0;
   std::uint64_t actions_failed = 0;
+  VoiceOutputMetrics output;
 };
 
 struct VoiceInteractionStatus {
@@ -57,7 +59,8 @@ struct VoiceInteractionStatus {
 class VoiceInteractionService {
  public:
   VoiceInteractionService(bool enabled, std::unique_ptr<VoiceAssistant> assistant,
-                          std::unique_ptr<ActionDispatcher> dispatcher);
+                          std::unique_ptr<ActionDispatcher> dispatcher,
+                          std::unique_ptr<VoiceResponseSink> output = nullptr);
 
   VoiceInteractionService(const VoiceInteractionService&) = delete;
   VoiceInteractionService& operator=(const VoiceInteractionService&) = delete;
@@ -76,6 +79,7 @@ class VoiceInteractionService {
   const bool enabled_;
   const std::unique_ptr<VoiceAssistant> assistant_;
   const std::unique_ptr<ActionDispatcher> dispatcher_;
+  const std::unique_ptr<VoiceResponseSink> output_;
   mutable std::mutex processing_mutex_;
   std::atomic<InteractionState> state_{InteractionState::kDisabled};
   std::atomic<std::uint64_t> transcripts_received_{0};

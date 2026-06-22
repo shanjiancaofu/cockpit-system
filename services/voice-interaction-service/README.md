@@ -5,5 +5,5 @@ dispatches typed actions, and publishes response events with a separate executio
 never reads raw PCM and never executes shell commands.
 
 The current assistant and dispatcher are deterministic mocks. Real actions must use explicit
-local service clients behind the `ActionDispatcher` boundary. Local/remote LLM and TTS providers
-remain future adapters.
+local service clients behind the `ActionDispatcher` boundary. Response text is sent to
+`audio-service` through `Speak(text)`; this service never opens an ALSA device or transports PCM.

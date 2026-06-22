@@ -127,5 +127,6 @@ ai:
 8. Mock ASR consumer and transcript event boundary. Completed.
 9. `voice-interaction-service`: mock intent and response pipeline. Completed.
 10. Add a typed action dispatcher with explicit execution results. Completed.
-11. Add TTS synthesis and speaker playback behind replaceable interfaces. Next.
-12. Replace mock providers with local or remote models and optionally add WebRTC VAD.
+11. Add text-only Speak RPC, mock TTS, and asynchronous speaker playback. Completed.
+12. Connect the first real ActionDispatcher handler through a local service API. Next.
+13. Replace mock providers with local or remote models and optionally add WebRTC VAD.

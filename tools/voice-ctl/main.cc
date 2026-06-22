@@ -52,6 +52,12 @@ void PrintStatus(const cockpit::proto::voice::VoiceInteractionStatus& status) {
   std::cout << "actions attempted: " << metrics.actions_attempted() << '\n'
             << "actions succeeded: " << metrics.actions_succeeded() << '\n'
             << "actions failed: " << metrics.actions_failed() << '\n';
+  std::cout << "speech requests accepted: "
+            << metrics.speech_requests_accepted() << '\n'
+            << "speech requests failed: "
+            << metrics.speech_requests_failed() << '\n'
+            << "speech requests dropped: "
+            << metrics.speech_requests_dropped() << '\n';
   if (status.has_latest_response()) {
     PrintResponse(status.latest_response());
   }

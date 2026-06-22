@@ -24,6 +24,7 @@ class AudioControlClient {
                     std::string* error);
   bool StopCapture(proto::audio::AudioStatus* status, std::string* error);
   bool GetStatus(proto::audio::AudioStatus* status, std::string* error);
+  bool Speak(const std::string& text, std::string* error);
   bool SubscribeTranscripts(std::uint32_t count, int timeout_ms,
                             const TranscriptHandler& handler,
                             std::string* error);

@@ -5,6 +5,30 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - TTS 与扬声器输出 / TTS and Speaker Output
+
+### 变更内容 / Changed
+
+- 新增平台无关 SpeechSynthesizer、AudioPlayer 和 VoiceResponseSink 接口。
+- 新增确定性 mock TTS，生成 16 kHz、mono、PCM16 提示音。
+- audio-service 新增容量为 8 的异步 SpeechOutput 队列和 Speak(text) gRPC。
+- 新增 ALSA AudioPlayer；audio-probe 支持 speak 并展示 TTS 指标。
+- voice-interaction-service 通过 AudioSpeechClient 发送文本，不直接访问 ALSA 或传输 PCM。
+- audio.proto 与 voice.proto 分离保留，分别表达真实播放指标和文本请求投递指标。
+
+### 设计决定 / Design Decisions
+
+- audio-service 独占麦克风和扬声器；voice-interaction-service 只负责对话与动作编排。
+- TTS PCM 只存在于 audio-service 进程，跨服务仅传输 response text。
+- 播放使用唯一 worker，停止时丢弃待播队列，只允许当前播放收尾。
+- mock TTS 是可听测试提示音，不冒充真实语音合成。
+
+### 验证结果 / Verification
+
+- speech_output_test 覆盖 PCM 格式、后台播放、生命周期和非法依赖。
+- CTest 14/14 通过。
+- 完整 smoke 验证 Speak -> mock TTS -> ALSA null，queued=1、played=1、failed=0。
+
 ## 2026-06-23 - 受控语音动作分发 / Controlled Voice Action Dispatch
 
 ### 变更内容 / Changed

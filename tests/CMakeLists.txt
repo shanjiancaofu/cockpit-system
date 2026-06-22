@@ -43,6 +43,10 @@ add_executable(voice_interaction_service_test voice_interaction_service_test.cc)
 target_link_libraries(voice_interaction_service_test PRIVATE voice_interaction)
 add_test(NAME voice_interaction_service_test COMMAND voice_interaction_service_test)
 
+add_executable(speech_output_test speech_output_test.cc)
+target_link_libraries(speech_output_test PRIVATE speech_output)
+add_test(NAME speech_output_test COMMAND speech_output_test)
+
 add_executable(system_config_test system_config_test.cc)
 target_link_libraries(system_config_test PRIVATE config)
 target_compile_definitions(system_config_test

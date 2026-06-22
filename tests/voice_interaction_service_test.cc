@@ -6,6 +6,27 @@
 #include <iostream>
 #include <memory>
 
+namespace {
+
+class CountingResponseSink final : public cockpit::voice::VoiceResponseSink {
+ public:
+  bool Submit(std::string) override {
+    ++submitted_;
+    return true;
+  }
+
+  cockpit::voice::VoiceOutputMetrics metrics() const override {
+    cockpit::voice::VoiceOutputMetrics result;
+    result.queued = submitted_;
+    return result;
+  }
+
+ private:
+  std::uint64_t submitted_ = 0;
+};
+
+}  // namespace
+
 int main() {
   cockpit::voice::VoiceInteractionService disabled(false, nullptr, nullptr);
   cockpit::voice::SpeechTranscript transcript;
@@ -16,9 +37,11 @@ int main() {
     return 1;
   }
 
+  auto sink = std::make_unique<CountingResponseSink>();
   cockpit::voice::VoiceInteractionService service(
       true, std::make_unique<cockpit::voice::MockVoiceAssistant>(),
-      std::make_unique<cockpit::voice::MockActionDispatcher>());
+      std::make_unique<cockpit::voice::MockActionDispatcher>(),
+      std::move(sink));
   transcript.id = 10;
   auto first = service.HandleTranscript(transcript);
   transcript.id = 11;
@@ -48,6 +71,7 @@ int main() {
       status.metrics.actions_attempted != 1 ||
       status.metrics.actions_succeeded != 1 ||
       status.metrics.actions_failed != 0 ||
+      status.metrics.output.queued != 2 ||
       !status.latest_response.has_value() ||
       status.latest_response->id != second->id) {
     std::cerr << "voice interaction metrics are invalid\n";

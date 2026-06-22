@@ -214,6 +214,10 @@ void PrintStatus(const cockpit::proto::audio::AudioStatus& status) {
             << "ASR segments: " << metrics.asr_segments_processed() << '\n'
             << "transcripts: " << metrics.transcripts_published() << '\n'
             << "ASR errors: " << metrics.asr_errors() << '\n'
+            << "TTS queued: " << metrics.tts_queued() << '\n'
+            << "TTS played: " << metrics.tts_played() << '\n'
+            << "TTS failed: " << metrics.tts_failed() << '\n'
+            << "TTS dropped: " << metrics.tts_dropped() << '\n'
             << "timeouts: " << metrics.timeouts() << '\n'
             << "xruns: " << metrics.xruns() << '\n'
             << "device errors: " << metrics.device_errors() << '\n';
@@ -274,6 +278,20 @@ int Transcripts(const cockpit::runtime::ServiceRuntime& runtime) {
   return Finish(runtime, 0);
 }
 
+int Speak(const cockpit::runtime::ServiceRuntime& runtime,
+          const std::string& text) {
+  const std::string address = runtime.args().GetString(
+      "address", runtime.config().services().audio.grpc.listen_address);
+  cockpit::audio::AudioControlClient client(address);
+  std::string error;
+  if (!client.Speak(text, &error)) {
+    LOG_ERROR("audio speak RPC failed address=" + address + " error=" + error);
+    return Finish(runtime, 1);
+  }
+  std::cout << "speech queued\n";
+  return Finish(runtime, 0);
+}
+
 void PrintUsage() {
   std::cout << "usage:\n"
             << "  audio-probe --list [--config configs/config.yaml]\n"
@@ -282,6 +300,7 @@ void PrintUsage() {
             << "  audio-probe --start [--device NAME] [--address HOST:PORT]\n"
             << "  audio-probe --stop [--address HOST:PORT]\n"
             << "  audio-probe --status [--address HOST:PORT]\n"
+            << "  audio-probe --speak TEXT [--address HOST:PORT]\n"
             << "  audio-probe --transcripts [--count N] [--timeout-ms N]\n";
 }
 
@@ -295,13 +314,16 @@ int main(int argc, char** argv) {
   const bool stop = runtime.args().HasFlag("stop");
   const bool status = runtime.args().HasFlag("status");
   const bool transcripts = runtime.args().HasFlag("transcripts");
+  const std::string speak_text = runtime.args().GetString("speak", "");
   const bool no_command = capture_path.empty() && play_path.empty() && !start &&
-                          !stop && !status && !transcripts;
+                          !stop && !status && !transcripts &&
+                          speak_text.empty();
   const bool list = runtime.args().HasFlag("list") || no_command;
   const int command_count = static_cast<int>(list) + static_cast<int>(!capture_path.empty()) +
                             static_cast<int>(!play_path.empty()) + static_cast<int>(start) +
                             static_cast<int>(stop) + static_cast<int>(status) +
-                            static_cast<int>(transcripts);
+                            static_cast<int>(transcripts) +
+                            static_cast<int>(!speak_text.empty());
   if (command_count != 1) {
     PrintUsage();
     return Finish(runtime, 2);
@@ -317,6 +339,9 @@ int main(int argc, char** argv) {
   }
   if (transcripts) {
     return Transcripts(runtime);
+  }
+  if (!speak_text.empty()) {
+    return Speak(runtime, speak_text);
   }
   return Control(runtime, start ? "start" : (stop ? "stop" : "status"));
 }

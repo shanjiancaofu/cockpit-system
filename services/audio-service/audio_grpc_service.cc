@@ -36,8 +36,9 @@ proto::audio::VoiceActivityState ToProtoVoiceActivityState(
 
 }  // namespace
 
-AudioGrpcService::AudioGrpcService(AudioService& audio_service)
-    : audio_service_(audio_service) {}
+AudioGrpcService::AudioGrpcService(
+    AudioService& audio_service, voice::VoiceResponseSink& speech_output)
+    : audio_service_(audio_service), speech_output_(speech_output) {}
 
 AudioGrpcService::~AudioGrpcService() {
   Shutdown();
@@ -90,6 +91,22 @@ grpc::Status AudioGrpcService::GetStatus(
   return grpc::Status::OK;
 }
 
+grpc::Status AudioGrpcService::Speak(
+    grpc::ServerContext*, const proto::audio::SpeakRequest* request,
+    proto::audio::SpeakResponse* response) {
+  if (request->text().empty()) {
+    response->set_accepted(false);
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                        "speech text must not be empty");
+  }
+  const bool accepted = speech_output_.Submit(request->text());
+  response->set_accepted(accepted);
+  return accepted
+             ? grpc::Status::OK
+             : grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                            "speech output queue rejected the request");
+}
+
 grpc::Status AudioGrpcService::SubscribeTranscripts(
     grpc::ServerContext* context,
     const proto::audio::SubscribeTranscriptsRequest* request,
@@ -118,7 +135,7 @@ grpc::Status AudioGrpcService::SubscribeTranscripts(
 }
 
 void AudioGrpcService::FillStatus(const AudioServiceStatus& status,
-                                  proto::audio::AudioStatus* response) {
+                                  proto::audio::AudioStatus* response) const {
   response->set_capture_state(ToProtoState(status.capture_state));
   response->set_input_device(status.input_device);
   response->set_sample_rate_hz(status.sample_rate_hz);
@@ -146,6 +163,11 @@ void AudioGrpcService::FillStatus(const AudioServiceStatus& status,
   metrics->set_asr_segments_processed(status.asr_segments_processed);
   metrics->set_transcripts_published(status.transcripts_published);
   metrics->set_asr_errors(status.asr_errors);
+  const voice::VoiceOutputMetrics output = speech_output_.metrics();
+  metrics->set_tts_queued(output.queued);
+  metrics->set_tts_played(output.played);
+  metrics->set_tts_failed(output.failed);
+  metrics->set_tts_dropped(output.dropped);
 }
 
 void AudioGrpcService::FillTranscript(

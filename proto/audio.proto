@@ -24,6 +24,14 @@ message StartCaptureRequest {
   string input_device = 1;
 }
 
+message SpeakRequest {
+  string text = 1;
+}
+
+message SpeakResponse {
+  bool accepted = 1;
+}
+
 message SubscribeTranscriptsRequest {
   string client_id = 1;
   uint64 after_id = 2;
@@ -61,6 +69,10 @@ message AudioMetrics {
   uint64 asr_segments_processed = 15;
   uint64 transcripts_published = 16;
   uint64 asr_errors = 17;
+  uint64 tts_queued = 18;
+  uint64 tts_played = 19;
+  uint64 tts_failed = 20;
+  uint64 tts_dropped = 21;
 }
 
 message AudioStatus {
@@ -80,6 +92,7 @@ service AudioControl {
   rpc StartCapture(StartCaptureRequest) returns (AudioStatus);
   rpc StopCapture(cockpit.proto.common.Empty) returns (AudioStatus);
   rpc GetStatus(cockpit.proto.common.Empty) returns (AudioStatus);
+  rpc Speak(SpeakRequest) returns (SpeakResponse);
   rpc SubscribeTranscripts(SubscribeTranscriptsRequest)
       returns (stream TranscriptEvent);
 }

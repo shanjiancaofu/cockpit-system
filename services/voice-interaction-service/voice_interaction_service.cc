@@ -9,10 +9,12 @@ namespace voice {
 
 VoiceInteractionService::VoiceInteractionService(
     bool enabled, std::unique_ptr<VoiceAssistant> assistant,
-    std::unique_ptr<ActionDispatcher> dispatcher)
+    std::unique_ptr<ActionDispatcher> dispatcher,
+    std::unique_ptr<VoiceResponseSink> output)
     : enabled_(enabled),
       assistant_(std::move(assistant)),
-      dispatcher_(std::move(dispatcher)) {
+      dispatcher_(std::move(dispatcher)),
+      output_(std::move(output)) {
   state_.store(enabled_ ? InteractionState::kListening
                         : InteractionState::kDisabled);
 }
@@ -65,6 +67,9 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
       }
     }
     response = PublishResponse(std::move(response));
+    if (output_ != nullptr) {
+      output_->Submit(response.response_text);
+    }
     state_.store(InteractionState::kListening);
     return response;
   } catch (const std::exception& exception) {
@@ -105,6 +110,9 @@ VoiceInteractionStatus VoiceInteractionService::status() const {
   result.metrics.actions_attempted = actions_attempted_.load();
   result.metrics.actions_succeeded = actions_succeeded_.load();
   result.metrics.actions_failed = actions_failed_.load();
+  if (output_ != nullptr) {
+    result.metrics.output = output_->metrics();
+  }
   std::lock_guard<std::mutex> lock(response_mutex_);
   if (!response_history_.empty()) {
     result.latest_response = response_history_.back();

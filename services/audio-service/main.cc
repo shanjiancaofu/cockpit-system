@@ -2,7 +2,10 @@
 #include "audio_service.h"
 #include "core/logging/Logger.h"
 #include "core/runtime/ServiceRuntime.h"
+#include "drivers/alsa/alsa_audio_player.h"
+#include "modules/voice/mock_speech_synthesizer.h"
 #include "modules/voice/mock_speech_recognizer.h"
+#include "speech_output.h"
 
 #include <chrono>
 #include <memory>
@@ -21,7 +24,19 @@ int main(int argc, char** argv) {
       runtime.config().services().audio.vad,
       runtime.config().services().audio.speech_segment,
       std::move(recognizer));
-  cockpit::audio::AudioGrpcService grpc_service(audio_service);
+  cockpit::audio::SpeechOutput speech_output(
+      runtime.args().GetString(
+          "output-device",
+          runtime.config().hardware().audio.output_device),
+      std::make_unique<cockpit::voice::MockSpeechSynthesizer>(),
+      std::make_unique<cockpit::audio::AlsaAudioPlayer>());
+  std::string output_error;
+  if (!speech_output.Start(&output_error)) {
+    LOG_ERROR("failed to start speech output: " + output_error);
+    runtime.MarkStopped();
+    return 1;
+  }
+  cockpit::audio::AudioGrpcService grpc_service(audio_service, speech_output);
   const auto& service_config = runtime.config().services().audio;
   if (!grpc_service.Start(service_config.grpc.listen_address)) {
     runtime.MarkStopped();
@@ -43,6 +58,7 @@ int main(int argc, char** argv) {
   }
   grpc_service.Shutdown();
   audio_service.StopCapture();
+  speech_output.Stop();
   runtime.MarkStopped();
   return 0;
 }

@@ -33,6 +33,10 @@ message VoiceMetrics {
   uint64 actions_attempted = 6;
   uint64 actions_succeeded = 7;
   uint64 actions_failed = 8;
+  uint64 speech_requests_accepted = 9;
+  uint64 speech_requests_failed = 10;
+  uint64 speech_requests_dropped = 11;
+  reserved 12;
 }
 
 message VoiceInteractionStatus {

@@ -1,3 +1,4 @@
+#include "audio_speech_client.h"
 #include "audio_transcript_client.h"
 #include "core/runtime/ServiceRuntime.h"
 #include "modules/voice/mock_voice_assistant.h"
@@ -15,13 +16,17 @@ int main(int argc, char** argv) {
   const bool enabled = runtime.config().features().voice.enabled;
   std::unique_ptr<cockpit::voice::VoiceAssistant> assistant;
   std::unique_ptr<cockpit::voice::ActionDispatcher> dispatcher;
+  std::unique_ptr<cockpit::voice::VoiceResponseSink> output;
   if (enabled) {
     assistant = std::make_unique<cockpit::voice::MockVoiceAssistant>();
     dispatcher = std::make_unique<cockpit::voice::MockActionDispatcher>();
+    output = std::make_unique<cockpit::voice::AudioSpeechClient>(
+        runtime.config().services().voice_interaction.audio_address);
   }
   cockpit::voice::VoiceInteractionService service(enabled,
                                                    std::move(assistant),
-                                                   std::move(dispatcher));
+                                                   std::move(dispatcher),
+                                                   std::move(output));
   cockpit::voice::VoiceGrpcService grpc_service(service);
   const auto& config = runtime.config().services().voice_interaction;
   if (!grpc_service.Start(config.grpc.listen_address)) {

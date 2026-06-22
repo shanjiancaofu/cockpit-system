@@ -33,8 +33,12 @@ Current implementation boundary:
   to a local eight-entry SPSC queue for one ASR consumer.
 - The ASR boundary lives in `modules/voice`; mock ASR currently consumes segments in-process and
   publishes text-only transcript events through gRPC with a bounded 32-event replay history.
-- Qt/QML, WebSocket, MQTT, GStreamer, WebRTC, SQLite, shared memory, audio playback, voice
-  interaction, and AI integration remain explicit module boundaries for later phases.
+- `audio-service` exclusively owns microphone and speaker devices. Its `Speak(text)` RPC runs
+  mock TTS and bounded asynchronous ALSA playback without moving PCM between processes.
+- `voice-interaction-service` owns intent/action orchestration and sends response text to
+  `audio-service`; it never opens ALSA devices.
+- Qt/QML, WebSocket, MQTT, GStreamer, WebRTC, SQLite, shared memory, real model providers, and
+  broader AI integration remain explicit module boundaries for later phases.
 
 Current directory shape:
 
@@ -66,7 +70,8 @@ Planned voice/AI chain:
 ```text
 microphone
   -> audio-service              # capture, VAD, segmentation, ASR, transcript events
-  -> voice-interaction-service  # PTT, intent, dialog, LLM tools, TTS
+  -> voice-interaction-service  # PTT, intent, dialog, LLM tools, response text
+  -> audio-service              # TTS queue and speaker playback
   -> local model or remote LLM  # configurable provider
   -> cockpit-gateway-service
   -> cockpit-ui / speaker
@@ -88,5 +93,6 @@ Immediate next engineering tasks:
 
 1. Add ALSA poll/status results and the threaded `AudioCaptureStream` producer. Completed.
 2. Build `audio-service` control/status APIs without sending raw PCM through gRPC. Completed.
-3. Build mock transcript-to-intent handling in `voice-interaction-service`.
-4. Decode production chassis frames after an approved DBC or signal specification is available.
+3. Build mock transcript-to-intent handling in `voice-interaction-service`. Completed.
+4. Add text-only Speak RPC, mock TTS, and asynchronous ALSA playback. Completed.
+5. Decode production chassis frames after an approved DBC or signal specification is available.
