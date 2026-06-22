@@ -23,9 +23,17 @@ add_executable(speech_segmenter_test speech_segmenter_test.cc)
 target_link_libraries(speech_segmenter_test PRIVATE audio)
 add_test(NAME speech_segmenter_test COMMAND speech_segmenter_test)
 
+add_executable(mock_speech_recognizer_test mock_speech_recognizer_test.cc)
+target_link_libraries(mock_speech_recognizer_test PRIVATE voice)
+add_test(NAME mock_speech_recognizer_test COMMAND mock_speech_recognizer_test)
+
 add_executable(audio_service_test audio_service_test.cc)
 target_link_libraries(audio_service_test PRIVATE audio_service)
 add_test(NAME audio_service_test COMMAND audio_service_test)
+
+add_executable(audio_asr_pipeline_test audio_asr_pipeline_test.cc)
+target_link_libraries(audio_asr_pipeline_test PRIVATE audio_service voice)
+add_test(NAME audio_asr_pipeline_test COMMAND audio_asr_pipeline_test)
 
 add_executable(system_config_test system_config_test.cc)
 target_link_libraries(system_config_test PRIVATE config)
@@ -35,6 +43,7 @@ target_compile_definitions(system_config_test
         INVALID_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config.yaml"
         INVALID_AUDIO_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_config.yaml"
         INVALID_VAD_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_vad_config.yaml"
+        INVALID_VOICE_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_voice_config.yaml"
 )
 add_test(NAME system_config_test COMMAND system_config_test)
 

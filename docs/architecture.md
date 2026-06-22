@@ -31,6 +31,8 @@ Current implementation boundary:
   remains process-local while VAD state and metrics cross gRPC.
 - Speech segmentation adds pre-roll and bounded duration, then publishes completed PCM segments
   to a local eight-entry SPSC queue for one ASR consumer.
+- The ASR boundary lives in `modules/voice`; mock ASR currently consumes segments in-process and
+  publishes text-only transcript events through gRPC with a bounded 32-event replay history.
 - Qt/QML, WebSocket, MQTT, GStreamer, WebRTC, SQLite, shared memory, audio playback, voice
   interaction, and AI integration remain explicit module boundaries for later phases.
 
@@ -63,8 +65,8 @@ Planned voice/AI chain:
 
 ```text
 microphone
-  -> audio-service              # ALSA/PulseAudio/PipeWire capture, playback, volume
-  -> voice-interaction-service  # wake word/PTT, ASR, dialog orchestration, TTS
+  -> audio-service              # capture, VAD, segmentation, ASR, transcript events
+  -> voice-interaction-service  # PTT, intent, dialog, LLM tools, TTS
   -> local model or remote LLM  # configurable provider
   -> cockpit-gateway-service
   -> cockpit-ui / speaker
@@ -74,7 +76,8 @@ Voice/AI scope for this Jetson project:
 
 - Microphone input and speaker output are local hardware capabilities.
 - `audio-service` owns audio devices; UI must not access ALSA/PulseAudio/PipeWire directly.
-- `voice-interaction-service` owns ASR/TTS/LLM orchestration.
+- `audio-service` owns in-process ASR because raw speech segments stay local.
+- `voice-interaction-service` subscribes transcripts and owns intent/TTS/LLM orchestration.
 - LLM provider should be configurable:
   - local/offline model for demo without network
   - remote API for stronger reasoning or speech features
@@ -83,6 +86,7 @@ Voice/AI scope for this Jetson project:
 
 Immediate next engineering tasks:
 
-1. Add ALSA poll/status results and the threaded `AudioCaptureStream` producer.
+1. Add ALSA poll/status results and the threaded `AudioCaptureStream` producer. Completed.
 2. Build `audio-service` control/status APIs without sending raw PCM through gRPC. Completed.
-3. Decode production chassis frames after an approved DBC or signal specification is available.
+3. Build mock transcript-to-intent handling in `voice-interaction-service`.
+4. Decode production chassis frames after an approved DBC or signal specification is available.

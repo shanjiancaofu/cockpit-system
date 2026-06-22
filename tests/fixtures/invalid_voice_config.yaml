@@ -1,0 +1,3 @@
+features:
+  voice:
+    asr_provider: whisper

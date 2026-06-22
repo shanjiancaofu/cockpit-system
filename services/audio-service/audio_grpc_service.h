@@ -32,9 +32,15 @@ class AudioGrpcService final : public proto::audio::AudioControl::Service {
   grpc::Status GetStatus(grpc::ServerContext* context,
                          const proto::common::Empty* request,
                          proto::audio::AudioStatus* response) override;
+  grpc::Status SubscribeTranscripts(
+      grpc::ServerContext* context,
+      const proto::audio::SubscribeTranscriptsRequest* request,
+      grpc::ServerWriter<proto::audio::TranscriptEvent>* writer) override;
 
   static void FillStatus(const AudioServiceStatus& status,
                          proto::audio::AudioStatus* response);
+  static void FillTranscript(const voice::SpeechTranscript& transcript,
+                             proto::audio::TranscriptEvent* response);
 
   AudioService& audio_service_;
   std::unique_ptr<grpc::Server> server_;

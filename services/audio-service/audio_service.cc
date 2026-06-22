@@ -3,6 +3,7 @@
 #include "drivers/alsa/alsa_capture_source.h"
 #include "modules/audio/energy_vad.h"
 
+#include <algorithm>
 #include <chrono>
 #include <exception>
 #include <thread>
@@ -53,14 +54,31 @@ AudioService::AudioService(config::AudioConfig config,
     : AudioService(std::move(config), std::move(vad_config),
                    std::move(segment_config), DefaultSourceFactory()) {}
 
+AudioService::AudioService(
+    config::AudioConfig config, config::VadConfig vad_config,
+    config::SpeechSegmentConfig segment_config,
+    std::unique_ptr<voice::SpeechRecognizer> recognizer)
+    : AudioService(std::move(config), std::move(vad_config),
+                   std::move(segment_config), DefaultSourceFactory(),
+                   std::move(recognizer)) {}
+
 AudioService::AudioService(config::AudioConfig config,
                            config::VadConfig vad_config,
                            config::SpeechSegmentConfig segment_config,
                            SourceFactory source_factory)
+    : AudioService(std::move(config), std::move(vad_config),
+                   std::move(segment_config), std::move(source_factory),
+                   nullptr) {}
+
+AudioService::AudioService(
+    config::AudioConfig config, config::VadConfig vad_config,
+    config::SpeechSegmentConfig segment_config, SourceFactory source_factory,
+    std::unique_ptr<voice::SpeechRecognizer> recognizer)
     : config_(std::move(config)),
       vad_config_(std::move(vad_config)),
       segment_config_(std::move(segment_config)),
-      source_factory_(std::move(source_factory)) {
+      source_factory_(std::move(source_factory)),
+      recognizer_(std::move(recognizer)) {
   if (vad_config_.enabled) {
     EnergyVadConfig energy_config;
     energy_config.speech_threshold_dbfs = vad_config_.speech_threshold_dbfs;
@@ -122,7 +140,20 @@ bool AudioService::StartCapture(const std::string& input_device, std::string* er
     return false;
   }
   ResetVadMetrics();
+  ResetAsrMetrics();
   speech_segments_.Reset();
+  if (recognizer_ != nullptr) {
+    asr_stop_.store(false);
+    try {
+      asr_worker_ = std::thread(&AudioService::ProcessSpeechSegments, this);
+    } catch (const std::exception& exception) {
+      capture_stream_->Stop();
+      if (error != nullptr) {
+        *error = exception.what();
+      }
+      return false;
+    }
+  }
   if (vad_ != nullptr) {
     vad_->Reset();
     segmenter_->Reset();
@@ -131,6 +162,10 @@ bool AudioService::StartCapture(const std::string& input_device, std::string* er
       vad_worker_ = std::thread(&AudioService::ProcessVoiceActivity, this);
     } catch (const std::exception& exception) {
       capture_stream_->Stop();
+      asr_stop_.store(true);
+      if (asr_worker_.joinable()) {
+        asr_worker_.join();
+      }
       if (error != nullptr) {
         *error = exception.what();
       }
@@ -146,7 +181,32 @@ void AudioService::StopCapture() {
 }
 
 std::optional<SpeechSegment> AudioService::TryPopSpeechSegment() {
+  if (recognizer_ != nullptr) {
+    return std::nullopt;
+  }
   return speech_segments_.TryPop();
+}
+
+bool AudioService::WaitForTranscript(
+    std::uint64_t after_id, std::chrono::milliseconds timeout,
+    voice::SpeechTranscript* transcript) const {
+  std::unique_lock<std::mutex> lock(transcript_mutex_);
+  transcript_changed_.wait_for(lock, timeout, [this, after_id] {
+    return !transcript_history_.empty() &&
+           transcript_history_.back().id > after_id;
+  });
+  const auto next = std::find_if(
+      transcript_history_.begin(), transcript_history_.end(),
+      [after_id](const voice::SpeechTranscript& value) {
+        return value.id > after_id;
+      });
+  if (next == transcript_history_.end()) {
+    return false;
+  }
+  if (transcript != nullptr) {
+    *transcript = *next;
+  }
+  return true;
 }
 
 AudioServiceStatus AudioService::status() const {
@@ -168,6 +228,10 @@ AudioServiceStatus AudioService::status() const {
   result.speech_segments_truncated = speech_segments_truncated_.load();
   result.speech_segments_dropped = speech_segments_.DropCount();
   result.last_segment_duration_ms = last_segment_duration_ms_.load();
+  result.asr_enabled = recognizer_ != nullptr;
+  result.asr_segments_processed = asr_segments_processed_.load();
+  result.transcripts_published = transcripts_published_.load();
+  result.asr_errors = asr_errors_.load();
   if (capture_stream_ != nullptr) {
     result.capture_state = capture_stream_->state();
     result.metrics = capture_stream_->metrics();
@@ -184,6 +248,11 @@ void AudioService::StopCaptureLocked() {
   if (vad_worker_.joinable()) {
     vad_worker_.join();
   }
+  asr_stop_.store(true);
+  if (asr_worker_.joinable()) {
+    asr_worker_.join();
+  }
+  transcript_changed_.notify_all();
 }
 
 void AudioService::ProcessVoiceActivity() {
@@ -241,6 +310,66 @@ void AudioService::PublishSpeechSegment(SpeechSegment segment) {
   }
   last_segment_duration_ms_.store(segment.DurationMs());
   speech_segments_.TryPush(std::move(segment));
+}
+
+void AudioService::ProcessSpeechSegments() {
+  while (true) {
+    auto segment = speech_segments_.TryPop();
+    if (!segment.has_value()) {
+      if (asr_stop_.load()) {
+        break;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      continue;
+    }
+    asr_segments_processed_.fetch_add(1U);
+    try {
+      const auto result = recognizer_->Recognize(*segment);
+      if (result.success) {
+        PublishTranscript(*segment, result);
+      } else {
+        asr_errors_.fetch_add(1U);
+      }
+    } catch (const std::exception&) {
+      asr_errors_.fetch_add(1U);
+    }
+  }
+}
+
+void AudioService::PublishTranscript(
+    const SpeechSegment& segment,
+    const voice::SpeechRecognitionResult& result) {
+  voice::SpeechTranscript transcript;
+  transcript.timestamp_ms = static_cast<std::uint64_t>(
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count());
+  transcript.start_sequence = segment.start_sequence;
+  transcript.end_sequence = segment.end_sequence;
+  transcript.duration_ms = segment.DurationMs();
+  transcript.truncated = segment.truncated;
+  transcript.discontinuous = segment.discontinuous;
+  transcript.text = result.text;
+  transcript.provider = result.provider;
+  transcript.confidence = result.confidence;
+  {
+    std::lock_guard<std::mutex> lock(transcript_mutex_);
+    transcript.id = ++transcript_version_;
+    transcript_history_.push_back(transcript);
+    while (transcript_history_.size() > 32U) {
+      transcript_history_.pop_front();
+    }
+  }
+  transcripts_published_.fetch_add(1U);
+  transcript_changed_.notify_all();
+}
+
+void AudioService::ResetAsrMetrics() {
+  asr_segments_processed_.store(0);
+  transcripts_published_.store(0);
+  asr_errors_.store(0);
+  std::lock_guard<std::mutex> lock(transcript_mutex_);
+  transcript_history_.clear();
 }
 
 }  // namespace audio

@@ -401,6 +401,15 @@ void SystemConfig::Validate() const {
   RequireNotEmpty(hardware_.audio.input_device, "hardware.audio.input_device");
   RequireNotEmpty(hardware_.audio.output_device, "hardware.audio.output_device");
   RequirePositive(features_.ai.request_timeout_ms, "features.ai.request_timeout_ms");
+  if (features_.voice.mode != "push_to_talk") {
+    throw std::runtime_error("features.voice.mode currently supports only push_to_talk");
+  }
+  if (features_.voice.asr_provider != "mock") {
+    throw std::runtime_error("features.voice.asr_provider currently supports only mock");
+  }
+  if (features_.voice.tts_provider != "mock") {
+    throw std::runtime_error("features.voice.tts_provider currently supports only mock");
+  }
   if (!IsOneOf(tools_.topic.backend, "file", "grpc")) {
     throw std::runtime_error("tools.topic.backend must be file or grpc");
   }

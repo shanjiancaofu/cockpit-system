@@ -4,6 +4,8 @@
 
 #include <grpcpp/grpcpp.h>
 
+#include <functional>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -12,6 +14,9 @@ namespace audio {
 
 class AudioControlClient {
  public:
+  using TranscriptHandler =
+      std::function<void(const proto::audio::TranscriptEvent&)>;
+
   explicit AudioControlClient(const std::string& address);
 
   bool StartCapture(const std::string& input_device,
@@ -19,6 +24,9 @@ class AudioControlClient {
                     std::string* error);
   bool StopCapture(proto::audio::AudioStatus* status, std::string* error);
   bool GetStatus(proto::audio::AudioStatus* status, std::string* error);
+  bool SubscribeTranscripts(std::uint32_t count, int timeout_ms,
+                            const TranscriptHandler& handler,
+                            std::string* error);
 
  private:
   static void SetDeadline(grpc::ClientContext* context);

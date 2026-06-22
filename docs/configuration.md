@@ -82,6 +82,9 @@ hardware:
 features:
   voice:
     enabled: false
+    mode: push_to_talk
+    asr_provider: mock
+    tts_provider: mock
   ai:
     provider: mock
 
@@ -103,6 +106,7 @@ the YAML path.
 
 Speech segmentation is bounded to 2 seconds of pre-roll and 60 seconds per segment. Both values
 must align with `hardware.audio.frame_ms`, and pre-roll must be shorter than the segment limit.
+Voice mode and ASR/TTS providers currently accept only `push_to_talk` and `mock`.
 
 ## Implemented
 

@@ -56,5 +56,18 @@ int main() {
       return 1;
     }
   }
+
+  try {
+    cockpit::config::SystemConfig::LoadFromFile(INVALID_VOICE_CONFIG_PATH);
+    std::cerr << "invalid voice config was accepted" << std::endl;
+    return 1;
+  } catch (const std::runtime_error& error) {
+    const std::string message = error.what();
+    if (message.find("features.voice.asr_provider") == std::string::npos) {
+      std::cerr << "invalid voice error did not identify config path: " << message
+                << std::endl;
+      return 1;
+    }
+  }
   return 0;
 }

@@ -210,6 +210,10 @@ void PrintStatus(const cockpit::proto::audio::AudioStatus& status) {
             << "segments truncated: " << metrics.speech_segments_truncated() << '\n'
             << "segments dropped: " << metrics.speech_segments_dropped() << '\n'
             << "last segment: " << metrics.last_segment_duration_ms() << " ms\n"
+            << "ASR enabled: " << (status.asr_enabled() ? "true" : "false") << '\n'
+            << "ASR segments: " << metrics.asr_segments_processed() << '\n'
+            << "transcripts: " << metrics.transcripts_published() << '\n'
+            << "ASR errors: " << metrics.asr_errors() << '\n'
             << "timeouts: " << metrics.timeouts() << '\n'
             << "xruns: " << metrics.xruns() << '\n'
             << "device errors: " << metrics.device_errors() << '\n';
@@ -242,6 +246,34 @@ int Control(const cockpit::runtime::ServiceRuntime& runtime,
   return Finish(runtime, 0);
 }
 
+int Transcripts(const cockpit::runtime::ServiceRuntime& runtime) {
+  const std::string address = runtime.args().GetString(
+      "address", runtime.config().services().audio.grpc.listen_address);
+  const int count = std::clamp(runtime.args().GetInt("count", 1), 1, 100);
+  const int timeout_ms =
+      std::clamp(runtime.args().GetInt("timeout-ms", 10000), 100, 60000);
+  cockpit::audio::AudioControlClient client(address);
+  std::string error;
+  const bool success = client.SubscribeTranscripts(
+      static_cast<std::uint32_t>(count), timeout_ms,
+      [](const cockpit::proto::audio::TranscriptEvent& event) {
+        std::cout << "transcript id=" << event.id()
+                  << " provider=" << event.provider()
+                  << " confidence=" << event.confidence()
+                  << " duration_ms=" << event.duration_ms()
+                  << " truncated=" << (event.truncated() ? "true" : "false")
+                  << " discontinuous="
+                  << (event.discontinuous() ? "true" : "false")
+                  << " text=\"" << event.text() << "\"\n";
+      },
+      &error);
+  if (!success) {
+    LOG_ERROR("transcript stream failed address=" + address + " error=" + error);
+    return Finish(runtime, 1);
+  }
+  return Finish(runtime, 0);
+}
+
 void PrintUsage() {
   std::cout << "usage:\n"
             << "  audio-probe --list [--config configs/config.yaml]\n"
@@ -249,7 +281,8 @@ void PrintUsage() {
             << "  audio-probe --play input.wav [--device NAME]\n"
             << "  audio-probe --start [--device NAME] [--address HOST:PORT]\n"
             << "  audio-probe --stop [--address HOST:PORT]\n"
-            << "  audio-probe --status [--address HOST:PORT]\n";
+            << "  audio-probe --status [--address HOST:PORT]\n"
+            << "  audio-probe --transcripts [--count N] [--timeout-ms N]\n";
 }
 
 }  // namespace
@@ -261,11 +294,14 @@ int main(int argc, char** argv) {
   const bool start = runtime.args().HasFlag("start");
   const bool stop = runtime.args().HasFlag("stop");
   const bool status = runtime.args().HasFlag("status");
-  const bool no_command = capture_path.empty() && play_path.empty() && !start && !stop && !status;
+  const bool transcripts = runtime.args().HasFlag("transcripts");
+  const bool no_command = capture_path.empty() && play_path.empty() && !start &&
+                          !stop && !status && !transcripts;
   const bool list = runtime.args().HasFlag("list") || no_command;
   const int command_count = static_cast<int>(list) + static_cast<int>(!capture_path.empty()) +
                             static_cast<int>(!play_path.empty()) + static_cast<int>(start) +
-                            static_cast<int>(stop) + static_cast<int>(status);
+                            static_cast<int>(stop) + static_cast<int>(status) +
+                            static_cast<int>(transcripts);
   if (command_count != 1) {
     PrintUsage();
     return Finish(runtime, 2);
@@ -278,6 +314,9 @@ int main(int argc, char** argv) {
   }
   if (!play_path.empty()) {
     return Play(runtime, play_path);
+  }
+  if (transcripts) {
+    return Transcripts(runtime);
   }
   return Control(runtime, start ? "start" : (stop ? "stop" : "status"));
 }

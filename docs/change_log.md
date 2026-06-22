@@ -5,6 +5,31 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - Mock ASR 与转写事件 / Mock ASR and Transcript Events
+
+### 变更内容 / Changed
+
+- 新增 `modules/voice`、`SpeechRecognizer`、`SpeechTranscript` 和确定性 mock provider。
+- `audio-service` 新增 ASR consumer thread，按顺序消费完成的 SpeechSegment 并排空停止队列。
+- transcript 使用单调 ID 和容量 32 的有界历史，支持多个订阅者按 ID 顺序读取。
+- `AudioControl.SubscribeTranscripts` 提供 text-only server stream，不传输原始 PCM。
+- `audio-probe --transcripts --count N --timeout-ms N` 可观察转写事件。
+- status 新增 ASR enabled、processed、published 和 error 指标。
+- topic gRPC subscriber 在总 deadline 内自动续连，避免瞬时 UNAVAILABLE 中断 echo/hz。
+
+### 设计决定 / Design Decisions
+
+- ASR 与 ALSA/VAD 解耦，只依赖完成的 SpeechSegment；未来可替换 whisper.cpp/TensorRT。
+- `features.voice.enabled` 控制 ASR worker，默认关闭；当前 provider 仅支持 mock。
+- transcript 历史只处理短暂订阅断线，不代替 SQLite 或持久化事件存储。
+- 语音段队列只有 ASR 一个 consumer，启用 ASR 后禁止外部抢读。
+
+### 验证结果 / Verification
+
+- mock recognizer 测试覆盖确定性结果和空段错误。
+- ASR pipeline 测试覆盖 segment→recognizer→ordered transcript 与指标。
+- CTest 11/11 通过；完整 smoke 通过，默认配置正确显示 ASR disabled。
+
 ## 2026-06-22 - 语音段聚合 / Speech Segment Aggregation
 
 ### 变更内容 / Changed

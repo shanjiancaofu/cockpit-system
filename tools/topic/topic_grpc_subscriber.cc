@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <utility>
 
 namespace cockpit {
@@ -57,37 +58,50 @@ int TopicGrpcSubscriber::Stream(const std::string& topic, int count, int max_hz,
       address_, grpc::InsecureChannelCredentials(), arguments);
   auto stub = proto::gateway::CockpitGateway::NewStub(channel);
 
-  grpc::ClientContext context;
-  context.set_wait_for_ready(true);
-  if (count > 0) {
-    context.set_deadline(
-        std::chrono::system_clock::now() + std::chrono::milliseconds(timeout_ms_));
-  }
-
   proto::gateway::SubscribeCockpitEventsRequest request;
   request.set_client_id("topic");
   request.set_max_hz(std::clamp(max_hz, 1, 100));
-  auto reader = stub->SubscribeCockpitEvents(&context, request);
-
+  const auto deadline = std::chrono::system_clock::now() +
+                        std::chrono::milliseconds(timeout_ms_);
   int received = 0;
-  proto::gateway::CockpitEvent event;
-  while ((count <= 0 || received < count) && reader->Read(&event)) {
-    if (!event.has_vehicle_state()) {
-      continue;
+  grpc::Status last_status;
+  while (count <= 0 ||
+         (received < count && std::chrono::system_clock::now() < deadline)) {
+    grpc::ClientContext context;
+    context.set_wait_for_ready(true);
+    if (count > 0) {
+      context.set_deadline(deadline);
     }
-    handler(ToSample(event));
-    ++received;
-  }
-  if (count > 0 && received >= count) {
-    context.TryCancel();
-  }
-  const grpc::Status status = reader->Finish();
-  if (count > 0 && received >= count) {
-    return 0;
+    auto reader = stub->SubscribeCockpitEvents(&context, request);
+    proto::gateway::CockpitEvent event;
+    while ((count <= 0 || received < count) && reader->Read(&event)) {
+      if (!event.has_vehicle_state()) {
+        continue;
+      }
+      handler(ToSample(event));
+      ++received;
+    }
+    if (count > 0 && received >= count) {
+      context.TryCancel();
+    }
+    last_status = reader->Finish();
+    if (count > 0 && received >= count) {
+      return 0;
+    }
+    if (count > 0 && std::chrono::system_clock::now() >= deadline) {
+      break;
+    }
+    if (last_status.error_code() != grpc::StatusCode::UNAVAILABLE &&
+        last_status.error_code() != grpc::StatusCode::UNKNOWN &&
+        last_status.error_code() != grpc::StatusCode::CANCELLED &&
+        !last_status.ok()) {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   std::cerr << "gRPC topic stream ended after " << received
-            << " messages: code=" << status.error_code()
-            << " message=" << status.error_message() << '\n';
+            << " messages: code=" << last_status.error_code()
+            << " message=" << last_status.error_message() << '\n';
   return 1;
 }
 

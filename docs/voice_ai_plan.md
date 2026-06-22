@@ -50,7 +50,7 @@ Backend options:
 Responsibilities:
 
 - Push-to-talk or wake-word state machine.
-- ASR input.
+- Subscribe to text transcript events from `audio-service`.
 - Dialog state.
 - LLM/tool-call orchestration.
 - TTS output.
@@ -124,6 +124,6 @@ ai:
 5. `audio-service`: microphone capture boundary and status reporting. Completed.
 6. Local frame consumer and dependency-free energy VAD boundary. Completed.
 7. Speech segment aggregation with pre-roll and bounded local ASR queue. Completed.
-8. Mock ASR consumer and transcript event boundary. Next.
-9. `voice-interaction-service`: mock intent/LLM/TTS pipeline.
+8. Mock ASR consumer and transcript event boundary. Completed.
+9. `voice-interaction-service`: mock intent/LLM/TTS pipeline. Next.
 10. Replace mock provider with local or remote model and optionally add WebRTC VAD.

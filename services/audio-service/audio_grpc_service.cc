@@ -2,6 +2,8 @@
 
 #include "core/logging/Logger.h"
 
+#include <chrono>
+
 namespace cockpit {
 namespace audio {
 namespace {
@@ -88,6 +90,33 @@ grpc::Status AudioGrpcService::GetStatus(
   return grpc::Status::OK;
 }
 
+grpc::Status AudioGrpcService::SubscribeTranscripts(
+    grpc::ServerContext* context,
+    const proto::audio::SubscribeTranscriptsRequest* request,
+    grpc::ServerWriter<proto::audio::TranscriptEvent>* writer) {
+  std::uint64_t observed_id = request->after_id();
+  std::uint32_t emitted = 0;
+  LOG_INFO("transcript subscriber connected client_id=" + request->client_id());
+  while (!context->IsCancelled() &&
+         (request->max_events() == 0 || emitted < request->max_events())) {
+    voice::SpeechTranscript transcript;
+    if (!audio_service_.WaitForTranscript(
+            observed_id, std::chrono::milliseconds(100), &transcript)) {
+      continue;
+    }
+    proto::audio::TranscriptEvent event;
+    FillTranscript(transcript, &event);
+    if (!writer->Write(event)) {
+      break;
+    }
+    observed_id = transcript.id;
+    ++emitted;
+  }
+  LOG_INFO("transcript subscriber disconnected client_id=" +
+           request->client_id());
+  return grpc::Status::OK;
+}
+
 void AudioGrpcService::FillStatus(const AudioServiceStatus& status,
                                   proto::audio::AudioStatus* response) {
   response->set_capture_state(ToProtoState(status.capture_state));
@@ -98,6 +127,7 @@ void AudioGrpcService::FillStatus(const AudioServiceStatus& status,
   response->set_last_error(status.last_error);
   response->set_voice_activity_state(ToProtoVoiceActivityState(status));
   response->set_input_level_dbfs(status.input_level_dbfs);
+  response->set_asr_enabled(status.asr_enabled);
   auto* metrics = response->mutable_metrics();
   metrics->set_pcm_frames_read(status.metrics.pcm_frames_read);
   metrics->set_audio_frames_published(status.metrics.audio_frames_published);
@@ -113,6 +143,24 @@ void AudioGrpcService::FillStatus(const AudioServiceStatus& status,
   metrics->set_speech_segments_truncated(status.speech_segments_truncated);
   metrics->set_speech_segments_dropped(status.speech_segments_dropped);
   metrics->set_last_segment_duration_ms(status.last_segment_duration_ms);
+  metrics->set_asr_segments_processed(status.asr_segments_processed);
+  metrics->set_transcripts_published(status.transcripts_published);
+  metrics->set_asr_errors(status.asr_errors);
+}
+
+void AudioGrpcService::FillTranscript(
+    const voice::SpeechTranscript& transcript,
+    proto::audio::TranscriptEvent* response) {
+  response->set_id(transcript.id);
+  response->set_timestamp_ms(transcript.timestamp_ms);
+  response->set_start_sequence(transcript.start_sequence);
+  response->set_end_sequence(transcript.end_sequence);
+  response->set_duration_ms(transcript.duration_ms);
+  response->set_truncated(transcript.truncated);
+  response->set_discontinuous(transcript.discontinuous);
+  response->set_text(transcript.text);
+  response->set_provider(transcript.provider);
+  response->set_confidence(transcript.confidence);
 }
 
 }  // namespace audio
