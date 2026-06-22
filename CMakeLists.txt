@@ -26,6 +26,7 @@ add_subdirectory(services/vehicle-data-service)
 add_subdirectory(services/cockpit-gateway-service)
 add_subdirectory(services/cloud-uplink-service)
 add_subdirectory(tools/can-simulator)
+add_subdirectory(tools/audio-probe)
 add_subdirectory(tools/topic)
 
 if(BUILD_COCKPIT_UI)

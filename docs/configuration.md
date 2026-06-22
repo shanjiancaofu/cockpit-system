@@ -81,8 +81,8 @@ tools:
 ## Typed Ownership
 
 `SystemConfig` is the immutable root loaded by `ServiceRuntime`. It owns typed child structures such
-as `VehicleDataConfig`, `GatewayConfig`, `CanConfig`, and `CloudUplinkConfig`. Binaries consume those
-objects directly instead of reading dotted string keys.
+as `VehicleDataConfig`, `GatewayConfig`, `CanConfig`, `AudioConfig`, and `CloudUplinkConfig`.
+Binaries consume those objects directly instead of reading dotted string keys.
 
 Configuration errors are startup failures. Missing optional values receive documented defaults;
 invalid required addresses, ports, intervals, or enum-like values produce a concrete error naming
@@ -93,4 +93,5 @@ the YAML path.
 - `core/config/SystemConfig` is loaded once by `ServiceRuntime` through yaml-cpp.
 - All service, CAN, MQTT placeholder, logging, and topic settings use typed child structures.
 - The former dotted-string getters and separate `configs/logging.yaml` have been removed.
-- CTest covers the real configuration and rejects an invalid gRPC address with its YAML path.
+- CTest covers the real configuration and rejects invalid gRPC and audio backend values with their
+  YAML paths.

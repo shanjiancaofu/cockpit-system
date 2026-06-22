@@ -13,6 +13,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Core config, logging, runtime, and time helpers.
 - yaml-cpp `SystemConfig` with typed sections and startup validation.
 - Vehicle state model, prototype CAN codec, and SocketCAN RAII wrapper.
+- Platform-independent PCM16 format and RIFF/WAVE read/write module.
+- ALSA PCM RAII driver and `audio-probe` list/capture/play diagnostic tool.
 - Generated protobuf/gRPC contracts for common, vehicle, gateway, and cloud.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.

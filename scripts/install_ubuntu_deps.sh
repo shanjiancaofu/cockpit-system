@@ -4,11 +4,13 @@ set -euo pipefail
 sudo apt-get update
 sudo apt-get install -y \
   build-essential \
+  alsa-utils \
   cmake \
   can-utils \
   iproute2 \
   kmod \
   libgrpc++-dev \
+  libasound2-dev \
   libprotobuf-dev \
   libxkbcommon-dev \
   libyaml-cpp-dev \

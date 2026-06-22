@@ -1,0 +1,174 @@
+#include "core/logging/Logger.h"
+#include "core/runtime/ServiceRuntime.h"
+#include "drivers/alsa/alsa_pcm.h"
+#include "modules/audio/wav_file.h"
+
+#include <algorithm>
+#include <cstdint>
+#include <iostream>
+#include <limits>
+#include <string>
+#include <vector>
+
+namespace {
+
+int Finish(const cockpit::runtime::ServiceRuntime& runtime, int result) {
+  runtime.MarkStopped();
+  return result;
+}
+
+std::string OneLine(std::string value) {
+  std::replace(value.begin(), value.end(), '\n', ' ');
+  std::replace(value.begin(), value.end(), '\r', ' ');
+  return value;
+}
+
+cockpit::audio::PcmFormat ConfiguredFormat(
+    const cockpit::config::AudioConfig& config) {
+  cockpit::audio::PcmFormat format;
+  format.sample_rate_hz = config.sample_rate_hz;
+  format.channels = config.channels;
+  format.frame_ms = config.frame_ms;
+  return format;
+}
+
+int ListDevices(const cockpit::runtime::ServiceRuntime& runtime) {
+  std::string error;
+  const auto devices = cockpit::audio::AlsaPcm::ListDevices(&error);
+  if (!error.empty()) {
+    LOG_ERROR(error);
+    return Finish(runtime, 1);
+  }
+  if (devices.empty()) {
+    std::cout << "no ALSA PCM devices found\n";
+    return Finish(runtime, 0);
+  }
+  for (const auto& device : devices) {
+    std::cout << device.name << " [" << cockpit::audio::ToString(device.io) << ']';
+    if (!device.description.empty()) {
+      std::cout << " - " << OneLine(device.description);
+    }
+    std::cout << '\n';
+  }
+  return Finish(runtime, 0);
+}
+
+int Capture(const cockpit::runtime::ServiceRuntime& runtime, const std::string& output_path) {
+  const auto& audio_config = runtime.config().hardware().audio;
+  const cockpit::audio::PcmFormat format = ConfiguredFormat(audio_config);
+  const std::string device = runtime.args().GetString("device", audio_config.input_device);
+  const int seconds = std::clamp(runtime.args().GetInt("seconds", 3), 1, 60);
+  const std::size_t total_frames =
+      static_cast<std::size_t>(format.sample_rate_hz) * static_cast<std::size_t>(seconds);
+  if (total_frames > std::numeric_limits<std::size_t>::max() /
+                         static_cast<std::size_t>(format.channels)) {
+    LOG_ERROR("audio capture size overflow");
+    return Finish(runtime, 2);
+  }
+
+  cockpit::audio::AlsaPcm pcm;
+  std::string error;
+  if (!pcm.Open(device, cockpit::audio::PcmDirection::kCapture, format, &error)) {
+    LOG_ERROR(error);
+    return Finish(runtime, 1);
+  }
+
+  std::vector<std::int16_t> samples;
+  samples.reserve(total_frames * static_cast<std::size_t>(format.channels));
+  std::vector<std::int16_t> period(
+      format.FramesPerPeriod() * static_cast<std::size_t>(format.channels));
+  std::size_t captured_frames = 0;
+  while (captured_frames < total_frames && !runtime.ShouldStop()) {
+    const std::size_t frames =
+        std::min(format.FramesPerPeriod(), total_frames - captured_frames);
+    if (!pcm.ReadFrames(period.data(), frames, &error)) {
+      LOG_ERROR(error);
+      return Finish(runtime, 1);
+    }
+    samples.insert(samples.end(), period.begin(),
+                   period.begin() + static_cast<std::ptrdiff_t>(
+                                        frames * static_cast<std::size_t>(format.channels)));
+    captured_frames += frames;
+  }
+  pcm.Close();
+
+  if (samples.empty()) {
+    LOG_ERROR("audio capture stopped before any samples were received");
+    return Finish(runtime, 1);
+  }
+  if (!cockpit::audio::WritePcm16Wav(output_path, format, samples, &error)) {
+    LOG_ERROR(error);
+    return Finish(runtime, 1);
+  }
+  std::cout << "captured " << captured_frames << " frames from " << device
+            << " to " << output_path << '\n';
+  return Finish(runtime, 0);
+}
+
+int Play(const cockpit::runtime::ServiceRuntime& runtime, const std::string& input_path) {
+  cockpit::audio::PcmBuffer buffer;
+  std::string error;
+  if (!cockpit::audio::ReadPcm16Wav(input_path, &buffer, &error)) {
+    LOG_ERROR(error);
+    return Finish(runtime, 1);
+  }
+
+  const auto& audio_config = runtime.config().hardware().audio;
+  buffer.format.frame_ms = audio_config.frame_ms;
+  const std::string device = runtime.args().GetString("device", audio_config.output_device);
+  cockpit::audio::AlsaPcm pcm;
+  if (!pcm.Open(device, cockpit::audio::PcmDirection::kPlayback, buffer.format, &error)) {
+    LOG_ERROR(error);
+    return Finish(runtime, 1);
+  }
+
+  std::size_t played_frames = 0;
+  while (played_frames < buffer.FrameCount() && !runtime.ShouldStop()) {
+    const std::size_t frames =
+        std::min(buffer.format.FramesPerPeriod(), buffer.FrameCount() - played_frames);
+    const auto* samples =
+        buffer.samples.data() + played_frames * static_cast<std::size_t>(buffer.format.channels);
+    if (!pcm.WriteFrames(samples, frames, &error)) {
+      LOG_ERROR(error);
+      return Finish(runtime, 1);
+    }
+    played_frames += frames;
+  }
+  if (!runtime.ShouldStop() && !pcm.Drain(&error)) {
+    LOG_ERROR(error);
+    return Finish(runtime, 1);
+  }
+  pcm.Close();
+  std::cout << "played " << played_frames << " frames from " << input_path
+            << " through " << device << '\n';
+  return Finish(runtime, 0);
+}
+
+void PrintUsage() {
+  std::cout << "usage:\n"
+            << "  audio-probe --list [--config configs/config.yaml]\n"
+            << "  audio-probe --capture output.wav [--seconds N] [--device NAME]\n"
+            << "  audio-probe --play input.wav [--device NAME]\n";
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "audio-probe");
+  const std::string capture_path = runtime.args().GetString("capture", "");
+  const std::string play_path = runtime.args().GetString("play", "");
+  const bool list = runtime.args().HasFlag("list") || (capture_path.empty() && play_path.empty());
+  const int command_count = static_cast<int>(list) + static_cast<int>(!capture_path.empty()) +
+                            static_cast<int>(!play_path.empty());
+  if (command_count != 1) {
+    PrintUsage();
+    return Finish(runtime, 2);
+  }
+  if (list) {
+    return ListDevices(runtime);
+  }
+  if (!capture_path.empty()) {
+    return Capture(runtime, capture_path);
+  }
+  return Play(runtime, play_path);
+}

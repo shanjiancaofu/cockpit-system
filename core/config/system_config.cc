@@ -308,6 +308,14 @@ void SystemConfig::Validate() const {
   RequirePositive(hardware_.audio.sample_rate_hz, "hardware.audio.sample_rate_hz");
   RequirePositive(hardware_.audio.channels, "hardware.audio.channels");
   RequirePositive(hardware_.audio.frame_ms, "hardware.audio.frame_ms");
+  if (hardware_.audio.capture_backend != "alsa") {
+    throw std::runtime_error("hardware.audio.capture_backend currently supports only alsa");
+  }
+  if (hardware_.audio.playback_backend != "alsa") {
+    throw std::runtime_error("hardware.audio.playback_backend currently supports only alsa");
+  }
+  RequireNotEmpty(hardware_.audio.input_device, "hardware.audio.input_device");
+  RequireNotEmpty(hardware_.audio.output_device, "hardware.audio.output_device");
   RequirePositive(features_.ai.request_timeout_ms, "features.ai.request_timeout_ms");
   if (!IsOneOf(tools_.topic.backend, "file", "grpc")) {
     throw std::runtime_error("tools.topic.backend must be file or grpc");

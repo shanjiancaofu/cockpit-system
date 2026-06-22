@@ -26,5 +26,18 @@ int main() {
       return 1;
     }
   }
+
+  try {
+    cockpit::config::SystemConfig::LoadFromFile(INVALID_AUDIO_CONFIG_PATH);
+    std::cerr << "invalid audio config was accepted" << std::endl;
+    return 1;
+  } catch (const std::runtime_error& error) {
+    const std::string message = error.what();
+    if (message.find("hardware.audio.capture_backend") == std::string::npos) {
+      std::cerr << "invalid audio config error did not identify YAML path: " << message
+                << std::endl;
+      return 1;
+    }
+  }
   return 0;
 }

@@ -25,6 +25,7 @@ services/audio-service
 services/voice-interaction-service
 modules/audio
 modules/ai
+drivers/alsa
 tools/audio-probe
 ```
 
@@ -116,8 +117,8 @@ ai:
 
 ## Build Order
 
-1. `tools/audio-probe`: list input/output devices and record/play a short test file.
-2. `modules/audio`: RAII wrappers for audio device/session.
-3. `audio-service`: service boundary and status reporting.
+1. `modules/audio`: PCM format and WAV handling. Completed.
+2. `drivers/alsa` and `tools/audio-probe`: list devices and record/play a short test file. Completed.
+3. `audio-service`: service boundary and status reporting. Next.
 4. `voice-interaction-service`: mock ASR/TTS/LLM pipeline.
 5. Replace mock provider with local or remote model.

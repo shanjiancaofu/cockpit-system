@@ -5,6 +5,50 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-22 - ALSA 驱动与音频探针 / ALSA Driver and Audio Probe
+
+### 变更内容 / Changed
+
+- 新增 `drivers/alsa`，封装 PCM 设备枚举、格式协商、读写、xrun recover 和 RAII 关闭。
+- 新增 `audio-probe --list/--capture/--play`，复用类型化 audio config 和 WAV 模块。
+- ALSA period buffer 配置为约四个周期，并拒绝零进度 I/O，避免死循环。
+- 音频 backend 当前严格校验为 ALSA，设备名不能为空。
+- 默认 smoke 增加 ALSA 设备枚举。
+
+### 设计决定 / Design Decisions
+
+- ALSA 细节只存在于 `drivers/alsa`，WAV 和 PCM 领域模型继续留在 `modules/audio`。
+- probe 按 period 分块处理并响应 runtime stop，不承担常驻服务职责。
+- 真实麦克风/扬声器由 Jetson 实机验证；无硬件环境使用 ALSA `null` 验证软件链路。
+
+### 验证结果 / Verification
+
+- ALSA 1.2.6.1 driver 和 `audio-probe` 编译通过，CTest 4/4 通过。
+- WSL 枚举到 `null` duplex PCM。
+- null capture 录制 16000 帧，生成 PCM16 WAV；null playback 完整播放 16000 帧。
+- 默认 smoke 包含 audio device list，并保持完整通过。
+
+## 2026-06-22 - 音频核心与 WAV / Audio Core and WAV
+
+### 变更内容 / Changed
+
+- 新增 `modules/audio`，提供 PCM16 格式校验、帧大小和周期帧数计算。
+- 新增 RIFF/WAVE PCM16 读写，支持单声道和多声道交错 samples。
+- WAV 解析校验格式、完整帧、截断数据和 512 MiB 输入上限。
+- Ubuntu 依赖清单增加 `libasound2-dev` 和 `alsa-utils`，为下一批 ALSA 接入准备。
+- 新增 `audio_wav_test`，覆盖格式校验、往返、非法文件和缺失文件。
+
+### 设计决定 / Design Decisions
+
+- `modules/audio` 不依赖 ALSA、Qt 或 gRPC，保持平台无关。
+- ALSA 设备句柄放入 `drivers/alsa`，服务生命周期放入 `services/audio-service`。
+- 当前只支持语音链路需要的 PCM16，小步扩展格式，不预建复杂媒体框架。
+
+### 验证结果 / Verification
+
+- audio target 和 WAV test 编译通过。
+- CTest 4/4 通过。
+
 ## 2026-06-22 - Qt UI 数据新鲜度 / Qt UI Data Freshness
 
 ### 变更内容 / Changed

@@ -22,6 +22,7 @@ cleanup() {
 trap cleanup EXIT
 
 "${bin_dir}/can-simulator" --config "${config_path}" --samples 3
+"${bin_dir}/audio-probe" --list --config "${config_path}"
 "${bin_dir}/vehicle-data-service" --config "${config_path}" --forever >"${vehicle_log}" 2>&1 &
 vehicle_pid="$!"
 sleep 0.2
