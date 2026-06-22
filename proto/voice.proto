@@ -20,6 +20,8 @@ message VoiceResponseEvent {
   string intent = 5;
   string action = 6;
   string response_text = 7;
+  string action_status = 8;
+  string action_message = 9;
 }
 
 message VoiceMetrics {
@@ -28,6 +30,9 @@ message VoiceMetrics {
   uint64 unknown_intents = 3;
   uint64 processing_errors = 4;
   uint64 upstream_reconnects = 5;
+  uint64 actions_attempted = 6;
+  uint64 actions_succeeded = 7;
+  uint64 actions_failed = 8;
 }
 
 message VoiceInteractionStatus {

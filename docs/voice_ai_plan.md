@@ -126,5 +126,6 @@ ai:
 7. Speech segment aggregation with pre-roll and bounded local ASR queue. Completed.
 8. Mock ASR consumer and transcript event boundary. Completed.
 9. `voice-interaction-service`: mock intent and response pipeline. Completed.
-10. Add a controlled local action dispatcher and mock TTS/playback path. Next.
-11. Replace mock providers with local or remote models and optionally add WebRTC VAD.
+10. Add a typed action dispatcher with explicit execution results. Completed.
+11. Add TTS synthesis and speaker playback behind replaceable interfaces. Next.
+12. Replace mock providers with local or remote models and optionally add WebRTC VAD.

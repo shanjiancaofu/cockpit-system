@@ -5,6 +5,28 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - 受控语音动作分发 / Controlled Voice Action Dispatch
+
+### 变更内容 / Changed
+
+- 新增平台无关 ActionDispatcher 和 ActionExecutionResult。
+- mock dispatcher 仅接受类型化白名单动作，非法枚举返回 rejected。
+- voice response 新增 action status/message，区分意图识别和动作执行结果。
+- service status 新增 attempted、succeeded、failed 动作指标，voice-ctl 同步展示。
+- 缺少 dispatcher 时返回 not_implemented，不再让响应表现为动作已完成。
+
+### 设计决定 / Design Decisions
+
+- dispatcher 只接收 VoiceAction，不接收命令字符串，也不提供 shell 执行入口。
+- 当前运行时使用 mock dispatcher；真实动作后续通过相机、录音、媒体等服务客户端实现。
+- response_text 和 action execution 分离，便于后续 TTS 选择可靠的最终播报内容。
+
+### 验证结果 / Verification
+
+- 测试覆盖白名单成功、none、非法动作拒绝和 dispatcher 缺失路径。
+- service 测试覆盖动作状态、成功/失败指标及既有有序 response 历史。
+- CTest 13/13 通过；完整 smoke 通过并展示新增动作指标。
+
 ## 2026-06-23 - 语音交互服务 / Voice Interaction Service
 
 ### 变更内容 / Changed

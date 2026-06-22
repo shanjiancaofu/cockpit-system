@@ -8,8 +8,11 @@ namespace cockpit {
 namespace voice {
 
 VoiceInteractionService::VoiceInteractionService(
-    bool enabled, std::unique_ptr<VoiceAssistant> assistant)
-    : enabled_(enabled), assistant_(std::move(assistant)) {
+    bool enabled, std::unique_ptr<VoiceAssistant> assistant,
+    std::unique_ptr<ActionDispatcher> dispatcher)
+    : enabled_(enabled),
+      assistant_(std::move(assistant)),
+      dispatcher_(std::move(dispatcher)) {
   state_.store(enabled_ ? InteractionState::kListening
                         : InteractionState::kDisabled);
 }
@@ -42,6 +45,24 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
     response.response_text = result.response_text;
     if (result.intent == VoiceIntent::kUnknown) {
       unknown_intents_.fetch_add(1U);
+    }
+    if (result.action != VoiceAction::kNone) {
+      actions_attempted_.fetch_add(1U);
+      if (dispatcher_ == nullptr) {
+        response.action_status = ActionExecutionStatus::kNotImplemented;
+        response.action_message = "No action dispatcher is configured.";
+        actions_failed_.fetch_add(1U);
+      } else {
+        const ActionExecutionResult execution =
+            dispatcher_->Execute(result.action);
+        response.action_status = execution.status;
+        response.action_message = execution.message;
+        if (execution.status == ActionExecutionStatus::kSucceeded) {
+          actions_succeeded_.fetch_add(1U);
+        } else {
+          actions_failed_.fetch_add(1U);
+        }
+      }
     }
     response = PublishResponse(std::move(response));
     state_.store(InteractionState::kListening);
@@ -81,6 +102,9 @@ VoiceInteractionStatus VoiceInteractionService::status() const {
   result.metrics.unknown_intents = unknown_intents_.load();
   result.metrics.processing_errors = processing_errors_.load();
   result.metrics.upstream_reconnects = upstream_reconnects_.load();
+  result.metrics.actions_attempted = actions_attempted_.load();
+  result.metrics.actions_succeeded = actions_succeeded_.load();
+  result.metrics.actions_failed = actions_failed_.load();
   std::lock_guard<std::mutex> lock(response_mutex_);
   if (!response_history_.empty()) {
     result.latest_response = response_history_.back();

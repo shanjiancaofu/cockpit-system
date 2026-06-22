@@ -1,3 +1,4 @@
+#include "modules/voice/mock_action_dispatcher.h"
 #include "modules/voice/mock_voice_assistant.h"
 
 #include <iostream>
@@ -32,6 +33,16 @@ int main() {
               VoiceAction::kStopRecording) ||
       !Expect("tell me a joke", VoiceIntent::kUnknown, VoiceAction::kNone)) {
     std::cerr << "mock voice assistant intent mapping failed\n";
+    return 1;
+  }
+  cockpit::voice::MockActionDispatcher dispatcher;
+  if (dispatcher.Execute(VoiceAction::kOpenCamera).status !=
+          cockpit::voice::ActionExecutionStatus::kSucceeded ||
+      dispatcher.Execute(VoiceAction::kNone).status !=
+          cockpit::voice::ActionExecutionStatus::kNotRequested ||
+      dispatcher.Execute(static_cast<VoiceAction>(999)).status !=
+          cockpit::voice::ActionExecutionStatus::kRejected) {
+    std::cerr << "mock action dispatcher policy failed\n";
     return 1;
   }
   std::cout << "mock voice assistant tests passed\n";

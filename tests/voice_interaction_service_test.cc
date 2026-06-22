@@ -1,3 +1,4 @@
+#include "modules/voice/mock_action_dispatcher.h"
 #include "modules/voice/mock_voice_assistant.h"
 #include "services/voice-interaction-service/voice_interaction_service.h"
 
@@ -6,7 +7,7 @@
 #include <memory>
 
 int main() {
-  cockpit::voice::VoiceInteractionService disabled(false, nullptr);
+  cockpit::voice::VoiceInteractionService disabled(false, nullptr, nullptr);
   cockpit::voice::SpeechTranscript transcript;
   transcript.text = "open camera";
   if (disabled.HandleTranscript(transcript).has_value() ||
@@ -16,7 +17,8 @@ int main() {
   }
 
   cockpit::voice::VoiceInteractionService service(
-      true, std::make_unique<cockpit::voice::MockVoiceAssistant>());
+      true, std::make_unique<cockpit::voice::MockVoiceAssistant>(),
+      std::make_unique<cockpit::voice::MockActionDispatcher>());
   transcript.id = 10;
   auto first = service.HandleTranscript(transcript);
   transcript.id = 11;
@@ -24,6 +26,8 @@ int main() {
   auto second = service.HandleTranscript(transcript);
   if (!first.has_value() || !second.has_value() || first->id >= second->id ||
       first->action != cockpit::voice::VoiceAction::kOpenCamera ||
+      first->action_status !=
+          cockpit::voice::ActionExecutionStatus::kSucceeded ||
       second->action != cockpit::voice::VoiceAction::kNone) {
     std::cerr << "voice response generation failed\n";
     return 1;
@@ -41,9 +45,24 @@ int main() {
       status.metrics.transcripts_received != 2 ||
       status.metrics.responses_published != 2 ||
       status.metrics.unknown_intents != 1 ||
+      status.metrics.actions_attempted != 1 ||
+      status.metrics.actions_succeeded != 1 ||
+      status.metrics.actions_failed != 0 ||
       !status.latest_response.has_value() ||
       status.latest_response->id != second->id) {
     std::cerr << "voice interaction metrics are invalid\n";
+    return 1;
+  }
+
+  cockpit::voice::VoiceInteractionService no_dispatcher(
+      true, std::make_unique<cockpit::voice::MockVoiceAssistant>(), nullptr);
+  transcript.text = "start recording";
+  const auto unavailable = no_dispatcher.HandleTranscript(transcript);
+  if (!unavailable.has_value() ||
+      unavailable->action_status !=
+          cockpit::voice::ActionExecutionStatus::kNotImplemented ||
+      no_dispatcher.status().metrics.actions_failed != 1) {
+    std::cerr << "missing dispatcher was not reported\n";
     return 1;
   }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "modules/voice/action_dispatcher.h"
 #include "modules/voice/speech_transcript.h"
 #include "modules/voice/voice_assistant.h"
 
@@ -30,6 +31,8 @@ struct VoiceResponse {
   std::string transcript_text;
   VoiceIntent intent = VoiceIntent::kUnknown;
   VoiceAction action = VoiceAction::kNone;
+  ActionExecutionStatus action_status = ActionExecutionStatus::kNotRequested;
+  std::string action_message;
   std::string response_text;
 };
 
@@ -39,6 +42,9 @@ struct VoiceInteractionMetrics {
   std::uint64_t unknown_intents = 0;
   std::uint64_t processing_errors = 0;
   std::uint64_t upstream_reconnects = 0;
+  std::uint64_t actions_attempted = 0;
+  std::uint64_t actions_succeeded = 0;
+  std::uint64_t actions_failed = 0;
 };
 
 struct VoiceInteractionStatus {
@@ -50,7 +56,8 @@ struct VoiceInteractionStatus {
 
 class VoiceInteractionService {
  public:
-  VoiceInteractionService(bool enabled, std::unique_ptr<VoiceAssistant> assistant);
+  VoiceInteractionService(bool enabled, std::unique_ptr<VoiceAssistant> assistant,
+                          std::unique_ptr<ActionDispatcher> dispatcher);
 
   VoiceInteractionService(const VoiceInteractionService&) = delete;
   VoiceInteractionService& operator=(const VoiceInteractionService&) = delete;
@@ -68,6 +75,7 @@ class VoiceInteractionService {
 
   const bool enabled_;
   const std::unique_ptr<VoiceAssistant> assistant_;
+  const std::unique_ptr<ActionDispatcher> dispatcher_;
   mutable std::mutex processing_mutex_;
   std::atomic<InteractionState> state_{InteractionState::kDisabled};
   std::atomic<std::uint64_t> transcripts_received_{0};
@@ -75,6 +83,9 @@ class VoiceInteractionService {
   std::atomic<std::uint64_t> unknown_intents_{0};
   std::atomic<std::uint64_t> processing_errors_{0};
   std::atomic<std::uint64_t> upstream_reconnects_{0};
+  std::atomic<std::uint64_t> actions_attempted_{0};
+  std::atomic<std::uint64_t> actions_succeeded_{0};
+  std::atomic<std::uint64_t> actions_failed_{0};
   mutable std::mutex response_mutex_;
   mutable std::condition_variable response_changed_;
   std::deque<VoiceResponse> response_history_;

@@ -28,6 +28,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
   server-streaming gRPC events.
 - voice-interaction-service with deterministic allowlisted intents, ordered response events,
   status metrics, audio transcript subscription, and the voice-ctl gRPC diagnostic tool.
+- Typed ActionDispatcher boundary with explicit success/rejected/not-implemented/failed results,
+  mock allowlist execution, response fields, and execution metrics.
 - Generated protobuf/gRPC contracts for common, vehicle, gateway, audio, and cloud.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.
@@ -58,7 +60,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - SQLite storage and recorder index.
 - Shared memory ring buffer.
 - Audio playback service path for speaker output.
-- Real TTS synthesis and speaker playback orchestration.
+- TTS synthesis and speaker playback orchestration.
 - Real ASR provider such as whisper.cpp or TensorRT-accelerated inference.
 - WebRTC VAD backend and real microphone threshold calibration.
 - AI application layer for voice commands and large-model features.

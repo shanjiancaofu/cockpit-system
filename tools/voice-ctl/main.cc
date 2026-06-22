@@ -35,8 +35,10 @@ void PrintResponse(const cockpit::proto::voice::VoiceResponseEvent& response) {
             << " transcript_id=" << response.transcript_id()
             << " intent=" << response.intent()
             << " action=" << response.action()
+            << " action_status=" << response.action_status()
             << " transcript=\"" << response.transcript_text() << "\""
-            << " text=\"" << response.response_text() << "\"\n";
+            << " text=\"" << response.response_text() << "\""
+            << " action_message=\"" << response.action_message() << "\"\n";
 }
 
 void PrintStatus(const cockpit::proto::voice::VoiceInteractionStatus& status) {
@@ -47,6 +49,9 @@ void PrintStatus(const cockpit::proto::voice::VoiceInteractionStatus& status) {
             << "unknown intents: " << metrics.unknown_intents() << '\n'
             << "processing errors: " << metrics.processing_errors() << '\n'
             << "upstream reconnects: " << metrics.upstream_reconnects() << '\n';
+  std::cout << "actions attempted: " << metrics.actions_attempted() << '\n'
+            << "actions succeeded: " << metrics.actions_succeeded() << '\n'
+            << "actions failed: " << metrics.actions_failed() << '\n';
   if (status.has_latest_response()) {
     PrintResponse(status.latest_response());
   }

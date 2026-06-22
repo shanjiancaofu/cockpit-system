@@ -106,6 +106,8 @@ void VoiceGrpcService::FillResponse(
   response->set_transcript_text(value.transcript_text);
   response->set_intent(ToString(value.intent));
   response->set_action(ToString(value.action));
+  response->set_action_status(ToString(value.action_status));
+  response->set_action_message(value.action_message);
   response->set_response_text(value.response_text);
 }
 
@@ -120,6 +122,9 @@ void VoiceGrpcService::FillStatus(
   metrics->set_unknown_intents(value.metrics.unknown_intents);
   metrics->set_processing_errors(value.metrics.processing_errors);
   metrics->set_upstream_reconnects(value.metrics.upstream_reconnects);
+  metrics->set_actions_attempted(value.metrics.actions_attempted);
+  metrics->set_actions_succeeded(value.metrics.actions_succeeded);
+  metrics->set_actions_failed(value.metrics.actions_failed);
   if (value.latest_response.has_value()) {
     FillResponse(*value.latest_response, response->mutable_latest_response());
   }
