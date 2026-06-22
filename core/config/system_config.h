@@ -43,6 +43,11 @@ struct GatewayConfig {
   WebSocketServerConfig websocket{"127.0.0.1:18080"};
 };
 
+struct AudioServiceConfig {
+  bool auto_start = false;
+  GrpcServerConfig grpc{"127.0.0.1:50052"};
+};
+
 struct MqttConfig {
   std::string broker = "tcp://127.0.0.1:1883";
   std::string telemetry_topic = "vehicle/status";
@@ -57,6 +62,7 @@ struct CloudUplinkConfig {
 struct ServicesConfig {
   VehicleDataConfig vehicle_data;
   GatewayConfig gateway;
+  AudioServiceConfig audio;
   CloudUplinkConfig cloud_uplink;
 };
 

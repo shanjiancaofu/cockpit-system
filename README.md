@@ -13,7 +13,7 @@
 
 ## 当前能力
 
-- C++17 及以上 + CMake + Ninja 构建链路（默认 C++17）。
+- C++17 + CMake + Ninja 构建链路。
 - 统一配置、日志、服务生命周期和车辆状态模型。
 - `CanFrame` 与 Linux SocketCAN RAII 封装。
 - `VehicleCanCodec` 与 `vehicle-data-service --source mock|socketcan`。
@@ -22,6 +22,7 @@
 - `vehicle-data-service` 提供 mock/SocketCAN 数据源和 gRPC 状态流。
 - `cockpit-gateway-service` 订阅车辆状态，支持断线重连与消息去重。
 - ROS 风格 `topic list/info/pub/echo/hz` 调试工具。
+- `audio-service` 麦克风采集控制面和 `audio-probe --start/--stop/--status`。
 - Qt/QML cockpit UI 和本地 Web dashboard 目录骨架。
 
 尚未完成的真实传输包括：gateway 对 UI 的 gRPC/WebSocket 输出和 MQTT。

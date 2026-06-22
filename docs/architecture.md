@@ -16,7 +16,7 @@ vcan0 / can-simulator
 
 Current implementation boundary:
 
-- C++17 or newer with CMake is the main build path; C++17 is the default baseline.
+- C++17 + CMake is the main build path.
 - This repository is the Jetson-side smart cockpit system. Cloud/backend/frontend projects are deferred
   until the local vehicle-side chain is stable.
 - The project stays as one repository/folder for now. It should grow through internal CMake
@@ -26,8 +26,9 @@ Current implementation boundary:
 - yaml-cpp loads an immutable typed `SystemConfig` and validates component settings at startup.
 - `vehicle-data-service` exposes a VehicleState gRPC stream consumed by `cockpit-gateway-service`.
 - `cloud-uplink-service` remains a transport placeholder; `can-simulator` is runnable.
-- Qt/QML, WebSocket, MQTT, GStreamer, WebRTC, SQLite, shared memory, audio, voice interaction, and
-  AI integration remain explicit module boundaries for later phases.
+- ALSA microphone capture, local SPSC transport, and the audio gRPC control plane are implemented.
+- Qt/QML, WebSocket, MQTT, GStreamer, WebRTC, SQLite, shared memory, audio playback, voice
+  interaction, and AI integration remain explicit module boundaries for later phases.
 
 Current directory shape:
 
@@ -79,5 +80,5 @@ Voice/AI scope for this Jetson project:
 Immediate next engineering tasks:
 
 1. Add ALSA poll/status results and the threaded `AudioCaptureStream` producer.
-2. Build `audio-service` control/status APIs without sending raw PCM through gRPC.
+2. Build `audio-service` control/status APIs without sending raw PCM through gRPC. Completed.
 3. Decode production chassis frames after an approved DBC or signal specification is available.

@@ -1,16 +1,5 @@
 # Configuration Architecture
 
-## Build Configuration
-
-The project requires C++17 or newer and defaults to C++17. A newer standard can be selected at
-configure time without editing the repository:
-
-```bash
-cmake -S . -B build -DCMAKE_CXX_STANDARD=20
-```
-
-Values below C++17 are rejected during CMake configuration.
-
 ## Reference
 
 The configuration design references

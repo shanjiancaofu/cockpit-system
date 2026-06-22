@@ -25,6 +25,10 @@ services:
       listen_address: 127.0.0.1:50051
     websocket:
       listen_address: 127.0.0.1:18080
+  audio:
+    auto_start: false
+    grpc:
+      listen_address: 127.0.0.1:50052
   cloud_uplink:
     enabled: false
     mqtt:

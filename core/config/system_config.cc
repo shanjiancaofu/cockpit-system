@@ -159,6 +159,20 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            config.services_.gateway.websocket.listen_address,
            "services.gateway.websocket.listen_address");
 
+  const YAML::Node audio_service = ChildMap(services, "audio", "services.audio");
+  config.services_.audio.auto_start =
+      Read(audio_service,
+           "auto_start",
+           config.services_.audio.auto_start,
+           "services.audio.auto_start");
+  const YAML::Node audio_grpc =
+      ChildMap(audio_service, "grpc", "services.audio.grpc");
+  config.services_.audio.grpc.listen_address =
+      Read(audio_grpc,
+           "listen_address",
+           config.services_.audio.grpc.listen_address,
+           "services.audio.grpc.listen_address");
+
   const YAML::Node cloud_uplink =
       ChildMap(services, "cloud_uplink", "services.cloud_uplink");
   config.services_.cloud_uplink.enabled = Read(
@@ -290,6 +304,8 @@ void SystemConfig::Validate() const {
                   "services.gateway.websocket.listen_address");
   RequirePositive(services_.gateway.stream_timeout_ms, "services.gateway.stream_timeout_ms");
   RequirePositive(services_.gateway.retry_delay_ms, "services.gateway.retry_delay_ms");
+  ValidateAddress(services_.audio.grpc.listen_address,
+                  "services.audio.grpc.listen_address");
 
   RequireNotEmpty(services_.cloud_uplink.mqtt.broker, "services.cloud_uplink.mqtt.broker");
   RequireNotEmpty(services_.cloud_uplink.mqtt.telemetry_topic,

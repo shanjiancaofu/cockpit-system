@@ -10,6 +10,7 @@ int main() {
       config.system().vehicle_id != "car_001" ||
       config.services().vehicle_data.grpc.listen_address != "127.0.0.1:50050" ||
       config.services().gateway.stream_timeout_ms != 10000 ||
+      config.services().audio.grpc.listen_address != "127.0.0.1:50052" ||
       config.hardware().can.interface != "vcan0" || config.tools().topic.backend != "file") {
     std::cerr << "typed config fields do not match config.yaml" << std::endl;
     return 1;

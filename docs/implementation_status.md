@@ -18,6 +18,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Immutable 20 ms voice frames and a fixed-capacity lock-free SPSC ring buffer.
 - Non-blocking ALSA poll capture and a threaded `AudioCaptureStream` with explicit state,
   xrun recovery, discontinuity flags, and runtime metrics.
+- `audio-service` microphone capture owner with gRPC start/stop/status/metrics control plane.
+- `audio-probe` remote control commands and ALSA `null` service smoke coverage.
 - Generated protobuf/gRPC contracts for common, vehicle, gateway, and cloud.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.
@@ -47,7 +49,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - GStreamer/V4L2 camera path.
 - SQLite storage and recorder index.
 - Shared memory ring buffer.
-- Audio service for microphone/speaker.
+- Audio playback service path for speaker output.
 - Voice interaction service for ASR/TTS/LLM orchestration.
 - AI application layer for voice commands and large-model features.
 

@@ -1,3 +1,4 @@
+#include "audio_control_client.h"
 #include "core/logging/Logger.h"
 #include "core/runtime/ServiceRuntime.h"
 #include "drivers/alsa/alsa_pcm.h"
@@ -156,11 +157,73 @@ int Play(const cockpit::runtime::ServiceRuntime& runtime, const std::string& inp
   return Finish(runtime, 0);
 }
 
+const char* CaptureStateName(cockpit::proto::audio::CaptureState state) {
+  switch (state) {
+    case cockpit::proto::audio::CAPTURE_STATE_STOPPED:
+      return "stopped";
+    case cockpit::proto::audio::CAPTURE_STATE_STARTING:
+      return "starting";
+    case cockpit::proto::audio::CAPTURE_STATE_RUNNING:
+      return "running";
+    case cockpit::proto::audio::CAPTURE_STATE_RECOVERING:
+      return "recovering";
+    case cockpit::proto::audio::CAPTURE_STATE_FAULTED:
+      return "faulted";
+    case cockpit::proto::audio::CAPTURE_STATE_UNSPECIFIED:
+      return "unspecified";
+  }
+  return "unknown";
+}
+
+void PrintStatus(const cockpit::proto::audio::AudioStatus& status) {
+  const auto& metrics = status.metrics();
+  std::cout << "state: " << CaptureStateName(status.capture_state()) << '\n'
+            << "device: " << status.input_device() << '\n'
+            << "format: " << status.sample_rate_hz() << " Hz, "
+            << status.channels() << " channel(s), " << status.frame_ms() << " ms\n"
+            << "frames read: " << metrics.pcm_frames_read() << '\n'
+            << "frames published: " << metrics.audio_frames_published() << '\n'
+            << "frames dropped: " << metrics.audio_frames_dropped() << '\n'
+            << "timeouts: " << metrics.timeouts() << '\n'
+            << "xruns: " << metrics.xruns() << '\n'
+            << "device errors: " << metrics.device_errors() << '\n';
+  if (!status.last_error().empty()) {
+    std::cout << "last error: " << status.last_error() << '\n';
+  }
+}
+
+int Control(const cockpit::runtime::ServiceRuntime& runtime,
+            const std::string& command) {
+  const std::string address = runtime.args().GetString(
+      "address", runtime.config().services().audio.grpc.listen_address);
+  cockpit::audio::AudioControlClient client(address);
+  cockpit::proto::audio::AudioStatus status;
+  std::string error;
+  bool success = false;
+  if (command == "start") {
+    success = client.StartCapture(runtime.args().GetString("device", ""),
+                                  &status, &error);
+  } else if (command == "stop") {
+    success = client.StopCapture(&status, &error);
+  } else {
+    success = client.GetStatus(&status, &error);
+  }
+  if (!success) {
+    LOG_ERROR("audio control RPC failed address=" + address + " error=" + error);
+    return Finish(runtime, 1);
+  }
+  PrintStatus(status);
+  return Finish(runtime, 0);
+}
+
 void PrintUsage() {
   std::cout << "usage:\n"
             << "  audio-probe --list [--config configs/config.yaml]\n"
             << "  audio-probe --capture output.wav [--seconds N] [--device NAME]\n"
-            << "  audio-probe --play input.wav [--device NAME]\n";
+            << "  audio-probe --play input.wav [--device NAME]\n"
+            << "  audio-probe --start [--device NAME] [--address HOST:PORT]\n"
+            << "  audio-probe --stop [--address HOST:PORT]\n"
+            << "  audio-probe --status [--address HOST:PORT]\n";
 }
 
 }  // namespace
@@ -169,9 +232,14 @@ int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "audio-probe");
   const std::string capture_path = runtime.args().GetString("capture", "");
   const std::string play_path = runtime.args().GetString("play", "");
-  const bool list = runtime.args().HasFlag("list") || (capture_path.empty() && play_path.empty());
+  const bool start = runtime.args().HasFlag("start");
+  const bool stop = runtime.args().HasFlag("stop");
+  const bool status = runtime.args().HasFlag("status");
+  const bool no_command = capture_path.empty() && play_path.empty() && !start && !stop && !status;
+  const bool list = runtime.args().HasFlag("list") || no_command;
   const int command_count = static_cast<int>(list) + static_cast<int>(!capture_path.empty()) +
-                            static_cast<int>(!play_path.empty());
+                            static_cast<int>(!play_path.empty()) + static_cast<int>(start) +
+                            static_cast<int>(stop) + static_cast<int>(status);
   if (command_count != 1) {
     PrintUsage();
     return Finish(runtime, 2);
@@ -182,5 +250,8 @@ int main(int argc, char** argv) {
   if (!capture_path.empty()) {
     return Capture(runtime, capture_path);
   }
-  return Play(runtime, play_path);
+  if (!play_path.empty()) {
+    return Play(runtime, play_path);
+  }
+  return Control(runtime, start ? "start" : (stop ? "stop" : "status"));
 }

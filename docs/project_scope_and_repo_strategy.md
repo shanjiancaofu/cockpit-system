@@ -136,8 +136,7 @@ The project must remain feasible for a single-developer Jetson project.
 
 Rules:
 
-- Use C++17 or newer with CMake for the vehicle-side mainline; keep C++17 as the compatibility
-  baseline.
+- Use C++17 + CMake for the vehicle-side mainline.
 - Add heavy dependencies only when a runnable chain needs them.
 - Use mock providers before real hardware/provider integrations.
 - Avoid building full cloud, account, permission, OTA, and multi-vehicle features in the first
@@ -147,7 +146,7 @@ Rules:
 Phased dependency plan:
 
 ```text
-Stage 1: C++17+ (default C++17), CMake, SocketCAN, local logs/config
+Stage 1: C++17, CMake, SocketCAN, local logs/config
 Stage 2: Qt/QML, protobuf/gRPC
 Stage 3: V4L2/GStreamer, SQLite
 Stage 4: ALSA/PulseAudio/PipeWire, voice mock pipeline

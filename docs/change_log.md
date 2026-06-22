@@ -7,9 +7,28 @@ changes, design decisions, and verification results.
 
 ## 2026-06-22 - C++ 标准基线 / C++ Standard Baseline
 
-- CMake 改为默认 C++17，同时允许通过 `CMAKE_CXX_STANDARD` 选择 C++20/23。
-- 配置值低于 C++17 时直接失败，明确项目要求为 C++17 及以上。
-- README、架构和配置文档统一使用 C++17+ 表述。
+- 全工程统一使用 C++17，不提供 C++20/23 构建开关。
+- README、架构和配置文档统一使用 C++17 表述。
+
+## 2026-06-22 - 音频采集服务 / Audio Capture Service
+
+### 变更内容 / Changed
+
+- 新增 `audio-service`，统一持有 ALSA capture source 和 `AudioCaptureStream`。
+- `AudioControl` gRPC 支持 start、stop、status 和实时 metrics，PCM 不通过 gRPC 传输。
+- `audio-probe` 新增 `--start/--stop/--status` 远程控制命令。
+- Start RPC 等待设备打开结果；进程内 VAD/ASR 可通过唯一 `TryPopFrame()` 入口消费数据。
+- 新增 service 生命周期单元测试、ALSA `null` gRPC smoke 和 systemd 单元。
+
+### 设计决定 / Design Decisions
+
+- gRPC 是控制面，本地 SPSC ring 是数据面；唯一 consumer 留给后续真实 VAD/ASR。
+- `audio-service` 独占麦克风设备；UI 和语音模块不直接访问 ALSA。
+- 当前批次只完成采集控制，扬声器播放控制仍为后续能力。
+
+### 验证结果 / Verification
+
+- CTest 7/7 通过；完整 smoke 验证 gRPC start/running/status/stop 和既有车辆链路。
 
 ## 2026-06-22 - 音频采集流引擎 / Audio Capture Stream Engine
 

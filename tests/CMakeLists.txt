@@ -15,6 +15,10 @@ add_executable(audio_capture_stream_test audio_capture_stream_test.cc)
 target_link_libraries(audio_capture_stream_test PRIVATE audio)
 add_test(NAME audio_capture_stream_test COMMAND audio_capture_stream_test)
 
+add_executable(audio_service_test audio_service_test.cc)
+target_link_libraries(audio_service_test PRIVATE audio_service)
+add_test(NAME audio_service_test COMMAND audio_service_test)
+
 add_executable(system_config_test system_config_test.cc)
 target_link_libraries(system_config_test PRIVATE config)
 target_compile_definitions(system_config_test

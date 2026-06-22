@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package cockpit.proto.audio;
+
+import "common.proto";
+
+enum CaptureState {
+  CAPTURE_STATE_UNSPECIFIED = 0;
+  CAPTURE_STATE_STOPPED = 1;
+  CAPTURE_STATE_STARTING = 2;
+  CAPTURE_STATE_RUNNING = 3;
+  CAPTURE_STATE_RECOVERING = 4;
+  CAPTURE_STATE_FAULTED = 5;
+}
+
+message StartCaptureRequest {
+  string input_device = 1;
+}
+
+message AudioMetrics {
+  uint64 pcm_frames_read = 1;
+  uint64 audio_frames_published = 2;
+  uint64 audio_frames_dropped = 3;
+  uint64 timeouts = 4;
+  uint64 xruns = 5;
+  uint64 device_errors = 6;
+}
+
+message AudioStatus {
+  CaptureState capture_state = 1;
+  string input_device = 2;
+  uint32 sample_rate_hz = 3;
+  uint32 channels = 4;
+  uint32 frame_ms = 5;
+  AudioMetrics metrics = 6;
+  string last_error = 7;
+}
+
+service AudioControl {
+  rpc StartCapture(StartCaptureRequest) returns (AudioStatus);
+  rpc StopCapture(cockpit.proto.common.Empty) returns (AudioStatus);
+  rpc GetStatus(cockpit.proto.common.Empty) returns (AudioStatus);
+}

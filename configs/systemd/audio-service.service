@@ -1,0 +1,12 @@
+[Unit]
+Description=cockpit-system Audio Service
+After=sound.target network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/cockpit-system/bin/audio-service --config /etc/cockpit-system/config.yaml
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

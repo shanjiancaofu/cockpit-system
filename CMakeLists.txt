@@ -6,11 +6,7 @@ project(cockpit-system
     LANGUAGES CXX
 )
 
-if(NOT DEFINED CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 17)
-elseif(CMAKE_CXX_STANDARD LESS 17)
-    message(FATAL_ERROR "cockpit-system requires C++17 or newer")
-endif()
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -29,6 +25,7 @@ add_subdirectory(proto)
 add_subdirectory(services/vehicle-data-service)
 add_subdirectory(services/cockpit-gateway-service)
 add_subdirectory(services/cloud-uplink-service)
+add_subdirectory(services/audio-service)
 add_subdirectory(tools/can-simulator)
 add_subdirectory(tools/audio-probe)
 add_subdirectory(tools/topic)
