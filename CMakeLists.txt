@@ -28,6 +28,10 @@ add_subdirectory(services/cloud-uplink-service)
 add_subdirectory(tools/can-simulator)
 add_subdirectory(tools/topic)
 
+if(BUILD_COCKPIT_UI)
+    add_subdirectory(apps/cockpit-ui)
+endif()
+
 if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)

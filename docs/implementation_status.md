@@ -16,13 +16,14 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Generated protobuf/gRPC contracts for common, vehicle, gateway, and cloud.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.
+- Optional Qt 6/QML cockpit UI with a worker-thread gRPC client and UI-thread vehicle model.
 - Runnable placeholders for:
   - `vehicle-data-service`
   - `cockpit-gateway-service`
   - `cloud-uplink-service`
   - `can-simulator`
   - `topic`
-- Qt/QML and local Jetson debug dashboard placeholder directories.
+- Qt 6/QML cockpit dashboard and local Jetson debug dashboard placeholder directory.
 - Unified `configs/config.yaml` and a systemd example.
 - Old project analysis in `docs/reference_projects.md`.
 - Modularization strategy based on `zelos/znavigator`: one main project, small internal modules,
@@ -36,7 +37,6 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 
 - Production vehicle CAN mapping from an approved DBC or signal specification.
 - MQTT client.
-- Qt/QML gRPC client.
 - WebSocket dashboard stream.
 - GStreamer/V4L2 camera path.
 - SQLite storage and recorder index.

@@ -1,14 +1,17 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
+import QtQuick
+import QtQuick.Controls
+import "pages"
 
 ApplicationWindow {
     width: 1280
     height: 720
+    minimumWidth: 960
+    minimumHeight: 540
     visible: true
-    title: "cockpit-system"
+    color: "#0e1214"
+    title: "Smart Cockpit System"
 
-    StackView {
+    HomePage {
         anchors.fill: parent
-        initialItem: "pages/HomePage.qml"
     }
 }

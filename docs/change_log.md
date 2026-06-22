@@ -5,6 +5,44 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-22 - Qt UI 信号退出 / Qt UI Signal Shutdown
+
+### 变更内容 / Changed
+
+- `cockpit-ui` 增加 Qt event loop 与 `ServiceRuntime::ShouldStop()` 的生命周期桥接。
+- SIGINT/SIGTERM 到达后由主线程调用 `QCoreApplication::quit()`。
+- `aboutToQuit` 继续负责取消 gRPC context 并 join worker thread。
+
+### 验证结果 / Verification
+
+- Qt6 QML 页面已在 offscreen 平台成功加载。
+- `cockpit-ui` 重新构建通过；单次 SIGTERM 后打印 stopped 并以状态码 0 退出。
+
+## 2026-06-21 - Qt 6 车机界面基线 / Qt 6 Cockpit UI Baseline
+
+### 变更内容 / Changed
+
+- `cockpit-ui` 从 Qt 5.15 构建声明迁移到 Qt 6。
+- QML import 移除 `2.15/1.15` 版本锁，使用 Qt 6 模块解析。
+- Ubuntu 依赖替换为 Qt 6 base、declarative 和对应 QML runtime modules。
+- UI 通过 C++ `GatewayClient` 订阅 CockpitEvent，通过 `VehicleStateModel` 更新 QML。
+
+### 设计决定 / Design Decisions
+
+- 新项目不保留 Qt5 fallback，减少双版本兼容成本。
+- Ubuntu 22.04 的 Qt 6.2.4 只作为 WSL 编译下限。
+- Jetson 发布环境固定 Qt 6.8 LTS 工具链，并通过 `CMAKE_PREFIX_PATH` 显式选择。
+- Qt UI 保持可选 target，headless 服务构建不依赖图形栈。
+
+### 验证结果 / Verification
+
+- Ubuntu 22.04 软件源确认可提供 Qt 6.2.4 base、declarative 和 QML runtime modules。
+- Qt 6.2 使用通用 `add_executable`、`AUTOMOC` 和 `AUTORCC`，不依赖较新 Qt 的
+  `qt_standard_project_setup`。
+- QML runtime 依赖补充 `QtQuick.Templates` 与 `QtQuick.Window` 模块。
+- headless 默认构建和 CTest 2/2 通过，`BUILD_COCKPIT_UI=ON` 编译链接通过。
+- offscreen 启动已进入 QML engine；补装新增的 Templates/Window runtime 后继续验证页面加载。
+
 ## 2026-06-21 - gRPC topic 发现 / gRPC Topic Discovery
 
 ### 变更内容 / Changed
