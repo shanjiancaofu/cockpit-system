@@ -26,6 +26,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
   bounded local queue for the next ASR consumer.
 - Mock ASR consumer with ordered transcript IDs, metrics, bounded replay history, and text-only
   server-streaming gRPC events.
+- voice-interaction-service with deterministic allowlisted intents, ordered response events,
+  status metrics, audio transcript subscription, and the voice-ctl gRPC diagnostic tool.
 - Generated protobuf/gRPC contracts for common, vehicle, gateway, audio, and cloud.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.
@@ -56,14 +58,14 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - SQLite storage and recorder index.
 - Shared memory ring buffer.
 - Audio playback service path for speaker output.
-- Voice interaction service for intent/TTS/LLM orchestration.
+- Real TTS synthesis and speaker playback orchestration.
 - Real ASR provider such as whisper.cpp or TensorRT-accelerated inference.
 - WebRTC VAD backend and real microphone threshold calibration.
 - AI application layer for voice commands and large-model features.
 
 ## Verification
 
-Verified in WSL2 / Ubuntu 22.04, most recently on 2026-06-22.
+Verified in WSL2 / Ubuntu 22.04, most recently on 2026-06-23.
 
 SocketCAN foundation re-verified from the new repository path on 2026-06-20 using the standard
 `build/` directory.
@@ -87,10 +89,11 @@ Result:
 
 - CMake configure and generate succeeded.
 - Ninja build completed, including generated protobuf/gRPC code.
-- CTest 11/11 passed across audio, voice, config, vehicle, and UI model tests.
+- CTest 13/13 passed across audio, voice, config, vehicle, and UI model tests.
 - Smoke chain ran:
   - `can-simulator`
   - `audio-service`
+  - `voice-interaction-service`
   - `vehicle-data-service`
   - `cockpit-gateway-service`
   - `cloud-uplink-service`

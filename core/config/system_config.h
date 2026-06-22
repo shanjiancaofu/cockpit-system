@@ -63,6 +63,13 @@ struct AudioServiceConfig {
   SpeechSegmentConfig speech_segment;
 };
 
+struct VoiceInteractionServiceConfig {
+  std::string audio_address = "127.0.0.1:50052";
+  int stream_timeout_ms = 10000;
+  int retry_delay_ms = 200;
+  GrpcServerConfig grpc{"127.0.0.1:50053"};
+};
+
 struct MqttConfig {
   std::string broker = "tcp://127.0.0.1:1883";
   std::string telemetry_topic = "vehicle/status";
@@ -78,6 +85,7 @@ struct ServicesConfig {
   VehicleDataConfig vehicle_data;
   GatewayConfig gateway;
   AudioServiceConfig audio;
+  VoiceInteractionServiceConfig voice_interaction;
   CloudUplinkConfig cloud_uplink;
 };
 

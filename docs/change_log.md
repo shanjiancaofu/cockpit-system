@@ -5,6 +5,29 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - 语音交互服务 / Voice Interaction Service
+
+### 变更内容 / Changed
+
+- 新增 voice-interaction-service，订阅 audio-service transcript 并生成有序响应事件。
+- 新增确定性 mock assistant，识别车辆状态、相机、音乐和录音等白名单意图。
+- 新增 VoiceInteractionControl gRPC status、调试处理和 response stream 接口。
+- 新增 voice-ctl status/process/responses 调试工具和 systemd 单元。
+- YAML 新增 voice interaction 上游地址、重连参数和 127.0.0.1:50053 监听地址。
+
+### 设计决定 / Design Decisions
+
+- 意图识别位于平台无关 modules/voice，服务负责生命周期、指标和 gRPC 边界。
+- mock action 仅生成类型化动作，不执行 shell 或安全关键车辆控制。
+- 默认 features.voice.enabled 为 false；smoke 验证禁用状态，正向意图路径由单元测试覆盖。
+- response 历史容量为 32，仅用于短时重连恢复，不承担持久化。
+
+### 验证结果 / Verification
+
+- mock assistant 测试覆盖全部白名单意图和 unknown fallback。
+- service 测试覆盖禁用状态、顺序响应、指标、历史和非法输入。
+- CTest 13/13 通过；完整 smoke 包含 voice gRPC 启动、探活和状态查询。
+
 ## 2026-06-23 - Mock ASR 与转写事件 / Mock ASR and Transcript Events
 
 ### 变更内容 / Changed

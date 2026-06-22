@@ -9,6 +9,7 @@ set(proto_files
     common.proto
     gateway.proto
     vehicle_state.proto
+    voice.proto
 )
 set(generated_dir "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${generated_dir}")

@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package cockpit.proto.voice;
+
+import "common.proto";
+
+enum InteractionState {
+  INTERACTION_STATE_UNSPECIFIED = 0;
+  INTERACTION_STATE_DISABLED = 1;
+  INTERACTION_STATE_LISTENING = 2;
+  INTERACTION_STATE_PROCESSING = 3;
+  INTERACTION_STATE_FAULTED = 4;
+}
+
+message VoiceResponseEvent {
+  uint64 id = 1;
+  uint64 timestamp_ms = 2;
+  uint64 transcript_id = 3;
+  string transcript_text = 4;
+  string intent = 5;
+  string action = 6;
+  string response_text = 7;
+}
+
+message VoiceMetrics {
+  uint64 transcripts_received = 1;
+  uint64 responses_published = 2;
+  uint64 unknown_intents = 3;
+  uint64 processing_errors = 4;
+  uint64 upstream_reconnects = 5;
+}
+
+message VoiceInteractionStatus {
+  InteractionState state = 1;
+  VoiceMetrics metrics = 2;
+  VoiceResponseEvent latest_response = 3;
+  string last_error = 4;
+}
+
+message ProcessTranscriptRequest {
+  string text = 1;
+}
+
+message SubscribeVoiceResponsesRequest {
+  string client_id = 1;
+  uint64 after_id = 2;
+  uint32 max_events = 3;
+}
+
+service VoiceInteractionControl {
+  rpc GetStatus(cockpit.proto.common.Empty) returns (VoiceInteractionStatus);
+  rpc ProcessTranscript(ProcessTranscriptRequest) returns (VoiceResponseEvent);
+  rpc SubscribeResponses(SubscribeVoiceResponsesRequest)
+      returns (stream VoiceResponseEvent);
+}

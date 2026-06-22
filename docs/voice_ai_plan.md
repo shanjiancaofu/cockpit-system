@@ -125,5 +125,6 @@ ai:
 6. Local frame consumer and dependency-free energy VAD boundary. Completed.
 7. Speech segment aggregation with pre-roll and bounded local ASR queue. Completed.
 8. Mock ASR consumer and transcript event boundary. Completed.
-9. `voice-interaction-service`: mock intent/LLM/TTS pipeline. Next.
-10. Replace mock provider with local or remote model and optionally add WebRTC VAD.
+9. `voice-interaction-service`: mock intent and response pipeline. Completed.
+10. Add a controlled local action dispatcher and mock TTS/playback path. Next.
+11. Replace mock providers with local or remote models and optionally add WebRTC VAD.

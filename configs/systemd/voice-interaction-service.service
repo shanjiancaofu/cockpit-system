@@ -1,0 +1,13 @@
+[Unit]
+Description=cockpit-system Voice Interaction Service
+After=network.target audio-service.service
+Requires=audio-service.service
+
+[Service]
+Type=simple
+ExecStart=/opt/cockpit-system/bin/voice-interaction-service --config /etc/cockpit-system/config.yaml
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

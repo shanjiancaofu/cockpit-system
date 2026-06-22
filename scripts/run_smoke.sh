@@ -7,11 +7,17 @@ config_path="${CONFIG_PATH:-configs/config.yaml}"
 vehicle_log="${build_dir}/vehicle-data-grpc-smoke.log"
 gateway_log="${build_dir}/gateway-grpc-smoke.log"
 audio_log="${build_dir}/audio-grpc-smoke.log"
+voice_log="${build_dir}/voice-grpc-smoke.log"
 
 vehicle_pid=""
 gateway_pid=""
 audio_pid=""
+voice_pid=""
 cleanup() {
+  if [[ -n "${voice_pid}" ]] && kill -0 "${voice_pid}" >/dev/null 2>&1; then
+    kill "${voice_pid}" >/dev/null 2>&1 || true
+    wait "${voice_pid}" >/dev/null 2>&1 || true
+  fi
   if [[ -n "${audio_pid}" ]] && kill -0 "${audio_pid}" >/dev/null 2>&1; then
     kill "${audio_pid}" >/dev/null 2>&1 || true
     wait "${audio_pid}" >/dev/null 2>&1 || true
@@ -52,6 +58,26 @@ kill "${audio_pid}"
 wait "${audio_pid}" || true
 audio_pid=""
 cat "${audio_log}"
+"${bin_dir}/voice-interaction-service" --config "${config_path}" >"${voice_log}" 2>&1 &
+voice_pid="$!"
+voice_ready="false"
+for _ in {1..20}; do
+  if "${bin_dir}/voice-ctl" --status --config "${config_path}" \
+      >/dev/null 2>&1; then
+    voice_ready="true"
+    break
+  fi
+  sleep 0.1
+done
+if [[ "${voice_ready}" != "true" ]]; then
+  echo "voice-interaction-service did not become ready" >&2
+  exit 1
+fi
+"${bin_dir}/voice-ctl" --status --config "${config_path}"
+kill "${voice_pid}"
+wait "${voice_pid}" || true
+voice_pid=""
+cat "${voice_log}"
 "${bin_dir}/vehicle-data-service" --config "${config_path}" --forever >"${vehicle_log}" 2>&1 &
 vehicle_pid="$!"
 sleep 0.2

@@ -27,6 +27,10 @@ add_executable(mock_speech_recognizer_test mock_speech_recognizer_test.cc)
 target_link_libraries(mock_speech_recognizer_test PRIVATE voice)
 add_test(NAME mock_speech_recognizer_test COMMAND mock_speech_recognizer_test)
 
+add_executable(mock_voice_assistant_test mock_voice_assistant_test.cc)
+target_link_libraries(mock_voice_assistant_test PRIVATE voice)
+add_test(NAME mock_voice_assistant_test COMMAND mock_voice_assistant_test)
+
 add_executable(audio_service_test audio_service_test.cc)
 target_link_libraries(audio_service_test PRIVATE audio_service)
 add_test(NAME audio_service_test COMMAND audio_service_test)
@@ -34,6 +38,10 @@ add_test(NAME audio_service_test COMMAND audio_service_test)
 add_executable(audio_asr_pipeline_test audio_asr_pipeline_test.cc)
 target_link_libraries(audio_asr_pipeline_test PRIVATE audio_service voice)
 add_test(NAME audio_asr_pipeline_test COMMAND audio_asr_pipeline_test)
+
+add_executable(voice_interaction_service_test voice_interaction_service_test.cc)
+target_link_libraries(voice_interaction_service_test PRIVATE voice_interaction)
+add_test(NAME voice_interaction_service_test COMMAND voice_interaction_service_test)
 
 add_executable(system_config_test system_config_test.cc)
 target_link_libraries(system_config_test PRIVATE config)
