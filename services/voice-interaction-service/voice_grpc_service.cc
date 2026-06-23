@@ -118,6 +118,8 @@ void VoiceGrpcService::FillStatus(
   response->set_last_error(value.last_error);
   auto* metrics = response->mutable_metrics();
   metrics->set_transcripts_received(value.metrics.transcripts_received);
+  metrics->set_transcript_events_dropped(
+      value.metrics.transcript_events_dropped);
   metrics->set_responses_published(value.metrics.responses_published);
   metrics->set_unknown_intents(value.metrics.unknown_intents);
   metrics->set_processing_errors(value.metrics.processing_errors);

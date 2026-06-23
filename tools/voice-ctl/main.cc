@@ -45,6 +45,8 @@ void PrintStatus(const cockpit::proto::voice::VoiceInteractionStatus& status) {
   const auto& metrics = status.metrics();
   std::cout << "state: " << StateName(status.state()) << '\n'
             << "transcripts received: " << metrics.transcripts_received() << '\n'
+            << "transcript events dropped: "
+            << metrics.transcript_events_dropped() << '\n'
             << "responses published: " << metrics.responses_published() << '\n'
             << "unknown intents: " << metrics.unknown_intents() << '\n'
             << "processing errors: " << metrics.processing_errors() << '\n'

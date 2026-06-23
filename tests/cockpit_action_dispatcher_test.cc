@@ -32,6 +32,28 @@ class FakeVehicleStatusProvider final
   bool available_;
 };
 
+class FakeHmiCommandProvider final : public cockpit::voice::HmiCommandProvider {
+ public:
+  explicit FakeHmiCommandProvider(bool available) : available_(available) {}
+
+  bool SendCommand(cockpit::voice::HmiCommand command, std::string* response,
+                   std::string* error) override {
+    if (!available_) {
+      if (error != nullptr) {
+        *error = "hmi bridge unavailable";
+      }
+      return false;
+    }
+    if (response != nullptr) {
+      *response = std::string("hmi accepted ") + cockpit::voice::ToString(command);
+    }
+    return true;
+  }
+
+ private:
+  bool available_;
+};
+
 }  // namespace
 
 int main() {
@@ -53,6 +75,28 @@ int main() {
       dispatcher.Execute(static_cast<VoiceAction>(999)).status !=
           ActionExecutionStatus::kRejected) {
     std::cerr << "unsupported action policy is invalid\n";
+    return 1;
+  }
+
+  CockpitActionDispatcher with_hmi(
+      std::make_unique<FakeVehicleStatusProvider>(true),
+      std::make_unique<FakeHmiCommandProvider>(true));
+  const auto camera = with_hmi.Execute(VoiceAction::kOpenCamera);
+  const auto music = with_hmi.Execute(VoiceAction::kPlayMusic);
+  if (camera.status != ActionExecutionStatus::kSucceeded ||
+      camera.message.find("open_camera_preview") == std::string::npos ||
+      music.status != ActionExecutionStatus::kSucceeded ||
+      music.message.find("play_music") == std::string::npos) {
+    std::cerr << "hmi command dispatch failed\n";
+    return 1;
+  }
+
+  CockpitActionDispatcher hmi_unavailable(
+      std::make_unique<FakeVehicleStatusProvider>(true),
+      std::make_unique<FakeHmiCommandProvider>(false));
+  if (hmi_unavailable.Execute(VoiceAction::kOpenCamera).status !=
+      ActionExecutionStatus::kFailed) {
+    std::cerr << "hmi command failure handling is invalid\n";
     return 1;
   }
 

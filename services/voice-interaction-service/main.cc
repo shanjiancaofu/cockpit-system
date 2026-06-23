@@ -2,6 +2,7 @@
 #include "audio_transcript_client.h"
 #include "core/runtime/ServiceRuntime.h"
 #include "gateway_vehicle_status_client.h"
+#include "local_hmi_command_provider.h"
 #include "modules/voice/cockpit_action_dispatcher.h"
 #include "modules/voice/mock_voice_assistant.h"
 #include "voice_grpc_service.h"
@@ -23,7 +24,8 @@ int main(int argc, char** argv) {
     assistant = std::make_unique<cockpit::voice::MockVoiceAssistant>();
     dispatcher = std::make_unique<cockpit::voice::CockpitActionDispatcher>(
         std::make_unique<cockpit::voice::GatewayVehicleStatusClient>(
-            runtime.config().services().voice_interaction.gateway_address));
+            runtime.config().services().voice_interaction.gateway_address),
+        std::make_unique<cockpit::voice::LocalHmiCommandProvider>());
     output = std::make_unique<cockpit::voice::AudioSpeechClient>(
         runtime.config().services().voice_interaction.audio_address);
   }

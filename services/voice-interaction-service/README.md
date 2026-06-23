@@ -13,3 +13,8 @@ The current assistant is deterministic. Actions use explicit local service clien
 
 Recording/data-package capture is a developer diagnostic workflow and should be handled by a
 separate recording boundary, not by user voice interaction.
+
+Camera preview and media actions are user-facing HMI commands. They should be handed off to a future
+Qt or Android bridge rather than implemented as a C++ media player inside this service.
+The current runtime uses `LocalHmiCommandProvider`, which only records the handoff and returns a
+clear placeholder response.

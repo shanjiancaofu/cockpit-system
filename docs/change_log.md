@@ -5,6 +5,25 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - HMI 命令交接边界 / HMI Command Handoff Boundary
+
+### 变更内容 / Changed
+
+- 新增 `HmiCommandProvider`，用于 open camera preview 和 play music 等用户可感知 HMI 命令。
+- CockpitActionDispatcher 可选接入 HMI provider；未配置时返回 not_implemented。
+- voice-interaction-service 接入 `LocalHmiCommandProvider`，当前只记录 handoff，不执行 Android/UI 动作。
+- 测试覆盖 HMI 命令成功、未配置和失败路径。
+
+### 设计决定 / Design Decisions
+
+- C++ voice 模块不实现 Android 音乐播放器，也不直接操作 UI App。
+- 播放音乐、打开摄像头预览等动作只作为 typed command 交给未来 Qt/Android/HMI bridge。
+- 本地 provider 是调试占位实现，返回“已记录命令”，不声称真实 App 已打开。
+
+### 验证结果 / Verification
+
+- cockpit_action_dispatcher_test 覆盖 HMI handoff 行为。
+
 ## 2026-06-23 - 语音动作与录包边界 / Voice and Recording Boundary
 
 ### 变更内容 / Changed
@@ -29,6 +48,7 @@ changes, design decisions, and verification results.
 - 新增 `core/event/EventQueue<T>`，用于低频 typed event 的同进程投递。
 - 支持 bounded capacity、TryPop、WaitPop、WaitPopFor、Close、Reset 和 drop_count。
 - voice-interaction-service 使用 EventQueue 将 transcript 接收和 intent/action 处理解耦。
+- voice gRPC status 和 voice-ctl 暴露 transcript event drop 指标。
 - 新增 event CMake target 和 `event_queue_test`。
 
 ### 设计决定 / Design Decisions

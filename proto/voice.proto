@@ -36,7 +36,7 @@ message VoiceMetrics {
   uint64 speech_requests_accepted = 9;
   uint64 speech_requests_failed = 10;
   uint64 speech_requests_dropped = 11;
-  reserved 12;
+  uint64 transcript_events_dropped = 12;
 }
 
 message VoiceInteractionStatus {

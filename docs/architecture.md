@@ -45,6 +45,8 @@ Current implementation boundary:
   `audio-service`; it never opens ALSA devices.
 - Vehicle-status voice actions query the gateway's latest snapshot through a unary gRPC method.
   The gateway rejects missing or older-than-two-second state instead of serving stale data.
+- Camera preview and music voice actions are modeled as HMI handoff commands. The C++ runtime does
+  not implement Android app playback; a future Qt/Android bridge should handle those commands.
 - Qt/QML, WebSocket, MQTT, GStreamer, WebRTC, SQLite, shared memory, real model providers, and
   broader AI integration remain explicit module boundaries for later phases.
 

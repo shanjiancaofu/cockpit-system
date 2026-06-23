@@ -129,6 +129,7 @@ ai:
 11. Add text-only Speak RPC, mock TTS, and asynchronous speaker playback. Completed.
 12. Connect query-vehicle-status through the gateway local service API. Completed.
 13. Keep user voice actions separate from developer recording/data-package controls. Next action
-    providers should be user-facing, such as media or camera preview, while recording belongs to a
-    separate diagnostics boundary.
+    providers should be user-facing HMI handoffs, such as media or camera preview, while recording
+    belongs to a separate diagnostics boundary. Camera/music actions should go through a Qt/Android
+    bridge instead of a C++ media player.
 14. Replace mock providers with local or remote models and optionally add WebRTC VAD.

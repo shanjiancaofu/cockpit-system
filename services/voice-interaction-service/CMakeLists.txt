@@ -8,6 +8,7 @@ add_executable(voice-interaction-service
     audio_speech_client.cc
     audio_transcript_client.cc
     gateway_vehicle_status_client.cc
+    local_hmi_command_provider.cc
     main.cc
     voice_grpc_service.cc
 )

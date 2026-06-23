@@ -12,3 +12,7 @@ vehicle-status handlers must replace it through service APIs.
 
 Recording and data-package capture are developer/diagnostic workflows. They do not belong to the
 user voice action list.
+
+User-facing app actions such as camera preview or music playback are expressed through the
+`HmiCommandProvider` boundary. The C++ voice module does not implement Android music playback or UI;
+it only hands the typed command to a future Qt/Android/HMI bridge.
