@@ -8,12 +8,18 @@ vehicle_log="${build_dir}/vehicle-data-grpc-smoke.log"
 gateway_log="${build_dir}/gateway-grpc-smoke.log"
 audio_log="${build_dir}/audio-grpc-smoke.log"
 voice_log="${build_dir}/voice-grpc-smoke.log"
+camera_log="${build_dir}/camera-grpc-smoke.log"
 
 vehicle_pid=""
 gateway_pid=""
 audio_pid=""
 voice_pid=""
+camera_pid=""
 cleanup() {
+  if [[ -n "${camera_pid}" ]] && kill -0 "${camera_pid}" >/dev/null 2>&1; then
+    kill "${camera_pid}" >/dev/null 2>&1 || true
+    wait "${camera_pid}" >/dev/null 2>&1 || true
+  fi
   if [[ -n "${voice_pid}" ]] && kill -0 "${voice_pid}" >/dev/null 2>&1; then
     kill "${voice_pid}" >/dev/null 2>&1 || true
     wait "${voice_pid}" >/dev/null 2>&1 || true
@@ -36,6 +42,26 @@ trap cleanup EXIT
 "${bin_dir}/can-simulator" --config "${config_path}" --samples 3
 "${bin_dir}/audio-probe" --list --config "${config_path}"
 "${bin_dir}/camera-probe" --list --config "${config_path}"
+"${bin_dir}/camera-service" --config "${config_path}" >"${camera_log}" 2>&1 &
+camera_pid="$!"
+camera_ready="false"
+for _ in {1..20}; do
+  if "${bin_dir}/camera-ctl" --status --config "${config_path}" >/dev/null 2>&1; then
+    camera_ready="true"
+    break
+  fi
+  sleep 0.1
+done
+if [[ "${camera_ready}" != "true" ]]; then
+  echo "camera-service did not become ready" >&2
+  exit 1
+fi
+"${bin_dir}/camera-ctl" --status --config "${config_path}"
+"${bin_dir}/camera-ctl" --list --config "${config_path}"
+kill "${camera_pid}"
+wait "${camera_pid}" || true
+camera_pid=""
+cat "${camera_log}"
 "${bin_dir}/audio-service" --config "${config_path}" --output-device null \
   >"${audio_log}" 2>&1 &
 audio_pid="$!"

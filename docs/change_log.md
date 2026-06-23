@@ -5,6 +5,26 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-24 - Camera Control CLI
+
+### 变更内容 / Changed
+
+- 新增 `tools/camera-ctl`，支持通过 gRPC 调用 camera-service 的 `list/status/start/stop`。
+- `scripts/run_smoke.sh` 启动 camera-service，并用 camera-ctl 验证 status/list 控制面。
+- camera-service 进程加入 smoke cleanup，避免失败时残留后台进程。
+
+### 设计决定 / Design Decisions
+
+- camera-ctl 只验证控制面，不传输视频帧；帧数据仍保留给后续本地 pipeline/shared memory。
+- 默认 smoke 不要求真实摄像头存在；无 `/dev/video*` 时 list 输出为空仍视为软件链路可用。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 通过。
+- `bash scripts/build.sh` 通过，CTest 18/18。
+- `pre-commit run clang-tidy --hook-stage manual -a` 通过。
+- `bash scripts/run_smoke.sh` 通过，camera-service status/list 控制面已进入默认 smoke。
+
 ## 2026-06-24 - Camera Service Skeleton
 
 ### 变更内容 / Changed

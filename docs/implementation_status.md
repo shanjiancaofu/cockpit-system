@@ -19,6 +19,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Camera frame model and optional GStreamer preview pipeline boundary.
 - Optional `camera-preview-probe` for GStreamer USB camera frame/FPS diagnostics.
 - `camera-service` skeleton with gRPC list/start/stop/status control plane and tested preview lifecycle state.
+- `camera-ctl` gRPC diagnostic client for camera-service status/list/start/stop.
 - Immutable 20 ms voice frames and a fixed-capacity lock-free SPSC ring buffer.
 - Non-blocking ALSA poll capture and a threaded `AudioCaptureStream` with explicit state,
   xrun recovery, discontinuity flags, and runtime metrics.
@@ -109,6 +110,7 @@ Result:
   - `can-simulator`
   - `camera-probe`
   - `camera-service` build and unit-tested control core
+  - `camera-ctl` smoke coverage for camera-service status/list control plane
   - `audio-service`
   - `voice-interaction-service`
   - `vehicle-data-service`
