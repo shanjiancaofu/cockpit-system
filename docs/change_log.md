@@ -5,6 +5,23 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - Voice Vehicle Status Retry
+
+### 变更内容 / Changed
+
+- `GatewayVehicleStatusClient` 查询车辆状态时增加短时间重试，避免 voice smoke 在 gateway 刚启动或车辆状态刷新边界上偶发失败。
+
+### 设计决定 / Design Decisions
+
+- 保留 gateway 对 stale vehicle state 的拒绝逻辑，voice 查询端只负责等待短暂的新鲜数据窗口。
+- 重试逻辑只用于用户语音查询车辆状态，不改变车辆数据发布频率和 topic 订阅行为。
+
+### 验证结果 / Verification
+
+- `pre-commit run --files services/voice-interaction-service/gateway_vehicle_status_client.cc docs/change_log.md` 通过。
+- `bash scripts/build.sh` 通过，CTest 17/17。
+- `bash scripts/run_smoke.sh` 通过，voice vehicle status 查询返回 live response。
+
 ## 2026-06-23 - Clang-Tidy Manual Hook
 
 ### 变更内容 / Changed

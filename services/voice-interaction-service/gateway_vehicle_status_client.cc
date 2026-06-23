@@ -3,11 +3,20 @@
 #include <grpcpp/grpcpp.h>
 
 #include <chrono>
+#include <string>
+#include <thread>
 
 #include "common.pb.h"
 
 namespace cockpit {
 namespace voice {
+namespace {
+
+constexpr int kMaxAttempts = 5;
+constexpr auto kRpcDeadline = std::chrono::milliseconds(500);
+constexpr auto kRetryDelay = std::chrono::milliseconds(200);
+
+}  // namespace
 
 GatewayVehicleStatusClient::GatewayVehicleStatusClient(const std::string& address)
     : stub_([&address] {
@@ -19,26 +28,35 @@ GatewayVehicleStatusClient::GatewayVehicleStatusClient(const std::string& addres
 }
 
 bool GatewayVehicleStatusClient::GetLatest(VehicleStatusSnapshot* status, std::string* error) {
-  proto::common::Empty request;
-  proto::vehicle::VehicleState response;
-  grpc::ClientContext context;
-  context.set_wait_for_ready(true);
-  context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(500));
-  const grpc::Status rpc_status = stub_->GetLatestVehicleState(&context, request, &response);
-  if (!rpc_status.ok()) {
-    if (error != nullptr) {
-      *error = "Vehicle status unavailable: " + rpc_status.error_message();
+  std::string last_error;
+  for (int attempt = 1; attempt <= kMaxAttempts; ++attempt) {
+    proto::common::Empty request;
+    proto::vehicle::VehicleState response;
+    grpc::ClientContext context;
+    context.set_wait_for_ready(true);
+    context.set_deadline(std::chrono::system_clock::now() + kRpcDeadline);
+    const grpc::Status rpc_status = stub_->GetLatestVehicleState(&context, request, &response);
+    if (rpc_status.ok()) {
+      if (status != nullptr) {
+        status->timestamp_ms = response.timestamp_ms();
+        status->speed_kph = response.speed_kph();
+        status->gear = response.gear();
+        status->soc_percent = response.soc_percent();
+        status->source = response.source();
+      }
+      return true;
     }
-    return false;
+
+    last_error = rpc_status.error_message();
+    if (attempt < kMaxAttempts) {
+      std::this_thread::sleep_for(kRetryDelay);
+    }
   }
-  if (status != nullptr) {
-    status->timestamp_ms = response.timestamp_ms();
-    status->speed_kph = response.speed_kph();
-    status->gear = response.gear();
-    status->soc_percent = response.soc_percent();
-    status->source = response.source();
+
+  if (error != nullptr) {
+    *error = "Vehicle status unavailable: " + last_error;
   }
-  return true;
+  return false;
 }
 
 }  // namespace voice
