@@ -12,6 +12,8 @@ changes, design decisions, and verification results.
 - 新增 `HmiCommandProvider`，用于 open camera preview 和 play music 等用户可感知 HMI 命令。
 - CockpitActionDispatcher 可选接入 HMI provider；未配置时返回 not_implemented。
 - voice-interaction-service 接入 `LocalHmiCommandProvider`，当前只记录 handoff，不执行 Android/UI 动作。
+- smoke 增加 play music 和 open camera handoff 校验。
+- smoke 在语音车辆状态前等待 gateway 新鲜车辆状态，并断言 query_vehicle_status succeeded。
 - 测试覆盖 HMI 命令成功、未配置和失败路径。
 
 ### 设计决定 / Design Decisions
@@ -22,7 +24,7 @@ changes, design decisions, and verification results.
 
 ### 验证结果 / Verification
 
-- cockpit_action_dispatcher_test 覆盖 HMI handoff 行为。
+- cockpit_action_dispatcher_test 和完整 smoke 覆盖 HMI handoff 行为。
 
 ## 2026-06-23 - 语音动作与录包边界 / Voice and Recording Boundary
 

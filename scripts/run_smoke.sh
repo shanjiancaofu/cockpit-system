@@ -84,7 +84,40 @@ if [[ "${voice_ready}" != "true" ]]; then
   echo "voice-interaction-service did not become ready" >&2
   exit 1
 fi
-"${bin_dir}/voice-ctl" --process "show vehicle status" --config "${config_path}"
+fresh_vehicle_state="false"
+for _ in {1..20}; do
+  if "${bin_dir}/topic" echo /vehicle/state --backend grpc --count 1 \
+      --timeout-ms 1000 --config "${config_path}" >/dev/null 2>&1; then
+    fresh_vehicle_state="true"
+    break
+  fi
+  sleep 0.2
+done
+if [[ "${fresh_vehicle_state}" != "true" ]]; then
+  echo "gateway did not provide a fresh vehicle state for voice smoke" >&2
+  exit 1
+fi
+vehicle_voice_response="$("${bin_dir}/voice-ctl" --process "show vehicle status" --config "${config_path}")"
+echo "${vehicle_voice_response}"
+if [[ "${vehicle_voice_response}" != *"action_status=succeeded"* || \
+      "${vehicle_voice_response}" != *"Vehicle speed is"* ]]; then
+  echo "voice vehicle status did not return expected live response" >&2
+  exit 1
+fi
+music_response="$("${bin_dir}/voice-ctl" --process "play music" --config "${config_path}")"
+echo "${music_response}"
+if [[ "${music_response}" != *"HMI command recorded locally"* || \
+      "${music_response}" != *"play_music"* ]]; then
+  echo "voice play music handoff did not return expected placeholder" >&2
+  exit 1
+fi
+camera_response="$("${bin_dir}/voice-ctl" --process "open camera" --config "${config_path}")"
+echo "${camera_response}"
+if [[ "${camera_response}" != *"HMI command recorded locally"* || \
+      "${camera_response}" != *"open_camera_preview"* ]]; then
+  echo "voice open camera handoff did not return expected placeholder" >&2
+  exit 1
+fi
 sleep 0.1
 "${bin_dir}/voice-ctl" --status --config "${config_path}"
 "${bin_dir}/audio-probe" --status --config "${config_path}"
