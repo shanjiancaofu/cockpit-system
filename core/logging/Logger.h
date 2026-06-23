@@ -13,7 +13,7 @@ enum class Level {
 };
 
 void InitLogger(const std::string& service_name, const std::string& log_dir,
-                Level min_level = Level::kInfo, long long max_bytes = 2 * 1024 * 1024,
+                Level min_level = Level::kInfo, long long max_bytes = 2LL * 1024LL * 1024LL,
                 bool mirror_stderr = true);
 void Log(Level level, const char* file, int line, const std::string& message);
 Level ParseLevel(const std::string& value, Level default_level = Level::kInfo);

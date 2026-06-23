@@ -5,6 +5,26 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - First Clang-Tidy Cleanup
+
+### 变更内容 / Changed
+
+- `scripts/run_tidy.sh` 的 header filter 收窄到项目源码目录，避免 clang-tidy 扫描 `build/proto/generated` 生成代码。
+- 修复 `core/logging` 的默认日志大小参数，避免 int 乘法后再隐式扩宽。
+- 修复 `modules/audio` 中对 trivially-copyable `std::array` 使用无效 `std::move` 的问题。
+- 修复 WAV chunk padding 计算中先窄类型相加再转宽类型的潜在问题。
+
+### 设计决定 / Design Decisions
+
+- 生成代码不纳入 tidy 统计和修复范围；proto 生成物的问题由生成器负责。
+- 第一批只清 `core/` 和 `modules/audio/` 的 tidy error，不处理大范围 warning。
+
+### 验证结果 / Verification
+
+- `pre-commit run --files core/logging/Logger.h modules/audio/audio_frame.cc modules/audio/wav_file.cc scripts/run_tidy.sh` 通过。
+- `bash scripts/build.sh` 通过，CTest 17/17。
+- `bash scripts/run_tidy.sh` 排除生成代码后，error 从 40 降到 20；`core/` 和 `modules/audio/` error 已清零。
+
 ## 2026-06-23 - Voice Vehicle Status Retry
 
 ### 变更内容 / Changed

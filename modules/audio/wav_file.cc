@@ -174,7 +174,8 @@ bool ReadPcm16Wav(const std::string& path, PcmBuffer* buffer, std::string* error
       found_data = true;
     }
 
-    const std::streamoff padded_size = static_cast<std::streamoff>(chunk_size + (chunk_size & 1U));
+    const std::streamoff padded_size =
+        static_cast<std::streamoff>(chunk_size) + static_cast<std::streamoff>(chunk_size & 1U);
     input.clear();
     input.seekg(chunk_start + padded_size);
   }

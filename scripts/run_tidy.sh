@@ -3,6 +3,8 @@ set -euo pipefail
 
 build_dir="${BUILD_DIR:-build}"
 jobs="${JOBS:-$(nproc)}"
+repo_dir="$(pwd -P)"
+header_filter="^${repo_dir}/(apps|core|drivers|modules|services|tests|tools)/.*"
 
 if ! command -v clang-tidy >/dev/null 2>&1; then
   echo "clang-tidy not found. Install it with: sudo apt-get install -y clang-tidy" >&2
@@ -25,4 +27,4 @@ if [[ "${#sources[@]}" -eq 0 ]]; then
 fi
 
 printf '%s\n' "${sources[@]}" |
-  xargs -r -n 1 -P "${jobs}" clang-tidy -p "${build_dir}"
+  xargs -r -n 1 -P "${jobs}" clang-tidy -p "${build_dir}" --header-filter="${header_filter}"
