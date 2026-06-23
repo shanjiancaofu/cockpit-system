@@ -5,6 +5,25 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-24 - Clang-Tidy Commit Gate
+
+### 变更内容 / Changed
+
+- 收敛 `.clang-tidy` 规则，关闭不适合作为普通 commit 门禁的风格噪声检查。
+- 修复剩余 clang-tidy warning：signal handler 返回值检查、logger 静态初始化、topic 工具命名空间使用。
+- `.pre-commit-config.yaml` 中的 `clang-tidy` 从 manual hook 提升为普通 commit hook。
+
+### 设计决定 / Design Decisions
+
+- commit gate 保留能发现实际问题的检查，DTO public 字段、日志宏、Linux/Qt/第三方库风格冲突类检查不作为阻塞项。
+- `clang-tidy` 仍通过 `scripts/run_tidy.sh` 全仓库运行，确保普通提交前能发现跨文件问题。
+
+### 验证结果 / Verification
+
+- `bash scripts/run_tidy.sh` 通过，exit status 0，项目 warning/error 清零。
+- `pre-commit run` 通过，普通 commit 阶段已执行 `clang-tidy`。
+- `bash scripts/build.sh` 通过，CTest 17/17。
+
 ## 2026-06-23 - Clang-Tidy Gate Cleanup
 
 ### 变更内容 / Changed

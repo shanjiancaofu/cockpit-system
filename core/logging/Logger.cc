@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <sstream>
 #include <system_error>
@@ -16,10 +17,14 @@ namespace logging {
 namespace {
 
 std::mutex g_mutex;
-std::ofstream g_output;
 std::string g_log_path;
 Level g_min_level = Level::kInfo;
 bool g_mirror_stderr = true;
+
+std::ofstream& Output() {
+  static auto output = std::make_unique<std::ofstream>();
+  return *output;
+}
 
 std::string LevelName(Level level) {
   switch (level) {
@@ -74,15 +79,16 @@ void InitLogger(const std::string& service_name, const std::string& log_dir, Lev
   fs::create_directories(log_dir);
   g_log_path = (fs::path(log_dir) / (service_name + ".log")).string();
   RotateIfNeeded(g_log_path, max_bytes);
-  if (g_output.is_open()) {
-    g_output.close();
+  auto& output = Output();
+  if (output.is_open()) {
+    output.close();
   }
-  g_output.open(g_log_path, std::ios::app);
+  output.open(g_log_path, std::ios::app);
   g_min_level = min_level;
   g_mirror_stderr = mirror_stderr;
-  if (g_output.is_open()) {
-    g_output << "\n--- log started " << NowString() << " service=" << service_name << " ---\n";
-    g_output.flush();
+  if (output.is_open()) {
+    output << "\n--- log started " << NowString() << " service=" << service_name << " ---\n";
+    output.flush();
   }
 }
 
@@ -95,9 +101,10 @@ void Log(Level level, const char* file, int line, const std::string& message) {
   out << NowString() << " [" << LevelName(level) << "] " << message << " (" << file << ':' << line
       << ')';
   const std::string line_text = out.str();
-  if (g_output.is_open()) {
-    g_output << line_text << '\n';
-    g_output.flush();
+  auto& output = Output();
+  if (output.is_open()) {
+    output << line_text << '\n';
+    output.flush();
   }
   if (g_mirror_stderr) {
     std::cerr << line_text << '\n';

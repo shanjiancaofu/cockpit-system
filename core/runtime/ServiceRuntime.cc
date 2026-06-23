@@ -18,8 +18,12 @@ void OnSignal(int) {
 }
 
 void InstallSignalHandlers() {
-  std::signal(SIGINT, OnSignal);
-  std::signal(SIGTERM, OnSignal);
+  if (std::signal(SIGINT, OnSignal) == SIG_ERR) {
+    LOG_WARN("failed to install SIGINT handler");
+  }
+  if (std::signal(SIGTERM, OnSignal) == SIG_ERR) {
+    LOG_WARN("failed to install SIGTERM handler");
+  }
 }
 
 }  // namespace

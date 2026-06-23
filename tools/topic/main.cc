@@ -12,7 +12,15 @@
 #include "core/config/system_config.h"
 
 int main(int argc, char** argv) {
-  using namespace cockpit::topic;
+  using cockpit::topic::HasFlag;
+  using cockpit::topic::Option;
+  using cockpit::topic::ParseCommandLine;
+  using cockpit::topic::PrintUsage;
+  using cockpit::topic::RunEchoCommand;
+  using cockpit::topic::RunHzCommand;
+  using cockpit::topic::RunInfoCommand;
+  using cockpit::topic::RunListCommand;
+  using cockpit::topic::RunPubCommand;
 
   const auto line = ParseCommandLine(argc, argv);
   if (line.command.empty() || line.command == "help" || HasFlag(line, "help")) {
