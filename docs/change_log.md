@@ -12,6 +12,7 @@ changes, design decisions, and verification results.
 - 收敛 `.clang-tidy` 规则，关闭不适合作为普通 commit 门禁的风格噪声检查。
 - 修复剩余 clang-tidy warning：signal handler 返回值检查、logger 静态初始化、topic 工具命名空间使用。
 - `.pre-commit-config.yaml` 中的 `clang-tidy` 从 manual hook 提升为普通 commit hook。
+- 根据实际开发体验调整：`clang-tidy` 保持 manual hook，普通 commit 不强制执行；全仓库静态检查手动运行。
 
 ### 设计决定 / Design Decisions
 
@@ -21,7 +22,8 @@ changes, design decisions, and verification results.
 ### 验证结果 / Verification
 
 - `bash scripts/run_tidy.sh` 通过，exit status 0，项目 warning/error 清零。
-- `pre-commit run` 通过，普通 commit 阶段已执行 `clang-tidy`。
+- `pre-commit run` 通过，普通 commit 阶段不执行 `clang-tidy`。
+- `pre-commit run clang-tidy --hook-stage manual -a` 可手动执行完整 clang-tidy。
 - `bash scripts/build.sh` 通过，CTest 17/17。
 
 ## 2026-06-23 - Clang-Tidy Gate Cleanup

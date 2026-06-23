@@ -42,3 +42,4 @@ repos:
         entry: bash scripts/run_tidy.sh
         language: system
         pass_filenames: false
+        stages: [manual]

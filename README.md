@@ -58,7 +58,8 @@ bash scripts/run_smoke.sh
 ```bash
 pre-commit install
 pre-commit run
-pre-commit run clang-tidy --hook-stage manual
+pre-commit run -a
+pre-commit run clang-tidy --hook-stage manual -a
 ```
 
 `clang-tidy` 依赖 `build/compile_commands.json`，首次运行前先执行 `bash scripts/build.sh`。
