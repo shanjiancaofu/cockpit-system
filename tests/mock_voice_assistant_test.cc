@@ -27,10 +27,8 @@ int main() {
               VoiceAction::kOpenCamera) ||
       !Expect("play music", VoiceIntent::kPlayMusic,
               VoiceAction::kPlayMusic) ||
-      !Expect("start recording", VoiceIntent::kStartRecording,
-              VoiceAction::kStartRecording) ||
-      !Expect("stop recording", VoiceIntent::kStopRecording,
-              VoiceAction::kStopRecording) ||
+      !Expect("start recording", VoiceIntent::kUnknown,
+              VoiceAction::kNone) ||
       !Expect("tell me a joke", VoiceIntent::kUnknown, VoiceAction::kNone)) {
     std::cerr << "mock voice assistant intent mapping failed\n";
     return 1;

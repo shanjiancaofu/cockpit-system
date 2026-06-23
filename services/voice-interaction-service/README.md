@@ -9,4 +9,7 @@ The current assistant is deterministic. Actions use explicit local service clien
 `audio-service` through `Speak(text)`; this service never opens an ALSA device or transports PCM.
 
 `query_vehicle_status` is the first real action. It queries the latest fresh snapshot from
-`cockpit-gateway-service`. Camera, media, and recorder actions remain explicitly not implemented.
+`cockpit-gateway-service`. Camera and media actions remain explicitly not implemented.
+
+Recording/data-package capture is a developer diagnostic workflow and should be handled by a
+separate recording boundary, not by user voice interaction.

@@ -82,8 +82,7 @@ Good first commands:
 - "Play music"
 - "Show logs"
 - "What's the battery level?"
-- "Start recording"
-- "Stop recording"
+- User voice interaction should not include developer data-package recording commands.
 
 Avoid in the first version:
 
@@ -129,5 +128,7 @@ ai:
 10. Add a typed action dispatcher with explicit execution results. Completed.
 11. Add text-only Speak RPC, mock TTS, and asynchronous speaker playback. Completed.
 12. Connect query-vehicle-status through the gateway local service API. Completed.
-13. Add the next typed local action provider, starting with recorder control. Next.
+13. Keep user voice actions separate from developer recording/data-package controls. Next action
+    providers should be user-facing, such as media or camera preview, while recording belongs to a
+    separate diagnostics boundary.
 14. Replace mock providers with local or remote models and optionally add WebRTC VAD.

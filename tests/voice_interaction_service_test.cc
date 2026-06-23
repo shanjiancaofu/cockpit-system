@@ -81,7 +81,7 @@ int main() {
 
   cockpit::voice::VoiceInteractionService no_dispatcher(
       true, std::make_unique<cockpit::voice::MockVoiceAssistant>(), nullptr);
-  transcript.text = "start recording";
+  transcript.text = "open camera";
   const auto unavailable = no_dispatcher.HandleTranscript(transcript);
   if (!unavailable.has_value() ||
       unavailable->action_status !=

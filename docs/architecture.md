@@ -124,5 +124,5 @@ Immediate next engineering tasks:
 3. Build mock transcript-to-intent handling in `voice-interaction-service`. Completed.
 4. Add text-only Speak RPC, mock TTS, and asynchronous ALSA playback. Completed.
 5. Decode production chassis frames after an approved DBC or signal specification is available.
-6. Add a typed audio recording control path in `audio-service`, then expose recorder actions from
-   `voice-interaction-service` without giving voice direct ALSA access.
+6. Keep recording/data-package capture as a developer diagnostics boundary. Do not expose it as a
+   normal user voice action.

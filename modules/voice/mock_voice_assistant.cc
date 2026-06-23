@@ -24,14 +24,6 @@ bool Contains(const std::string& text, const std::string& phrase) {
 VoiceAssistantResult MockVoiceAssistant::HandleTranscript(
     const SpeechTranscript& transcript) {
   const std::string text = Normalize(transcript.text);
-  if (Contains(text, "stop recording")) {
-    return {VoiceIntent::kStopRecording, VoiceAction::kStopRecording,
-            "Stopping recording."};
-  }
-  if (Contains(text, "start recording")) {
-    return {VoiceIntent::kStartRecording, VoiceAction::kStartRecording,
-            "Starting recording."};
-  }
   if (Contains(text, "open camera")) {
     return {VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera,
             "Opening the camera."};
@@ -59,10 +51,6 @@ const char* ToString(VoiceIntent intent) {
       return "open_camera";
     case VoiceIntent::kPlayMusic:
       return "play_music";
-    case VoiceIntent::kStartRecording:
-      return "start_recording";
-    case VoiceIntent::kStopRecording:
-      return "stop_recording";
   }
   return "unknown";
 }
@@ -77,10 +65,6 @@ const char* ToString(VoiceAction action) {
       return "open_camera";
     case VoiceAction::kPlayMusic:
       return "play_music";
-    case VoiceAction::kStartRecording:
-      return "start_recording";
-    case VoiceAction::kStopRecording:
-      return "stop_recording";
   }
   return "none";
 }

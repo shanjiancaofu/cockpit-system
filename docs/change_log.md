@@ -5,6 +5,23 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - 语音动作与录包边界 / Voice and Recording Boundary
+
+### 变更内容 / Changed
+
+- 从 voice intent/action 白名单移除 start/stop recording。
+- mock assistant 不再把录包命令识别成用户语音动作。
+- 文档明确录包、数据采集和研发记录属于 diagnostics/recording 边界，不属于 voice 主线。
+
+### 设计决定 / Design Decisions
+
+- voice-interaction-service 只处理用户语音交互。
+- 录包、雷达/音视频研发采集、数据记录后续如果需要，应走独立 recording/diagnostics 边界和研发工具。
+
+### 验证结果 / Verification
+
+- 更新 mock voice 和 voice interaction 测试，确保录包短语不再触发 voice action。
+
 ## 2026-06-23 - 同进程事件队列 / In-process Event Queue
 
 ### 变更内容 / Changed
@@ -108,7 +125,7 @@ changes, design decisions, and verification results.
 ### 设计决定 / Design Decisions
 
 - dispatcher 只接收 VoiceAction，不接收命令字符串，也不提供 shell 执行入口。
-- 当前运行时使用 mock dispatcher；真实动作后续通过相机、录音、媒体等服务客户端实现。
+- 当前运行时使用 mock dispatcher；真实动作后续通过相机、媒体等用户可感知服务客户端实现。
 - response_text 和 action execution 分离，便于后续 TTS 选择可靠的最终播报内容。
 
 ### 验证结果 / Verification
@@ -122,7 +139,7 @@ changes, design decisions, and verification results.
 ### 变更内容 / Changed
 
 - 新增 voice-interaction-service，订阅 audio-service transcript 并生成有序响应事件。
-- 新增确定性 mock assistant，识别车辆状态、相机、音乐和录音等白名单意图。
+- 新增确定性 mock assistant，识别车辆状态、相机和音乐等白名单意图。
 - 新增 VoiceInteractionControl gRPC status、调试处理和 response stream 接口。
 - 新增 voice-ctl status/process/responses 调试工具和 systemd 单元。
 - YAML 新增 voice interaction 上游地址、重连参数和 127.0.0.1:50053 监听地址。

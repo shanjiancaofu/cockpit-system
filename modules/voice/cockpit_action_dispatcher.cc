@@ -23,10 +23,6 @@ ActionExecutionResult CockpitActionDispatcher::Execute(VoiceAction action) {
     case VoiceAction::kPlayMusic:
       return {ActionExecutionStatus::kNotImplemented,
               "Music playback control is not implemented yet."};
-    case VoiceAction::kStartRecording:
-    case VoiceAction::kStopRecording:
-      return {ActionExecutionStatus::kNotImplemented,
-              "Recorder control is not implemented yet."};
   }
   return {ActionExecutionStatus::kRejected, "Action is not allowlisted."};
 }

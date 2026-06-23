@@ -12,8 +12,6 @@ enum class VoiceIntent {
   kShowVehicleStatus,
   kOpenCamera,
   kPlayMusic,
-  kStartRecording,
-  kStopRecording,
 };
 
 enum class VoiceAction {
@@ -21,8 +19,6 @@ enum class VoiceAction {
   kQueryVehicleStatus,
   kOpenCamera,
   kPlayMusic,
-  kStartRecording,
-  kStopRecording,
 };
 
 struct VoiceAssistantResult {

@@ -12,8 +12,6 @@ ActionExecutionResult MockActionDispatcher::Execute(VoiceAction action) {
     case VoiceAction::kQueryVehicleStatus:
     case VoiceAction::kOpenCamera:
     case VoiceAction::kPlayMusic:
-    case VoiceAction::kStartRecording:
-    case VoiceAction::kStopRecording:
       return {ActionExecutionStatus::kSucceeded,
               std::string("Mock action completed: ") + ToString(action)};
   }
