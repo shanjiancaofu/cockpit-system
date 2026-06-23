@@ -5,6 +5,23 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - Clang-Tidy Manual Hook
+
+### 变更内容 / Changed
+
+- 新增 `scripts/run_tidy.sh`，统一通过 `build/compile_commands.json` 执行 clang-tidy。
+- `.pre-commit-config.yaml` 增加 `clang-tidy` manual hook，手动运行时执行静态检查，普通 commit 暂不强制。
+- `install_ubuntu_deps.sh` 增加 `clang-tidy` 依赖。
+
+### 设计决定 / Design Decisions
+
+- 当前 tidy 先作为手动检查入口，避免一次性把历史代码全部卡在静态检查问题上。
+- 普通提交继续默认执行基础文件检查和 `clang-format --dry-run -Werror`。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 按正常提交模式通过，manual hook 不影响普通提交。
+
 ## 2026-06-23 - Pre-commit and Camera Permission Cleanup
 
 ### 变更内容 / Changed

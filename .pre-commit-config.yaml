@@ -36,3 +36,10 @@ repos:
         entry: clang-format --dry-run -Werror
         language: system
         types_or: [c++, c, cuda]
+
+      - id: clang-tidy
+        name: clang-tidy
+        entry: bash scripts/run_tidy.sh
+        language: system
+        pass_filenames: false
+        stages: [manual]

@@ -6,6 +6,7 @@ sudo apt-get install -y \
   build-essential \
   alsa-utils \
   clang-format \
+  clang-tidy \
   cmake \
   can-utils \
   iproute2 \

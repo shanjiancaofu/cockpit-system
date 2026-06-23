@@ -58,7 +58,10 @@ bash scripts/run_smoke.sh
 ```bash
 pre-commit install
 pre-commit run
+pre-commit run clang-tidy --hook-stage manual
 ```
+
+`clang-tidy` 依赖 `build/compile_commands.json`，首次运行前先执行 `bash scripts/build.sh`。
 
 摄像头设备需要当前用户属于 `video` 组。若 `/dev/video*` 存在但提示 Permission denied，执行
 `newgrp video` 或重新登录 WSL/Jetson 终端后再试。
