@@ -1,14 +1,13 @@
 #pragma once
 
+#include <gst/gst.h>
+
 #include <atomic>
 #include <cstdint>
 #include <mutex>
 #include <string>
 
 #include "modules/camera/camera_preview_source.h"
-
-typedef struct _GstElement GstElement;
-typedef struct _GstSample GstSample;
 
 namespace cockpit {
 namespace camera {
@@ -32,6 +31,7 @@ class GstreamerPreviewPipeline : public CameraPreviewSource {
   static void EnsureGstreamerInitialized();
   static int OnNewSample(void* appsink, void* user_data);
 
+  void ReleasePipeline();
   int HandleNewSample(GstSample* sample);
   std::string BuildPipelineDescription(const CameraPreviewConfig& config) const;
 

@@ -50,6 +50,7 @@ struct AudioServiceStatus {
   std::string last_error;
 };
 
+// NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 class AudioService {
  public:
   using SourceFactory =

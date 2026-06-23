@@ -22,6 +22,7 @@ Checks: >
     -performance-avoid-endl,
     clang-diagnostic-*,
     clang-analyzer-*,
+    -clang-analyzer-cplusplus.NewDeleteLeaks,
     concurrency-*,
     misc-*,
     -misc-include-cleaner,

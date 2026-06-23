@@ -27,8 +27,9 @@ const char* StateName(cockpit::proto::voice::InteractionState state) {
       return "faulted";
     case cockpit::proto::voice::INTERACTION_STATE_UNSPECIFIED:
       return "unspecified";
+    default:
+      return "unknown";
   }
-  return "unknown";
 }
 
 void PrintResponse(const cockpit::proto::voice::VoiceResponseEvent& response) {

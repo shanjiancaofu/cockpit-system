@@ -29,36 +29,24 @@ std::string GErrorMessage(const std::string& prefix, GError* error) {
 }
 
 const char* GstFormat(CameraPixelFormat format) {
-  switch (format) {
-    case CameraPixelFormat::kRgb:
-      return "RGB";
-    case CameraPixelFormat::kBgrx:
-      return "BGRx";
-    default:
-      return "BGRx";
+  if (format == CameraPixelFormat::kRgb) {
+    return "RGB";
   }
+  return "BGRx";
 }
 
 CameraPixelFormat NormalizedOutputFormat(CameraPixelFormat format) {
-  switch (format) {
-    case CameraPixelFormat::kRgb:
-      return CameraPixelFormat::kRgb;
-    case CameraPixelFormat::kBgrx:
-      return CameraPixelFormat::kBgrx;
-    default:
-      return CameraPixelFormat::kBgrx;
+  if (format == CameraPixelFormat::kRgb) {
+    return CameraPixelFormat::kRgb;
   }
+  return CameraPixelFormat::kBgrx;
 }
 
 std::uint32_t BytesPerPixel(CameraPixelFormat format) {
-  switch (format) {
-    case CameraPixelFormat::kRgb:
-      return 3;
-    case CameraPixelFormat::kBgrx:
-      return 4;
-    default:
-      return 4;
+  if (format == CameraPixelFormat::kRgb) {
+    return 3;
   }
+  return 4;
 }
 
 std::string ReadBusError(GstElement* pipeline, const std::string& fallback) {
@@ -108,7 +96,7 @@ GstreamerPreviewPipeline::GstreamerPreviewPipeline() {
 }
 
 GstreamerPreviewPipeline::~GstreamerPreviewPipeline() {
-  Stop();
+  ReleasePipeline();
 }
 
 bool GstreamerPreviewPipeline::Start(const CameraPreviewConfig& config, FrameCallback callback,
@@ -184,6 +172,10 @@ bool GstreamerPreviewPipeline::Start(const CameraPreviewConfig& config, FrameCal
 }
 
 void GstreamerPreviewPipeline::Stop() {
+  ReleasePipeline();
+}
+
+void GstreamerPreviewPipeline::ReleasePipeline() {
   GstElement* pipeline = nullptr;
   GstElement* appsink = nullptr;
   {

@@ -52,20 +52,20 @@ AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_con
 
 AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
                            config::SpeechSegmentConfig segment_config)
-    : AudioService(std::move(config), std::move(vad_config), std::move(segment_config),
+    : AudioService(std::move(config), std::move(vad_config), segment_config,
                    DefaultSourceFactory()) {
 }
 
 AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
                            config::SpeechSegmentConfig segment_config,
                            std::unique_ptr<voice::SpeechRecognizer> recognizer)
-    : AudioService(std::move(config), std::move(vad_config), std::move(segment_config),
-                   DefaultSourceFactory(), std::move(recognizer)) {
+    : AudioService(std::move(config), std::move(vad_config), segment_config, DefaultSourceFactory(),
+                   std::move(recognizer)) {
 }
 
 AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
                            config::SpeechSegmentConfig segment_config, SourceFactory source_factory)
-    : AudioService(std::move(config), std::move(vad_config), std::move(segment_config),
+    : AudioService(std::move(config), std::move(vad_config), segment_config,
                    std::move(source_factory), nullptr) {
 }
 
@@ -74,7 +74,7 @@ AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_con
                            std::unique_ptr<voice::SpeechRecognizer> recognizer)
     : config_(std::move(config)),
       vad_config_(std::move(vad_config)),
-      segment_config_(std::move(segment_config)),
+      segment_config_(segment_config),
       source_factory_(std::move(source_factory)),
       recognizer_(std::move(recognizer)) {
   if (vad_config_.enabled) {

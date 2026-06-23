@@ -170,8 +170,9 @@ const char* CaptureStateName(cockpit::proto::audio::CaptureState state) {
       return "faulted";
     case cockpit::proto::audio::CAPTURE_STATE_UNSPECIFIED:
       return "unspecified";
+    default:
+      return "unknown";
   }
-  return "unknown";
 }
 
 const char* VoiceActivityStateName(cockpit::proto::audio::VoiceActivityState state) {
@@ -184,8 +185,9 @@ const char* VoiceActivityStateName(cockpit::proto::audio::VoiceActivityState sta
       return "speech";
     case cockpit::proto::audio::VOICE_ACTIVITY_STATE_UNSPECIFIED:
       return "unspecified";
+    default:
+      return "unknown";
   }
-  return "unknown";
 }
 
 void PrintStatus(const cockpit::proto::audio::AudioStatus& status) {
