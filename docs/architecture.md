@@ -21,6 +21,12 @@ Current implementation boundary:
   until the local vehicle-side chain is stable.
 - The project stays as one repository/folder for now. It should grow through internal CMake
   libraries and service modules, not early repository splitting.
+- znavigator is used as a runtime/orchestrator reference, not as an algorithm-stack template.
+  cockpit-system currently avoids generic plugin loading and uses explicit services plus typed gRPC
+  boundaries instead.
+- Internal communication is not treated as ordinary microservice RPC. gRPC is the control/debug
+  plane; high-rate data stays in process through queues/rings and may later move to local IPC or
+  shared memory when there is a real cross-process need.
 - C++ source files use `.cc` consistently to match the zelos C++ repositories.
 - `proto` generates a C++ `contracts` target through CMake.
 - yaml-cpp loads an immutable typed `SystemConfig` and validates component settings at startup.
@@ -56,6 +62,7 @@ cockpit-system/
     audio/              # PCM/WAV types, voice frames, local SPSC data plane
     can/                # platform-independent CAN frame model
     vehicle/            # hand-written vehicle model before generated proto is enabled
+    voice/              # ASR/TTS/intent/action interfaces and deterministic mock providers
   drivers/
     alsa/               # Linux ALSA capture/playback adapter
     socketcan/          # Linux SocketCAN adapter
@@ -66,6 +73,25 @@ cockpit-system/
   tools/                # developer and simulator binaries
   tests/                # smoke and unit tests
 ```
+
+The layout follows the useful part of the zelos/znavigator style: a thin executable entry, small
+internal libraries, explicit per-module build files, and service/library boundaries that can be
+split later if a real deployment or release boundary appears.
+
+Communication model:
+
+```text
+same thread         -> function call
+same process        -> queue / actor mailbox / callback / SPSC ring
+cross process       -> Unix domain socket or shared memory + notification later
+control/debug       -> gRPC + CLI tools
+external/cloud      -> MQTT / HTTP / WebSocket later
+```
+
+This keeps the project closer to a lightweight vehicle-side runtime than to a cloud microservice
+graph. It also matches the current audio design: `audio-service` owns devices and only exposes
+control/status/transcript text through gRPC, while PCM remains local.
+See `docs/runtime_communication_strategy.md` for the detailed transport rules.
 
 Planned voice/AI chain:
 
@@ -98,3 +124,5 @@ Immediate next engineering tasks:
 3. Build mock transcript-to-intent handling in `voice-interaction-service`. Completed.
 4. Add text-only Speak RPC, mock TTS, and asynchronous ALSA playback. Completed.
 5. Decode production chassis frames after an approved DBC or signal specification is available.
+6. Add a typed audio recording control path in `audio-service`, then expose recorder actions from
+   `voice-interaction-service` without giving voice direct ALSA access.

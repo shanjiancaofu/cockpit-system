@@ -3,6 +3,7 @@
 Process-independent infrastructure shared by applications, services, tools, modules, and drivers.
 
 - `config`: runtime configuration.
+- `event`: bounded in-process queues for low-rate typed events.
 - `logging`: unified logging.
 - `runtime`: service lifecycle and command-line handling.
 - `utils`: small foundational helpers.

@@ -66,6 +66,7 @@ int main() {
   const auto status = service.status();
   if (status.state != cockpit::voice::InteractionState::kListening ||
       status.metrics.transcripts_received != 2 ||
+      status.metrics.transcript_events_dropped != 0 ||
       status.metrics.responses_published != 2 ||
       status.metrics.unknown_intents != 1 ||
       status.metrics.actions_attempted != 1 ||
@@ -94,6 +95,35 @@ int main() {
   if (service.HandleTranscript(empty).has_value() ||
       service.status().metrics.processing_errors != 1) {
     std::cerr << "empty transcript error was not recorded\n";
+    return 1;
+  }
+
+  cockpit::voice::VoiceInteractionService async_service(
+      true, std::make_unique<cockpit::voice::MockVoiceAssistant>(),
+      std::make_unique<cockpit::voice::MockActionDispatcher>());
+  if (!async_service.Start()) {
+    std::cerr << "async voice service did not start\n";
+    return 1;
+  }
+  cockpit::voice::SpeechTranscript async_transcript;
+  async_transcript.id = 99;
+  async_transcript.text = "show vehicle status";
+  if (async_service.SubmitTranscript(async_transcript) !=
+      cockpit::event::EventQueuePushResult::kAccepted) {
+    std::cerr << "async voice service rejected transcript\n";
+    return 1;
+  }
+  cockpit::voice::VoiceResponse async_response;
+  if (!async_service.WaitForResponse(0, std::chrono::milliseconds(500),
+                                     &async_response) ||
+      async_response.transcript_id != 99) {
+    std::cerr << "async voice service did not publish response\n";
+    return 1;
+  }
+  async_service.Stop();
+  if (async_service.SubmitTranscript(async_transcript) !=
+      cockpit::event::EventQueuePushResult::kClosed) {
+    std::cerr << "stopped async voice service accepted transcript\n";
     return 1;
   }
   std::cout << "voice interaction service tests passed\n";

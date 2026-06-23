@@ -1,6 +1,7 @@
 #include "voice_interaction_service.h"
 
 #include <algorithm>
+#include <chrono>
 #include <exception>
 #include <utility>
 
@@ -17,6 +18,43 @@ VoiceInteractionService::VoiceInteractionService(
       output_(std::move(output)) {
   state_.store(enabled_ ? InteractionState::kListening
                         : InteractionState::kDisabled);
+}
+
+VoiceInteractionService::~VoiceInteractionService() { Stop(); }
+
+bool VoiceInteractionService::Start() {
+  if (!enabled_ || assistant_ == nullptr) {
+    return false;
+  }
+  bool expected = false;
+  if (!worker_running_.compare_exchange_strong(expected, true)) {
+    return true;
+  }
+  transcript_events_.Reset();
+  worker_ = std::make_unique<std::thread>(&VoiceInteractionService::ProcessLoop,
+                                          this);
+  state_.store(InteractionState::kListening);
+  return true;
+}
+
+void VoiceInteractionService::Stop() {
+  const bool was_running = worker_running_.exchange(false);
+  transcript_events_.Close();
+  if (worker_ != nullptr && worker_->joinable()) {
+    worker_->join();
+  }
+  worker_.reset();
+  if (was_running && enabled_) {
+    state_.store(InteractionState::kListening);
+  }
+}
+
+event::EventQueuePushResult VoiceInteractionService::SubmitTranscript(
+    const SpeechTranscript& transcript) {
+  if (!enabled_ || assistant_ == nullptr || !worker_running_.load()) {
+    return event::EventQueuePushResult::kClosed;
+  }
+  return transcript_events_.Push(transcript);
 }
 
 std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
@@ -107,6 +145,7 @@ VoiceInteractionStatus VoiceInteractionService::status() const {
   VoiceInteractionStatus result;
   result.state = state_.load();
   result.metrics.transcripts_received = transcripts_received_.load();
+  result.metrics.transcript_events_dropped = transcript_events_.DropCount();
   result.metrics.responses_published = responses_published_.load();
   result.metrics.unknown_intents = unknown_intents_.load();
   result.metrics.processing_errors = processing_errors_.load();
@@ -147,6 +186,24 @@ VoiceResponse VoiceInteractionService::PublishResponse(VoiceResponse response) {
   responses_published_.fetch_add(1U);
   response_changed_.notify_all();
   return response;
+}
+
+void VoiceInteractionService::ProcessLoop() {
+  while (worker_running_.load()) {
+    auto transcript = transcript_events_.WaitPopFor(std::chrono::milliseconds(100));
+    if (!transcript.has_value()) {
+      continue;
+    }
+    HandleTranscript(*transcript);
+  }
+
+  while (true) {
+    auto transcript = transcript_events_.TryPop();
+    if (!transcript.has_value()) {
+      break;
+    }
+    HandleTranscript(*transcript);
+  }
 }
 
 }  // namespace voice

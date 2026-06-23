@@ -40,11 +40,12 @@ int main(int argc, char** argv) {
 
   int result = 0;
   if (enabled) {
+    service.Start();
     cockpit::voice::AudioTranscriptClient client(
         config.audio_address, config.stream_timeout_ms, config.retry_delay_ms);
     result = client.Stream(
         [&service](const cockpit::voice::SpeechTranscript& transcript) {
-          service.HandleTranscript(transcript);
+          service.SubmitTranscript(transcript);
         },
         [&runtime] { return !runtime.ShouldStop(); },
         [&service] { service.RecordUpstreamReconnect(); },
@@ -55,6 +56,7 @@ int main(int argc, char** argv) {
     }
   }
 
+  service.Stop();
   grpc_service.Shutdown();
   runtime.MarkStopped();
   return result;

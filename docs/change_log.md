@@ -5,6 +5,49 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - 同进程事件队列 / In-process Event Queue
+
+### 变更内容 / Changed
+
+- 新增 `core/event/EventQueue<T>`，用于低频 typed event 的同进程投递。
+- 支持 bounded capacity、TryPop、WaitPop、WaitPopFor、Close、Reset 和 drop_count。
+- voice-interaction-service 使用 EventQueue 将 transcript 接收和 intent/action 处理解耦。
+- 新增 event CMake target 和 `event_queue_test`。
+
+### 设计决定 / Design Decisions
+
+- 该队列不是高频数据面，不替代 audio SPSC ring，也不承载 PCM/图像大 buffer。
+- 当前只做同进程事件队列，不做跨进程 IPC、shared memory 或网络 message bus。
+- gRPC transcript stream 线程只投递事件，voice worker 线程串行执行 assistant、action 和 TTS。
+
+### 验证结果 / Verification
+
+- `event_queue_test` 覆盖顺序、溢出、move-only 事件、等待、关闭和 reset。
+- `voice_interaction_service_test` 覆盖异步 transcript 入队、响应发布和停止后拒绝入队。
+
+## 2026-06-23 - znavigator 模块化参考固化 / znavigator Modularization Notes
+
+### 变更内容 / Changed
+
+- 补充 znavigator 目录结构到 cockpit-system 当前目录的映射关系。
+- 明确 znavigator 更像运行时/模块编排器，不是自动驾驶算法栈模板。
+- 记录 `library/*_entry`、`dl_api`、`zoe_*`、`transfer/restful` 对当前项目的参考价值。
+- 补充 `ipc_connector`、`socketpair`、`ProtocolUnit` 和 `application.yaml` channel wiring 的实际阅读结论。
+- 明确 core、modules、drivers、services、tools、proto、configs 的放置规则。
+- 增加 cockpit-system 通信规则：gRPC 做控制/调试，高频数据使用本地队列、ring 或后续共享内存。
+- 新增 runtime 通信策略文档，明确同线程、同进程、跨进程、跨机器的传输选择。
+- 修正 modules/drivers README 中 audio、voice、alsa 已落地后的过期描述。
+
+### 设计决定 / Design Decisions
+
+- 继续参考 znavigator 的薄入口、小内部库、显式模块边界思路。
+- 不切换到 xmake，也不照搬 `library/*_entry` 目录命名；当前服务边界用 `services/*` 表达。
+- 当前阶段不做 `dlopen` 插件系统和通用 REST 控制面；先用静态服务、systemd、smoke 脚本和 typed gRPC。
+
+### 验证结果 / Verification
+
+- 本批为文档和结构规则更新，无需重新编译。
+
 ## 2026-06-23 - 真实车辆状态语音动作 / Real Vehicle Status Voice Action
 
 ### 变更内容 / Changed

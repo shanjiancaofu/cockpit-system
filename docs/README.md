@@ -20,7 +20,9 @@
    - 已完成、未完成和验证状态。
 6. [configuration.md](configuration.md)
    - 参考 zcarcloud 后确定的 YAML 分区、类型化与校验规则。
-7. [change_log.md](change_log.md)
+7. [runtime_communication_strategy.md](runtime_communication_strategy.md)
+   - 车端 runtime 通信分层：函数调用、队列/Actor、共享内存、gRPC/外部通信。
+8. [change_log.md](change_log.md)
    - 每批改动的中英双语记录。
 
 ## 参考与专项
@@ -28,6 +30,18 @@
 - [reference_projects.md](reference_projects.md)：旧项目与开源项目参考。
 - [reference_code_audit.md](reference_code_audit.md)：旧代码细粒度审计。
 - [voice_ai_plan.md](voice_ai_plan.md)：麦克风、扬声器、语音与大模型规划。
+
+## 目录放置速查 / Placement Quick Guide
+
+```text
+core/      通用基础设施：配置、日志、生命周期、低层工具
+modules/   平台无关领域能力：vehicle、can、audio、voice
+drivers/   Linux/Jetson 硬件适配：SocketCAN、ALSA、后续 camera/GPIO/I2C
+services/  长驻进程：gRPC、线程、设备所有权、模块编排
+tools/     调试工具、仿真器、probe、smoke 辅助
+proto/     服务间接口契约
+configs/   运行配置和 systemd 示例
+```
 
 ## 当前仓库策略
 

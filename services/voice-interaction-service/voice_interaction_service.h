@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/event/event_queue.h"
 #include "modules/voice/action_dispatcher.h"
 #include "modules/voice/speech_transcript.h"
 #include "modules/voice/voice_assistant.h"
@@ -14,6 +15,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 
 namespace cockpit {
 namespace voice {
@@ -39,6 +41,7 @@ struct VoiceResponse {
 
 struct VoiceInteractionMetrics {
   std::uint64_t transcripts_received = 0;
+  std::uint64_t transcript_events_dropped = 0;
   std::uint64_t responses_published = 0;
   std::uint64_t unknown_intents = 0;
   std::uint64_t processing_errors = 0;
@@ -61,10 +64,14 @@ class VoiceInteractionService {
   VoiceInteractionService(bool enabled, std::unique_ptr<VoiceAssistant> assistant,
                           std::unique_ptr<ActionDispatcher> dispatcher,
                           std::unique_ptr<VoiceResponseSink> output = nullptr);
+  ~VoiceInteractionService();
 
   VoiceInteractionService(const VoiceInteractionService&) = delete;
   VoiceInteractionService& operator=(const VoiceInteractionService&) = delete;
 
+  bool Start();
+  void Stop();
+  event::EventQueuePushResult SubmitTranscript(const SpeechTranscript& transcript);
   std::optional<VoiceResponse> HandleTranscript(const SpeechTranscript& transcript);
   bool WaitForResponse(std::uint64_t after_id,
                        std::chrono::milliseconds timeout,
@@ -75,12 +82,16 @@ class VoiceInteractionService {
 
  private:
   VoiceResponse PublishResponse(VoiceResponse response);
+  void ProcessLoop();
 
   const bool enabled_;
   const std::unique_ptr<VoiceAssistant> assistant_;
   const std::unique_ptr<ActionDispatcher> dispatcher_;
   const std::unique_ptr<VoiceResponseSink> output_;
   mutable std::mutex processing_mutex_;
+  event::EventQueue<SpeechTranscript> transcript_events_{32};
+  std::atomic<bool> worker_running_{false};
+  std::unique_ptr<std::thread> worker_;
   std::atomic<InteractionState> state_{InteractionState::kDisabled};
   std::atomic<std::uint64_t> transcripts_received_{0};
   std::atomic<std::uint64_t> responses_published_{0};

@@ -6,6 +6,25 @@
 
 已重点阅读：
 
+- `zelos/znavigator`
+  - `navigator/main.cc`
+  - `navigator/common/process_unit.h`
+  - `navigator/common/protocol_unit.h`
+  - `navigator/common/zoe_module.h`
+  - `navigator/common/zoe_operator.h`
+  - `navigator/common/zoe_operator.cc.in`
+  - `navigator/common/zoe_operator_gen.py`
+  - `navigator/common/zoe_option.h`
+  - `navigator/common/zoe_status.h`
+  - `navigator/connection/ipc_connector.cc`
+  - `navigator/dl_api/dl_api.cc`
+  - `navigator/dl_api/dl_raii.cc`
+  - `navigator/dl_api/dl_typedef.h`
+  - `navigator/library/*/*_entry.cc`
+  - `navigator/library/transfer/controller/*.cc`
+  - `navigator/library/transfer/restful/*.cc`
+  - `navigator/run_config/run_config.cc`
+  - `navigator/testdata/application.yaml`
 - `zelos/zcarcloud/zcarcloud/carcloud`
   - `main.cc`
   - `carcloud.cc`
@@ -37,6 +56,89 @@
   - `src/app/MainWindow.cpp`
   - `src/apps/camera_v4l2/v4l2.cpp`
   - `src/apps/weather/httpdownload.cpp`
+
+## 0. znavigator 运行时与模块编排
+
+### 可参考代码
+
+- `znavigator/navigator/main.cc`
+- `znavigator/navigator/common/zoe_module.h`
+- `znavigator/navigator/common/zoe_operator.h`
+- `znavigator/navigator/dl_api/dl_api.cc`
+- `znavigator/navigator/dl_api/dl_raii.cc`
+- `znavigator/navigator/library/*/*_entry.cc`
+- `znavigator/navigator/library/transfer/controller/*.cc`
+- `znavigator/navigator/library/transfer/restful/*.cc`
+- `znavigator/navigator/run_config/run_config.cc`
+
+### 观察
+
+从目录结构看，`znavigator` 更像应用运行时、模块编排器和进程/插件管理框架，不是感知、定位、规划、控制算法栈本身。
+
+它的关键形态是：
+
+```text
+navigator main
+  -> run_config / application.yaml
+  -> common ZoeModule/ZoeOperator/ZoeOption/ZoeStatus
+  -> dl_api dynamic library adapter
+  -> library/*_entry module adapters
+  -> transfer controller/restful control plane
+```
+
+`library/*_entry` 很像统一模块入口适配层，`dl_api` 指向动态库加载，`transfer` 则提供命令、配置和 signal 控制面。
+
+进一步阅读后的具体结论：
+
+- `ProcessUnit` 记录 module、pid、exec_count 和 timestamp。
+- `ProtocolUnit` 记录 module option/status，并携带最多 32 个 `ProcessUnit`。
+- `ZoeModule/ZoeOption/ZoeStatus` 是运行时模块、模式和状态枚举。
+- `IpcConnector` 使用 Unix `socketpair` fd、`poll` 线程、固定头 `0xAABBAABB` 和
+  `ProtocolUnit` 二进制包做本地 IPC。
+- `RootForkChildren()` 对模块执行 `fork()`；`TRANSFER` 模块额外建立 socketpair，再用
+  `IpcConnector` 回传进程状态。
+- `DlApi` 通过 `dlopen`/`dlsym` 查找 `EntryPoint`、`EntryPointWithFd` 和 `ExitPoint`。
+- `application.yaml` 里有 channel_map、pcie_channel_map 和 gflags，这更像运行时 wiring
+  配置，不只是普通业务配置。
+
+因此它的内部通信模型更接近：
+
+```text
+控制面：REST / command controller / config controller
+运行管理面：ProcessUnit / ProtocolUnit / ZoeOperator
+模块加载面：dlopen + EntryPoint / EntryPointWithFd
+本地 IPC：Unix socketpair fd + ProtocolUnit
+配置面：application.yaml / compatibility.json
+```
+
+### 对 cockpit-system 的规则
+
+短期不照搬完整 runtime：
+
+- 不引入 `dlopen` 插件系统。
+- 不引入通用模块 ABI。
+- 不引入 REST 控制面来替代当前 gRPC 工具。
+- 不把所有服务塞进一个总 launcher。
+
+当前采用更轻的方式：
+
+- `services/*` 是可独立运行的模块入口。
+- `proto/*` 是稳定的服务间控制面契约。
+- `modules/*` 放可测试的业务能力。
+- `drivers/*` 放 Linux/Jetson 硬件适配。
+- `systemd`、`scripts/run_smoke.sh` 和调试工具先承担启动/联调职责。
+- 内部高频数据流不走 gRPC：音频 PCM 用本地 ring，后续视频帧优先 callback/ring，再考虑
+  shared memory。
+- gRPC 主要用于 start、stop、status、debug、低频 typed event 和工具联调。
+
+后续只有在出现这些条件时，才考虑新增 `orchestrator-service` 或 `launcher`：
+
+- 需要一次性启动/停止多个 cockpit 服务。
+- 需要统一查询服务状态、配置版本和健康检查。
+- 需要按配置选择启用/禁用多个能力模块。
+- systemd 与脚本已经无法覆盖部署需求。
+
+即使后续增加，也应优先做静态服务编排和 typed gRPC 控制，不先做动态 `.so` 插件。
 
 ## 1. 服务生命周期
 
