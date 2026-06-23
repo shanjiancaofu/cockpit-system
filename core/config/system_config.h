@@ -144,13 +144,27 @@ class SystemConfig {
  public:
   static SystemConfig LoadFromFile(const std::string& path);
 
-  const SystemIdentityConfig& system() const { return system_; }
-  const PathsConfig& paths() const { return paths_; }
-  const LoggingConfig& logging() const { return logging_; }
-  const ServicesConfig& services() const { return services_; }
-  const HardwareConfig& hardware() const { return hardware_; }
-  const FeaturesConfig& features() const { return features_; }
-  const ToolsConfig& tools() const { return tools_; }
+  const SystemIdentityConfig& system() const {
+    return system_;
+  }
+  const PathsConfig& paths() const {
+    return paths_;
+  }
+  const LoggingConfig& logging() const {
+    return logging_;
+  }
+  const ServicesConfig& services() const {
+    return services_;
+  }
+  const HardwareConfig& hardware() const {
+    return hardware_;
+  }
+  const FeaturesConfig& features() const {
+    return features_;
+  }
+  const ToolsConfig& tools() const {
+    return tools_;
+  }
 
  private:
   void Validate() const;

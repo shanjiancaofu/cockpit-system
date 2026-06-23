@@ -1,9 +1,3 @@
-#include "audio_control_client.h"
-#include "core/logging/Logger.h"
-#include "core/runtime/ServiceRuntime.h"
-#include "drivers/alsa/alsa_pcm.h"
-#include "modules/audio/wav_file.h"
-
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
@@ -11,6 +5,13 @@
 #include <limits>
 #include <string>
 #include <vector>
+
+#include "audio_control_client.h"
+
+#include "core/logging/Logger.h"
+#include "core/runtime/ServiceRuntime.h"
+#include "drivers/alsa/alsa_pcm.h"
+#include "modules/audio/wav_file.h"
 
 namespace {
 
@@ -25,8 +26,7 @@ std::string OneLine(std::string value) {
   return value;
 }
 
-cockpit::audio::PcmFormat ConfiguredFormat(
-    const cockpit::config::AudioConfig& config) {
+cockpit::audio::PcmFormat ConfiguredFormat(const cockpit::config::AudioConfig& config) {
   cockpit::audio::PcmFormat format;
   format.sample_rate_hz = config.sample_rate_hz;
   format.channels = config.channels;
@@ -62,8 +62,8 @@ int Capture(const cockpit::runtime::ServiceRuntime& runtime, const std::string& 
   const int seconds = std::clamp(runtime.args().GetInt("seconds", 3), 1, 60);
   const std::size_t total_frames =
       static_cast<std::size_t>(format.sample_rate_hz) * static_cast<std::size_t>(seconds);
-  if (total_frames > std::numeric_limits<std::size_t>::max() /
-                         static_cast<std::size_t>(format.channels)) {
+  if (total_frames >
+      std::numeric_limits<std::size_t>::max() / static_cast<std::size_t>(format.channels)) {
     LOG_ERROR("audio capture size overflow");
     return Finish(runtime, 2);
   }
@@ -77,15 +77,14 @@ int Capture(const cockpit::runtime::ServiceRuntime& runtime, const std::string& 
 
   std::vector<std::int16_t> samples;
   samples.reserve(total_frames * static_cast<std::size_t>(format.channels));
-  std::vector<std::int16_t> period(
-      format.FramesPerPeriod() * static_cast<std::size_t>(format.channels));
+  std::vector<std::int16_t> period(format.FramesPerPeriod() *
+                                   static_cast<std::size_t>(format.channels));
   std::size_t captured_frames = 0;
   const std::atomic_bool stop_requested{false};
   while (captured_frames < total_frames && !runtime.ShouldStop()) {
     const std::size_t frame_capacity =
         std::min(format.FramesPerPeriod(), total_frames - captured_frames);
-    const auto result = pcm.PollReadFrames(period.data(), frame_capacity, 100,
-                                           stop_requested);
+    const auto result = pcm.PollReadFrames(period.data(), frame_capacity, 100, stop_requested);
     if (result.status == cockpit::audio::CaptureStatus::kTimeout ||
         result.status == cockpit::audio::CaptureStatus::kXrunRecovered) {
       continue;
@@ -97,10 +96,10 @@ int Capture(const cockpit::runtime::ServiceRuntime& runtime, const std::string& 
       LOG_ERROR(result.message);
       return Finish(runtime, 1);
     }
-    samples.insert(samples.end(), period.begin(),
-                   period.begin() + static_cast<std::ptrdiff_t>(
-                       result.frames_read *
-                       static_cast<std::size_t>(format.channels)));
+    samples.insert(
+        samples.end(), period.begin(),
+        period.begin() + static_cast<std::ptrdiff_t>(result.frames_read *
+                                                     static_cast<std::size_t>(format.channels)));
     captured_frames += result.frames_read;
   }
   pcm.Close();
@@ -113,8 +112,8 @@ int Capture(const cockpit::runtime::ServiceRuntime& runtime, const std::string& 
     LOG_ERROR(error);
     return Finish(runtime, 1);
   }
-  std::cout << "captured " << captured_frames << " frames from " << device
-            << " to " << output_path << '\n';
+  std::cout << "captured " << captured_frames << " frames from " << device << " to " << output_path
+            << '\n';
   return Finish(runtime, 0);
 }
 
@@ -152,8 +151,8 @@ int Play(const cockpit::runtime::ServiceRuntime& runtime, const std::string& inp
     return Finish(runtime, 1);
   }
   pcm.Close();
-  std::cout << "played " << played_frames << " frames from " << input_path
-            << " through " << device << '\n';
+  std::cout << "played " << played_frames << " frames from " << input_path << " through " << device
+            << '\n';
   return Finish(runtime, 0);
 }
 
@@ -175,8 +174,7 @@ const char* CaptureStateName(cockpit::proto::audio::CaptureState state) {
   return "unknown";
 }
 
-const char* VoiceActivityStateName(
-    cockpit::proto::audio::VoiceActivityState state) {
+const char* VoiceActivityStateName(cockpit::proto::audio::VoiceActivityState state) {
   switch (state) {
     case cockpit::proto::audio::VOICE_ACTIVITY_STATE_DISABLED:
       return "disabled";
@@ -194,13 +192,12 @@ void PrintStatus(const cockpit::proto::audio::AudioStatus& status) {
   const auto& metrics = status.metrics();
   std::cout << "state: " << CaptureStateName(status.capture_state()) << '\n'
             << "device: " << status.input_device() << '\n'
-            << "format: " << status.sample_rate_hz() << " Hz, "
-            << status.channels() << " channel(s), " << status.frame_ms() << " ms\n"
+            << "format: " << status.sample_rate_hz() << " Hz, " << status.channels()
+            << " channel(s), " << status.frame_ms() << " ms\n"
             << "frames read: " << metrics.pcm_frames_read() << '\n'
             << "frames published: " << metrics.audio_frames_published() << '\n'
             << "frames dropped: " << metrics.audio_frames_dropped() << '\n'
-            << "voice activity: "
-            << VoiceActivityStateName(status.voice_activity_state()) << '\n'
+            << "voice activity: " << VoiceActivityStateName(status.voice_activity_state()) << '\n'
             << "input level: " << status.input_level_dbfs() << " dBFS\n"
             << "VAD frames: " << metrics.vad_frames_processed() << '\n'
             << "VAD speech frames: " << metrics.vad_speech_frames() << '\n'
@@ -226,17 +223,15 @@ void PrintStatus(const cockpit::proto::audio::AudioStatus& status) {
   }
 }
 
-int Control(const cockpit::runtime::ServiceRuntime& runtime,
-            const std::string& command) {
-  const std::string address = runtime.args().GetString(
-      "address", runtime.config().services().audio.grpc.listen_address);
+int Control(const cockpit::runtime::ServiceRuntime& runtime, const std::string& command) {
+  const std::string address =
+      runtime.args().GetString("address", runtime.config().services().audio.grpc.listen_address);
   cockpit::audio::AudioControlClient client(address);
   cockpit::proto::audio::AudioStatus status;
   std::string error;
   bool success = false;
   if (command == "start") {
-    success = client.StartCapture(runtime.args().GetString("device", ""),
-                                  &status, &error);
+    success = client.StartCapture(runtime.args().GetString("device", ""), &status, &error);
   } else if (command == "stop") {
     success = client.StopCapture(&status, &error);
   } else {
@@ -251,24 +246,20 @@ int Control(const cockpit::runtime::ServiceRuntime& runtime,
 }
 
 int Transcripts(const cockpit::runtime::ServiceRuntime& runtime) {
-  const std::string address = runtime.args().GetString(
-      "address", runtime.config().services().audio.grpc.listen_address);
+  const std::string address =
+      runtime.args().GetString("address", runtime.config().services().audio.grpc.listen_address);
   const int count = std::clamp(runtime.args().GetInt("count", 1), 1, 100);
-  const int timeout_ms =
-      std::clamp(runtime.args().GetInt("timeout-ms", 10000), 100, 60000);
+  const int timeout_ms = std::clamp(runtime.args().GetInt("timeout-ms", 10000), 100, 60000);
   cockpit::audio::AudioControlClient client(address);
   std::string error;
   const bool success = client.SubscribeTranscripts(
       static_cast<std::uint32_t>(count), timeout_ms,
       [](const cockpit::proto::audio::TranscriptEvent& event) {
-        std::cout << "transcript id=" << event.id()
-                  << " provider=" << event.provider()
-                  << " confidence=" << event.confidence()
-                  << " duration_ms=" << event.duration_ms()
+        std::cout << "transcript id=" << event.id() << " provider=" << event.provider()
+                  << " confidence=" << event.confidence() << " duration_ms=" << event.duration_ms()
                   << " truncated=" << (event.truncated() ? "true" : "false")
-                  << " discontinuous="
-                  << (event.discontinuous() ? "true" : "false")
-                  << " text=\"" << event.text() << "\"\n";
+                  << " discontinuous=" << (event.discontinuous() ? "true" : "false") << " text=\""
+                  << event.text() << "\"\n";
       },
       &error);
   if (!success) {
@@ -278,10 +269,9 @@ int Transcripts(const cockpit::runtime::ServiceRuntime& runtime) {
   return Finish(runtime, 0);
 }
 
-int Speak(const cockpit::runtime::ServiceRuntime& runtime,
-          const std::string& text) {
-  const std::string address = runtime.args().GetString(
-      "address", runtime.config().services().audio.grpc.listen_address);
+int Speak(const cockpit::runtime::ServiceRuntime& runtime, const std::string& text) {
+  const std::string address =
+      runtime.args().GetString("address", runtime.config().services().audio.grpc.listen_address);
   cockpit::audio::AudioControlClient client(address);
   std::string error;
   if (!client.Speak(text, &error)) {
@@ -315,15 +305,13 @@ int main(int argc, char** argv) {
   const bool status = runtime.args().HasFlag("status");
   const bool transcripts = runtime.args().HasFlag("transcripts");
   const std::string speak_text = runtime.args().GetString("speak", "");
-  const bool no_command = capture_path.empty() && play_path.empty() && !start &&
-                          !stop && !status && !transcripts &&
-                          speak_text.empty();
+  const bool no_command = capture_path.empty() && play_path.empty() && !start && !stop && !status &&
+                          !transcripts && speak_text.empty();
   const bool list = runtime.args().HasFlag("list") || no_command;
   const int command_count = static_cast<int>(list) + static_cast<int>(!capture_path.empty()) +
                             static_cast<int>(!play_path.empty()) + static_cast<int>(start) +
                             static_cast<int>(stop) + static_cast<int>(status) +
-                            static_cast<int>(transcripts) +
-                            static_cast<int>(!speak_text.empty());
+                            static_cast<int>(transcripts) + static_cast<int>(!speak_text.empty());
   if (command_count != 1) {
     PrintUsage();
     return Finish(runtime, 2);

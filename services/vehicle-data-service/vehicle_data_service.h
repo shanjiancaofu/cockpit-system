@@ -1,9 +1,9 @@
 #pragma once
 
+#include <functional>
+
 #include "core/runtime/ServiceRuntime.h"
 #include "modules/vehicle/VehicleState.h"
-
-#include <functional>
 
 namespace cockpit {
 namespace vehicle {

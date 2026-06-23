@@ -4,8 +4,6 @@
 #error "SocketCan requires Linux"
 #endif
 
-#include <cerrno>
-#include <cstring>
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>
@@ -14,6 +12,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <cerrno>
+#include <cstring>
 #include <utility>
 
 namespace cockpit {
@@ -30,7 +30,8 @@ SocketCan::~SocketCan() {
   Close();
 }
 
-SocketCan::SocketCan(SocketCan&& other) noexcept : fd_(std::exchange(other.fd_, -1)) {}
+SocketCan::SocketCan(SocketCan&& other) noexcept : fd_(std::exchange(other.fd_, -1)) {
+}
 
 SocketCan& SocketCan::operator=(SocketCan&& other) noexcept {
   if (this != &other) {
@@ -160,10 +161,9 @@ CanIoStatus SocketCan::Receive(CanFrame* frame, int timeout_ms, std::string* err
   const bool remote = (native_frame.can_id & CAN_RTR_FLAG) != 0;
   const std::uint32_t id = native_frame.can_id & (extended ? CAN_EFF_MASK : CAN_SFF_MASK);
   std::array<std::uint8_t, CanFrame::kMaxDataLength> data{};
-  const std::uint8_t data_length =
-      native_frame.can_dlc > CanFrame::kMaxDataLength
-          ? static_cast<std::uint8_t>(CanFrame::kMaxDataLength)
-          : native_frame.can_dlc;
+  const std::uint8_t data_length = native_frame.can_dlc > CanFrame::kMaxDataLength
+                                       ? static_cast<std::uint8_t>(CanFrame::kMaxDataLength)
+                                       : native_frame.can_dlc;
   std::memcpy(data.data(), native_frame.data, data_length);
   *frame = CanFrame(id, data, data_length, extended, remote);
   return CanIoStatus::kOk;

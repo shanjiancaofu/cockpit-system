@@ -1,10 +1,10 @@
 #pragma once
 
-#include "modules/audio/audio_frame.h"
-
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+
+#include "modules/audio/audio_frame.h"
 
 namespace cockpit {
 namespace audio {

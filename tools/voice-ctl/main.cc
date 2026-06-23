@@ -1,11 +1,12 @@
-#include "core/logging/Logger.h"
-#include "core/runtime/ServiceRuntime.h"
-#include "voice_control_client.h"
-
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
 #include <string>
+
+#include "voice_control_client.h"
+
+#include "core/logging/Logger.h"
+#include "core/runtime/ServiceRuntime.h"
 
 namespace {
 
@@ -31,12 +32,10 @@ const char* StateName(cockpit::proto::voice::InteractionState state) {
 }
 
 void PrintResponse(const cockpit::proto::voice::VoiceResponseEvent& response) {
-  std::cout << "response id=" << response.id()
-            << " transcript_id=" << response.transcript_id()
-            << " intent=" << response.intent()
-            << " action=" << response.action()
-            << " action_status=" << response.action_status()
-            << " transcript=\"" << response.transcript_text() << "\""
+  std::cout << "response id=" << response.id() << " transcript_id=" << response.transcript_id()
+            << " intent=" << response.intent() << " action=" << response.action()
+            << " action_status=" << response.action_status() << " transcript=\""
+            << response.transcript_text() << "\""
             << " text=\"" << response.response_text() << "\""
             << " action_message=\"" << response.action_message() << "\"\n";
 }
@@ -45,8 +44,7 @@ void PrintStatus(const cockpit::proto::voice::VoiceInteractionStatus& status) {
   const auto& metrics = status.metrics();
   std::cout << "state: " << StateName(status.state()) << '\n'
             << "transcripts received: " << metrics.transcripts_received() << '\n'
-            << "transcript events dropped: "
-            << metrics.transcript_events_dropped() << '\n'
+            << "transcript events dropped: " << metrics.transcript_events_dropped() << '\n'
             << "responses published: " << metrics.responses_published() << '\n'
             << "unknown intents: " << metrics.unknown_intents() << '\n'
             << "processing errors: " << metrics.processing_errors() << '\n'
@@ -54,12 +52,9 @@ void PrintStatus(const cockpit::proto::voice::VoiceInteractionStatus& status) {
   std::cout << "actions attempted: " << metrics.actions_attempted() << '\n'
             << "actions succeeded: " << metrics.actions_succeeded() << '\n'
             << "actions failed: " << metrics.actions_failed() << '\n';
-  std::cout << "speech requests accepted: "
-            << metrics.speech_requests_accepted() << '\n'
-            << "speech requests failed: "
-            << metrics.speech_requests_failed() << '\n'
-            << "speech requests dropped: "
-            << metrics.speech_requests_dropped() << '\n';
+  std::cout << "speech requests accepted: " << metrics.speech_requests_accepted() << '\n'
+            << "speech requests failed: " << metrics.speech_requests_failed() << '\n'
+            << "speech requests dropped: " << metrics.speech_requests_dropped() << '\n';
   if (status.has_latest_response()) {
     PrintResponse(status.latest_response());
   }
@@ -79,23 +74,19 @@ void PrintUsage() {
 }  // namespace
 
 int main(int argc, char** argv) {
-  auto runtime =
-      cockpit::runtime::ServiceRuntime::Create(argc, argv, "voice-ctl");
+  auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "voice-ctl");
   const std::string text = runtime.args().GetString("process", "");
   const bool responses = runtime.args().HasFlag("responses");
-  const bool status = runtime.args().HasFlag("status") ||
-                      (text.empty() && !responses);
-  const int command_count = static_cast<int>(status) +
-                            static_cast<int>(!text.empty()) +
-                            static_cast<int>(responses);
+  const bool status = runtime.args().HasFlag("status") || (text.empty() && !responses);
+  const int command_count =
+      static_cast<int>(status) + static_cast<int>(!text.empty()) + static_cast<int>(responses);
   if (command_count != 1) {
     PrintUsage();
     return Finish(runtime, 2);
   }
 
   const std::string address = runtime.args().GetString(
-      "address",
-      runtime.config().services().voice_interaction.grpc.listen_address);
+      "address", runtime.config().services().voice_interaction.grpc.listen_address);
   cockpit::voice::VoiceControlClient client(address);
   std::string error;
   bool success = false;
@@ -113,12 +104,11 @@ int main(int argc, char** argv) {
     }
   } else {
     const int count = std::clamp(runtime.args().GetInt("count", 1), 1, 100);
-    const int timeout_ms =
-        std::clamp(runtime.args().GetInt("timeout-ms", 10000), 100, 60000);
+    const int timeout_ms = std::clamp(runtime.args().GetInt("timeout-ms", 10000), 100, 60000);
     const int after_id = std::max(runtime.args().GetInt("after-id", 0), 0);
-    success = client.SubscribeResponses(
-        static_cast<std::uint64_t>(after_id),
-        static_cast<std::uint32_t>(count), timeout_ms, PrintResponse, &error);
+    success = client.SubscribeResponses(static_cast<std::uint64_t>(after_id),
+                                        static_cast<std::uint32_t>(count), timeout_ms,
+                                        PrintResponse, &error);
   }
   if (!success) {
     LOG_ERROR("voice control RPC failed address=" + address + " error=" + error);

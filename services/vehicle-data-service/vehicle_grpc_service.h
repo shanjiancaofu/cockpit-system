@@ -1,8 +1,5 @@
 #pragma once
 
-#include "modules/vehicle/VehicleState.h"
-#include "vehicle_state.grpc.pb.h"
-
 #include <grpcpp/grpcpp.h>
 
 #include <condition_variable>
@@ -10,6 +7,9 @@
 #include <memory>
 #include <mutex>
 #include <string>
+
+#include "modules/vehicle/VehicleState.h"
+#include "vehicle_state.grpc.pb.h"
 
 namespace cockpit {
 namespace vehicle {
@@ -28,8 +28,7 @@ class VehicleGrpcService final : public proto::vehicle::VehicleDataService::Serv
 
  private:
   grpc::Status SubscribeVehicleState(
-      grpc::ServerContext* context,
-      const proto::vehicle::SubscribeVehicleStateRequest* request,
+      grpc::ServerContext* context, const proto::vehicle::SubscribeVehicleStateRequest* request,
       grpc::ServerWriter<proto::vehicle::VehicleState>* writer) override;
 
   std::mutex mutex_;

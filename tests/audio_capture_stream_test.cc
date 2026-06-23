@@ -28,8 +28,8 @@ struct FakeState {
 
 class FakeCaptureSource final : public AudioCaptureSource {
  public:
-  explicit FakeCaptureSource(std::shared_ptr<FakeState> state)
-      : state_(std::move(state)) {}
+  explicit FakeCaptureSource(std::shared_ptr<FakeState> state) : state_(std::move(state)) {
+  }
 
   bool Open(std::string* error) override {
     state_->opened.store(true);
@@ -40,8 +40,8 @@ class FakeCaptureSource final : public AudioCaptureSource {
     return state_->open_succeeds;
   }
 
-  CaptureResult Read(std::int16_t* samples, std::size_t frame_capacity,
-                     int, const std::atomic_bool& stop_requested) override {
+  CaptureResult Read(std::int16_t* samples, std::size_t frame_capacity, int,
+                     const std::atomic_bool& stop_requested) override {
     if (stop_requested.load()) {
       return {CaptureStatus::kStopped};
     }
@@ -65,7 +65,9 @@ class FakeCaptureSource final : public AudioCaptureSource {
     return result;
   }
 
-  void Close() override { state_->closed.store(true); }
+  void Close() override {
+    state_->closed.store(true);
+  }
 
  private:
   std::shared_ptr<FakeState> state_;
@@ -73,8 +75,7 @@ class FakeCaptureSource final : public AudioCaptureSource {
 
 template <typename Predicate>
 bool WaitUntil(const Predicate& predicate) {
-  const auto deadline = std::chrono::steady_clock::now() +
-                        std::chrono::seconds(1);
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
   while (std::chrono::steady_clock::now() < deadline) {
     if (predicate()) {
       return true;
@@ -92,8 +93,7 @@ bool TestCaptureAndRecovery() {
       {CaptureStatus::kOk, 160},
       {CaptureStatus::kOk, 160},
   };
-  cockpit::audio::AudioCaptureStream stream(
-      std::make_unique<FakeCaptureSource>(state));
+  cockpit::audio::AudioCaptureStream stream(std::make_unique<FakeCaptureSource>(state));
   std::string error;
   if (!stream.Start(&error) || !WaitUntil([&stream] {
         return stream.metrics().audio_frames_published == 1;
@@ -107,8 +107,8 @@ bool TestCaptureAndRecovery() {
   return frame.has_value() && frame->sequence() == 0 &&
          frame->HasFlag(cockpit::audio::AudioFrameFlag::kDiscontinuity) &&
          frame->HasFlag(cockpit::audio::AudioFrameFlag::kRecoveredFromXrun) &&
-         metrics.pcm_frames_read == 320 && metrics.timeouts >= 1 &&
-         metrics.xruns == 1 && state->opened.load() && state->closed.load() &&
+         metrics.pcm_frames_read == 320 && metrics.timeouts >= 1 && metrics.xruns == 1 &&
+         state->opened.load() && state->closed.load() &&
          stream.state() == cockpit::audio::AudioCaptureState::kStopped;
 }
 
@@ -117,15 +117,14 @@ bool TestDeviceFailure() {
   state->results = {
       {CaptureStatus::kDeviceError, 0, -1, "fake device failed"},
   };
-  cockpit::audio::AudioCaptureStream stream(
-      std::make_unique<FakeCaptureSource>(state));
+  cockpit::audio::AudioCaptureStream stream(std::make_unique<FakeCaptureSource>(state));
   if (!stream.Start() || !WaitUntil([&stream] {
         return stream.state() == cockpit::audio::AudioCaptureState::kFaulted;
       })) {
     return false;
   }
-  const bool fault_reported = stream.metrics().device_errors == 1 &&
-                              stream.last_error() == "fake device failed";
+  const bool fault_reported =
+      stream.metrics().device_errors == 1 && stream.last_error() == "fake device failed";
   stream.Stop();
   return fault_reported && state->closed.load();
 }

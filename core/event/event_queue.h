@@ -21,13 +21,18 @@ enum class EventQueuePushResult {
 template <typename T>
 class EventQueue {
  public:
-  explicit EventQueue(std::size_t capacity) : capacity_(capacity) {}
+  explicit EventQueue(std::size_t capacity) : capacity_(capacity) {
+  }
 
   EventQueue(const EventQueue&) = delete;
   EventQueue& operator=(const EventQueue&) = delete;
 
-  EventQueuePushResult Push(const T& event) { return Emplace(event); }
-  EventQueuePushResult Push(T&& event) { return Emplace(std::move(event)); }
+  EventQueuePushResult Push(const T& event) {
+    return Emplace(event);
+  }
+  EventQueuePushResult Push(T&& event) {
+    return Emplace(std::move(event));
+  }
 
   std::optional<T> TryPop() {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -36,15 +41,18 @@ class EventQueue {
 
   std::optional<T> WaitPop() {
     std::unique_lock<std::mutex> lock(mutex_);
-    cv_.wait(lock, [this] { return closed_ || !queue_.empty(); });
+    cv_.wait(lock, [this] {
+      return closed_ || !queue_.empty();
+    });
     return PopLocked();
   }
 
   template <typename Rep, typename Period>
-  std::optional<T> WaitPopFor(
-      const std::chrono::duration<Rep, Period>& timeout) {
+  std::optional<T> WaitPopFor(const std::chrono::duration<Rep, Period>& timeout) {
     std::unique_lock<std::mutex> lock(mutex_);
-    cv_.wait_for(lock, timeout, [this] { return closed_ || !queue_.empty(); });
+    cv_.wait_for(lock, timeout, [this] {
+      return closed_ || !queue_.empty();
+    });
     return PopLocked();
   }
 
@@ -68,7 +76,9 @@ class EventQueue {
     return queue_.size();
   }
 
-  std::size_t capacity() const { return capacity_; }
+  std::size_t capacity() const {
+    return capacity_;
+  }
 
   std::uint64_t DropCount() const {
     std::lock_guard<std::mutex> lock(mutex_);

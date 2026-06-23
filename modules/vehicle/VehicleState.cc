@@ -1,9 +1,9 @@
 #include "modules/vehicle/VehicleState.h"
 
-#include "core/utils/Time.h"
-
 #include <iomanip>
 #include <sstream>
+
+#include "core/utils/Time.h"
 
 namespace cockpit {
 namespace vehicle {
@@ -12,12 +12,10 @@ std::string VehicleState::ToJson() const {
   std::ostringstream out;
   out << std::fixed << std::setprecision(1);
   out << "{"
-      << "\"timestamp_ms\":" << timestamp_ms << ','
-      << "\"speed_kph\":" << speed_kph << ','
-      << "\"gear\":" << gear << ','
-      << "\"soc_percent\":" << soc_percent << ','
-      << "\"cloud_enabled\":" << (cloud_enabled ? "true" : "false") << ','
-      << "\"source\":\"" << source << "\""
+      << "\"timestamp_ms\":" << timestamp_ms << ',' << "\"speed_kph\":" << speed_kph << ','
+      << "\"gear\":" << gear << ',' << "\"soc_percent\":" << soc_percent << ','
+      << "\"cloud_enabled\":" << (cloud_enabled ? "true" : "false") << ',' << "\"source\":\""
+      << source << "\""
       << "}";
   return out.str();
 }

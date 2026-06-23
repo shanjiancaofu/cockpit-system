@@ -21,18 +21,34 @@ class VehicleStateModel final : public QObject {
  public:
   explicit VehicleStateModel(QObject* parent = nullptr, int stale_timeout_ms = 1500);
 
-  bool connected() const { return connected_; }
-  bool fresh() const { return fresh_; }
-  qint64 timestampMs() const { return timestamp_ms_; }
-  double speedKph() const { return speed_kph_; }
-  int gear() const { return gear_; }
-  int socPercent() const { return soc_percent_; }
-  bool cloudEnabled() const { return cloud_enabled_; }
-  const QString& source() const { return source_; }
+  bool connected() const {
+    return connected_;
+  }
+  bool fresh() const {
+    return fresh_;
+  }
+  qint64 timestampMs() const {
+    return timestamp_ms_;
+  }
+  double speedKph() const {
+    return speed_kph_;
+  }
+  int gear() const {
+    return gear_;
+  }
+  int socPercent() const {
+    return soc_percent_;
+  }
+  bool cloudEnabled() const {
+    return cloud_enabled_;
+  }
+  const QString& source() const {
+    return source_;
+  }
 
   void SetConnected(bool connected);
-  void Update(qint64 timestamp_ms, double speed_kph, int gear, int soc_percent,
-              bool cloud_enabled, const QString& source);
+  void Update(qint64 timestamp_ms, double speed_kph, int gear, int soc_percent, bool cloud_enabled,
+              const QString& source);
 
  signals:
   void connectedChanged();

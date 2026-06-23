@@ -18,8 +18,7 @@ class TopicGrpcSubscriber {
 
   TopicGrpcSubscriber(std::string address, int timeout_ms);
 
-  int Stream(const std::string& topic, int count, int max_hz,
-             const SampleHandler& handler) const;
+  int Stream(const std::string& topic, int count, int max_hz, const SampleHandler& handler) const;
 
  private:
   std::string address_;

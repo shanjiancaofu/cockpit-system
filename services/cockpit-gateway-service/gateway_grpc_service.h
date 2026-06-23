@@ -1,7 +1,5 @@
 #pragma once
 
-#include "gateway.grpc.pb.h"
-
 #include <grpcpp/grpcpp.h>
 
 #include <chrono>
@@ -10,6 +8,8 @@
 #include <memory>
 #include <mutex>
 #include <string>
+
+#include "gateway.grpc.pb.h"
 
 namespace cockpit {
 namespace gateway {
@@ -27,21 +27,17 @@ class GatewayGrpcService final : public proto::gateway::CockpitGateway::Service 
   void Shutdown();
 
  private:
-  grpc::Status GetLatestVehicleState(
-      grpc::ServerContext* context,
-      const proto::common::Empty* request,
-      proto::vehicle::VehicleState* response) override;
-  grpc::Status ListTopics(
-      grpc::ServerContext* context,
-      const proto::gateway::ListTopicsRequest* request,
-      proto::gateway::ListTopicsResponse* response) override;
-  grpc::Status GetTopicInfo(
-      grpc::ServerContext* context,
-      const proto::gateway::GetTopicInfoRequest* request,
-      proto::gateway::TopicMetadata* response) override;
+  grpc::Status GetLatestVehicleState(grpc::ServerContext* context,
+                                     const proto::common::Empty* request,
+                                     proto::vehicle::VehicleState* response) override;
+  grpc::Status ListTopics(grpc::ServerContext* context,
+                          const proto::gateway::ListTopicsRequest* request,
+                          proto::gateway::ListTopicsResponse* response) override;
+  grpc::Status GetTopicInfo(grpc::ServerContext* context,
+                            const proto::gateway::GetTopicInfoRequest* request,
+                            proto::gateway::TopicMetadata* response) override;
   grpc::Status SubscribeCockpitEvents(
-      grpc::ServerContext* context,
-      const proto::gateway::SubscribeCockpitEventsRequest* request,
+      grpc::ServerContext* context, const proto::gateway::SubscribeCockpitEventsRequest* request,
       grpc::ServerWriter<proto::gateway::CockpitEvent>* writer) override;
 
   std::mutex mutex_;

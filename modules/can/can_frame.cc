@@ -12,16 +12,10 @@ constexpr std::uint32_t kExtendedIdMask = 0x1FFFFFFFU;
 
 }  // namespace
 
-CanFrame::CanFrame(std::uint32_t id,
-                   const std::array<std::uint8_t, kMaxDataLength>& data,
-                   std::uint8_t data_length,
-                   bool extended,
-                   bool remote)
-    : id_(id),
-      data_(data),
-      data_length_(data_length),
-      extended_(extended),
-      remote_(remote) {}
+CanFrame::CanFrame(std::uint32_t id, const std::array<std::uint8_t, kMaxDataLength>& data,
+                   std::uint8_t data_length, bool extended, bool remote)
+    : id_(id), data_(data), data_length_(data_length), extended_(extended), remote_(remote) {
+}
 
 bool CanFrame::IsValid() const {
   const std::uint32_t id_mask = extended_ ? kExtendedIdMask : kStandardIdMask;

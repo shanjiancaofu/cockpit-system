@@ -6,14 +6,12 @@
 
 namespace {
 
-class FakeVehicleStatusProvider final
-    : public cockpit::voice::VehicleStatusProvider {
+class FakeVehicleStatusProvider final : public cockpit::voice::VehicleStatusProvider {
  public:
-  explicit FakeVehicleStatusProvider(bool available)
-      : available_(available) {}
+  explicit FakeVehicleStatusProvider(bool available) : available_(available) {
+  }
 
-  bool GetLatest(cockpit::voice::VehicleStatusSnapshot* status,
-                 std::string* error) override {
+  bool GetLatest(cockpit::voice::VehicleStatusSnapshot* status, std::string* error) override {
     if (!available_) {
       if (error != nullptr) {
         *error = "vehicle gateway unavailable";
@@ -34,7 +32,8 @@ class FakeVehicleStatusProvider final
 
 class FakeHmiCommandProvider final : public cockpit::voice::HmiCommandProvider {
  public:
-  explicit FakeHmiCommandProvider(bool available) : available_(available) {}
+  explicit FakeHmiCommandProvider(bool available) : available_(available) {
+  }
 
   bool SendCommand(cockpit::voice::HmiCommand command, std::string* response,
                    std::string* error) override {
@@ -61,8 +60,7 @@ int main() {
   using cockpit::voice::CockpitActionDispatcher;
   using cockpit::voice::VoiceAction;
 
-  CockpitActionDispatcher dispatcher(
-      std::make_unique<FakeVehicleStatusProvider>(true));
+  CockpitActionDispatcher dispatcher(std::make_unique<FakeVehicleStatusProvider>(true));
   const auto status = dispatcher.Execute(VoiceAction::kQueryVehicleStatus);
   if (status.status != ActionExecutionStatus::kSucceeded ||
       status.message.find("42.5") == std::string::npos ||
@@ -78,9 +76,8 @@ int main() {
     return 1;
   }
 
-  CockpitActionDispatcher with_hmi(
-      std::make_unique<FakeVehicleStatusProvider>(true),
-      std::make_unique<FakeHmiCommandProvider>(true));
+  CockpitActionDispatcher with_hmi(std::make_unique<FakeVehicleStatusProvider>(true),
+                                   std::make_unique<FakeHmiCommandProvider>(true));
   const auto camera = with_hmi.Execute(VoiceAction::kOpenCamera);
   const auto music = with_hmi.Execute(VoiceAction::kPlayMusic);
   if (camera.status != ActionExecutionStatus::kSucceeded ||
@@ -91,17 +88,14 @@ int main() {
     return 1;
   }
 
-  CockpitActionDispatcher hmi_unavailable(
-      std::make_unique<FakeVehicleStatusProvider>(true),
-      std::make_unique<FakeHmiCommandProvider>(false));
-  if (hmi_unavailable.Execute(VoiceAction::kOpenCamera).status !=
-      ActionExecutionStatus::kFailed) {
+  CockpitActionDispatcher hmi_unavailable(std::make_unique<FakeVehicleStatusProvider>(true),
+                                          std::make_unique<FakeHmiCommandProvider>(false));
+  if (hmi_unavailable.Execute(VoiceAction::kOpenCamera).status != ActionExecutionStatus::kFailed) {
     std::cerr << "hmi command failure handling is invalid\n";
     return 1;
   }
 
-  CockpitActionDispatcher unavailable(
-      std::make_unique<FakeVehicleStatusProvider>(false));
+  CockpitActionDispatcher unavailable(std::make_unique<FakeVehicleStatusProvider>(false));
   CockpitActionDispatcher missing(nullptr);
   if (unavailable.Execute(VoiceAction::kQueryVehicleStatus).status !=
           ActionExecutionStatus::kFailed ||

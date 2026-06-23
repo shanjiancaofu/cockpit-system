@@ -1,15 +1,16 @@
 #include "topic_pub.h"
 
-#include "topic_store.h"
-#include "topic_text.h"
-#include "core/utils/Time.h"
-
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <thread>
+
+#include "topic_store.h"
+#include "topic_text.h"
+
+#include "core/utils/Time.h"
 
 namespace cockpit {
 namespace topic {

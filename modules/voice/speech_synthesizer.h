@@ -1,8 +1,8 @@
 #pragma once
 
-#include "modules/audio/wav_file.h"
-
 #include <string>
+
+#include "modules/audio/wav_file.h"
 
 namespace cockpit {
 namespace voice {

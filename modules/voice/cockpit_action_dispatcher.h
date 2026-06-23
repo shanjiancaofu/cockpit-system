@@ -1,18 +1,17 @@
 #pragma once
 
+#include <memory>
+
 #include "modules/voice/action_dispatcher.h"
 #include "modules/voice/hmi_command_provider.h"
 #include "modules/voice/vehicle_status_provider.h"
-
-#include <memory>
 
 namespace cockpit {
 namespace voice {
 
 class CockpitActionDispatcher final : public ActionDispatcher {
  public:
-  explicit CockpitActionDispatcher(
-      std::unique_ptr<VehicleStatusProvider> vehicle_status);
+  explicit CockpitActionDispatcher(std::unique_ptr<VehicleStatusProvider> vehicle_status);
   CockpitActionDispatcher(std::unique_ptr<VehicleStatusProvider> vehicle_status,
                           std::unique_ptr<HmiCommandProvider> hmi_commands);
 
@@ -20,8 +19,7 @@ class CockpitActionDispatcher final : public ActionDispatcher {
 
  private:
   ActionExecutionResult QueryVehicleStatus();
-  ActionExecutionResult SendHmiCommand(HmiCommand command,
-                                       const char* not_configured_message);
+  ActionExecutionResult SendHmiCommand(HmiCommand command, const char* not_configured_message);
 
   const std::unique_ptr<VehicleStatusProvider> vehicle_status_;
   const std::unique_ptr<HmiCommandProvider> hmi_commands_;

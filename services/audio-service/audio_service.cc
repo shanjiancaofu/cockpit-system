@@ -1,13 +1,13 @@
 #include "audio_service.h"
 
-#include "drivers/alsa/alsa_capture_source.h"
-#include "modules/audio/energy_vad.h"
-
 #include <algorithm>
 #include <chrono>
 #include <exception>
 #include <thread>
 #include <utility>
+
+#include "drivers/alsa/alsa_capture_source.h"
+#include "modules/audio/energy_vad.h"
 
 namespace cockpit {
 namespace audio {
@@ -30,50 +30,48 @@ AudioService::SourceFactory DefaultSourceFactory() {
 }  // namespace
 
 AudioService::AudioService(config::AudioConfig config)
-    : AudioService(std::move(config), config::VadConfig{},
-                   config::SpeechSegmentConfig{}, DefaultSourceFactory()) {}
+    : AudioService(std::move(config), config::VadConfig{}, config::SpeechSegmentConfig{},
+                   DefaultSourceFactory()) {
+}
 
 AudioService::AudioService(config::AudioConfig config, SourceFactory source_factory)
-    : AudioService(std::move(config), config::VadConfig{},
-                   config::SpeechSegmentConfig{}, std::move(source_factory)) {}
+    : AudioService(std::move(config), config::VadConfig{}, config::SpeechSegmentConfig{},
+                   std::move(source_factory)) {
+}
 
-AudioService::AudioService(config::AudioConfig config,
-                           config::VadConfig vad_config)
-    : AudioService(std::move(config), std::move(vad_config),
-                   config::SpeechSegmentConfig{}, DefaultSourceFactory()) {}
+AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config)
+    : AudioService(std::move(config), std::move(vad_config), config::SpeechSegmentConfig{},
+                   DefaultSourceFactory()) {
+}
 
-AudioService::AudioService(config::AudioConfig config,
-                           config::VadConfig vad_config,
+AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
                            SourceFactory source_factory)
-    : AudioService(std::move(config), std::move(vad_config),
-                   config::SpeechSegmentConfig{}, std::move(source_factory)) {}
+    : AudioService(std::move(config), std::move(vad_config), config::SpeechSegmentConfig{},
+                   std::move(source_factory)) {
+}
 
-AudioService::AudioService(config::AudioConfig config,
-                           config::VadConfig vad_config,
+AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
                            config::SpeechSegmentConfig segment_config)
-    : AudioService(std::move(config), std::move(vad_config),
-                   std::move(segment_config), DefaultSourceFactory()) {}
+    : AudioService(std::move(config), std::move(vad_config), std::move(segment_config),
+                   DefaultSourceFactory()) {
+}
 
-AudioService::AudioService(
-    config::AudioConfig config, config::VadConfig vad_config,
-    config::SpeechSegmentConfig segment_config,
-    std::unique_ptr<voice::SpeechRecognizer> recognizer)
-    : AudioService(std::move(config), std::move(vad_config),
-                   std::move(segment_config), DefaultSourceFactory(),
-                   std::move(recognizer)) {}
-
-AudioService::AudioService(config::AudioConfig config,
-                           config::VadConfig vad_config,
+AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
                            config::SpeechSegmentConfig segment_config,
-                           SourceFactory source_factory)
-    : AudioService(std::move(config), std::move(vad_config),
-                   std::move(segment_config), std::move(source_factory),
-                   nullptr) {}
+                           std::unique_ptr<voice::SpeechRecognizer> recognizer)
+    : AudioService(std::move(config), std::move(vad_config), std::move(segment_config),
+                   DefaultSourceFactory(), std::move(recognizer)) {
+}
 
-AudioService::AudioService(
-    config::AudioConfig config, config::VadConfig vad_config,
-    config::SpeechSegmentConfig segment_config, SourceFactory source_factory,
-    std::unique_ptr<voice::SpeechRecognizer> recognizer)
+AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
+                           config::SpeechSegmentConfig segment_config, SourceFactory source_factory)
+    : AudioService(std::move(config), std::move(vad_config), std::move(segment_config),
+                   std::move(source_factory), nullptr) {
+}
+
+AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
+                           config::SpeechSegmentConfig segment_config, SourceFactory source_factory,
+                           std::unique_ptr<voice::SpeechRecognizer> recognizer)
     : config_(std::move(config)),
       vad_config_(std::move(vad_config)),
       segment_config_(std::move(segment_config)),
@@ -82,16 +80,14 @@ AudioService::AudioService(
   if (vad_config_.enabled) {
     EnergyVadConfig energy_config;
     energy_config.speech_threshold_dbfs = vad_config_.speech_threshold_dbfs;
-    energy_config.speech_start_frames =
-        static_cast<std::uint32_t>(vad_config_.speech_start_frames);
-    energy_config.speech_end_frames =
-        static_cast<std::uint32_t>(vad_config_.speech_end_frames);
+    energy_config.speech_start_frames = static_cast<std::uint32_t>(vad_config_.speech_start_frames);
+    energy_config.speech_end_frames = static_cast<std::uint32_t>(vad_config_.speech_end_frames);
     vad_ = std::make_unique<EnergyVad>(energy_config);
     SpeechSegmenterConfig segmenter_config;
-    segmenter_config.pre_roll_frames = static_cast<std::size_t>(
-        segment_config_.pre_roll_ms / config_.frame_ms);
-    segmenter_config.max_segment_frames = static_cast<std::size_t>(
-        segment_config_.max_segment_ms / config_.frame_ms);
+    segmenter_config.pre_roll_frames =
+        static_cast<std::size_t>(segment_config_.pre_roll_ms / config_.frame_ms);
+    segmenter_config.max_segment_frames =
+        static_cast<std::size_t>(segment_config_.max_segment_ms / config_.frame_ms);
     segmenter_ = std::make_unique<SpeechSegmenter>(segmenter_config);
   }
 }
@@ -127,8 +123,7 @@ bool AudioService::StartCapture(const std::string& input_device, std::string* er
     return false;
   }
 
-  const auto deadline = std::chrono::steady_clock::now() +
-                        std::chrono::seconds(1);
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
   while (capture_stream_->state() == AudioCaptureState::kStarting &&
          std::chrono::steady_clock::now() < deadline) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -187,19 +182,16 @@ std::optional<SpeechSegment> AudioService::TryPopSpeechSegment() {
   return speech_segments_.TryPop();
 }
 
-bool AudioService::WaitForTranscript(
-    std::uint64_t after_id, std::chrono::milliseconds timeout,
-    voice::SpeechTranscript* transcript) const {
+bool AudioService::WaitForTranscript(std::uint64_t after_id, std::chrono::milliseconds timeout,
+                                     voice::SpeechTranscript* transcript) const {
   std::unique_lock<std::mutex> lock(transcript_mutex_);
   transcript_changed_.wait_for(lock, timeout, [this, after_id] {
-    return !transcript_history_.empty() &&
-           transcript_history_.back().id > after_id;
+    return !transcript_history_.empty() && transcript_history_.back().id > after_id;
   });
-  const auto next = std::find_if(
-      transcript_history_.begin(), transcript_history_.end(),
-      [after_id](const voice::SpeechTranscript& value) {
-        return value.id > after_id;
-      });
+  const auto next = std::find_if(transcript_history_.begin(), transcript_history_.end(),
+                                 [after_id](const voice::SpeechTranscript& value) {
+                                   return value.id > after_id;
+                                 });
   if (next == transcript_history_.end()) {
     return false;
   }
@@ -218,8 +210,7 @@ AudioServiceStatus AudioService::status() const {
   result.frame_ms = static_cast<std::uint32_t>(config_.frame_ms);
   result.vad_enabled = vad_ != nullptr;
   result.voice_activity_state = voice_activity_state_.load();
-  result.input_level_dbfs =
-      static_cast<double>(input_level_millidbfs_.load()) / 1000.0;
+  result.input_level_dbfs = static_cast<double>(input_level_millidbfs_.load()) / 1000.0;
   result.vad_frames_processed = vad_frames_processed_.load();
   result.vad_speech_frames = vad_speech_frames_.load();
   result.vad_speech_events = vad_speech_events_.load();
@@ -267,8 +258,7 @@ void AudioService::ProcessVoiceActivity() {
     }
     const VoiceActivityResult result = vad_->Analyze(*frame);
     voice_activity_state_.store(result.state);
-    input_level_millidbfs_.store(
-        static_cast<std::int32_t>(result.level_dbfs * 1000.0));
+    input_level_millidbfs_.store(static_cast<std::int32_t>(result.level_dbfs * 1000.0));
     vad_frames_processed_.fetch_add(1U);
     if (result.state == VoiceActivityState::kSpeech) {
       vad_speech_frames_.fetch_add(1U);
@@ -336,14 +326,13 @@ void AudioService::ProcessSpeechSegments() {
   }
 }
 
-void AudioService::PublishTranscript(
-    const SpeechSegment& segment,
-    const voice::SpeechRecognitionResult& result) {
+void AudioService::PublishTranscript(const SpeechSegment& segment,
+                                     const voice::SpeechRecognitionResult& result) {
   voice::SpeechTranscript transcript;
-  transcript.timestamp_ms = static_cast<std::uint64_t>(
-      std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::system_clock::now().time_since_epoch())
-          .count());
+  transcript.timestamp_ms =
+      static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                     std::chrono::system_clock::now().time_since_epoch())
+                                     .count());
   transcript.start_sequence = segment.start_sequence;
   transcript.end_sequence = segment.end_sequence;
   transcript.duration_ms = segment.DurationMs();

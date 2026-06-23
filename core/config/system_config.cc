@@ -23,9 +23,7 @@ YAML::Node ChildMap(const YAML::Node& parent, const std::string& key, const std:
 }
 
 template <typename T>
-T Read(const YAML::Node& parent,
-       const std::string& key,
-       const T& default_value,
+T Read(const YAML::Node& parent, const std::string& key, const T& default_value,
        const std::string& path) {
   const YAML::Node value = parent[key];
   if (!value) {
@@ -75,9 +73,7 @@ void ValidateAddress(const std::string& value, const std::string& path) {
   }
 }
 
-bool IsOneOf(const std::string& value,
-             const std::string& first,
-             const std::string& second) {
+bool IsOneOf(const std::string& value, const std::string& first, const std::string& second) {
   return value == first || value == second;
 }
 
@@ -108,137 +104,100 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.logging_.level = Read(logging, "level", config.logging_.level, "logging.level");
   config.logging_.max_bytes =
       Read(logging, "max_bytes", config.logging_.max_bytes, "logging.max_bytes");
-  config.logging_.mirror_stderr = Read(
-      logging, "mirror_stderr", config.logging_.mirror_stderr, "logging.mirror_stderr");
+  config.logging_.mirror_stderr =
+      Read(logging, "mirror_stderr", config.logging_.mirror_stderr, "logging.mirror_stderr");
 
   const YAML::Node services = ChildMap(root, "services", "services");
-  const YAML::Node vehicle_data =
-      ChildMap(services, "vehicle_data", "services.vehicle_data");
+  const YAML::Node vehicle_data = ChildMap(services, "vehicle_data", "services.vehicle_data");
   config.services_.vehicle_data.source = Read(
       vehicle_data, "source", config.services_.vehicle_data.source, "services.vehicle_data.source");
   config.services_.vehicle_data.publish_interval_ms =
-      Read(vehicle_data,
-           "publish_interval_ms",
-           config.services_.vehicle_data.publish_interval_ms,
+      Read(vehicle_data, "publish_interval_ms", config.services_.vehicle_data.publish_interval_ms,
            "services.vehicle_data.publish_interval_ms");
-  const YAML::Node vehicle_grpc =
-      ChildMap(vehicle_data, "grpc", "services.vehicle_data.grpc");
+  const YAML::Node vehicle_grpc = ChildMap(vehicle_data, "grpc", "services.vehicle_data.grpc");
   config.services_.vehicle_data.grpc.listen_address =
-      Read(vehicle_grpc,
-           "listen_address",
-           config.services_.vehicle_data.grpc.listen_address,
+      Read(vehicle_grpc, "listen_address", config.services_.vehicle_data.grpc.listen_address,
            "services.vehicle_data.grpc.listen_address");
 
   const YAML::Node gateway = ChildMap(services, "gateway", "services.gateway");
   config.services_.gateway.vehicle_data_address =
-      Read(gateway,
-           "vehicle_data_address",
-           config.services_.gateway.vehicle_data_address,
+      Read(gateway, "vehicle_data_address", config.services_.gateway.vehicle_data_address,
            "services.gateway.vehicle_data_address");
   config.services_.gateway.stream_timeout_ms =
-      Read(gateway,
-           "stream_timeout_ms",
-           config.services_.gateway.stream_timeout_ms,
+      Read(gateway, "stream_timeout_ms", config.services_.gateway.stream_timeout_ms,
            "services.gateway.stream_timeout_ms");
   config.services_.gateway.retry_delay_ms =
-      Read(gateway,
-           "retry_delay_ms",
-           config.services_.gateway.retry_delay_ms,
+      Read(gateway, "retry_delay_ms", config.services_.gateway.retry_delay_ms,
            "services.gateway.retry_delay_ms");
   const YAML::Node gateway_grpc = ChildMap(gateway, "grpc", "services.gateway.grpc");
   config.services_.gateway.grpc.listen_address =
-      Read(gateway_grpc,
-           "listen_address",
-           config.services_.gateway.grpc.listen_address,
+      Read(gateway_grpc, "listen_address", config.services_.gateway.grpc.listen_address,
            "services.gateway.grpc.listen_address");
-  const YAML::Node gateway_websocket =
-      ChildMap(gateway, "websocket", "services.gateway.websocket");
+  const YAML::Node gateway_websocket = ChildMap(gateway, "websocket", "services.gateway.websocket");
   config.services_.gateway.websocket.listen_address =
-      Read(gateway_websocket,
-           "listen_address",
-           config.services_.gateway.websocket.listen_address,
+      Read(gateway_websocket, "listen_address", config.services_.gateway.websocket.listen_address,
            "services.gateway.websocket.listen_address");
 
   const YAML::Node audio_service = ChildMap(services, "audio", "services.audio");
-  config.services_.audio.auto_start =
-      Read(audio_service,
-           "auto_start",
-           config.services_.audio.auto_start,
-           "services.audio.auto_start");
-  const YAML::Node audio_grpc =
-      ChildMap(audio_service, "grpc", "services.audio.grpc");
+  config.services_.audio.auto_start = Read(
+      audio_service, "auto_start", config.services_.audio.auto_start, "services.audio.auto_start");
+  const YAML::Node audio_grpc = ChildMap(audio_service, "grpc", "services.audio.grpc");
   config.services_.audio.grpc.listen_address =
-      Read(audio_grpc,
-           "listen_address",
-           config.services_.audio.grpc.listen_address,
+      Read(audio_grpc, "listen_address", config.services_.audio.grpc.listen_address,
            "services.audio.grpc.listen_address");
   const YAML::Node vad = ChildMap(audio_service, "vad", "services.audio.vad");
   config.services_.audio.vad.enabled =
-      Read(vad, "enabled", config.services_.audio.vad.enabled,
-           "services.audio.vad.enabled");
+      Read(vad, "enabled", config.services_.audio.vad.enabled, "services.audio.vad.enabled");
   config.services_.audio.vad.backend =
-      Read(vad, "backend", config.services_.audio.vad.backend,
-           "services.audio.vad.backend");
+      Read(vad, "backend", config.services_.audio.vad.backend, "services.audio.vad.backend");
   config.services_.audio.vad.speech_threshold_dbfs =
-      Read(vad, "speech_threshold_dbfs",
-           config.services_.audio.vad.speech_threshold_dbfs,
+      Read(vad, "speech_threshold_dbfs", config.services_.audio.vad.speech_threshold_dbfs,
            "services.audio.vad.speech_threshold_dbfs");
   config.services_.audio.vad.speech_start_frames =
-      Read(vad, "speech_start_frames",
-           config.services_.audio.vad.speech_start_frames,
+      Read(vad, "speech_start_frames", config.services_.audio.vad.speech_start_frames,
            "services.audio.vad.speech_start_frames");
   config.services_.audio.vad.speech_end_frames =
-      Read(vad, "speech_end_frames",
-           config.services_.audio.vad.speech_end_frames,
+      Read(vad, "speech_end_frames", config.services_.audio.vad.speech_end_frames,
            "services.audio.vad.speech_end_frames");
   const YAML::Node speech_segment =
       ChildMap(audio_service, "speech_segment", "services.audio.speech_segment");
   config.services_.audio.speech_segment.pre_roll_ms =
-      Read(speech_segment, "pre_roll_ms",
-           config.services_.audio.speech_segment.pre_roll_ms,
+      Read(speech_segment, "pre_roll_ms", config.services_.audio.speech_segment.pre_roll_ms,
            "services.audio.speech_segment.pre_roll_ms");
   config.services_.audio.speech_segment.max_segment_ms =
-      Read(speech_segment, "max_segment_ms",
-           config.services_.audio.speech_segment.max_segment_ms,
+      Read(speech_segment, "max_segment_ms", config.services_.audio.speech_segment.max_segment_ms,
            "services.audio.speech_segment.max_segment_ms");
 
   const YAML::Node voice_interaction =
       ChildMap(services, "voice_interaction", "services.voice_interaction");
   config.services_.voice_interaction.audio_address =
-      Read(voice_interaction, "audio_address",
-           config.services_.voice_interaction.audio_address,
+      Read(voice_interaction, "audio_address", config.services_.voice_interaction.audio_address,
            "services.voice_interaction.audio_address");
   config.services_.voice_interaction.gateway_address =
-      Read(voice_interaction, "gateway_address",
-           config.services_.voice_interaction.gateway_address,
+      Read(voice_interaction, "gateway_address", config.services_.voice_interaction.gateway_address,
            "services.voice_interaction.gateway_address");
-  config.services_.voice_interaction.stream_timeout_ms =
-      Read(voice_interaction, "stream_timeout_ms",
-           config.services_.voice_interaction.stream_timeout_ms,
-           "services.voice_interaction.stream_timeout_ms");
+  config.services_.voice_interaction.stream_timeout_ms = Read(
+      voice_interaction, "stream_timeout_ms", config.services_.voice_interaction.stream_timeout_ms,
+      "services.voice_interaction.stream_timeout_ms");
   config.services_.voice_interaction.retry_delay_ms =
-      Read(voice_interaction, "retry_delay_ms",
-           config.services_.voice_interaction.retry_delay_ms,
+      Read(voice_interaction, "retry_delay_ms", config.services_.voice_interaction.retry_delay_ms,
            "services.voice_interaction.retry_delay_ms");
-  const YAML::Node voice_grpc = ChildMap(
-      voice_interaction, "grpc", "services.voice_interaction.grpc");
+  const YAML::Node voice_grpc =
+      ChildMap(voice_interaction, "grpc", "services.voice_interaction.grpc");
   config.services_.voice_interaction.grpc.listen_address =
-      Read(voice_grpc, "listen_address",
-           config.services_.voice_interaction.grpc.listen_address,
+      Read(voice_grpc, "listen_address", config.services_.voice_interaction.grpc.listen_address,
            "services.voice_interaction.grpc.listen_address");
 
-  const YAML::Node cloud_uplink =
-      ChildMap(services, "cloud_uplink", "services.cloud_uplink");
-  config.services_.cloud_uplink.enabled = Read(
-      cloud_uplink, "enabled", config.services_.cloud_uplink.enabled, "services.cloud_uplink.enabled");
+  const YAML::Node cloud_uplink = ChildMap(services, "cloud_uplink", "services.cloud_uplink");
+  config.services_.cloud_uplink.enabled =
+      Read(cloud_uplink, "enabled", config.services_.cloud_uplink.enabled,
+           "services.cloud_uplink.enabled");
   const YAML::Node mqtt = ChildMap(cloud_uplink, "mqtt", "services.cloud_uplink.mqtt");
   config.services_.cloud_uplink.mqtt.broker =
       Read(mqtt, "broker", config.services_.cloud_uplink.mqtt.broker,
            "services.cloud_uplink.mqtt.broker");
   config.services_.cloud_uplink.mqtt.telemetry_topic =
-      Read(mqtt,
-           "telemetry_topic",
-           config.services_.cloud_uplink.mqtt.telemetry_topic,
+      Read(mqtt, "telemetry_topic", config.services_.cloud_uplink.mqtt.telemetry_topic,
            "services.cloud_uplink.mqtt.telemetry_topic");
   config.services_.cloud_uplink.mqtt.qos =
       Read(mqtt, "qos", config.services_.cloud_uplink.mqtt.qos, "services.cloud_uplink.mqtt.qos");
@@ -248,48 +207,31 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.hardware_.can.interface =
       Read(can, "interface", config.hardware_.can.interface, "hardware.can.interface");
   config.hardware_.can.simulator_backend =
-      Read(can,
-           "simulator_backend",
-           config.hardware_.can.simulator_backend,
+      Read(can, "simulator_backend", config.hardware_.can.simulator_backend,
            "hardware.can.simulator_backend");
   config.hardware_.can.simulator_interval_ms =
-      Read(can,
-           "simulator_interval_ms",
-           config.hardware_.can.simulator_interval_ms,
+      Read(can, "simulator_interval_ms", config.hardware_.can.simulator_interval_ms,
            "hardware.can.simulator_interval_ms");
   config.hardware_.can.receive_timeout_ms =
-      Read(can,
-           "receive_timeout_ms",
-           config.hardware_.can.receive_timeout_ms,
+      Read(can, "receive_timeout_ms", config.hardware_.can.receive_timeout_ms,
            "hardware.can.receive_timeout_ms");
   config.hardware_.can.max_idle_timeouts =
-      Read(can,
-           "max_idle_timeouts",
-           config.hardware_.can.max_idle_timeouts,
+      Read(can, "max_idle_timeouts", config.hardware_.can.max_idle_timeouts,
            "hardware.can.max_idle_timeouts");
 
   const YAML::Node audio = ChildMap(hardware, "audio", "hardware.audio");
   config.hardware_.audio.capture_backend =
-      Read(audio,
-           "capture_backend",
-           config.hardware_.audio.capture_backend,
+      Read(audio, "capture_backend", config.hardware_.audio.capture_backend,
            "hardware.audio.capture_backend");
   config.hardware_.audio.playback_backend =
-      Read(audio,
-           "playback_backend",
-           config.hardware_.audio.playback_backend,
+      Read(audio, "playback_backend", config.hardware_.audio.playback_backend,
            "hardware.audio.playback_backend");
-  config.hardware_.audio.input_device =
-      Read(audio, "input_device", config.hardware_.audio.input_device, "hardware.audio.input_device");
-  config.hardware_.audio.output_device =
-      Read(audio,
-           "output_device",
-           config.hardware_.audio.output_device,
-           "hardware.audio.output_device");
+  config.hardware_.audio.input_device = Read(
+      audio, "input_device", config.hardware_.audio.input_device, "hardware.audio.input_device");
+  config.hardware_.audio.output_device = Read(
+      audio, "output_device", config.hardware_.audio.output_device, "hardware.audio.output_device");
   config.hardware_.audio.sample_rate_hz =
-      Read(audio,
-           "sample_rate_hz",
-           config.hardware_.audio.sample_rate_hz,
+      Read(audio, "sample_rate_hz", config.hardware_.audio.sample_rate_hz,
            "hardware.audio.sample_rate_hz");
   config.hardware_.audio.channels =
       Read(audio, "channels", config.hardware_.audio.channels, "hardware.audio.channels");
@@ -302,24 +244,16 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(voice, "enabled", config.features_.voice.enabled, "features.voice.enabled");
   config.features_.voice.mode =
       Read(voice, "mode", config.features_.voice.mode, "features.voice.mode");
-  config.features_.voice.asr_provider =
-      Read(voice,
-           "asr_provider",
-           config.features_.voice.asr_provider,
-           "features.voice.asr_provider");
-  config.features_.voice.tts_provider =
-      Read(voice,
-           "tts_provider",
-           config.features_.voice.tts_provider,
-           "features.voice.tts_provider");
+  config.features_.voice.asr_provider = Read(
+      voice, "asr_provider", config.features_.voice.asr_provider, "features.voice.asr_provider");
+  config.features_.voice.tts_provider = Read(
+      voice, "tts_provider", config.features_.voice.tts_provider, "features.voice.tts_provider");
   const YAML::Node ai = ChildMap(features, "ai", "features.ai");
   config.features_.ai.provider =
       Read(ai, "provider", config.features_.ai.provider, "features.ai.provider");
   config.features_.ai.model = Read(ai, "model", config.features_.ai.model, "features.ai.model");
   config.features_.ai.request_timeout_ms =
-      Read(ai,
-           "request_timeout_ms",
-           config.features_.ai.request_timeout_ms,
+      Read(ai, "request_timeout_ms", config.features_.ai.request_timeout_ms,
            "features.ai.request_timeout_ms");
 
   const YAML::Node tools = ChildMap(root, "tools", "tools");
@@ -350,44 +284,35 @@ void SystemConfig::Validate() const {
                   "services.vehicle_data.publish_interval_ms");
   ValidateAddress(services_.vehicle_data.grpc.listen_address,
                   "services.vehicle_data.grpc.listen_address");
-  ValidateAddress(services_.gateway.vehicle_data_address,
-                  "services.gateway.vehicle_data_address");
-  ValidateAddress(services_.gateway.grpc.listen_address,
-                  "services.gateway.grpc.listen_address");
+  ValidateAddress(services_.gateway.vehicle_data_address, "services.gateway.vehicle_data_address");
+  ValidateAddress(services_.gateway.grpc.listen_address, "services.gateway.grpc.listen_address");
   ValidateAddress(services_.gateway.websocket.listen_address,
                   "services.gateway.websocket.listen_address");
   RequirePositive(services_.gateway.stream_timeout_ms, "services.gateway.stream_timeout_ms");
   RequirePositive(services_.gateway.retry_delay_ms, "services.gateway.retry_delay_ms");
-  ValidateAddress(services_.audio.grpc.listen_address,
-                  "services.audio.grpc.listen_address");
+  ValidateAddress(services_.audio.grpc.listen_address, "services.audio.grpc.listen_address");
   if (services_.audio.vad.backend != "energy") {
     throw std::runtime_error("services.audio.vad.backend currently supports only energy");
   }
   if (services_.audio.vad.speech_threshold_dbfs < -100.0 ||
       services_.audio.vad.speech_threshold_dbfs > 0.0) {
-    throw std::runtime_error(
-        "services.audio.vad.speech_threshold_dbfs must be between -100 and 0");
+    throw std::runtime_error("services.audio.vad.speech_threshold_dbfs must be between -100 and 0");
   }
   RequirePositive(services_.audio.vad.speech_start_frames,
                   "services.audio.vad.speech_start_frames");
-  RequirePositive(services_.audio.vad.speech_end_frames,
-                  "services.audio.vad.speech_end_frames");
+  RequirePositive(services_.audio.vad.speech_end_frames, "services.audio.vad.speech_end_frames");
   if (services_.audio.speech_segment.pre_roll_ms < 0) {
-    throw std::runtime_error(
-        "services.audio.speech_segment.pre_roll_ms must not be negative");
+    throw std::runtime_error("services.audio.speech_segment.pre_roll_ms must not be negative");
   }
   RequirePositive(services_.audio.speech_segment.max_segment_ms,
                   "services.audio.speech_segment.max_segment_ms");
   if (services_.audio.speech_segment.pre_roll_ms > 2000) {
-    throw std::runtime_error(
-        "services.audio.speech_segment.pre_roll_ms must not exceed 2000");
+    throw std::runtime_error("services.audio.speech_segment.pre_roll_ms must not exceed 2000");
   }
   if (services_.audio.speech_segment.max_segment_ms > 60000) {
-    throw std::runtime_error(
-        "services.audio.speech_segment.max_segment_ms must not exceed 60000");
+    throw std::runtime_error("services.audio.speech_segment.max_segment_ms must not exceed 60000");
   }
-  if (services_.audio.speech_segment.pre_roll_ms >=
-      services_.audio.speech_segment.max_segment_ms) {
+  if (services_.audio.speech_segment.pre_roll_ms >= services_.audio.speech_segment.max_segment_ms) {
     throw std::runtime_error(
         "services.audio.speech_segment.pre_roll_ms must be less than max_segment_ms");
   }

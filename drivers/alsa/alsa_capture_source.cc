@@ -1,14 +1,15 @@
 #include "drivers/alsa/alsa_capture_source.h"
 
-#include "modules/audio/audio_frame.h"
-
 #include <utility>
+
+#include "modules/audio/audio_frame.h"
 
 namespace cockpit {
 namespace audio {
 
 AlsaCaptureSource::AlsaCaptureSource(std::string device, PcmFormat format)
-    : device_(std::move(device)), format_(format) {}
+    : device_(std::move(device)), format_(format) {
+}
 
 bool AlsaCaptureSource::Open(std::string* error) {
   if (format_.sample_rate_hz != static_cast<int>(AudioFrame::kSampleRateHz) ||
@@ -22,11 +23,9 @@ bool AlsaCaptureSource::Open(std::string* error) {
   return pcm_.Open(device_, PcmDirection::kCapture, format_, error);
 }
 
-CaptureResult AlsaCaptureSource::Read(
-    std::int16_t* samples, std::size_t frame_capacity, int timeout_ms,
-    const std::atomic_bool& stop_requested) {
-  return pcm_.PollReadFrames(samples, frame_capacity, timeout_ms,
-                             stop_requested);
+CaptureResult AlsaCaptureSource::Read(std::int16_t* samples, std::size_t frame_capacity,
+                                      int timeout_ms, const std::atomic_bool& stop_requested) {
+  return pcm_.PollReadFrames(samples, frame_capacity, timeout_ms, stop_requested);
 }
 
 void AlsaCaptureSource::Close() {

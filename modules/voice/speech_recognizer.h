@@ -1,8 +1,8 @@
 #pragma once
 
-#include "modules/audio/speech_segment.h"
-
 #include <string>
+
+#include "modules/audio/speech_segment.h"
 
 namespace cockpit {
 namespace voice {
@@ -19,8 +19,7 @@ class SpeechRecognizer {
  public:
   virtual ~SpeechRecognizer() = default;
 
-  virtual SpeechRecognitionResult Recognize(
-      const audio::SpeechSegment& segment) = 0;
+  virtual SpeechRecognitionResult Recognize(const audio::SpeechSegment& segment) = 0;
 };
 
 }  // namespace voice

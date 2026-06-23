@@ -14,8 +14,7 @@ class HmiCommandProvider {
  public:
   virtual ~HmiCommandProvider() = default;
 
-  virtual bool SendCommand(HmiCommand command, std::string* response,
-                           std::string* error) = 0;
+  virtual bool SendCommand(HmiCommand command, std::string* response, std::string* error) = 0;
 };
 
 const char* ToString(HmiCommand command);

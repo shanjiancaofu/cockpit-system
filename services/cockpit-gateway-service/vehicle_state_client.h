@@ -1,12 +1,12 @@
 #pragma once
 
-#include "vehicle_state.grpc.pb.h"
-
 #include <grpcpp/grpcpp.h>
 
 #include <functional>
 #include <memory>
 #include <string>
+
+#include "vehicle_state.grpc.pb.h"
 
 namespace cockpit {
 namespace gateway {

@@ -1,4 +1,6 @@
-#include "core/config/system_config.h"
+#include <iostream>
+#include <string>
+
 #include "topic_command_line.h"
 #include "topic_echo.h"
 #include "topic_hz.h"
@@ -7,8 +9,7 @@
 #include "topic_pub.h"
 #include "topic_usage.h"
 
-#include <iostream>
-#include <string>
+#include "core/config/system_config.h"
 
 int main(int argc, char** argv) {
   using namespace cockpit::topic;

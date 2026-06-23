@@ -1,12 +1,12 @@
-#include "core/runtime/ServiceRuntime.h"
 #include "vehicle_data_service.h"
 #include "vehicle_grpc_service.h"
+
+#include "core/runtime/ServiceRuntime.h"
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "vehicle-data-service");
   cockpit::vehicle::VehicleGrpcService grpc_service;
-  const std::string& grpc_address =
-      runtime.config().services().vehicle_data.grpc.listen_address;
+  const std::string& grpc_address = runtime.config().services().vehicle_data.grpc.listen_address;
   if (!grpc_service.Start(grpc_address)) {
     runtime.MarkStopped();
     return 1;

@@ -13,8 +13,7 @@ std::optional<std::int64_t> ExtractTimestampMs(const std::string& message) {
   }
 
   std::size_t begin = key_pos + key.size();
-  while (begin < message.size() &&
-         std::isspace(static_cast<unsigned char>(message[begin])) != 0) {
+  while (begin < message.size() && std::isspace(static_cast<unsigned char>(message[begin])) != 0) {
     ++begin;
   }
 

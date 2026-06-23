@@ -1,8 +1,8 @@
 #include "audio_grpc_service.h"
 
-#include "core/logging/Logger.h"
-
 #include <chrono>
+
+#include "core/logging/Logger.h"
 
 namespace cockpit {
 namespace audio {
@@ -24,8 +24,7 @@ proto::audio::CaptureState ToProtoState(AudioCaptureState state) {
   return proto::audio::CAPTURE_STATE_UNSPECIFIED;
 }
 
-proto::audio::VoiceActivityState ToProtoVoiceActivityState(
-    const AudioServiceStatus& status) {
+proto::audio::VoiceActivityState ToProtoVoiceActivityState(const AudioServiceStatus& status) {
   if (!status.vad_enabled) {
     return proto::audio::VOICE_ACTIVITY_STATE_DISABLED;
   }
@@ -36,9 +35,10 @@ proto::audio::VoiceActivityState ToProtoVoiceActivityState(
 
 }  // namespace
 
-AudioGrpcService::AudioGrpcService(
-    AudioService& audio_service, voice::VoiceResponseSink& speech_output)
-    : audio_service_(audio_service), speech_output_(speech_output) {}
+AudioGrpcService::AudioGrpcService(AudioService& audio_service,
+                                   voice::VoiceResponseSink& speech_output)
+    : audio_service_(audio_service), speech_output_(speech_output) {
+}
 
 AudioGrpcService::~AudioGrpcService() {
   Shutdown();
@@ -64,9 +64,9 @@ void AudioGrpcService::Shutdown() {
   }
 }
 
-grpc::Status AudioGrpcService::StartCapture(
-    grpc::ServerContext*, const proto::audio::StartCaptureRequest* request,
-    proto::audio::AudioStatus* response) {
+grpc::Status AudioGrpcService::StartCapture(grpc::ServerContext*,
+                                            const proto::audio::StartCaptureRequest* request,
+                                            proto::audio::AudioStatus* response) {
   std::string error;
   if (!audio_service_.StartCapture(request->input_device(), &error)) {
     FillStatus(audio_service_.status(), response);
@@ -76,40 +76,35 @@ grpc::Status AudioGrpcService::StartCapture(
   return grpc::Status::OK;
 }
 
-grpc::Status AudioGrpcService::StopCapture(
-    grpc::ServerContext*, const proto::common::Empty*,
-    proto::audio::AudioStatus* response) {
+grpc::Status AudioGrpcService::StopCapture(grpc::ServerContext*, const proto::common::Empty*,
+                                           proto::audio::AudioStatus* response) {
   audio_service_.StopCapture();
   FillStatus(audio_service_.status(), response);
   return grpc::Status::OK;
 }
 
-grpc::Status AudioGrpcService::GetStatus(
-    grpc::ServerContext*, const proto::common::Empty*,
-    proto::audio::AudioStatus* response) {
+grpc::Status AudioGrpcService::GetStatus(grpc::ServerContext*, const proto::common::Empty*,
+                                         proto::audio::AudioStatus* response) {
   FillStatus(audio_service_.status(), response);
   return grpc::Status::OK;
 }
 
-grpc::Status AudioGrpcService::Speak(
-    grpc::ServerContext*, const proto::audio::SpeakRequest* request,
-    proto::audio::SpeakResponse* response) {
+grpc::Status AudioGrpcService::Speak(grpc::ServerContext*,
+                                     const proto::audio::SpeakRequest* request,
+                                     proto::audio::SpeakResponse* response) {
   if (request->text().empty()) {
     response->set_accepted(false);
-    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                        "speech text must not be empty");
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "speech text must not be empty");
   }
   const bool accepted = speech_output_.Submit(request->text());
   response->set_accepted(accepted);
-  return accepted
-             ? grpc::Status::OK
-             : grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
-                            "speech output queue rejected the request");
+  return accepted ? grpc::Status::OK
+                  : grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                 "speech output queue rejected the request");
 }
 
 grpc::Status AudioGrpcService::SubscribeTranscripts(
-    grpc::ServerContext* context,
-    const proto::audio::SubscribeTranscriptsRequest* request,
+    grpc::ServerContext* context, const proto::audio::SubscribeTranscriptsRequest* request,
     grpc::ServerWriter<proto::audio::TranscriptEvent>* writer) {
   std::uint64_t observed_id = request->after_id();
   std::uint32_t emitted = 0;
@@ -117,8 +112,8 @@ grpc::Status AudioGrpcService::SubscribeTranscripts(
   while (!context->IsCancelled() &&
          (request->max_events() == 0 || emitted < request->max_events())) {
     voice::SpeechTranscript transcript;
-    if (!audio_service_.WaitForTranscript(
-            observed_id, std::chrono::milliseconds(100), &transcript)) {
+    if (!audio_service_.WaitForTranscript(observed_id, std::chrono::milliseconds(100),
+                                          &transcript)) {
       continue;
     }
     proto::audio::TranscriptEvent event;
@@ -129,8 +124,7 @@ grpc::Status AudioGrpcService::SubscribeTranscripts(
     observed_id = transcript.id;
     ++emitted;
   }
-  LOG_INFO("transcript subscriber disconnected client_id=" +
-           request->client_id());
+  LOG_INFO("transcript subscriber disconnected client_id=" + request->client_id());
   return grpc::Status::OK;
 }
 
@@ -170,9 +164,8 @@ void AudioGrpcService::FillStatus(const AudioServiceStatus& status,
   metrics->set_tts_dropped(output.dropped);
 }
 
-void AudioGrpcService::FillTranscript(
-    const voice::SpeechTranscript& transcript,
-    proto::audio::TranscriptEvent* response) {
+void AudioGrpcService::FillTranscript(const voice::SpeechTranscript& transcript,
+                                      proto::audio::TranscriptEvent* response) {
   response->set_id(transcript.id);
   response->set_timestamp_ms(transcript.timestamp_ms);
   response->set_start_sequence(transcript.start_sequence);

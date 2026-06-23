@@ -7,8 +7,7 @@ namespace voice {
 
 class MockSpeechRecognizer final : public SpeechRecognizer {
  public:
-  SpeechRecognitionResult Recognize(
-      const audio::SpeechSegment& segment) override;
+  SpeechRecognitionResult Recognize(const audio::SpeechSegment& segment) override;
 };
 
 }  // namespace voice

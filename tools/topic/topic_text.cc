@@ -12,8 +12,8 @@ std::string Trim(const std::string& value) {
     return std::isspace(ch) != 0;
   });
   const auto end = std::find_if_not(value.rbegin(), value.rend(), [](unsigned char ch) {
-    return std::isspace(ch) != 0;
-  }).base();
+                     return std::isspace(ch) != 0;
+                   }).base();
   if (begin >= end) {
     return "";
   }

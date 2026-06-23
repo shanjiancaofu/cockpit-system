@@ -8,19 +8,20 @@
 namespace cockpit {
 namespace voice {
 
-VoiceInteractionService::VoiceInteractionService(
-    bool enabled, std::unique_ptr<VoiceAssistant> assistant,
-    std::unique_ptr<ActionDispatcher> dispatcher,
-    std::unique_ptr<VoiceResponseSink> output)
+VoiceInteractionService::VoiceInteractionService(bool enabled,
+                                                 std::unique_ptr<VoiceAssistant> assistant,
+                                                 std::unique_ptr<ActionDispatcher> dispatcher,
+                                                 std::unique_ptr<VoiceResponseSink> output)
     : enabled_(enabled),
       assistant_(std::move(assistant)),
       dispatcher_(std::move(dispatcher)),
       output_(std::move(output)) {
-  state_.store(enabled_ ? InteractionState::kListening
-                        : InteractionState::kDisabled);
+  state_.store(enabled_ ? InteractionState::kListening : InteractionState::kDisabled);
 }
 
-VoiceInteractionService::~VoiceInteractionService() { Stop(); }
+VoiceInteractionService::~VoiceInteractionService() {
+  Stop();
+}
 
 bool VoiceInteractionService::Start() {
   if (!enabled_ || assistant_ == nullptr) {
@@ -31,8 +32,7 @@ bool VoiceInteractionService::Start() {
     return true;
   }
   transcript_events_.Reset();
-  worker_ = std::make_unique<std::thread>(&VoiceInteractionService::ProcessLoop,
-                                          this);
+  worker_ = std::make_unique<std::thread>(&VoiceInteractionService::ProcessLoop, this);
   state_.store(InteractionState::kListening);
   return true;
 }
@@ -74,10 +74,10 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
   try {
     const VoiceAssistantResult result = assistant_->HandleTranscript(transcript);
     VoiceResponse response;
-    response.timestamp_ms = static_cast<std::uint64_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch())
-            .count());
+    response.timestamp_ms =
+        static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       std::chrono::system_clock::now().time_since_epoch())
+                                       .count());
     response.transcript_id = transcript.id;
     response.transcript_text = transcript.text;
     response.intent = result.intent;
@@ -94,8 +94,7 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
         response.response_text = response.action_message;
         actions_failed_.fetch_add(1U);
       } else {
-        const ActionExecutionResult execution =
-            dispatcher_->Execute(result.action);
+        const ActionExecutionResult execution = dispatcher_->Execute(result.action);
         response.action_status = execution.status;
         response.action_message = execution.message;
         if (!execution.message.empty()) {
@@ -122,16 +121,17 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
   }
 }
 
-bool VoiceInteractionService::WaitForResponse(
-    std::uint64_t after_id, std::chrono::milliseconds timeout,
-    VoiceResponse* response) const {
+bool VoiceInteractionService::WaitForResponse(std::uint64_t after_id,
+                                              std::chrono::milliseconds timeout,
+                                              VoiceResponse* response) const {
   std::unique_lock<std::mutex> lock(response_mutex_);
   response_changed_.wait_for(lock, timeout, [this, after_id] {
     return !response_history_.empty() && response_history_.back().id > after_id;
   });
-  const auto next = std::find_if(
-      response_history_.begin(), response_history_.end(),
-      [after_id](const VoiceResponse& value) { return value.id > after_id; });
+  const auto next = std::find_if(response_history_.begin(), response_history_.end(),
+                                 [after_id](const VoiceResponse& value) {
+                                   return value.id > after_id;
+                                 });
   if (next == response_history_.end()) {
     return false;
   }

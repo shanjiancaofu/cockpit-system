@@ -1,8 +1,5 @@
 #include "topic_grpc_subscriber.h"
 
-#include "gateway.grpc.pb.h"
-#include "topic_text.h"
-
 #include <grpcpp/grpcpp.h>
 
 #include <algorithm>
@@ -13,19 +10,21 @@
 #include <thread>
 #include <utility>
 
+#include "topic_text.h"
+
+#include "gateway.grpc.pb.h"
+
 namespace cockpit {
 namespace topic {
 namespace {
 
 std::string VehicleStateJson(const proto::vehicle::VehicleState& state) {
   std::ostringstream out;
-  out << std::fixed << std::setprecision(1)
-      << "{\"timestamp_ms\":" << state.timestamp_ms()
-      << ",\"speed_kph\":" << state.speed_kph()
-      << ",\"gear\":" << state.gear()
+  out << std::fixed << std::setprecision(1) << "{\"timestamp_ms\":" << state.timestamp_ms()
+      << ",\"speed_kph\":" << state.speed_kph() << ",\"gear\":" << state.gear()
       << ",\"soc_percent\":" << state.soc_percent()
-      << ",\"cloud_enabled\":" << (state.cloud_enabled() ? "true" : "false")
-      << ",\"source\":\"" << EscapeJson(state.source()) << "\"}";
+      << ",\"cloud_enabled\":" << (state.cloud_enabled() ? "true" : "false") << ",\"source\":\""
+      << EscapeJson(state.source()) << "\"}";
   return out.str();
 }
 
@@ -34,8 +33,8 @@ TopicSample ToSample(const proto::gateway::CockpitEvent& event) {
   sample.timestamp_ms = event.timestamp_ms();
   std::ostringstream out;
   out << "{\"timestamp_ms\":" << event.timestamp_ms()
-      << ",\"topic\":\"/vehicle/state\",\"payload\":"
-      << VehicleStateJson(event.vehicle_state()) << '}';
+      << ",\"topic\":\"/vehicle/state\",\"payload\":" << VehicleStateJson(event.vehicle_state())
+      << '}';
   sample.json = out.str();
   return sample;
 }
@@ -43,7 +42,8 @@ TopicSample ToSample(const proto::gateway::CockpitEvent& event) {
 }  // namespace
 
 TopicGrpcSubscriber::TopicGrpcSubscriber(std::string address, int timeout_ms)
-    : address_(std::move(address)), timeout_ms_(timeout_ms) {}
+    : address_(std::move(address)), timeout_ms_(timeout_ms) {
+}
 
 int TopicGrpcSubscriber::Stream(const std::string& topic, int count, int max_hz,
                                 const SampleHandler& handler) const {
@@ -54,19 +54,16 @@ int TopicGrpcSubscriber::Stream(const std::string& topic, int count, int max_hz,
 
   grpc::ChannelArguments arguments;
   arguments.SetInt(GRPC_ARG_ENABLE_HTTP_PROXY, 0);
-  auto channel = grpc::CreateCustomChannel(
-      address_, grpc::InsecureChannelCredentials(), arguments);
+  auto channel = grpc::CreateCustomChannel(address_, grpc::InsecureChannelCredentials(), arguments);
   auto stub = proto::gateway::CockpitGateway::NewStub(channel);
 
   proto::gateway::SubscribeCockpitEventsRequest request;
   request.set_client_id("topic");
   request.set_max_hz(std::clamp(max_hz, 1, 100));
-  const auto deadline = std::chrono::system_clock::now() +
-                        std::chrono::milliseconds(timeout_ms_);
+  const auto deadline = std::chrono::system_clock::now() + std::chrono::milliseconds(timeout_ms_);
   int received = 0;
   grpc::Status last_status;
-  while (count <= 0 ||
-         (received < count && std::chrono::system_clock::now() < deadline)) {
+  while (count <= 0 || (received < count && std::chrono::system_clock::now() < deadline)) {
     grpc::ClientContext context;
     context.set_wait_for_ready(true);
     if (count > 0) {
@@ -93,8 +90,7 @@ int TopicGrpcSubscriber::Stream(const std::string& topic, int count, int max_hz,
     }
     if (last_status.error_code() != grpc::StatusCode::UNAVAILABLE &&
         last_status.error_code() != grpc::StatusCode::UNKNOWN &&
-        last_status.error_code() != grpc::StatusCode::CANCELLED &&
-        !last_status.ok()) {
+        last_status.error_code() != grpc::StatusCode::CANCELLED && !last_status.ok()) {
       break;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));

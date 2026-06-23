@@ -1,11 +1,11 @@
 #pragma once
 
-#include "audio.grpc.pb.h"
-#include "modules/voice/voice_response_sink.h"
-
 #include <atomic>
 #include <memory>
 #include <string>
+
+#include "audio.grpc.pb.h"
+#include "modules/voice/voice_response_sink.h"
 
 namespace cockpit {
 namespace voice {

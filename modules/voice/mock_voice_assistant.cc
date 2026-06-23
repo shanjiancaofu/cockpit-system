@@ -21,20 +21,16 @@ bool Contains(const std::string& text, const std::string& phrase) {
 
 }  // namespace
 
-VoiceAssistantResult MockVoiceAssistant::HandleTranscript(
-    const SpeechTranscript& transcript) {
+VoiceAssistantResult MockVoiceAssistant::HandleTranscript(const SpeechTranscript& transcript) {
   const std::string text = Normalize(transcript.text);
   if (Contains(text, "open camera")) {
-    return {VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera,
-            "Opening the camera."};
+    return {VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera, "Opening the camera."};
   }
   if (Contains(text, "play music")) {
-    return {VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic,
-            "Starting music playback."};
+    return {VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic, "Starting music playback."};
   }
   if (Contains(text, "vehicle status") || Contains(text, "battery level")) {
-    return {VoiceIntent::kShowVehicleStatus,
-            VoiceAction::kQueryVehicleStatus,
+    return {VoiceIntent::kShowVehicleStatus, VoiceAction::kQueryVehicleStatus,
             "Retrieving vehicle status."};
   }
   return {VoiceIntent::kUnknown, VoiceAction::kNone,

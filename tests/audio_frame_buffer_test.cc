@@ -1,23 +1,21 @@
-#include "modules/audio/audio_frame.h"
-#include "modules/audio/spsc_ring_buffer.h"
-
 #include <atomic>
 #include <cstdint>
 #include <iostream>
 #include <thread>
 #include <type_traits>
 
+#include "modules/audio/audio_frame.h"
+#include "modules/audio/spsc_ring_buffer.h"
+
 namespace {
 
 using cockpit::audio::AudioFrame;
 using cockpit::audio::AudioFrameFlag;
 
-AudioFrame MakeFrame(std::uint64_t sequence,
-                     AudioFrameFlag flags = AudioFrameFlag::kNone) {
+AudioFrame MakeFrame(std::uint64_t sequence, AudioFrameFlag flags = AudioFrameFlag::kNone) {
   AudioFrame::Samples samples{};
   samples[0] = static_cast<std::int16_t>(sequence & 0x7fffU);
-  return AudioFrame(sequence, static_cast<std::int64_t>(sequence * 20'000'000U),
-                    flags, samples);
+  return AudioFrame(sequence, static_cast<std::int64_t>(sequence * 20'000'000U), flags, samples);
 }
 
 bool Check(bool condition, const char* message) {
@@ -32,17 +30,14 @@ bool TestFrameContract() {
   static_assert(!std::is_copy_assignable<AudioFrame>::value);
   static_assert(!std::is_move_assignable<AudioFrame>::value);
 
-  const AudioFrame frame = MakeFrame(
-      7, AudioFrameFlag::kDiscontinuity | AudioFrameFlag::kRecoveredFromXrun);
+  const AudioFrame frame =
+      MakeFrame(7, AudioFrameFlag::kDiscontinuity | AudioFrameFlag::kRecoveredFromXrun);
   return Check(frame.sequence() == 7, "frame sequence changed") &&
          Check(frame.capture_time_ns() == 140'000'000, "frame timestamp changed") &&
          Check(frame.samples()[0] == 7, "frame samples changed") &&
-         Check(frame.HasFlag(AudioFrameFlag::kDiscontinuity),
-               "discontinuity flag missing") &&
-         Check(frame.HasFlag(AudioFrameFlag::kRecoveredFromXrun),
-               "xrun flag missing") &&
-         Check(!frame.HasFlag(AudioFrameFlag::kDroppedBefore),
-               "unexpected dropped flag");
+         Check(frame.HasFlag(AudioFrameFlag::kDiscontinuity), "discontinuity flag missing") &&
+         Check(frame.HasFlag(AudioFrameFlag::kRecoveredFromXrun), "xrun flag missing") &&
+         Check(!frame.HasFlag(AudioFrameFlag::kDroppedBefore), "unexpected dropped flag");
 }
 
 bool TestOrderWrapAndOverflow() {
@@ -120,8 +115,6 @@ bool TestConcurrentProducerConsumer() {
 }  // namespace
 
 int main() {
-  return TestFrameContract() && TestOrderWrapAndOverflow() &&
-                 TestConcurrentProducerConsumer()
-             ? 0
-             : 1;
+  return TestFrameContract() && TestOrderWrapAndOverflow() && TestConcurrentProducerConsumer() ? 0
+                                                                                               : 1;
 }

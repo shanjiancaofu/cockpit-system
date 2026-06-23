@@ -1,10 +1,10 @@
 #pragma once
 
-#include "modules/audio/pcm_format.h"
-
 #include <cstdint>
 #include <string>
 #include <vector>
+
+#include "modules/audio/pcm_format.h"
 
 namespace cockpit {
 namespace audio {

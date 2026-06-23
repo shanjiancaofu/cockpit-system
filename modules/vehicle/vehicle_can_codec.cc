@@ -1,11 +1,11 @@
 #include "modules/vehicle/vehicle_can_codec.h"
 
-#include "core/utils/Time.h"
-
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
+
+#include "core/utils/Time.h"
 
 namespace cockpit {
 namespace vehicle {

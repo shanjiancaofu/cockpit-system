@@ -1,18 +1,18 @@
 #pragma once
 
-#include "voice.grpc.pb.h"
-#include "voice_interaction_service.h"
-
 #include <grpcpp/grpcpp.h>
 
 #include <memory>
 #include <string>
 
+#include "voice_interaction_service.h"
+
+#include "voice.grpc.pb.h"
+
 namespace cockpit {
 namespace voice {
 
-class VoiceGrpcService final
-    : public proto::voice::VoiceInteractionControl::Service {
+class VoiceGrpcService final : public proto::voice::VoiceInteractionControl::Service {
  public:
   explicit VoiceGrpcService(VoiceInteractionService& service);
   ~VoiceGrpcService() override;
@@ -21,20 +21,16 @@ class VoiceGrpcService final
   void Shutdown();
 
  private:
-  grpc::Status GetStatus(
-      grpc::ServerContext* context, const proto::common::Empty* request,
-      proto::voice::VoiceInteractionStatus* response) override;
-  grpc::Status ProcessTranscript(
-      grpc::ServerContext* context,
-      const proto::voice::ProcessTranscriptRequest* request,
-      proto::voice::VoiceResponseEvent* response) override;
+  grpc::Status GetStatus(grpc::ServerContext* context, const proto::common::Empty* request,
+                         proto::voice::VoiceInteractionStatus* response) override;
+  grpc::Status ProcessTranscript(grpc::ServerContext* context,
+                                 const proto::voice::ProcessTranscriptRequest* request,
+                                 proto::voice::VoiceResponseEvent* response) override;
   grpc::Status SubscribeResponses(
-      grpc::ServerContext* context,
-      const proto::voice::SubscribeVoiceResponsesRequest* request,
+      grpc::ServerContext* context, const proto::voice::SubscribeVoiceResponsesRequest* request,
       grpc::ServerWriter<proto::voice::VoiceResponseEvent>* writer) override;
 
-  static void FillResponse(const VoiceResponse& value,
-                           proto::voice::VoiceResponseEvent* response);
+  static void FillResponse(const VoiceResponse& value, proto::voice::VoiceResponseEvent* response);
   static void FillStatus(const VoiceInteractionStatus& value,
                          proto::voice::VoiceInteractionStatus* response);
 

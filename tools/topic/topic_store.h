@@ -20,7 +20,9 @@ class TopicStore {
  public:
   explicit TopicStore(const cockpit::config::SystemConfig& config);
 
-  const std::filesystem::path& topic_dir() const { return topic_dir_; }
+  const std::filesystem::path& topic_dir() const {
+    return topic_dir_;
+  }
   std::filesystem::path TopicFile(const std::string& topic) const;
   Registry LoadRegistry() const;
   void SaveRegistry(const Registry& registry) const;

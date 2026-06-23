@@ -17,4 +17,3 @@ fi
 
 cmake --build "${build_dir}"
 ctest --test-dir "${build_dir}" --output-on-failure
-

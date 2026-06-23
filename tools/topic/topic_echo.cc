@@ -1,15 +1,16 @@
 #include "topic_echo.h"
 
-#include "core/config/system_config.h"
-#include "topic_grpc_subscriber.h"
-#include "topic_store.h"
-
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <thread>
+
+#include "topic_grpc_subscriber.h"
+#include "topic_store.h"
+
+#include "core/config/system_config.h"
 
 namespace cockpit {
 namespace topic {
@@ -30,8 +31,7 @@ int RunEchoCommand(const cockpit::config::SystemConfig& config, const CommandLin
     const auto& gateway = config.services().gateway;
     const int timeout_ms = std::max(
         1, OptionInt(line, "timeout-ms", std::max(gateway.stream_timeout_ms, count * 1000)));
-    const TopicGrpcSubscriber subscriber(
-        gateway.grpc.listen_address, timeout_ms);
+    const TopicGrpcSubscriber subscriber(gateway.grpc.listen_address, timeout_ms);
     return subscriber.Stream(topic, count, max_hz, [](const TopicSample& sample) {
       std::cout << sample.json << std::endl;
     });

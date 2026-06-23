@@ -35,10 +35,18 @@ class AudioFrame {
   AudioFrame& operator=(const AudioFrame&) = delete;
   AudioFrame& operator=(AudioFrame&&) = delete;
 
-  std::uint64_t sequence() const { return sequence_; }
-  std::int64_t capture_time_ns() const { return capture_time_ns_; }
-  AudioFrameFlag flags() const { return flags_; }
-  const Samples& samples() const { return samples_; }
+  std::uint64_t sequence() const {
+    return sequence_;
+  }
+  std::int64_t capture_time_ns() const {
+    return capture_time_ns_;
+  }
+  AudioFrameFlag flags() const {
+    return flags_;
+  }
+  const Samples& samples() const {
+    return samples_;
+  }
   bool HasFlag(AudioFrameFlag flag) const;
 
  private:

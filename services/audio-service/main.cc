@@ -1,17 +1,18 @@
-#include "audio_grpc_service.h"
-#include "audio_service.h"
-#include "core/logging/Logger.h"
-#include "core/runtime/ServiceRuntime.h"
-#include "drivers/alsa/alsa_audio_player.h"
-#include "modules/voice/mock_speech_synthesizer.h"
-#include "modules/voice/mock_speech_recognizer.h"
-#include "speech_output.h"
-
 #include <chrono>
 #include <memory>
 #include <string>
 #include <thread>
 #include <utility>
+
+#include "audio_grpc_service.h"
+#include "audio_service.h"
+#include "speech_output.h"
+
+#include "core/logging/Logger.h"
+#include "core/runtime/ServiceRuntime.h"
+#include "drivers/alsa/alsa_audio_player.h"
+#include "modules/voice/mock_speech_recognizer.h"
+#include "modules/voice/mock_speech_synthesizer.h"
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "audio-service");
@@ -20,14 +21,10 @@ int main(int argc, char** argv) {
     recognizer = std::make_unique<cockpit::voice::MockSpeechRecognizer>();
   }
   cockpit::audio::AudioService audio_service(
-      runtime.config().hardware().audio,
-      runtime.config().services().audio.vad,
-      runtime.config().services().audio.speech_segment,
-      std::move(recognizer));
+      runtime.config().hardware().audio, runtime.config().services().audio.vad,
+      runtime.config().services().audio.speech_segment, std::move(recognizer));
   cockpit::audio::SpeechOutput speech_output(
-      runtime.args().GetString(
-          "output-device",
-          runtime.config().hardware().audio.output_device),
+      runtime.args().GetString("output-device", runtime.config().hardware().audio.output_device),
       std::make_unique<cockpit::voice::MockSpeechSynthesizer>(),
       std::make_unique<cockpit::audio::AlsaAudioPlayer>());
   std::string output_error;

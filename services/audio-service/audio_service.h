@@ -1,15 +1,5 @@
 #pragma once
 
-#include "core/config/system_config.h"
-#include "modules/audio/audio_capture_source.h"
-#include "modules/audio/audio_capture_stream.h"
-#include "modules/audio/pcm_format.h"
-#include "modules/audio/speech_segmenter.h"
-#include "modules/audio/spsc_ring_buffer.h"
-#include "modules/audio/voice_activity_detector.h"
-#include "modules/voice/speech_recognizer.h"
-#include "modules/voice/speech_transcript.h"
-
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -21,6 +11,16 @@
 #include <optional>
 #include <string>
 #include <thread>
+
+#include "core/config/system_config.h"
+#include "modules/audio/audio_capture_source.h"
+#include "modules/audio/audio_capture_stream.h"
+#include "modules/audio/pcm_format.h"
+#include "modules/audio/speech_segmenter.h"
+#include "modules/audio/spsc_ring_buffer.h"
+#include "modules/audio/voice_activity_detector.h"
+#include "modules/voice/speech_recognizer.h"
+#include "modules/voice/speech_transcript.h"
 
 namespace cockpit {
 namespace audio {
@@ -52,8 +52,8 @@ struct AudioServiceStatus {
 
 class AudioService {
  public:
-  using SourceFactory = std::function<std::unique_ptr<AudioCaptureSource>(
-      const std::string&, const PcmFormat&)>;
+  using SourceFactory =
+      std::function<std::unique_ptr<AudioCaptureSource>(const std::string&, const PcmFormat&)>;
 
   explicit AudioService(config::AudioConfig config);
   AudioService(config::AudioConfig config, SourceFactory source_factory);
@@ -66,11 +66,9 @@ class AudioService {
                config::SpeechSegmentConfig segment_config,
                std::unique_ptr<voice::SpeechRecognizer> recognizer);
   AudioService(config::AudioConfig config, config::VadConfig vad_config,
-               config::SpeechSegmentConfig segment_config,
-               SourceFactory source_factory);
+               config::SpeechSegmentConfig segment_config, SourceFactory source_factory);
   AudioService(config::AudioConfig config, config::VadConfig vad_config,
-               config::SpeechSegmentConfig segment_config,
-               SourceFactory source_factory,
+               config::SpeechSegmentConfig segment_config, SourceFactory source_factory,
                std::unique_ptr<voice::SpeechRecognizer> recognizer);
   ~AudioService();
 
@@ -80,8 +78,7 @@ class AudioService {
   bool StartCapture(const std::string& input_device, std::string* error = nullptr);
   void StopCapture();
   std::optional<SpeechSegment> TryPopSpeechSegment();
-  bool WaitForTranscript(std::uint64_t after_id,
-                         std::chrono::milliseconds timeout,
+  bool WaitForTranscript(std::uint64_t after_id, std::chrono::milliseconds timeout,
                          voice::SpeechTranscript* transcript) const;
   AudioServiceStatus status() const;
 

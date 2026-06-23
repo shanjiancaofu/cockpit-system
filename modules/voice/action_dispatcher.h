@@ -1,8 +1,8 @@
 #pragma once
 
-#include "modules/voice/voice_assistant.h"
-
 #include <string>
+
+#include "modules/voice/voice_assistant.h"
 
 namespace cockpit {
 namespace voice {

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "modules/voice/speech_transcript.h"
-
 #include <string>
+
+#include "modules/voice/speech_transcript.h"
 
 namespace cockpit {
 namespace voice {
@@ -31,8 +31,7 @@ class VoiceAssistant {
  public:
   virtual ~VoiceAssistant() = default;
 
-  virtual VoiceAssistantResult HandleTranscript(
-      const SpeechTranscript& transcript) = 0;
+  virtual VoiceAssistantResult HandleTranscript(const SpeechTranscript& transcript) = 0;
 };
 
 const char* ToString(VoiceIntent intent);

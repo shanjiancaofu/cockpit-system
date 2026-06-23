@@ -12,9 +12,10 @@ AudioSpeechClient::AudioSpeechClient(const std::string& address)
     : stub_([&address] {
         grpc::ChannelArguments arguments;
         arguments.SetInt(GRPC_ARG_ENABLE_HTTP_PROXY, 0);
-        return proto::audio::AudioControl::NewStub(grpc::CreateCustomChannel(
-            address, grpc::InsecureChannelCredentials(), arguments));
-      }()) {}
+        return proto::audio::AudioControl::NewStub(
+            grpc::CreateCustomChannel(address, grpc::InsecureChannelCredentials(), arguments));
+      }()) {
+}
 
 bool AudioSpeechClient::Submit(std::string text) {
   proto::audio::SpeakRequest request;
@@ -22,8 +23,7 @@ bool AudioSpeechClient::Submit(std::string text) {
   proto::audio::SpeakResponse response;
   grpc::ClientContext context;
   context.set_wait_for_ready(true);
-  context.set_deadline(std::chrono::system_clock::now() +
-                       std::chrono::seconds(2));
+  context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(2));
   const grpc::Status status = stub_->Speak(&context, request, &response);
   if (status.ok() && response.accepted()) {
     queued_.fetch_add(1U);

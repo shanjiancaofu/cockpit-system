@@ -1,11 +1,11 @@
 #include "core/runtime/ServiceRuntime.h"
 
-#include "core/logging/Logger.h"
-
 #include <atomic>
 #include <csignal>
 #include <string>
 #include <utility>
+
+#include "core/logging/Logger.h"
 
 namespace cockpit {
 namespace runtime {
@@ -33,21 +33,19 @@ ServiceRuntime ServiceRuntime::Create(int argc, char** argv, const std::string& 
   const std::string& log_dir = config.paths().log_dir;
   const int max_bytes = config.logging().max_bytes;
   const auto log_level = logging::ParseLevel(config.logging().level);
-  logging::InitLogger(
-      service_name, log_dir, log_level, max_bytes, config.logging().mirror_stderr);
+  logging::InitLogger(service_name, log_dir, log_level, max_bytes, config.logging().mirror_stderr);
   LOG_INFO(service_name + " started config=" + config_path);
 
   return ServiceRuntime(service_name, config_path, args, config);
 }
 
-ServiceRuntime::ServiceRuntime(std::string service_name,
-                               std::string config_path,
-                               Args args,
+ServiceRuntime::ServiceRuntime(std::string service_name, std::string config_path, Args args,
                                config::SystemConfig config)
     : service_name_(std::move(service_name)),
       config_path_(std::move(config_path)),
       args_(std::move(args)),
-      config_(std::move(config)) {}
+      config_(std::move(config)) {
+}
 
 bool ServiceRuntime::ShouldStop() const {
   return g_shutdown_requested.load();

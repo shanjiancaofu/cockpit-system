@@ -26,8 +26,12 @@ class SpscRingBuffer {
   SpscRingBuffer(const SpscRingBuffer&) = delete;
   SpscRingBuffer& operator=(const SpscRingBuffer&) = delete;
 
-  bool TryPush(const T& value) { return Emplace(value); }
-  bool TryPush(T&& value) { return Emplace(std::move(value)); }
+  bool TryPush(const T& value) {
+    return Emplace(value);
+  }
+  bool TryPush(T&& value) {
+    return Emplace(std::move(value));
+  }
 
   std::optional<T> TryPop() {
     const std::size_t read = read_index_.load(std::memory_order_relaxed);
@@ -53,7 +57,9 @@ class SpscRingBuffer {
     return drop_count_.load(std::memory_order_relaxed);
   }
 
-  static constexpr std::size_t capacity() { return Capacity; }
+  static constexpr std::size_t capacity() {
+    return Capacity;
+  }
 
   // Reset is only valid while both producer and consumer are stopped.
   void Reset() {

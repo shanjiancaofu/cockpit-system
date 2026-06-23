@@ -1,9 +1,10 @@
-#include "core/logging/Logger.h"
-#include "core/runtime/ServiceRuntime.h"
+#include <string>
+
 #include "gateway_grpc_service.h"
 #include "vehicle_state_client.h"
 
-#include <string>
+#include "core/logging/Logger.h"
+#include "core/runtime/ServiceRuntime.h"
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "cockpit-gateway-service");
@@ -22,12 +23,16 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  cockpit::gateway::VehicleStateClient client(
-      vehicle_data_address, config.stream_timeout_ms, config.retry_delay_ms);
+  cockpit::gateway::VehicleStateClient client(vehicle_data_address, config.stream_timeout_ms,
+                                              config.retry_delay_ms);
   const int result = client.Stream(
-      samples, max_hz, [&gateway_service](const cockpit::proto::vehicle::VehicleState& state) {
+      samples, max_hz,
+      [&gateway_service](const cockpit::proto::vehicle::VehicleState& state) {
         gateway_service.PublishVehicleState(state);
-      }, [&runtime] { return !runtime.ShouldStop(); });
+      },
+      [&runtime] {
+        return !runtime.ShouldStop();
+      });
   gateway_service.Shutdown();
   runtime.MarkStopped();
   return result;

@@ -7,8 +7,7 @@ namespace voice {
 
 class MockVoiceAssistant final : public VoiceAssistant {
  public:
-  VoiceAssistantResult HandleTranscript(
-      const SpeechTranscript& transcript) override;
+  VoiceAssistantResult HandleTranscript(const SpeechTranscript& transcript) override;
 };
 
 }  // namespace voice

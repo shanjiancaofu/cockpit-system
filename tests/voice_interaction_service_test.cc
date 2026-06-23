@@ -1,10 +1,11 @@
-#include "modules/voice/mock_action_dispatcher.h"
-#include "modules/voice/mock_voice_assistant.h"
 #include "services/voice-interaction-service/voice_interaction_service.h"
 
 #include <chrono>
 #include <iostream>
 #include <memory>
+
+#include "modules/voice/mock_action_dispatcher.h"
+#include "modules/voice/mock_voice_assistant.h"
 
 namespace {
 
@@ -40,8 +41,7 @@ int main() {
   auto sink = std::make_unique<CountingResponseSink>();
   cockpit::voice::VoiceInteractionService service(
       true, std::make_unique<cockpit::voice::MockVoiceAssistant>(),
-      std::make_unique<cockpit::voice::MockActionDispatcher>(),
-      std::move(sink));
+      std::make_unique<cockpit::voice::MockActionDispatcher>(), std::move(sink));
   transcript.id = 10;
   auto first = service.HandleTranscript(transcript);
   transcript.id = 11;
@@ -49,32 +49,25 @@ int main() {
   auto second = service.HandleTranscript(transcript);
   if (!first.has_value() || !second.has_value() || first->id >= second->id ||
       first->action != cockpit::voice::VoiceAction::kOpenCamera ||
-      first->action_status !=
-          cockpit::voice::ActionExecutionStatus::kSucceeded ||
+      first->action_status != cockpit::voice::ActionExecutionStatus::kSucceeded ||
       second->action != cockpit::voice::VoiceAction::kNone) {
     std::cerr << "voice response generation failed\n";
     return 1;
   }
 
   cockpit::voice::VoiceResponse waited;
-  if (!service.WaitForResponse(first->id, std::chrono::milliseconds(10),
-                               &waited) ||
+  if (!service.WaitForResponse(first->id, std::chrono::milliseconds(10), &waited) ||
       waited.id != second->id) {
     std::cerr << "voice response history is not ordered\n";
     return 1;
   }
   const auto status = service.status();
   if (status.state != cockpit::voice::InteractionState::kListening ||
-      status.metrics.transcripts_received != 2 ||
-      status.metrics.transcript_events_dropped != 0 ||
-      status.metrics.responses_published != 2 ||
-      status.metrics.unknown_intents != 1 ||
-      status.metrics.actions_attempted != 1 ||
-      status.metrics.actions_succeeded != 1 ||
-      status.metrics.actions_failed != 0 ||
-      status.metrics.output.queued != 2 ||
-      !status.latest_response.has_value() ||
-      status.latest_response->id != second->id) {
+      status.metrics.transcripts_received != 2 || status.metrics.transcript_events_dropped != 0 ||
+      status.metrics.responses_published != 2 || status.metrics.unknown_intents != 1 ||
+      status.metrics.actions_attempted != 1 || status.metrics.actions_succeeded != 1 ||
+      status.metrics.actions_failed != 0 || status.metrics.output.queued != 2 ||
+      !status.latest_response.has_value() || status.latest_response->id != second->id) {
     std::cerr << "voice interaction metrics are invalid\n";
     return 1;
   }
@@ -84,8 +77,7 @@ int main() {
   transcript.text = "open camera";
   const auto unavailable = no_dispatcher.HandleTranscript(transcript);
   if (!unavailable.has_value() ||
-      unavailable->action_status !=
-          cockpit::voice::ActionExecutionStatus::kNotImplemented ||
+      unavailable->action_status != cockpit::voice::ActionExecutionStatus::kNotImplemented ||
       no_dispatcher.status().metrics.actions_failed != 1) {
     std::cerr << "missing dispatcher was not reported\n";
     return 1;
@@ -114,8 +106,7 @@ int main() {
     return 1;
   }
   cockpit::voice::VoiceResponse async_response;
-  if (!async_service.WaitForResponse(0, std::chrono::milliseconds(500),
-                                     &async_response) ||
+  if (!async_service.WaitForResponse(0, std::chrono::milliseconds(500), &async_response) ||
       async_response.transcript_id != 99) {
     std::cerr << "async voice service did not publish response\n";
     return 1;

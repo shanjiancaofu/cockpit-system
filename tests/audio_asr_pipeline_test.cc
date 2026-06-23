@@ -1,6 +1,3 @@
-#include "modules/voice/mock_speech_recognizer.h"
-#include "services/audio-service/audio_service.h"
-
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -9,15 +6,19 @@
 #include <string>
 #include <thread>
 
+#include "modules/voice/mock_speech_recognizer.h"
+#include "services/audio-service/audio_service.h"
+
 namespace {
 
 class SpeechCaptureSource final : public cockpit::audio::AudioCaptureSource {
  public:
-  bool Open(std::string*) override { return true; }
+  bool Open(std::string*) override {
+    return true;
+  }
 
-  cockpit::audio::CaptureResult Read(
-      std::int16_t* samples, std::size_t frame_capacity, int,
-      const std::atomic_bool& stop_requested) override {
+  cockpit::audio::CaptureResult Read(std::int16_t* samples, std::size_t frame_capacity, int,
+                                     const std::atomic_bool& stop_requested) override {
     if (stop_requested.load()) {
       return {cockpit::audio::CaptureStatus::kStopped, 0, 0, {}};
     }
@@ -28,7 +29,8 @@ class SpeechCaptureSource final : public cockpit::audio::AudioCaptureSource {
     return {cockpit::audio::CaptureStatus::kOk, frame_capacity, 0, {}};
   }
 
-  void Close() override {}
+  void Close() override {
+  }
 };
 
 }  // namespace
@@ -60,17 +62,15 @@ int main() {
     return 1;
   }
   cockpit::voice::SpeechTranscript next_transcript;
-  if (!service.WaitForTranscript(transcript.id, std::chrono::seconds(1),
-                                 &next_transcript) ||
+  if (!service.WaitForTranscript(transcript.id, std::chrono::seconds(1), &next_transcript) ||
       next_transcript.id <= transcript.id) {
     std::cerr << "ASR transcript history is not ordered\n";
     return 1;
   }
   const auto status = service.status();
-  if (transcript.text != "mock transcript duration_ms=100" ||
-      transcript.provider != "mock" || transcript.duration_ms != 100 ||
-      status.asr_segments_processed == 0 || status.transcripts_published == 0 ||
-      status.asr_errors != 0 || !status.asr_enabled ||
+  if (transcript.text != "mock transcript duration_ms=100" || transcript.provider != "mock" ||
+      transcript.duration_ms != 100 || status.asr_segments_processed == 0 ||
+      status.transcripts_published == 0 || status.asr_errors != 0 || !status.asr_enabled ||
       service.TryPopSpeechSegment().has_value()) {
     std::cerr << "ASR pipeline state is invalid\n";
     return 1;

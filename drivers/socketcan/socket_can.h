@@ -1,8 +1,8 @@
 #pragma once
 
-#include "modules/can/can_frame.h"
-
 #include <string>
+
+#include "modules/can/can_frame.h"
 
 namespace cockpit {
 namespace can {
@@ -27,7 +27,9 @@ class SocketCan {
 
   bool Open(const std::string& interface_name, std::string* error);
   void Close();
-  bool IsOpen() const { return fd_ >= 0; }
+  bool IsOpen() const {
+    return fd_ >= 0;
+  }
 
   bool Send(const CanFrame& frame, std::string* error) const;
   CanIoStatus Receive(CanFrame* frame, int timeout_ms, std::string* error) const;

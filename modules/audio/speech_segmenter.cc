@@ -5,11 +5,11 @@
 namespace cockpit {
 namespace audio {
 
-SpeechSegmenter::SpeechSegmenter(SpeechSegmenterConfig config)
-    : config_(config) {}
+SpeechSegmenter::SpeechSegmenter(SpeechSegmenterConfig config) : config_(config) {
+}
 
-std::optional<SpeechSegment> SpeechSegmenter::Process(
-    const AudioFrame& frame, const VoiceActivityResult& activity) {
+std::optional<SpeechSegment> SpeechSegmenter::Process(const AudioFrame& frame,
+                                                      const VoiceActivityResult& activity) {
   if (frame.HasFlag(AudioFrameFlag::kDiscontinuity)) {
     auto interrupted = FinishSegment(false, true);
     pre_roll_.clear();
@@ -64,8 +64,7 @@ void SpeechSegmenter::PushPreRoll(const AudioFrame& frame) {
 
 void SpeechSegmenter::StartSegment(const AudioFrame& frame) {
   active_segment_.emplace();
-  const std::size_t reserve_frames =
-      config_.pre_roll_frames + config_.max_segment_frames;
+  const std::size_t reserve_frames = config_.pre_roll_frames + config_.max_segment_frames;
   active_segment_->samples.reserve(reserve_frames * AudioFrame::kSampleCount);
   for (const auto& pre_roll_frame : pre_roll_) {
     AppendFrame(pre_roll_frame);
@@ -81,13 +80,11 @@ void SpeechSegmenter::AppendFrame(const AudioFrame& frame) {
   }
   active_segment_->end_sequence = frame.sequence();
   active_segment_->end_time_ns = frame.capture_time_ns();
-  active_segment_->samples.insert(active_segment_->samples.end(),
-                                  frame.samples().begin(),
+  active_segment_->samples.insert(active_segment_->samples.end(), frame.samples().begin(),
                                   frame.samples().end());
 }
 
-std::optional<SpeechSegment> SpeechSegmenter::FinishSegment(
-    bool truncated, bool discontinuous) {
+std::optional<SpeechSegment> SpeechSegmenter::FinishSegment(bool truncated, bool discontinuous) {
   if (!active_segment_.has_value()) {
     return std::nullopt;
   }

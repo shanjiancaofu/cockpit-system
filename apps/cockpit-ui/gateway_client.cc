@@ -1,20 +1,21 @@
 #include "gateway_client.h"
 
-#include "core/logging/Logger.h"
-#include "gateway.grpc.pb.h"
-#include "vehicle_state_model.h"
-
 #include <QMetaObject>
 #include <QString>
-
 #include <chrono>
 #include <utility>
+
+#include "vehicle_state_model.h"
+
+#include "core/logging/Logger.h"
+#include "gateway.grpc.pb.h"
 
 namespace cockpit {
 namespace ui {
 
 GatewayClient::GatewayClient(std::string address, VehicleStateModel* model)
-    : address_(std::move(address)), model_(model) {}
+    : address_(std::move(address)), model_(model) {
+}
 
 GatewayClient::~GatewayClient() {
   Stop();
@@ -44,8 +45,7 @@ void GatewayClient::Stop() {
 void GatewayClient::Run() {
   grpc::ChannelArguments arguments;
   arguments.SetInt(GRPC_ARG_ENABLE_HTTP_PROXY, 0);
-  auto channel = grpc::CreateCustomChannel(
-      address_, grpc::InsecureChannelCredentials(), arguments);
+  auto channel = grpc::CreateCustomChannel(address_, grpc::InsecureChannelCredentials(), arguments);
   auto stub = proto::gateway::CockpitGateway::NewStub(channel);
 
   while (running_.load()) {
@@ -80,10 +80,8 @@ void GatewayClient::Run() {
       const QString source = QString::fromStdString(state.source());
       QMetaObject::invokeMethod(
           model_,
-          [model = model_, timestamp_ms, speed_kph, gear, soc_percent,
-           cloud_enabled, source] {
-            model->Update(timestamp_ms, speed_kph, gear, soc_percent,
-                          cloud_enabled, source);
+          [model = model_, timestamp_ms, speed_kph, gear, soc_percent, cloud_enabled, source] {
+            model->Update(timestamp_ms, speed_kph, gear, soc_percent, cloud_enabled, source);
           },
           Qt::QueuedConnection);
     }
@@ -98,15 +96,17 @@ void GatewayClient::Run() {
       break;
     }
     LOG_WARN("cockpit UI gateway stream interrupted grpc_code=" +
-             std::to_string(status.error_code()) + " message=" +
-             status.error_message());
+             std::to_string(status.error_code()) + " message=" + status.error_message());
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 }
 
 void GatewayClient::PostConnected(bool connected) {
   QMetaObject::invokeMethod(
-      model_, [model = model_, connected] { model->SetConnected(connected); },
+      model_,
+      [model = model_, connected] {
+        model->SetConnected(connected);
+      },
       Qt::QueuedConnection);
 }
 

@@ -1,16 +1,17 @@
 #include "topic_store.h"
 
-#include "core/config/system_config.h"
-
 #include <cctype>
 #include <fstream>
 #include <sstream>
+
+#include "core/config/system_config.h"
 
 namespace cockpit {
 namespace topic {
 
 TopicStore::TopicStore(const cockpit::config::SystemConfig& config)
-    : topic_dir_(config.tools().topic.dir) {}
+    : topic_dir_(config.tools().topic.dir) {
+}
 
 std::string TopicStore::SanitizeTopicFileName(const std::string& topic) {
   std::string result;

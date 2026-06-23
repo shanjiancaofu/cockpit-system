@@ -20,12 +20,9 @@ bool Check(bool condition, const char* message) {
 bool TestOrderAndOverflow() {
   EventQueue<int> queue(2);
   if (!Check(queue.capacity() == 2, "event queue capacity changed") ||
-      !Check(queue.Push(1) == EventQueuePushResult::kAccepted,
-             "first event was rejected") ||
-      !Check(queue.Push(2) == EventQueuePushResult::kAccepted,
-             "second event was rejected") ||
-      !Check(queue.Push(3) == EventQueuePushResult::kFull,
-             "full event queue accepted an event") ||
+      !Check(queue.Push(1) == EventQueuePushResult::kAccepted, "first event was rejected") ||
+      !Check(queue.Push(2) == EventQueuePushResult::kAccepted, "second event was rejected") ||
+      !Check(queue.Push(3) == EventQueuePushResult::kFull, "full event queue accepted an event") ||
       !Check(queue.DropCount() == 1, "drop count did not increase") ||
       !Check(queue.Size() == 2, "queue size changed after overflow")) {
     return false;
@@ -40,7 +37,8 @@ bool TestOrderAndOverflow() {
 
 bool TestMoveOnlyEvent() {
   struct MoveOnlyEvent {
-    explicit MoveOnlyEvent(std::string input) : value(std::move(input)) {}
+    explicit MoveOnlyEvent(std::string input) : value(std::move(input)) {
+    }
     MoveOnlyEvent(const MoveOnlyEvent&) = delete;
     MoveOnlyEvent& operator=(const MoveOnlyEvent&) = delete;
     MoveOnlyEvent(MoveOnlyEvent&&) = default;
@@ -50,8 +48,7 @@ bool TestMoveOnlyEvent() {
   };
 
   EventQueue<MoveOnlyEvent> queue(1);
-  if (!Check(queue.Push(MoveOnlyEvent("voice.intent")) ==
-                 EventQueuePushResult::kAccepted,
+  if (!Check(queue.Push(MoveOnlyEvent("voice.intent")) == EventQueuePushResult::kAccepted,
              "move-only event was rejected")) {
     return false;
   }
@@ -80,8 +77,7 @@ bool TestWaitPopAndClose() {
 
   queue.Close();
   return Check(queue.closed(), "queue did not close") &&
-         Check(queue.Push(7) == EventQueuePushResult::kClosed,
-               "closed queue accepted event") &&
+         Check(queue.Push(7) == EventQueuePushResult::kClosed, "closed queue accepted event") &&
          Check(!queue.WaitPop().has_value(), "closed empty queue returned event");
 }
 
@@ -95,15 +91,12 @@ bool TestReset() {
   return Check(!queue.closed(), "reset queue is still closed") &&
          Check(queue.DropCount() == 0, "reset did not clear drops") &&
          Check(queue.Size() == 0, "reset did not clear queue") &&
-         Check(queue.Push(3) == EventQueuePushResult::kAccepted,
-               "reset queue rejected event");
+         Check(queue.Push(3) == EventQueuePushResult::kAccepted, "reset queue rejected event");
 }
 
 }  // namespace
 
 int main() {
-  return TestOrderAndOverflow() && TestMoveOnlyEvent() && TestWaitPopAndClose() &&
-                 TestReset()
-             ? 0
-             : 1;
+  return TestOrderAndOverflow() && TestMoveOnlyEvent() && TestWaitPopAndClose() && TestReset() ? 0
+                                                                                               : 1;
 }

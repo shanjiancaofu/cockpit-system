@@ -1,13 +1,13 @@
 #include "topic_grpc_discovery.h"
 
-#include "gateway.grpc.pb.h"
-
 #include <grpcpp/grpcpp.h>
 
 #include <chrono>
 #include <iostream>
 #include <memory>
 #include <utility>
+
+#include "gateway.grpc.pb.h"
 
 namespace cockpit {
 namespace topic {
@@ -16,19 +16,17 @@ namespace {
 std::shared_ptr<grpc::Channel> CreateChannel(const std::string& address) {
   grpc::ChannelArguments arguments;
   arguments.SetInt(GRPC_ARG_ENABLE_HTTP_PROXY, 0);
-  return grpc::CreateCustomChannel(
-      address, grpc::InsecureChannelCredentials(), arguments);
+  return grpc::CreateCustomChannel(address, grpc::InsecureChannelCredentials(), arguments);
 }
 
 void ConfigureContext(grpc::ClientContext* context, int timeout_ms) {
   context->set_wait_for_ready(true);
-  context->set_deadline(
-      std::chrono::system_clock::now() + std::chrono::milliseconds(timeout_ms));
+  context->set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(timeout_ms));
 }
 
 TopicMetadata FromProto(const proto::gateway::TopicMetadata& metadata) {
-  return {metadata.name(), metadata.message_type(), metadata.source(),
-          metadata.subscribable(), metadata.publishable()};
+  return {metadata.name(), metadata.message_type(), metadata.source(), metadata.subscribable(),
+          metadata.publishable()};
 }
 
 int ReportError(const std::string& operation, const grpc::Status& status) {
@@ -40,7 +38,8 @@ int ReportError(const std::string& operation, const grpc::Status& status) {
 }  // namespace
 
 TopicGrpcDiscovery::TopicGrpcDiscovery(std::string address, int timeout_ms)
-    : address_(std::move(address)), timeout_ms_(timeout_ms) {}
+    : address_(std::move(address)), timeout_ms_(timeout_ms) {
+}
 
 int TopicGrpcDiscovery::List(std::vector<TopicMetadata>* topics) const {
   auto stub = proto::gateway::CockpitGateway::NewStub(CreateChannel(address_));

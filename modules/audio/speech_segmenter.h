@@ -1,12 +1,12 @@
 #pragma once
 
-#include "modules/audio/audio_frame.h"
-#include "modules/audio/speech_segment.h"
-#include "modules/audio/voice_activity_detector.h"
-
 #include <cstddef>
 #include <deque>
 #include <optional>
+
+#include "modules/audio/audio_frame.h"
+#include "modules/audio/speech_segment.h"
+#include "modules/audio/voice_activity_detector.h"
 
 namespace cockpit {
 namespace audio {
@@ -29,8 +29,7 @@ class SpeechSegmenter {
   void PushPreRoll(const AudioFrame& frame);
   void StartSegment(const AudioFrame& frame);
   void AppendFrame(const AudioFrame& frame);
-  std::optional<SpeechSegment> FinishSegment(bool truncated,
-                                             bool discontinuous);
+  std::optional<SpeechSegment> FinishSegment(bool truncated, bool discontinuous);
 
   const SpeechSegmenterConfig config_;
   std::deque<AudioFrame> pre_roll_;

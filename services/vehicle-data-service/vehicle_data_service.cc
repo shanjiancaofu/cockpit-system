@@ -1,25 +1,25 @@
 #include "vehicle_data_service.h"
 
-#include "core/logging/Logger.h"
-#include "drivers/socketcan/socket_can.h"
-#include "modules/vehicle/vehicle_can_codec.h"
-
 #include <chrono>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <utility>
 
+#include "core/logging/Logger.h"
+#include "drivers/socketcan/socket_can.h"
+#include "modules/vehicle/vehicle_can_codec.h"
+
 namespace cockpit {
 namespace vehicle {
 
 VehicleDataService::VehicleDataService(runtime::ServiceRuntime& runtime, StateSink state_sink)
-    : runtime_(runtime), state_sink_(std::move(state_sink)) {}
+    : runtime_(runtime), state_sink_(std::move(state_sink)) {
+}
 
 int VehicleDataService::Run() {
   const auto& vehicle_config = runtime_.config().services().vehicle_data;
-  const std::string source = runtime_.args().GetString(
-      "source", vehicle_config.source);
+  const std::string source = runtime_.args().GetString("source", vehicle_config.source);
   if (source == "mock") {
     return RunMock();
   }

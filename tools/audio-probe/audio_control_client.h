@@ -1,32 +1,29 @@
 #pragma once
 
-#include "audio.grpc.pb.h"
-
 #include <grpcpp/grpcpp.h>
 
-#include <functional>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
+
+#include "audio.grpc.pb.h"
 
 namespace cockpit {
 namespace audio {
 
 class AudioControlClient {
  public:
-  using TranscriptHandler =
-      std::function<void(const proto::audio::TranscriptEvent&)>;
+  using TranscriptHandler = std::function<void(const proto::audio::TranscriptEvent&)>;
 
   explicit AudioControlClient(const std::string& address);
 
-  bool StartCapture(const std::string& input_device,
-                    proto::audio::AudioStatus* status,
+  bool StartCapture(const std::string& input_device, proto::audio::AudioStatus* status,
                     std::string* error);
   bool StopCapture(proto::audio::AudioStatus* status, std::string* error);
   bool GetStatus(proto::audio::AudioStatus* status, std::string* error);
   bool Speak(const std::string& text, std::string* error);
-  bool SubscribeTranscripts(std::uint32_t count, int timeout_ms,
-                            const TranscriptHandler& handler,
+  bool SubscribeTranscripts(std::uint32_t count, int timeout_ms, const TranscriptHandler& handler,
                             std::string* error);
 
  private:

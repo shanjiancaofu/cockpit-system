@@ -6,17 +6,14 @@
 
 int main() {
   const auto config = cockpit::config::SystemConfig::LoadFromFile(VALID_CONFIG_PATH);
-  if (config.system().name != "cockpit-system" ||
-      config.system().vehicle_id != "car_001" ||
+  if (config.system().name != "cockpit-system" || config.system().vehicle_id != "car_001" ||
       config.services().vehicle_data.grpc.listen_address != "127.0.0.1:50050" ||
       config.services().gateway.stream_timeout_ms != 10000 ||
       config.services().audio.grpc.listen_address != "127.0.0.1:50052" ||
       config.services().audio.vad.speech_start_frames != 3 ||
       config.services().audio.speech_segment.max_segment_ms != 15000 ||
-      config.services().voice_interaction.grpc.listen_address !=
-          "127.0.0.1:50053" ||
-      config.services().voice_interaction.gateway_address !=
-          "127.0.0.1:50051" ||
+      config.services().voice_interaction.grpc.listen_address != "127.0.0.1:50053" ||
+      config.services().voice_interaction.gateway_address != "127.0.0.1:50051" ||
       config.hardware().can.interface != "vcan0" || config.tools().topic.backend != "file") {
     std::cerr << "typed config fields do not match config.yaml" << std::endl;
     return 1;
@@ -53,10 +50,8 @@ int main() {
     return 1;
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
-    if (message.find("services.audio.vad.speech_threshold_dbfs") ==
-        std::string::npos) {
-      std::cerr << "invalid VAD error did not identify YAML path: " << message
-                << std::endl;
+    if (message.find("services.audio.vad.speech_threshold_dbfs") == std::string::npos) {
+      std::cerr << "invalid VAD error did not identify YAML path: " << message << std::endl;
       return 1;
     }
   }
@@ -68,8 +63,7 @@ int main() {
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
     if (message.find("features.voice.asr_provider") == std::string::npos) {
-      std::cerr << "invalid voice error did not identify config path: " << message
-                << std::endl;
+      std::cerr << "invalid voice error did not identify config path: " << message << std::endl;
       return 1;
     }
   }

@@ -5,9 +5,7 @@
 namespace cockpit {
 namespace voice {
 
-bool LocalHmiCommandProvider::SendCommand(HmiCommand command,
-                                          std::string* response,
-                                          std::string*) {
+bool LocalHmiCommandProvider::SendCommand(HmiCommand command, std::string* response, std::string*) {
   const std::string command_name = ToString(command);
   LOG_INFO("local HMI bridge recorded command=" + command_name);
   if (response != nullptr) {

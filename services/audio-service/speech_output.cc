@@ -1,20 +1,18 @@
 #include "speech_output.h"
 
-#include "core/logging/Logger.h"
-
 #include <exception>
 #include <utility>
+
+#include "core/logging/Logger.h"
 
 namespace cockpit {
 namespace audio {
 
-SpeechOutput::SpeechOutput(
-    std::string device,
-    std::unique_ptr<voice::SpeechSynthesizer> synthesizer,
-    std::unique_ptr<AudioPlayer> player)
-    : device_(std::move(device)),
-      synthesizer_(std::move(synthesizer)),
-      player_(std::move(player)) {}
+SpeechOutput::SpeechOutput(std::string device,
+                           std::unique_ptr<voice::SpeechSynthesizer> synthesizer,
+                           std::unique_ptr<AudioPlayer> player)
+    : device_(std::move(device)), synthesizer_(std::move(synthesizer)), player_(std::move(player)) {
+}
 
 SpeechOutput::~SpeechOutput() {
   Stop();
@@ -64,8 +62,7 @@ void SpeechOutput::Stop() {
 
 bool SpeechOutput::Submit(std::string text) {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (!running_ || stop_requested_ || text.empty() ||
-      queue_.size() >= kQueueCapacity) {
+  if (!running_ || stop_requested_ || text.empty() || queue_.size() >= kQueueCapacity) {
     dropped_.fetch_add(1U);
     return false;
   }
@@ -89,8 +86,9 @@ void SpeechOutput::Run() {
     std::string text;
     {
       std::unique_lock<std::mutex> lock(mutex_);
-      changed_.wait(lock,
-                    [this] { return stop_requested_ || !queue_.empty(); });
+      changed_.wait(lock, [this] {
+        return stop_requested_ || !queue_.empty();
+      });
       if (queue_.empty() && stop_requested_) {
         break;
       }
@@ -98,14 +96,11 @@ void SpeechOutput::Run() {
       queue_.pop_front();
     }
     try {
-      const voice::SpeechSynthesisResult synthesis =
-          synthesizer_->Synthesize(text);
+      const voice::SpeechSynthesisResult synthesis = synthesizer_->Synthesize(text);
       std::string error;
-      if (!synthesis.success ||
-          !player_->Play(device_, synthesis.audio, &error)) {
+      if (!synthesis.success || !player_->Play(device_, synthesis.audio, &error)) {
         failed_.fetch_add(1U);
-        LOG_WARN("speech output failed error=" +
-                 (synthesis.success ? error : synthesis.error));
+        LOG_WARN("speech output failed error=" + (synthesis.success ? error : synthesis.error));
         continue;
       }
       played_.fetch_add(1U);

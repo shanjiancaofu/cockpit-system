@@ -1,12 +1,13 @@
 #include "topic_info.h"
 
-#include "core/config/system_config.h"
-#include "topic_grpc_discovery.h"
-#include "topic_store.h"
-
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
+
+#include "topic_grpc_discovery.h"
+#include "topic_store.h"
+
+#include "core/config/system_config.h"
 
 namespace cockpit {
 namespace topic {
@@ -21,8 +22,7 @@ int RunInfoCommand(const cockpit::config::SystemConfig& config, const CommandLin
   const std::string backend = Option(line, "backend", config.tools().topic.backend);
   if (backend == "grpc") {
     const auto& gateway = config.services().gateway;
-    const int timeout_ms = std::max(
-        1, OptionInt(line, "timeout-ms", gateway.stream_timeout_ms));
+    const int timeout_ms = std::max(1, OptionInt(line, "timeout-ms", gateway.stream_timeout_ms));
     const TopicGrpcDiscovery discovery(gateway.grpc.listen_address, timeout_ms);
     TopicMetadata metadata;
     const int result = discovery.Get(topic, &metadata);
@@ -46,8 +46,7 @@ int RunInfoCommand(const cockpit::config::SystemConfig& config, const CommandLin
   const auto path = store.TopicFile(topic);
   std::cout << "topic: " << topic << '\n';
   std::cout << "file: " << path.string() << '\n';
-  std::cout << "messages: " << (std::filesystem::exists(path) ? store.CountLines(path) : 0)
-            << '\n';
+  std::cout << "messages: " << (std::filesystem::exists(path) ? store.CountLines(path) : 0) << '\n';
   if (std::filesystem::exists(path)) {
     std::cout << "bytes: " << std::filesystem::file_size(path) << '\n';
   } else {

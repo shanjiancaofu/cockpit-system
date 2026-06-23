@@ -1,9 +1,9 @@
 #include "gateway_grpc_service.h"
 
-#include "core/logging/Logger.h"
-
 #include <algorithm>
 #include <chrono>
+
+#include "core/logging/Logger.h"
 
 namespace cockpit {
 namespace gateway {
@@ -64,37 +64,33 @@ void GatewayGrpcService::Shutdown() {
   }
 }
 
-grpc::Status GatewayGrpcService::GetLatestVehicleState(
-    grpc::ServerContext*, const proto::common::Empty*,
-    proto::vehicle::VehicleState* response) {
+grpc::Status GatewayGrpcService::GetLatestVehicleState(grpc::ServerContext*,
+                                                       const proto::common::Empty*,
+                                                       proto::vehicle::VehicleState* response) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!latest_event_.has_vehicle_state()) {
-    return grpc::Status(grpc::StatusCode::UNAVAILABLE,
-                        "vehicle state is not available yet");
+    return grpc::Status(grpc::StatusCode::UNAVAILABLE, "vehicle state is not available yet");
   }
-  if (std::chrono::steady_clock::now() - latest_vehicle_update_ >
-      std::chrono::seconds(2)) {
-    return grpc::Status(grpc::StatusCode::UNAVAILABLE,
-                        "vehicle state is stale");
+  if (std::chrono::steady_clock::now() - latest_vehicle_update_ > std::chrono::seconds(2)) {
+    return grpc::Status(grpc::StatusCode::UNAVAILABLE, "vehicle state is stale");
   }
   *response = latest_event_.vehicle_state();
   return grpc::Status::OK;
 }
 
-grpc::Status GatewayGrpcService::ListTopics(
-    grpc::ServerContext*, const proto::gateway::ListTopicsRequest* request,
-    proto::gateway::ListTopicsResponse* response) {
+grpc::Status GatewayGrpcService::ListTopics(grpc::ServerContext*,
+                                            const proto::gateway::ListTopicsRequest* request,
+                                            proto::gateway::ListTopicsResponse* response) {
   *response->add_topics() = VehicleStateMetadata();
   LOG_DEBUG("topic list requested client_id=" + request->client_id());
   return grpc::Status::OK;
 }
 
-grpc::Status GatewayGrpcService::GetTopicInfo(
-    grpc::ServerContext*, const proto::gateway::GetTopicInfoRequest* request,
-    proto::gateway::TopicMetadata* response) {
+grpc::Status GatewayGrpcService::GetTopicInfo(grpc::ServerContext*,
+                                              const proto::gateway::GetTopicInfoRequest* request,
+                                              proto::gateway::TopicMetadata* response) {
   if (request->topic() != "/vehicle/state") {
-    return grpc::Status(grpc::StatusCode::NOT_FOUND,
-                        "topic is not exposed by cockpit gateway");
+    return grpc::Status(grpc::StatusCode::NOT_FOUND, "topic is not exposed by cockpit gateway");
   }
   *response = VehicleStateMetadata();
   LOG_DEBUG("topic info requested client_id=" + request->client_id() +
@@ -103,8 +99,7 @@ grpc::Status GatewayGrpcService::GetTopicInfo(
 }
 
 grpc::Status GatewayGrpcService::SubscribeCockpitEvents(
-    grpc::ServerContext* context,
-    const proto::gateway::SubscribeCockpitEventsRequest* request,
+    grpc::ServerContext* context, const proto::gateway::SubscribeCockpitEventsRequest* request,
     grpc::ServerWriter<proto::gateway::CockpitEvent>* writer) {
   const int requested_hz = request->max_hz() <= 0 ? 10 : request->max_hz();
   const int max_hz = std::clamp(requested_hz, 1, 100);
@@ -127,7 +122,9 @@ grpc::Status GatewayGrpcService::SubscribeCockpitEvents(
         continue;
       }
       if (std::chrono::steady_clock::now() < next_write) {
-        event_changed_.wait_until(lock, next_write, [this] { return stopping_; });
+        event_changed_.wait_until(lock, next_write, [this] {
+          return stopping_;
+        });
         if (stopping_) {
           break;
         }

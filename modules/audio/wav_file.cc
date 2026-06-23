@@ -20,8 +20,8 @@ bool Fail(const std::string& message, std::string* error) {
 }
 
 void WriteU16(std::ostream* output, std::uint16_t value) {
-  const std::array<char, 2> bytes{
-      static_cast<char>(value & 0xffU), static_cast<char>((value >> 8U) & 0xffU)};
+  const std::array<char, 2> bytes{static_cast<char>(value & 0xffU),
+                                  static_cast<char>((value >> 8U) & 0xffU)};
   output->write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
 }
 
@@ -42,8 +42,7 @@ bool ReadU16(std::istream* input, std::uint16_t* value) {
   if (!ReadExact(input, reinterpret_cast<char*>(bytes.data()), bytes.size())) {
     return false;
   }
-  *value = static_cast<std::uint16_t>(bytes[0]) |
-           (static_cast<std::uint16_t>(bytes[1]) << 8U);
+  *value = static_cast<std::uint16_t>(bytes[0]) | (static_cast<std::uint16_t>(bytes[1]) << 8U);
   return true;
 }
 
@@ -52,8 +51,7 @@ bool ReadU32(std::istream* input, std::uint32_t* value) {
   if (!ReadExact(input, reinterpret_cast<char*>(bytes.data()), bytes.size())) {
     return false;
   }
-  *value = static_cast<std::uint32_t>(bytes[0]) |
-           (static_cast<std::uint32_t>(bytes[1]) << 8U) |
+  *value = static_cast<std::uint32_t>(bytes[0]) | (static_cast<std::uint32_t>(bytes[1]) << 8U) |
            (static_cast<std::uint32_t>(bytes[2]) << 16U) |
            (static_cast<std::uint32_t>(bytes[3]) << 24U);
   return true;
@@ -150,10 +148,9 @@ bool ReadPcm16Wav(const std::string& path, PcmBuffer* buffer, std::string* error
     if (IsTag(tag, "fmt ")) {
       std::uint32_t byte_rate = 0;
       std::uint16_t block_align = 0;
-      if (chunk_size < 16 || !ReadU16(&input, &audio_format) ||
-          !ReadU16(&input, &channels) || !ReadU32(&input, &sample_rate) ||
-          !ReadU32(&input, &byte_rate) || !ReadU16(&input, &block_align) ||
-          !ReadU16(&input, &bits_per_sample)) {
+      if (chunk_size < 16 || !ReadU16(&input, &audio_format) || !ReadU16(&input, &channels) ||
+          !ReadU32(&input, &sample_rate) || !ReadU32(&input, &byte_rate) ||
+          !ReadU16(&input, &block_align) || !ReadU16(&input, &bits_per_sample)) {
         return Fail("invalid WAV format chunk", error);
       }
       (void)byte_rate;

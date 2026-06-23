@@ -19,7 +19,8 @@ std::int64_t NowNs() {
 }  // namespace
 
 AudioCaptureStream::AudioCaptureStream(std::unique_ptr<AudioCaptureSource> source)
-    : source_(std::move(source)) {}
+    : source_(std::move(source)) {
+}
 
 AudioCaptureStream::~AudioCaptureStream() {
   Stop();
@@ -28,8 +29,7 @@ AudioCaptureStream::~AudioCaptureStream() {
 bool AudioCaptureStream::Start(std::string* error) {
   if (worker_.joinable()) {
     const AudioCaptureState current = state_.load();
-    if (current != AudioCaptureState::kFaulted &&
-        current != AudioCaptureState::kStopped) {
+    if (current != AudioCaptureState::kFaulted && current != AudioCaptureState::kStopped) {
       if (error != nullptr) {
         *error = "audio capture stream worker is still active";
       }
@@ -115,9 +115,9 @@ void AudioCaptureStream::Run() {
   std::uint64_t sequence = 0;
   AudioFrameFlag pending_flags = AudioFrameFlag::kNone;
   while (!stop_requested_.load()) {
-    CaptureResult result = source_->Read(
-        samples.data() + sample_count, samples.size() - sample_count,
-        kReadTimeoutMs, stop_requested_);
+    CaptureResult result =
+        source_->Read(samples.data() + sample_count, samples.size() - sample_count, kReadTimeoutMs,
+                      stop_requested_);
     switch (result.status) {
       case CaptureStatus::kOk:
         if (result.frames_read == 0 || result.frames_read > samples.size() - sample_count) {
@@ -135,8 +135,7 @@ void AudioCaptureStream::Run() {
             audio_frames_published_.fetch_add(1U);
             pending_flags = AudioFrameFlag::kNone;
           } else {
-            pending_flags = AudioFrameFlag::kDiscontinuity |
-                            AudioFrameFlag::kDroppedBefore;
+            pending_flags = AudioFrameFlag::kDiscontinuity | AudioFrameFlag::kDroppedBefore;
           }
           ++sequence;
           sample_count = 0;
@@ -148,8 +147,8 @@ void AudioCaptureStream::Run() {
       case CaptureStatus::kXrunRecovered:
         xruns_.fetch_add(1U);
         sample_count = 0;
-        pending_flags = pending_flags | AudioFrameFlag::kDiscontinuity |
-                        AudioFrameFlag::kRecoveredFromXrun;
+        pending_flags =
+            pending_flags | AudioFrameFlag::kDiscontinuity | AudioFrameFlag::kRecoveredFromXrun;
         state_.store(AudioCaptureState::kRecovering);
         state_.store(AudioCaptureState::kRunning);
         break;
@@ -158,7 +157,8 @@ void AudioCaptureStream::Run() {
         break;
       case CaptureStatus::kDeviceError:
         device_errors_.fetch_add(1U);
-        SetError(result.message.empty() ? "audio capture device failed" : std::move(result.message));
+        SetError(result.message.empty() ? "audio capture device failed"
+                                        : std::move(result.message));
         state_.store(AudioCaptureState::kFaulted);
         stop_requested_.store(true);
         break;

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "modules/audio/voice_activity_detector.h"
-
 #include <cstdint>
+
+#include "modules/audio/voice_activity_detector.h"
 
 namespace cockpit {
 namespace audio {

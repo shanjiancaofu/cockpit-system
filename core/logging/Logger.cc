@@ -38,9 +38,8 @@ std::string LevelName(Level level) {
 std::string NowString() {
   const auto now = std::chrono::system_clock::now();
   const auto now_time = std::chrono::system_clock::to_time_t(now);
-  const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
-                          now.time_since_epoch()) %
-                      1000;
+  const auto millis =
+      std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
   std::tm local_time{};
 #if defined(_WIN32)
   localtime_s(&local_time, &now_time);
@@ -48,8 +47,8 @@ std::string NowString() {
   localtime_r(&now_time, &local_time);
 #endif
   std::ostringstream out;
-  out << std::put_time(&local_time, "%Y-%m-%d %H:%M:%S") << '.'
-      << std::setw(3) << std::setfill('0') << millis.count();
+  out << std::put_time(&local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(3) << std::setfill('0')
+      << millis.count();
   return out.str();
 }
 
@@ -68,11 +67,8 @@ void RotateIfNeeded(const std::string& path, long long max_bytes) {
 
 }  // namespace
 
-void InitLogger(const std::string& service_name,
-                const std::string& log_dir,
-                Level min_level,
-                long long max_bytes,
-                bool mirror_stderr) {
+void InitLogger(const std::string& service_name, const std::string& log_dir, Level min_level,
+                long long max_bytes, bool mirror_stderr) {
   std::lock_guard<std::mutex> lock(g_mutex);
   namespace fs = std::filesystem;
   fs::create_directories(log_dir);
@@ -96,8 +92,8 @@ void Log(Level level, const char* file, int line, const std::string& message) {
   }
   std::lock_guard<std::mutex> lock(g_mutex);
   std::ostringstream out;
-  out << NowString() << " [" << LevelName(level) << "] " << message << " (" << file << ':'
-      << line << ')';
+  out << NowString() << " [" << LevelName(level) << "] " << message << " (" << file << ':' << line
+      << ')';
   const std::string line_text = out.str();
   if (g_output.is_open()) {
     g_output << line_text << '\n';

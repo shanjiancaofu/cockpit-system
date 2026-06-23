@@ -6,14 +6,12 @@
 
 namespace {
 
-cockpit::audio::AudioFrame MakeFrame(std::uint64_t sequence,
-                                     std::int16_t amplitude,
-                                     cockpit::audio::AudioFrameFlag flags =
-                                         cockpit::audio::AudioFrameFlag::kNone) {
+cockpit::audio::AudioFrame MakeFrame(
+    std::uint64_t sequence, std::int16_t amplitude,
+    cockpit::audio::AudioFrameFlag flags = cockpit::audio::AudioFrameFlag::kNone) {
   cockpit::audio::AudioFrame::Samples samples{};
   samples.fill(amplitude);
-  return cockpit::audio::AudioFrame(sequence, static_cast<std::int64_t>(sequence),
-                                    flags, samples);
+  return cockpit::audio::AudioFrame(sequence, static_cast<std::int64_t>(sequence), flags, samples);
 }
 
 }  // namespace
@@ -26,21 +24,20 @@ int main() {
   cockpit::audio::EnergyVad vad(config);
 
   auto result = vad.Analyze(MakeFrame(0, 0));
-  if (result.state != cockpit::audio::VoiceActivityState::kSilence ||
-      result.level_dbfs != -120.0 || result.state_changed) {
+  if (result.state != cockpit::audio::VoiceActivityState::kSilence || result.level_dbfs != -120.0 ||
+      result.state_changed) {
     std::cerr << "silence frame was classified incorrectly\n";
     return 1;
   }
 
   result = vad.Analyze(MakeFrame(1, 10000));
-  if (result.state != cockpit::audio::VoiceActivityState::kSilence ||
-      result.state_changed || std::abs(result.level_dbfs + 10.31) > 0.1) {
+  if (result.state != cockpit::audio::VoiceActivityState::kSilence || result.state_changed ||
+      std::abs(result.level_dbfs + 10.31) > 0.1) {
     std::cerr << "speech start debounce was not applied\n";
     return 1;
   }
   result = vad.Analyze(MakeFrame(2, 10000));
-  if (result.state != cockpit::audio::VoiceActivityState::kSpeech ||
-      !result.state_changed) {
+  if (result.state != cockpit::audio::VoiceActivityState::kSpeech || !result.state_changed) {
     std::cerr << "speech transition was not detected\n";
     return 1;
   }
@@ -52,16 +49,13 @@ int main() {
     return 1;
   }
   result = vad.Analyze(MakeFrame(5, 0));
-  if (result.state != cockpit::audio::VoiceActivityState::kSilence ||
-      !result.state_changed) {
+  if (result.state != cockpit::audio::VoiceActivityState::kSilence || !result.state_changed) {
     std::cerr << "silence transition was not detected\n";
     return 1;
   }
 
-  result = vad.Analyze(MakeFrame(
-      6, 10000, cockpit::audio::AudioFrameFlag::kDiscontinuity));
-  if (result.state != cockpit::audio::VoiceActivityState::kSilence ||
-      result.state_changed) {
+  result = vad.Analyze(MakeFrame(6, 10000, cockpit::audio::AudioFrameFlag::kDiscontinuity));
+  if (result.state != cockpit::audio::VoiceActivityState::kSilence || result.state_changed) {
     std::cerr << "discontinuity did not reset VAD debounce state\n";
     return 1;
   }

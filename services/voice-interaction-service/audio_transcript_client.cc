@@ -1,7 +1,5 @@
 #include "audio_transcript_client.h"
 
-#include "audio.grpc.pb.h"
-
 #include <grpcpp/grpcpp.h>
 
 #include <atomic>
@@ -9,25 +7,25 @@
 #include <thread>
 #include <utility>
 
+#include "audio.grpc.pb.h"
+
 namespace cockpit {
 namespace voice {
 
-AudioTranscriptClient::AudioTranscriptClient(std::string address,
-                                             int stream_timeout_ms,
+AudioTranscriptClient::AudioTranscriptClient(std::string address, int stream_timeout_ms,
                                              int retry_delay_ms)
     : address_(std::move(address)),
       stream_timeout_ms_(stream_timeout_ms),
-      retry_delay_ms_(retry_delay_ms) {}
+      retry_delay_ms_(retry_delay_ms) {
+}
 
-int AudioTranscriptClient::Stream(
-    const TranscriptHandler& transcript_handler,
-    const ContinueHandler& should_continue,
-    const ReconnectHandler& reconnect_handler,
-    const ErrorHandler& error_handler) {
+int AudioTranscriptClient::Stream(const TranscriptHandler& transcript_handler,
+                                  const ContinueHandler& should_continue,
+                                  const ReconnectHandler& reconnect_handler,
+                                  const ErrorHandler& error_handler) {
   grpc::ChannelArguments arguments;
   arguments.SetInt(GRPC_ARG_ENABLE_HTTP_PROXY, 0);
-  auto channel = grpc::CreateCustomChannel(
-      address_, grpc::InsecureChannelCredentials(), arguments);
+  auto channel = grpc::CreateCustomChannel(address_, grpc::InsecureChannelCredentials(), arguments);
   auto stub = proto::audio::AudioControl::NewStub(channel);
   std::uint64_t observed_id = 0;
 

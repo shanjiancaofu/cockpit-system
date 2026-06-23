@@ -1,10 +1,5 @@
 #include "topic_hz.h"
 
-#include "core/config/system_config.h"
-#include "topic_grpc_subscriber.h"
-#include "topic_message.h"
-#include "topic_store.h"
-
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -14,6 +9,12 @@
 #include <limits>
 #include <thread>
 #include <vector>
+
+#include "topic_grpc_subscriber.h"
+#include "topic_message.h"
+#include "topic_store.h"
+
+#include "core/config/system_config.h"
 
 namespace cockpit {
 namespace topic {
@@ -86,17 +87,15 @@ int RunHzCommand(const cockpit::config::SystemConfig& config, const CommandLine&
     const auto& gateway = config.services().gateway;
     const int timeout_ms = std::max(
         1, OptionInt(line, "timeout-ms", std::max(gateway.stream_timeout_ms, count * 1000)));
-    const TopicGrpcSubscriber subscriber(
-        gateway.grpc.listen_address, timeout_ms);
-    const int result = subscriber.Stream(
-        topic, count, max_hz, [&](const TopicSample& sample) {
-          PushTimestamp(&timestamps, sample.timestamp_ms, window);
-          const auto now = std::chrono::steady_clock::now();
-          if (HasFlag(line, "follow") && now - last_report >= std::chrono::seconds(1)) {
-            PrintHzStats(timestamps);
-            last_report = now;
-          }
-        });
+    const TopicGrpcSubscriber subscriber(gateway.grpc.listen_address, timeout_ms);
+    const int result = subscriber.Stream(topic, count, max_hz, [&](const TopicSample& sample) {
+      PushTimestamp(&timestamps, sample.timestamp_ms, window);
+      const auto now = std::chrono::steady_clock::now();
+      if (HasFlag(line, "follow") && now - last_report >= std::chrono::seconds(1)) {
+        PrintHzStats(timestamps);
+        last_report = now;
+      }
+    });
     if (!HasFlag(line, "follow")) {
       PrintHzStats(timestamps);
     }

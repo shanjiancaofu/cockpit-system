@@ -1,9 +1,9 @@
+#include <array>
+#include <iostream>
+
 #include "modules/can/can_frame.h"
 #include "modules/vehicle/VehicleState.h"
 #include "modules/vehicle/vehicle_can_codec.h"
-
-#include <array>
-#include <iostream>
 
 int main() {
   const auto state = cockpit::vehicle::MakeMockVehicleState(0);
@@ -38,8 +38,7 @@ int main() {
     return 1;
   }
 
-  const cockpit::can::CanFrame truncated(
-      cockpit::vehicle::VehicleCanCodec::kStateFrameId, data, 4);
+  const cockpit::can::CanFrame truncated(cockpit::vehicle::VehicleCanCodec::kStateFrameId, data, 4);
   if (cockpit::vehicle::VehicleCanCodec::Decode(truncated, &decoded) !=
       cockpit::vehicle::VehicleCanDecodeStatus::kInvalid) {
     std::cerr << "truncated vehicle CAN frame was accepted" << std::endl;

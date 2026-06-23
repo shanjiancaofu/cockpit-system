@@ -29,8 +29,7 @@ class AudioCaptureSource {
 
   virtual bool Open(std::string* error) = 0;
   // frame_capacity counts interleaved PCM frames, not individual samples.
-  virtual CaptureResult Read(std::int16_t* samples, std::size_t frame_capacity,
-                             int timeout_ms,
+  virtual CaptureResult Read(std::int16_t* samples, std::size_t frame_capacity, int timeout_ms,
                              const std::atomic_bool& stop_requested) = 0;
   virtual void Close() = 0;
 };

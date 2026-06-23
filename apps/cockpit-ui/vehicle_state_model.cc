@@ -3,11 +3,12 @@
 namespace cockpit {
 namespace ui {
 
-VehicleStateModel::VehicleStateModel(QObject* parent, int stale_timeout_ms)
-    : QObject(parent) {
+VehicleStateModel::VehicleStateModel(QObject* parent, int stale_timeout_ms) : QObject(parent) {
   stale_timer_.setSingleShot(true);
   stale_timer_.setInterval(stale_timeout_ms);
-  connect(&stale_timer_, &QTimer::timeout, this, [this] { SetFresh(false); });
+  connect(&stale_timer_, &QTimer::timeout, this, [this] {
+    SetFresh(false);
+  });
 }
 
 void VehicleStateModel::SetConnected(bool connected) {
@@ -22,9 +23,8 @@ void VehicleStateModel::SetConnected(bool connected) {
   emit connectedChanged();
 }
 
-void VehicleStateModel::Update(qint64 timestamp_ms, double speed_kph, int gear,
-                               int soc_percent, bool cloud_enabled,
-                               const QString& source) {
+void VehicleStateModel::Update(qint64 timestamp_ms, double speed_kph, int gear, int soc_percent,
+                               bool cloud_enabled, const QString& source) {
   timestamp_ms_ = timestamp_ms;
   speed_kph_ = speed_kph;
   gear_ = gear;

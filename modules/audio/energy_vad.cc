@@ -12,7 +12,8 @@ constexpr double kMinimumDbfs = -120.0;
 
 }  // namespace
 
-EnergyVad::EnergyVad(EnergyVadConfig config) : config_(config) {}
+EnergyVad::EnergyVad(EnergyVadConfig config) : config_(config) {
+}
 
 VoiceActivityResult EnergyVad::Analyze(const AudioFrame& frame) {
   if (frame.HasFlag(AudioFrameFlag::kDiscontinuity)) {

@@ -1,25 +1,24 @@
 #include "vehicle_state_client.h"
 
-#include "core/logging/Logger.h"
-
 #include <atomic>
 #include <chrono>
 #include <thread>
 
+#include "core/logging/Logger.h"
+
 namespace cockpit {
 namespace gateway {
-VehicleStateClient::VehicleStateClient(const std::string& address,
-                                       int stream_timeout_ms,
+VehicleStateClient::VehicleStateClient(const std::string& address, int stream_timeout_ms,
                                        int retry_delay_ms)
     : channel_([&address] {
         grpc::ChannelArguments arguments;
         arguments.SetInt(GRPC_ARG_ENABLE_HTTP_PROXY, 0);
-        return grpc::CreateCustomChannel(
-            address, grpc::InsecureChannelCredentials(), arguments);
+        return grpc::CreateCustomChannel(address, grpc::InsecureChannelCredentials(), arguments);
       }()),
       stub_(proto::vehicle::VehicleDataService::NewStub(channel_)),
       stream_timeout_ms_(stream_timeout_ms),
-      retry_delay_ms_(retry_delay_ms) {}
+      retry_delay_ms_(retry_delay_ms) {
+}
 
 int VehicleStateClient::Stream(int sample_count, int max_hz, const StateHandler& handler,
                                const ContinueHandler& should_continue) {
@@ -33,10 +32,9 @@ int VehicleStateClient::Stream(int sample_count, int max_hz, const StateHandler&
          (unlimited ||
           (received < sample_count && std::chrono::system_clock::now() < bounded_deadline))) {
     grpc::ClientContext context;
-    const auto stream_deadline = unlimited
-                                     ? std::chrono::system_clock::now() +
-                                           std::chrono::milliseconds(stream_timeout_ms_)
-                                     : bounded_deadline;
+    const auto stream_deadline =
+        unlimited ? std::chrono::system_clock::now() + std::chrono::milliseconds(stream_timeout_ms_)
+                  : bounded_deadline;
     context.set_deadline(stream_deadline);
     context.set_wait_for_ready(true);
 
@@ -75,9 +73,8 @@ int VehicleStateClient::Stream(int sample_count, int max_hz, const StateHandler&
     last_status = reader->Finish();
     stream_finished.store(true);
     stop_watcher.join();
-    if (should_continue() &&
-        (unlimited ||
-         (received < sample_count && std::chrono::system_clock::now() < bounded_deadline))) {
+    if (should_continue() && (unlimited || (received < sample_count &&
+                                            std::chrono::system_clock::now() < bounded_deadline))) {
       LOG_WARN("vehicle state stream interrupted; retrying grpc_code=" +
                std::to_string(last_status.error_code()));
       std::this_thread::sleep_for(std::chrono::milliseconds(retry_delay_ms_));
@@ -93,9 +90,8 @@ int VehicleStateClient::Stream(int sample_count, int max_hz, const StateHandler&
     return 0;
   }
 
-  LOG_ERROR("vehicle state stream ended received=" + std::to_string(received) +
-            " grpc_code=" + std::to_string(last_status.error_code()) +
-            " message=" + last_status.error_message());
+  LOG_ERROR("vehicle state stream ended received=" + std::to_string(received) + " grpc_code=" +
+            std::to_string(last_status.error_code()) + " message=" + last_status.error_message());
   return 1;
 }
 

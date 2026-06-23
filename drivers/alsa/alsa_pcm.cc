@@ -1,10 +1,11 @@
 #include "drivers/alsa/alsa_pcm.h"
 
+#include <poll.h>
+
 #include <algorithm>
 #include <cerrno>
-#include <cstring>
 #include <cstdlib>
-#include <poll.h>
+#include <cstring>
 #include <utility>
 
 namespace cockpit {
@@ -54,7 +55,8 @@ AlsaPcm::~AlsaPcm() {
 AlsaPcm::AlsaPcm(AlsaPcm&& other) noexcept
     : handle_(std::exchange(other.handle_, nullptr)),
       format_(other.format_),
-      direction_(other.direction_) {}
+      direction_(other.direction_) {
+}
 
 AlsaPcm& AlsaPcm::operator=(AlsaPcm&& other) noexcept {
   if (this != &other) {
@@ -94,17 +96,16 @@ std::vector<AlsaDeviceInfo> AlsaPcm::ListDevices(std::string* error) {
   return devices;
 }
 
-bool AlsaPcm::Open(const std::string& device, PcmDirection direction,
-                   const PcmFormat& format, std::string* error) {
+bool AlsaPcm::Open(const std::string& device, PcmDirection direction, const PcmFormat& format,
+                   std::string* error) {
   Close();
   std::string format_error;
   if (!format.IsValid(&format_error)) {
     return Fail("invalid ALSA PCM format: " + format_error, error);
   }
 
-  const snd_pcm_stream_t stream = direction == PcmDirection::kCapture
-                                      ? SND_PCM_STREAM_CAPTURE
-                                      : SND_PCM_STREAM_PLAYBACK;
+  const snd_pcm_stream_t stream =
+      direction == PcmDirection::kCapture ? SND_PCM_STREAM_CAPTURE : SND_PCM_STREAM_PLAYBACK;
   const int open_mode = direction == PcmDirection::kCapture ? SND_PCM_NONBLOCK : 0;
   int result = snd_pcm_open(&handle_, device.c_str(), stream, open_mode);
   if (result < 0) {
@@ -115,11 +116,10 @@ bool AlsaPcm::Open(const std::string& device, PcmDirection direction,
   snd_pcm_hw_params_t* params = nullptr;
   snd_pcm_hw_params_alloca(&params);
   if ((result = snd_pcm_hw_params_any(handle_, params)) < 0 ||
-      (result = snd_pcm_hw_params_set_access(
-           handle_, params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0 ||
+      (result = snd_pcm_hw_params_set_access(handle_, params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0 ||
       (result = snd_pcm_hw_params_set_format(handle_, params, SND_PCM_FORMAT_S16_LE)) < 0 ||
-      (result = snd_pcm_hw_params_set_channels(
-           handle_, params, static_cast<unsigned int>(format.channels))) < 0) {
+      (result = snd_pcm_hw_params_set_channels(handle_, params,
+                                               static_cast<unsigned int>(format.channels))) < 0) {
     const std::string message = AlsaError("failed to configure ALSA hardware parameters", result);
     Close();
     return Fail(message, error);
@@ -139,10 +139,9 @@ bool AlsaPcm::Open(const std::string& device, PcmDirection direction,
   snd_pcm_uframes_t period_size = static_cast<snd_pcm_uframes_t>(format.FramesPerPeriod());
   snd_pcm_uframes_t buffer_size = period_size * 4U;
   direction_hint = 0;
-  if ((result = snd_pcm_hw_params_set_period_size_near(
-           handle_, params, &period_size, &direction_hint)) < 0 ||
-      (result = snd_pcm_hw_params_set_buffer_size_near(
-           handle_, params, &buffer_size)) < 0 ||
+  if ((result = snd_pcm_hw_params_set_period_size_near(handle_, params, &period_size,
+                                                       &direction_hint)) < 0 ||
+      (result = snd_pcm_hw_params_set_buffer_size_near(handle_, params, &buffer_size)) < 0 ||
       (result = snd_pcm_hw_params(handle_, params)) < 0 ||
       (result = snd_pcm_prepare(handle_)) < 0) {
     const std::string message = AlsaError("failed to activate ALSA hardware parameters", result);
@@ -155,16 +154,13 @@ bool AlsaPcm::Open(const std::string& device, PcmDirection direction,
   return true;
 }
 
-CaptureResult AlsaPcm::PollReadFrames(
-    std::int16_t* samples, std::size_t frame_capacity, int timeout_ms,
-    const std::atomic_bool& stop_requested) {
+CaptureResult AlsaPcm::PollReadFrames(std::int16_t* samples, std::size_t frame_capacity,
+                                      int timeout_ms, const std::atomic_bool& stop_requested) {
   if (handle_ == nullptr || direction_ != PcmDirection::kCapture) {
-    return {CaptureStatus::kDeviceError, 0, EBADF,
-            "ALSA capture device is not open"};
+    return {CaptureStatus::kDeviceError, 0, EBADF, "ALSA capture device is not open"};
   }
   if (samples == nullptr || frame_capacity == 0) {
-    return {CaptureStatus::kDeviceError, 0, EINVAL,
-            "ALSA capture buffer is invalid"};
+    return {CaptureStatus::kDeviceError, 0, EINVAL, "ALSA capture buffer is invalid"};
   }
   if (stop_requested.load()) {
     return {CaptureStatus::kStopped, 0, 0, {}};
@@ -195,16 +191,14 @@ CaptureResult AlsaPcm::PollReadFrames(
   }
 
   unsigned short revents = 0;
-  result = snd_pcm_poll_descriptors_revents(
-      handle_, descriptors.data(), descriptor_count, &revents);
+  result =
+      snd_pcm_poll_descriptors_revents(handle_, descriptors.data(), descriptor_count, &revents);
   if (result < 0) {
     return {CaptureStatus::kDeviceError, 0, result,
             AlsaError("failed to read ALSA poll events", result)};
   }
   if ((revents & POLLERR) != 0U) {
-    const int state_error = snd_pcm_state(handle_) == SND_PCM_STATE_XRUN
-                                ? -EPIPE
-                                : -ESTRPIPE;
+    const int state_error = snd_pcm_state(handle_) == SND_PCM_STATE_XRUN ? -EPIPE : -ESTRPIPE;
     result = snd_pcm_recover(handle_, state_error, 1);
     if (result >= 0) {
       return {CaptureStatus::kXrunRecovered, 0, 0, {}};
@@ -216,8 +210,8 @@ CaptureResult AlsaPcm::PollReadFrames(
     return {CaptureStatus::kTimeout, 0, 0, {}};
   }
 
-  const snd_pcm_sframes_t frames = snd_pcm_readi(
-      handle_, samples, static_cast<snd_pcm_uframes_t>(frame_capacity));
+  const snd_pcm_sframes_t frames =
+      snd_pcm_readi(handle_, samples, static_cast<snd_pcm_uframes_t>(frame_capacity));
   if (frames > 0) {
     return {CaptureStatus::kOk, static_cast<std::size_t>(frames), 0, {}};
   }
@@ -247,9 +241,9 @@ bool AlsaPcm::WriteFrames(const std::int16_t* samples, std::size_t frame_count,
 
   std::size_t completed = 0;
   while (completed < frame_count) {
-    const snd_pcm_sframes_t result = snd_pcm_writei(
-        handle_, samples + completed * static_cast<std::size_t>(format_.channels),
-        static_cast<snd_pcm_uframes_t>(frame_count - completed));
+    const snd_pcm_sframes_t result =
+        snd_pcm_writei(handle_, samples + completed * static_cast<std::size_t>(format_.channels),
+                       static_cast<snd_pcm_uframes_t>(frame_count - completed));
     if (result < 0) {
       if (!Recover(static_cast<int>(result), "ALSA playback failed", error)) {
         return false;

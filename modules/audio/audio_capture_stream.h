@@ -1,9 +1,5 @@
 #pragma once
 
-#include "modules/audio/audio_capture_source.h"
-#include "modules/audio/audio_frame.h"
-#include "modules/audio/spsc_ring_buffer.h"
-
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -11,6 +7,10 @@
 #include <optional>
 #include <string>
 #include <thread>
+
+#include "modules/audio/audio_capture_source.h"
+#include "modules/audio/audio_frame.h"
+#include "modules/audio/spsc_ring_buffer.h"
 
 namespace cockpit {
 namespace audio {
@@ -46,7 +46,9 @@ class AudioCaptureStream {
   void Stop();
   std::optional<AudioFrame> TryPop();
 
-  AudioCaptureState state() const { return state_.load(); }
+  AudioCaptureState state() const {
+    return state_.load();
+  }
   AudioCaptureMetrics metrics() const;
   std::string last_error() const;
 

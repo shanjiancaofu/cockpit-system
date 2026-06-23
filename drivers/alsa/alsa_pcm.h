@@ -1,14 +1,14 @@
 #pragma once
 
-#include "modules/audio/audio_capture_source.h"
-#include "modules/audio/pcm_format.h"
-
 #include <alsa/asoundlib.h>
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
+
+#include "modules/audio/audio_capture_source.h"
+#include "modules/audio/pcm_format.h"
 
 namespace cockpit {
 namespace audio {
@@ -45,17 +45,22 @@ class AlsaPcm {
 
   bool Open(const std::string& device, PcmDirection direction, const PcmFormat& format,
             std::string* error = nullptr);
-  CaptureResult PollReadFrames(std::int16_t* samples, std::size_t frame_capacity,
-                               int timeout_ms,
+  CaptureResult PollReadFrames(std::int16_t* samples, std::size_t frame_capacity, int timeout_ms,
                                const std::atomic_bool& stop_requested);
   bool WriteFrames(const std::int16_t* samples, std::size_t frame_count,
                    std::string* error = nullptr);
   bool Drain(std::string* error = nullptr);
   void Close();
 
-  bool IsOpen() const { return handle_ != nullptr; }
-  const PcmFormat& format() const { return format_; }
-  PcmDirection direction() const { return direction_; }
+  bool IsOpen() const {
+    return handle_ != nullptr;
+  }
+  const PcmFormat& format() const {
+    return format_;
+  }
+  PcmDirection direction() const {
+    return direction_;
+  }
 
  private:
   bool Recover(int alsa_error, const std::string& operation, std::string* error);

@@ -1,11 +1,11 @@
-#include "modules/audio/pcm_format.h"
-#include "modules/audio/wav_file.h"
-
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include "modules/audio/pcm_format.h"
+#include "modules/audio/wav_file.h"
 
 namespace {
 
@@ -49,8 +49,7 @@ int main() {
 
   cockpit::audio::PcmBuffer decoded;
   if (!Check(cockpit::audio::ReadPcm16Wav(wav_path.string(), &decoded, &error), error) ||
-      !Check(decoded.format.sample_rate_hz == format.sample_rate_hz,
-             "WAV sample rate changed") ||
+      !Check(decoded.format.sample_rate_hz == format.sample_rate_hz, "WAV sample rate changed") ||
       !Check(decoded.format.channels == format.channels, "WAV channel count changed") ||
       !Check(decoded.samples == samples, "WAV samples changed") ||
       !Check(decoded.FrameCount() == 3, "unexpected WAV frame count")) {
@@ -59,8 +58,7 @@ int main() {
   }
 
   const std::vector<std::int16_t> incomplete_frame{1, 2, 3};
-  if (!Check(!cockpit::audio::WritePcm16Wav(
-                 wav_path.string(), format, incomplete_frame, &error),
+  if (!Check(!cockpit::audio::WritePcm16Wav(wav_path.string(), format, incomplete_frame, &error),
              "incomplete PCM frame was accepted")) {
     std::filesystem::remove(wav_path);
     return 1;

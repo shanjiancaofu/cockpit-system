@@ -1,9 +1,9 @@
 #include "vehicle_grpc_service.h"
 
-#include "core/logging/Logger.h"
-
 #include <algorithm>
 #include <chrono>
+
+#include "core/logging/Logger.h"
 
 namespace cockpit {
 namespace vehicle {
@@ -64,8 +64,7 @@ void VehicleGrpcService::Shutdown() {
 }
 
 grpc::Status VehicleGrpcService::SubscribeVehicleState(
-    grpc::ServerContext* context,
-    const proto::vehicle::SubscribeVehicleStateRequest* request,
+    grpc::ServerContext* context, const proto::vehicle::SubscribeVehicleStateRequest* request,
     grpc::ServerWriter<proto::vehicle::VehicleState>* writer) {
   const int requested_hz = request->max_hz() <= 0 ? 10 : request->max_hz();
   const int max_hz = std::clamp(requested_hz, 1, 100);
@@ -88,7 +87,9 @@ grpc::Status VehicleGrpcService::SubscribeVehicleState(
         continue;
       }
       if (std::chrono::steady_clock::now() < next_write) {
-        state_changed_.wait_until(lock, next_write, [this] { return stopping_; });
+        state_changed_.wait_until(lock, next_write, [this] {
+          return stopping_;
+        });
         if (stopping_) {
           break;
         }

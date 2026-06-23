@@ -1,9 +1,9 @@
 #pragma once
 
+#include <cstdint>
+
 #include "modules/can/can_frame.h"
 #include "modules/vehicle/VehicleState.h"
-
-#include <cstdint>
 
 namespace cockpit {
 namespace vehicle {

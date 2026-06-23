@@ -1,8 +1,9 @@
-#include "modules/voice/mock_action_dispatcher.h"
 #include "modules/voice/mock_voice_assistant.h"
 
 #include <iostream>
 #include <string>
+
+#include "modules/voice/mock_action_dispatcher.h"
 
 namespace {
 
@@ -12,8 +13,7 @@ bool Expect(const std::string& text, cockpit::voice::VoiceIntent intent,
   cockpit::voice::SpeechTranscript transcript;
   transcript.text = text;
   const auto result = assistant.HandleTranscript(transcript);
-  return result.intent == intent && result.action == action &&
-         !result.response_text.empty();
+  return result.intent == intent && result.action == action && !result.response_text.empty();
 }
 
 }  // namespace
@@ -23,12 +23,9 @@ int main() {
   using cockpit::voice::VoiceIntent;
   if (!Expect("Show vehicle status", VoiceIntent::kShowVehicleStatus,
               VoiceAction::kQueryVehicleStatus) ||
-      !Expect("OPEN CAMERA", VoiceIntent::kOpenCamera,
-              VoiceAction::kOpenCamera) ||
-      !Expect("play music", VoiceIntent::kPlayMusic,
-              VoiceAction::kPlayMusic) ||
-      !Expect("start recording", VoiceIntent::kUnknown,
-              VoiceAction::kNone) ||
+      !Expect("OPEN CAMERA", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !Expect("play music", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
+      !Expect("start recording", VoiceIntent::kUnknown, VoiceAction::kNone) ||
       !Expect("tell me a joke", VoiceIntent::kUnknown, VoiceAction::kNone)) {
     std::cerr << "mock voice assistant intent mapping failed\n";
     return 1;

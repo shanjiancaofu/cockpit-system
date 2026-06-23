@@ -7,8 +7,7 @@ namespace voice {
 
 class LocalHmiCommandProvider final : public HmiCommandProvider {
  public:
-  bool SendCommand(HmiCommand command, std::string* response,
-                   std::string* error) override;
+  bool SendCommand(HmiCommand command, std::string* response, std::string* error) override;
 };
 
 }  // namespace voice

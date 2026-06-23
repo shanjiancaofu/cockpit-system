@@ -17,8 +17,8 @@ struct FakeState {
 
 class FakeCaptureSource final : public cockpit::audio::AudioCaptureSource {
  public:
-  explicit FakeCaptureSource(std::shared_ptr<FakeState> state)
-      : state_(std::move(state)) {}
+  explicit FakeCaptureSource(std::shared_ptr<FakeState> state) : state_(std::move(state)) {
+  }
 
   bool Open(std::string*) override {
     state_->opened.store(true);
@@ -26,9 +26,8 @@ class FakeCaptureSource final : public cockpit::audio::AudioCaptureSource {
     return true;
   }
 
-  cockpit::audio::CaptureResult Read(
-      std::int16_t* samples, std::size_t frame_capacity, int,
-      const std::atomic_bool& stop_requested) override {
+  cockpit::audio::CaptureResult Read(std::int16_t* samples, std::size_t frame_capacity, int,
+                                     const std::atomic_bool& stop_requested) override {
     if (stop_requested.load()) {
       return {cockpit::audio::CaptureStatus::kStopped, 0, 0, {}};
     }
@@ -39,7 +38,9 @@ class FakeCaptureSource final : public cockpit::audio::AudioCaptureSource {
     return {cockpit::audio::CaptureStatus::kOk, frame_capacity, 0, {}};
   }
 
-  void Close() override { state_->closed.store(true); }
+  void Close() override {
+    state_->closed.store(true);
+  }
 
  private:
   std::shared_ptr<FakeState> state_;
@@ -47,8 +48,7 @@ class FakeCaptureSource final : public cockpit::audio::AudioCaptureSource {
 
 template <typename Predicate>
 bool WaitUntil(const Predicate& predicate) {
-  const auto deadline = std::chrono::steady_clock::now() +
-                        std::chrono::seconds(1);
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
   while (std::chrono::steady_clock::now() < deadline) {
     if (predicate()) {
       return true;
@@ -81,8 +81,7 @@ int main() {
     std::cerr << "failed to start audio service: " << error << '\n';
     return 1;
   }
-  if (service.StartCapture("", &error) ||
-      error != "audio capture is already active") {
+  if (service.StartCapture("", &error) || error != "audio capture is already active") {
     std::cerr << "duplicate capture start was not rejected\n";
     return 1;
   }
@@ -105,8 +104,7 @@ int main() {
     return 1;
   }
   auto segment = service.TryPopSpeechSegment();
-  if (!segment.has_value() || !segment->truncated ||
-      segment->DurationMs() != 100) {
+  if (!segment.has_value() || !segment->truncated || segment->DurationMs() != 100) {
     std::cerr << "audio service speech segment is invalid\n";
     return 1;
   }
@@ -114,9 +112,8 @@ int main() {
   service.StopCapture();
   const auto status = service.status();
   if (status.capture_state != cockpit::audio::AudioCaptureState::kStopped ||
-      status.input_device != "fake-input" ||
-      status.metrics.audio_frames_published < 3 || !fake_state->opened.load() ||
-      !fake_state->closed.load() || status.vad_frames_processed < 3 ||
+      status.input_device != "fake-input" || status.metrics.audio_frames_published < 3 ||
+      !fake_state->opened.load() || !fake_state->closed.load() || status.vad_frames_processed < 3 ||
       !status.vad_enabled || status.speech_segments_completed < 1) {
     std::cerr << "audio service stopped status is invalid\n";
     return 1;

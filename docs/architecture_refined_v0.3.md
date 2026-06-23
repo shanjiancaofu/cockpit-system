@@ -1,9 +1,9 @@
 # Jetson 智能车机 / 座舱原型系统架构设计文档
 
-> 文档状态：v0.3 总体蓝图（结合当前项目进展持续修订）  
-> 当前文件：`docs/architecture_refined_v0.3.md`  
-> 项目名称：`cockpit-system`  
-> 目标平台：Jetson Orin Nano / Orin NX / 普通 Linux 开发机  
+> 文档状态：v0.3 总体蓝图（结合当前项目进展持续修订）
+> 当前文件：`docs/architecture_refined_v0.3.md`
+> 项目名称：`cockpit-system`
+> 目标平台：Jetson Orin Nano / Orin NX / 普通 Linux 开发机
 > 主要技术：Qt/QML、C++17、gRPC、protobuf、MQTT、GStreamer、V4L2、WebSocket、WebRTC、共享内存、SocketCAN、SQLite、systemd
 
 ---

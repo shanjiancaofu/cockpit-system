@@ -18,8 +18,7 @@ class VehicleStatusProvider {
  public:
   virtual ~VehicleStatusProvider() = default;
 
-  virtual bool GetLatest(VehicleStatusSnapshot* status,
-                         std::string* error) = 0;
+  virtual bool GetLatest(VehicleStatusSnapshot* status, std::string* error) = 0;
 };
 
 }  // namespace voice

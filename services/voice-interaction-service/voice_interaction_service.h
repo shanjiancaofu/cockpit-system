@@ -1,11 +1,5 @@
 #pragma once
 
-#include "core/event/event_queue.h"
-#include "modules/voice/action_dispatcher.h"
-#include "modules/voice/speech_transcript.h"
-#include "modules/voice/voice_assistant.h"
-#include "modules/voice/voice_response_sink.h"
-
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -16,6 +10,12 @@
 #include <optional>
 #include <string>
 #include <thread>
+
+#include "core/event/event_queue.h"
+#include "modules/voice/action_dispatcher.h"
+#include "modules/voice/speech_transcript.h"
+#include "modules/voice/voice_assistant.h"
+#include "modules/voice/voice_response_sink.h"
 
 namespace cockpit {
 namespace voice {
@@ -73,8 +73,7 @@ class VoiceInteractionService {
   void Stop();
   event::EventQueuePushResult SubmitTranscript(const SpeechTranscript& transcript);
   std::optional<VoiceResponse> HandleTranscript(const SpeechTranscript& transcript);
-  bool WaitForResponse(std::uint64_t after_id,
-                       std::chrono::milliseconds timeout,
+  bool WaitForResponse(std::uint64_t after_id, std::chrono::milliseconds timeout,
                        VoiceResponse* response) const;
   VoiceInteractionStatus status() const;
   void RecordUpstreamReconnect();

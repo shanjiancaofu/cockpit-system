@@ -1,8 +1,8 @@
 #include "audio_control_client.h"
 
-#include "common.pb.h"
-
 #include <chrono>
+
+#include "common.pb.h"
 
 namespace cockpit {
 namespace audio {
@@ -22,11 +22,11 @@ bool FinishRpc(const grpc::Status& status, std::string* error) {
 
 AudioControlClient::AudioControlClient(const std::string& address)
     : stub_(proto::audio::AudioControl::NewStub(
-          grpc::CreateChannel(address, grpc::InsecureChannelCredentials()))) {}
+          grpc::CreateChannel(address, grpc::InsecureChannelCredentials()))) {
+}
 
 bool AudioControlClient::StartCapture(const std::string& input_device,
-                                      proto::audio::AudioStatus* status,
-                                      std::string* error) {
+                                      proto::audio::AudioStatus* status, std::string* error) {
   proto::audio::StartCaptureRequest request;
   request.set_input_device(input_device);
   grpc::ClientContext context;
@@ -34,16 +34,14 @@ bool AudioControlClient::StartCapture(const std::string& input_device,
   return FinishRpc(stub_->StartCapture(&context, request, status), error);
 }
 
-bool AudioControlClient::StopCapture(proto::audio::AudioStatus* status,
-                                     std::string* error) {
+bool AudioControlClient::StopCapture(proto::audio::AudioStatus* status, std::string* error) {
   proto::common::Empty request;
   grpc::ClientContext context;
   SetDeadline(&context);
   return FinishRpc(stub_->StopCapture(&context, request, status), error);
 }
 
-bool AudioControlClient::GetStatus(proto::audio::AudioStatus* status,
-                                   std::string* error) {
+bool AudioControlClient::GetStatus(proto::audio::AudioStatus* status, std::string* error) {
   proto::common::Empty request;
   grpc::ClientContext context;
   SetDeadline(&context);
@@ -60,16 +58,15 @@ bool AudioControlClient::Speak(const std::string& text, std::string* error) {
   return FinishRpc(status, error) && response.accepted();
 }
 
-bool AudioControlClient::SubscribeTranscripts(
-    std::uint32_t count, int timeout_ms, const TranscriptHandler& handler,
-    std::string* error) {
+bool AudioControlClient::SubscribeTranscripts(std::uint32_t count, int timeout_ms,
+                                              const TranscriptHandler& handler,
+                                              std::string* error) {
   proto::audio::SubscribeTranscriptsRequest request;
   request.set_client_id("audio-probe");
   request.set_max_events(count);
   grpc::ClientContext context;
   context.set_wait_for_ready(true);
-  context.set_deadline(std::chrono::system_clock::now() +
-                       std::chrono::milliseconds(timeout_ms));
+  context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(timeout_ms));
   auto reader = stub_->SubscribeTranscripts(&context, request);
   proto::audio::TranscriptEvent event;
   while (reader->Read(&event)) {
@@ -80,8 +77,7 @@ bool AudioControlClient::SubscribeTranscripts(
 
 void AudioControlClient::SetDeadline(grpc::ClientContext* context) {
   context->set_wait_for_ready(true);
-  context->set_deadline(std::chrono::system_clock::now() +
-                        std::chrono::seconds(2));
+  context->set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(2));
 }
 
 }  // namespace audio

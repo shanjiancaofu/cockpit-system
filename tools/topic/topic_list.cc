@@ -1,11 +1,12 @@
 #include "topic_list.h"
 
-#include "core/config/system_config.h"
+#include <algorithm>
+#include <iostream>
+
 #include "topic_grpc_discovery.h"
 #include "topic_store.h"
 
-#include <algorithm>
-#include <iostream>
+#include "core/config/system_config.h"
 
 namespace cockpit {
 namespace topic {
@@ -14,8 +15,7 @@ int RunListCommand(const cockpit::config::SystemConfig& config, const CommandLin
   const std::string backend = Option(line, "backend", config.tools().topic.backend);
   if (backend == "grpc") {
     const auto& gateway = config.services().gateway;
-    const int timeout_ms = std::max(
-        1, OptionInt(line, "timeout-ms", gateway.stream_timeout_ms));
+    const int timeout_ms = std::max(1, OptionInt(line, "timeout-ms", gateway.stream_timeout_ms));
     const TopicGrpcDiscovery discovery(gateway.grpc.listen_address, timeout_ms);
     std::vector<TopicMetadata> topics;
     const int result = discovery.List(&topics);
