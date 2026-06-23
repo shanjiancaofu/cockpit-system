@@ -18,6 +18,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - V4L2 camera discovery adapter and `camera-probe` list/formats diagnostic tool.
 - Camera frame model and optional GStreamer preview pipeline boundary.
 - Optional `camera-preview-probe` for GStreamer USB camera frame/FPS diagnostics.
+- `camera-service` skeleton with gRPC list/start/stop/status control plane and tested preview lifecycle state.
 - Immutable 20 ms voice frames and a fixed-capacity lock-free SPSC ring buffer.
 - Non-blocking ALSA poll capture and a threaded `AudioCaptureStream` with explicit state,
   xrun recovery, discontinuity flags, and runtime metrics.
@@ -38,6 +39,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Real query-vehicle-status action through the gateway's fresh VehicleState snapshot RPC, with
   typed provider failure handling and spoken result text.
 - Generated protobuf/gRPC contracts for common, vehicle, gateway, audio, and cloud.
+- Generated protobuf/gRPC contracts for camera control.
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.
 - Optional Qt 6/QML cockpit UI with a worker-thread gRPC client and UI-thread vehicle model.
@@ -74,7 +76,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 
 ## Verification
 
-Verified in WSL2 / Ubuntu 22.04, most recently on 2026-06-23.
+Verified in WSL2 / Ubuntu 22.04, most recently on 2026-06-24.
 
 USB camera note: after refreshing the shell group with `newgrp video`, a UVC `1080P USB Camera`
 was detected on `/dev/video0`; `camera-preview-probe` successfully captured 30 preview frames from
@@ -102,10 +104,11 @@ Result:
 
 - CMake configure and generate succeeded.
 - Ninja build completed, including generated protobuf/gRPC code.
-- CTest 13/13 passed across audio, voice, config, vehicle, and UI model tests.
+- CTest 18/18 passed across audio, camera, voice, config, vehicle, and UI model tests.
 - Smoke chain ran:
   - `can-simulator`
   - `camera-probe`
+  - `camera-service` build and unit-tested control core
   - `audio-service`
   - `voice-interaction-service`
   - `vehicle-data-service`

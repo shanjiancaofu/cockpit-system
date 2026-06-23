@@ -5,6 +5,27 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-24 - Camera Service Skeleton
+
+### 变更内容 / Changed
+
+- 新增 `proto/camera.proto`，定义 camera control gRPC 接口：list/start/stop/status。
+- 新增 `services/camera-service`，包含可测试的 `CameraService` 核心、gRPC 控制面和进程入口。
+- 配置增加 `services.camera.grpc.listen_address`，默认 `127.0.0.1:50054`。
+- 新增 `camera_service_test` 覆盖设备枚举、preview start/stop/status 和不可用设备拒绝。
+
+### 设计决定 / Design Decisions
+
+- 第一版 camera-service 只建立控制面和生命周期，不通过 gRPC 传视频帧。
+- 真实帧流后续接 GStreamer pipeline 或共享内存；当前先保持和自动驾驶/车载系统的控制面/数据面分离。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 通过。
+- `bash scripts/build.sh` 通过，CTest 18/18。
+- `pre-commit run clang-tidy --hook-stage manual -a` 通过。
+- `bash scripts/run_smoke.sh` 通过；当前环境未暴露 `/dev/video*` 时，camera-probe 正常报告无 V4L2 设备。
+
 ## 2026-06-24 - Clang-Tidy Commit Gate
 
 ### 变更内容 / Changed

@@ -63,6 +63,10 @@ struct AudioServiceConfig {
   SpeechSegmentConfig speech_segment;
 };
 
+struct CameraServiceConfig {
+  GrpcServerConfig grpc{"127.0.0.1:50054"};
+};
+
 struct VoiceInteractionServiceConfig {
   std::string audio_address = "127.0.0.1:50052";
   std::string gateway_address = "127.0.0.1:50051";
@@ -86,6 +90,7 @@ struct ServicesConfig {
   VehicleDataConfig vehicle_data;
   GatewayConfig gateway;
   AudioServiceConfig audio;
+  CameraServiceConfig camera;
   VoiceInteractionServiceConfig voice_interaction;
   CloudUplinkConfig cloud_uplink;
 };

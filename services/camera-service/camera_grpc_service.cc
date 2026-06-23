@@ -1,0 +1,120 @@
+#include "camera_grpc_service.h"
+
+#include "core/logging/Logger.h"
+
+namespace cockpit {
+namespace camera {
+namespace {
+
+proto::camera::CameraPreviewState ToProtoState(CameraPreviewState state) {
+  switch (state) {
+    case CameraPreviewState::kStopped:
+      return proto::camera::CAMERA_PREVIEW_STATE_STOPPED;
+    case CameraPreviewState::kRunning:
+      return proto::camera::CAMERA_PREVIEW_STATE_RUNNING;
+    case CameraPreviewState::kFaulted:
+      return proto::camera::CAMERA_PREVIEW_STATE_FAULTED;
+  }
+  return proto::camera::CAMERA_PREVIEW_STATE_UNSPECIFIED;
+}
+
+}  // namespace
+
+CameraGrpcService::CameraGrpcService(CameraService& camera_service)
+    : camera_service_(camera_service) {
+}
+
+CameraGrpcService::~CameraGrpcService() {
+  Shutdown();
+}
+
+bool CameraGrpcService::Start(const std::string& address) {
+  grpc::ServerBuilder builder;
+  builder.AddListeningPort(address, grpc::InsecureServerCredentials());
+  builder.RegisterService(this);
+  server_ = builder.BuildAndStart();
+  if (!server_) {
+    LOG_ERROR("failed to start camera gRPC server address=" + address);
+    return false;
+  }
+  LOG_INFO("camera gRPC server listening address=" + address);
+  return true;
+}
+
+void CameraGrpcService::Shutdown() {
+  if (server_) {
+    server_->Shutdown();
+    server_.reset();
+  }
+}
+
+grpc::Status CameraGrpcService::ListDevices(grpc::ServerContext*, const proto::common::Empty*,
+                                            proto::camera::ListCameraDevicesResponse* response) {
+  std::string error;
+  const auto devices = camera_service_.ListDevices(&error);
+  if (!error.empty() && devices.empty()) {
+    return grpc::Status(grpc::StatusCode::UNAVAILABLE, error);
+  }
+  for (const auto& device : devices) {
+    FillDevice(device, response->add_devices());
+  }
+  return grpc::Status::OK;
+}
+
+grpc::Status CameraGrpcService::StartPreview(grpc::ServerContext*,
+                                             const proto::camera::StartPreviewRequest* request,
+                                             proto::camera::CameraStatus* response) {
+  CameraStartPreviewRequest start_request;
+  start_request.device = request->device().empty() ? "/dev/video0" : request->device();
+  start_request.width = request->width() == 0 ? 640U : request->width();
+  start_request.height = request->height() == 0 ? 480U : request->height();
+  start_request.fps = request->fps() == 0 ? 30U : request->fps();
+
+  std::string error;
+  if (!camera_service_.StartPreview(start_request, &error)) {
+    FillStatus(camera_service_.status(), response);
+    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error);
+  }
+  FillStatus(camera_service_.status(), response);
+  return grpc::Status::OK;
+}
+
+grpc::Status CameraGrpcService::StopPreview(grpc::ServerContext*, const proto::common::Empty*,
+                                            proto::camera::CameraStatus* response) {
+  camera_service_.StopPreview();
+  FillStatus(camera_service_.status(), response);
+  return grpc::Status::OK;
+}
+
+grpc::Status CameraGrpcService::GetStatus(grpc::ServerContext*, const proto::common::Empty*,
+                                          proto::camera::CameraStatus* response) {
+  FillStatus(camera_service_.status(), response);
+  return grpc::Status::OK;
+}
+
+void CameraGrpcService::FillDevice(const VideoDeviceInfo& device,
+                                   proto::camera::CameraDevice* response) {
+  response->set_path(device.path);
+  response->set_driver(device.driver);
+  response->set_card(device.card);
+  response->set_bus_info(device.bus_info);
+  response->set_query_ok(device.query_ok);
+  response->set_supports_capture(device.supports_capture);
+  response->set_supports_streaming(device.supports_streaming);
+  response->set_error(device.error);
+}
+
+void CameraGrpcService::FillStatus(const CameraServiceStatus& status,
+                                   proto::camera::CameraStatus* response) {
+  response->set_state(ToProtoState(status.state));
+  response->set_device(status.device);
+  response->set_width(status.width);
+  response->set_height(status.height);
+  response->set_fps(status.fps);
+  response->set_frames_received(status.frames_received);
+  response->set_frames_dropped(status.frames_dropped);
+  response->set_last_error(status.last_error);
+}
+
+}  // namespace camera
+}  // namespace cockpit

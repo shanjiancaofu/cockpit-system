@@ -168,6 +168,12 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(speech_segment, "max_segment_ms", config.services_.audio.speech_segment.max_segment_ms,
            "services.audio.speech_segment.max_segment_ms");
 
+  const YAML::Node camera_service = ChildMap(services, "camera", "services.camera");
+  const YAML::Node camera_grpc = ChildMap(camera_service, "grpc", "services.camera.grpc");
+  config.services_.camera.grpc.listen_address =
+      Read(camera_grpc, "listen_address", config.services_.camera.grpc.listen_address,
+           "services.camera.grpc.listen_address");
+
   const YAML::Node voice_interaction =
       ChildMap(services, "voice_interaction", "services.voice_interaction");
   config.services_.voice_interaction.audio_address =
@@ -316,6 +322,7 @@ void SystemConfig::Validate() const {
     throw std::runtime_error(
         "services.audio.speech_segment.pre_roll_ms must be less than max_segment_ms");
   }
+  ValidateAddress(services_.camera.grpc.listen_address, "services.camera.grpc.listen_address");
   ValidateAddress(services_.voice_interaction.audio_address,
                   "services.voice_interaction.audio_address");
   ValidateAddress(services_.voice_interaction.gateway_address,

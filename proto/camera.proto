@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package cockpit.proto.camera;
+
+import "common.proto";
+
+enum CameraPreviewState {
+  CAMERA_PREVIEW_STATE_UNSPECIFIED = 0;
+  CAMERA_PREVIEW_STATE_STOPPED = 1;
+  CAMERA_PREVIEW_STATE_RUNNING = 2;
+  CAMERA_PREVIEW_STATE_FAULTED = 3;
+}
+
+message CameraDevice {
+  string path = 1;
+  string driver = 2;
+  string card = 3;
+  string bus_info = 4;
+  bool query_ok = 5;
+  bool supports_capture = 6;
+  bool supports_streaming = 7;
+  string error = 8;
+}
+
+message ListCameraDevicesResponse {
+  repeated CameraDevice devices = 1;
+}
+
+message StartPreviewRequest {
+  string device = 1;
+  uint32 width = 2;
+  uint32 height = 3;
+  uint32 fps = 4;
+}
+
+message CameraStatus {
+  CameraPreviewState state = 1;
+  string device = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  uint32 fps = 5;
+  uint64 frames_received = 6;
+  uint64 frames_dropped = 7;
+  string last_error = 8;
+}
+
+service CameraControl {
+  rpc ListDevices(cockpit.proto.common.Empty)
+      returns (ListCameraDevicesResponse);
+  rpc StartPreview(StartPreviewRequest) returns (CameraStatus);
+  rpc StopPreview(cockpit.proto.common.Empty) returns (CameraStatus);
+  rpc GetStatus(cockpit.proto.common.Empty) returns (CameraStatus);
+}

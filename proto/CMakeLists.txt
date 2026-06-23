@@ -5,6 +5,7 @@ find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin REQUIRED)
 
 set(proto_files
     audio.proto
+    camera.proto
     cloud.proto
     common.proto
     gateway.proto
