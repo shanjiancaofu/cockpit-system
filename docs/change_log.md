@@ -5,6 +5,101 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-23 - Pre-commit and Camera Permission Cleanup
+
+### 变更内容 / Changed
+
+- 确认 `ffz` 已属于 `video` 组；若已有 `/dev/video*` 但仍权限不足，需要刷新当前 shell 组权限。
+- 整理 `.pre-commit-config.yaml`，参考 znavigator 的检查思路，加入基础文件检查和本地
+  `clang-format --dry-run -Werror`。
+- `install_ubuntu_deps.sh` 增加 `pre-commit` 和 `clang-format`。
+- README 和 docs README 增加 pre-commit 启用说明。
+
+### 设计决定 / Design Decisions
+
+- 当前先不上 cpplint/clang-tidy pre-commit gate，避免把已有工程一次性卡在大范围风格问题上。
+- clang-format 使用本地系统命令，减少 pre-commit 首次运行对 clang-format mirror 下载的依赖。
+
+### 验证结果 / Verification
+
+- `pre-commit validate-config` 通过。
+- `pre-commit run` 按正常提交模式通过；`pre-commit run --all-files` 会暴露历史 C++ 文件格式问题，
+  后续如需全仓库格式化应单独开一批处理。
+- `git diff --check` 通过。
+- `bash scripts/build.sh` 通过，CTest 17/17。
+- `bash scripts/run_smoke.sh` 通过。
+
+## 2026-06-23 - 摄像头预览探针 / Camera Preview Probe
+
+### 变更内容 / Changed
+
+- 新增可选 `tools/camera-preview-probe`，在 `gstreamer_camera` target 可用时编译。
+- 工具通过 `GstreamerPreviewPipeline` 从 `/dev/video*` 抓取指定帧数，输出尺寸、stride、帧大小和 FPS。
+- 修正 GStreamer preview pipeline 的时间工具 include，使其在安装 GStreamer dev 包后能进入真实编译路径。
+- `camera-probe --list` 现在会列出已发现但无权限查询的 `/dev/video*`，不再误报为无设备。
+- preview pipeline 启动失败时会读取 GStreamer bus error，便于定位 permission/caps/plugin 问题。
+
+### 设计决定 / Design Decisions
+
+- `camera-probe` 负责设备/格式探测；`camera-preview-probe` 负责真实 preview pipeline 抓帧验证。
+- 预览探针不写文件、不录像，只验证 USB 摄像头到 `appsink` 的用户可见预览链路。
+- 当前 WSL 未出现 `/dev/video*` 时不把 preview probe 放进默认 smoke，避免依赖物理硬件。
+
+### 验证结果 / Verification
+
+- `git diff --check` 通过。
+- `bash scripts/build.sh` 通过，GStreamer dev 包安装后 `gstreamer_camera` 和 `camera-preview-probe` 已进入真实编译路径。
+- `bash scripts/run_smoke.sh` 通过，`camera-probe` 在无权限时能输出 `/dev/video* Permission denied`，默认链路不要求真实抓帧。
+- 使用 `newgrp video` 刷新组权限后，USB UVC 摄像头验证通过：`/dev/video0` 为 capture 节点，支持
+  YUYV、MJPG、NV12，分辨率包含 640x480、1280x720、1920x1080；`camera-preview-probe` 成功抓取
+  30 帧 640x480 BGRx 预览帧。
+
+## 2026-06-23 - 摄像头媒体模块边界 / Camera Media Module Boundary
+
+### 变更内容 / Changed
+
+- 新增 `modules/camera`，提供 `CameraFrame`、`CameraPreviewConfig` 和 `CameraPreviewSource`。
+- 新增可选 `GstreamerPreviewPipeline`，参考旧项目 `CameraDevice` 的 `v4l2src + appsink` 思路，
+  先实现 preview frame callback，不包含拍照/录像业务。
+- `gstreamer_camera` target 仅在检测到 `gstreamer-1.0`、`gstreamer-app-1.0`、`gstreamer-video-1.0`
+  时启用，避免当前 WSL 缺依赖时影响主构建。
+- `install_ubuntu_deps.sh` 增加 GStreamer 开发包和常用插件。
+
+### 设计决定 / Design Decisions
+
+- `drivers/v4l2` 负责 Linux 设备探测，`modules/camera` 负责产品侧帧模型和预览 pipeline 边界。
+- 预览是用户可见媒体能力；录包、长期录像、研发数据采集后续仍属于 recording/diagnostics。
+- 先用 copied `CameraFrame` 保持简单；后续大帧/高频视频流再升级 shared memory 或 zero-copy。
+
+### 验证结果 / Verification
+
+- `bash scripts/build.sh` 通过，新增 `camera_frame_test` 后 CTest 为 17/17。
+- `bash scripts/run_smoke.sh` 通过，camera-probe、音频、语音、车身和 topic 链路正常。
+
+## 2026-06-23 - V4L2 摄像头探测基础 / V4L2 Camera Probe Foundation
+
+### 变更内容 / Changed
+
+- 参考旧项目中的裸 V4L2 采集、ROS 摄像头采集线程和 `VechicleSystem-main` 的 GStreamer
+  `CameraDevice`，先落地更底层的 Linux V4L2 adapter。
+- 新增 `drivers/v4l2`，支持 `/dev/video*` 发现、`VIDIOC_QUERYCAP` 能力查询、像素格式枚举和
+  离散分辨率列表。
+- 新增 `tools/camera-probe`，支持 `--list` 和 `--device /dev/video0 --formats`。
+- smoke 增加 `camera-probe --list`，在 WSL 无摄像头时也应正常返回。
+
+### 设计决定 / Design Decisions
+
+- V4L2 设备访问属于 `drivers/`，不放进 voice 或 UI。
+- 当前只做设备探测和能力查询，不在第一步启动视频流。
+- 后续 GStreamer preview/photo/recording 应作为 media/camera 模块继续设计，避免把研发录包和用户语音动作混在一起。
+
+### 验证结果 / Verification
+
+- `bash scripts/build.sh` 通过，包含 `camera-probe` 构建和 16/16 CTest。
+- `build/bin/camera-probe --list --config configs/config.yaml` 在当前 WSL 无摄像头环境正常输出
+  `no V4L2 video devices found`。
+- `bash scripts/run_smoke.sh` 通过，camera-probe 已纳入 smoke 链路。
+
 ## 2026-06-23 - HMI 命令交接边界 / HMI Command Handoff Boundary
 
 ### 变更内容 / Changed

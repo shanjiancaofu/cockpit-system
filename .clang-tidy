@@ -1,0 +1,45 @@
+UseColor: true
+
+HeaderFilterRegex: '.*\.(h(pp)?|cuh)$'
+
+Checks: >
+    modernize-*,
+    -modernize-concat-nested-namespaces,
+    -modernize-use-trailing-return-type,
+    -modernize-loop-convert,
+    readability-*,
+    -readability-magic-numbers,
+    -readability-avoid-const-params-in-decls,
+    -readability-redundant-access-specifiers,
+    -readability-identifier-length,
+    bugprone-*,
+    google-*,
+    cert-*,
+    cppcoreguidelines-*,
+    -cppcoreguidelines-avoid-magic-numbers,
+    -cppcoreguidelines-pro-type-reinterpret-cast,
+    performance-*,
+    -performance-avoid-endl,
+    clang-diagnostic-*,
+    clang-analyzer-*,
+    concurrency-*,
+    misc-*,
+    -misc-include-cleaner,
+    -misc-const-correctness,
+    hicpp-*,
+    abseil-*,
+    boost-*
+
+FormatStyle: "file"
+
+WarningsAsErrors: >
+    bugprone-*,
+    -bugprone-easily-swappable-parameters,
+    -bugprone-empty-catch,
+    -bugprone-exception-escape,
+    clang-analyzer-*,
+    concurrency-*,
+    -concurrency-mt-unsafe,
+    clang-diagnostic-*,
+    performance-*,
+    -performance-inefficient-string-concatenation

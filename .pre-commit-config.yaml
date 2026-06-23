@@ -1,0 +1,38 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+exclude: |
+  (?x)^(
+    build/.*|
+    logs/.*|
+    Testing/.*|
+    .cache/.*|
+    .*/moc_.*|
+    .*/qrc_.*|
+    .*\.bazel|
+    .*\.bazelrc|
+    .*\.bzl|
+    .*\.pb\.(cc|h)|
+    .*\.grpc\.pb\.(cc|h)
+  )$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        exclude: ^(\.clang-format)$
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: clang-format-check
+        name: clang-format check
+        entry: clang-format --dry-run -Werror
+        language: system
+        types_or: [c++, c, cuda]

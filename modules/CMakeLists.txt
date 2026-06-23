@@ -1,4 +1,5 @@
 add_subdirectory(audio)
 add_subdirectory(can)
+add_subdirectory(camera)
 add_subdirectory(vehicle)
 add_subdirectory(voice)

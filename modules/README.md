@@ -5,6 +5,7 @@ and driver interfaces, but must not depend on services or applications.
 
 - `vehicle`: vehicle state domain model.
 - `can`: platform-independent CAN frame model.
+- `camera`: camera frame model and optional GStreamer preview pipeline boundary.
 - `audio`: platform-independent PCM format, frames, stream, VAD, speech segment, and WAV helpers.
 - `voice`: ASR/TTS/intent/action interfaces plus deterministic mock providers.
 

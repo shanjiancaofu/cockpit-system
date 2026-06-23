@@ -60,3 +60,4 @@ configs/   运行配置和 systemd 示例
 - 架构边界变化后更新 `architecture.md`。
 - 每批修改都追加到 `change_log.md`。
 - 总体蓝图与当前实现冲突时，以 scope、implementation status 和当前代码为准，并回头修订蓝图。
+- 提交前运行 `pre-commit run`，或执行 `pre-commit install` 启用 Git hook。

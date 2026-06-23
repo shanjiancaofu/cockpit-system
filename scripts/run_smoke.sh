@@ -35,6 +35,7 @@ trap cleanup EXIT
 
 "${bin_dir}/can-simulator" --config "${config_path}" --samples 3
 "${bin_dir}/audio-probe" --list --config "${config_path}"
+"${bin_dir}/camera-probe" --list --config "${config_path}"
 "${bin_dir}/audio-service" --config "${config_path}" --output-device null \
   >"${audio_log}" 2>&1 &
 audio_pid="$!"

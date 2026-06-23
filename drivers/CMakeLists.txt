@@ -1,4 +1,5 @@
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_subdirectory(alsa)
+    add_subdirectory(v4l2)
 endif()
 add_subdirectory(socketcan)

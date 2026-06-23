@@ -15,6 +15,10 @@ add_executable(event_queue_test event_queue_test.cc)
 target_link_libraries(event_queue_test PRIVATE event Threads::Threads)
 add_test(NAME event_queue_test COMMAND event_queue_test)
 
+add_executable(camera_frame_test camera_frame_test.cc)
+target_link_libraries(camera_frame_test PRIVATE camera)
+add_test(NAME camera_frame_test COMMAND camera_frame_test)
+
 add_executable(audio_capture_stream_test audio_capture_stream_test.cc)
 target_link_libraries(audio_capture_stream_test PRIVATE audio)
 add_test(NAME audio_capture_stream_test COMMAND audio_capture_stream_test)

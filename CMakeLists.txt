@@ -29,6 +29,8 @@ add_subdirectory(services/audio-service)
 add_subdirectory(services/voice-interaction-service)
 add_subdirectory(tools/can-simulator)
 add_subdirectory(tools/audio-probe)
+add_subdirectory(tools/camera-probe)
+add_subdirectory(tools/camera-preview-probe)
 add_subdirectory(tools/voice-ctl)
 add_subdirectory(tools/topic)
 

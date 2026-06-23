@@ -5,12 +5,18 @@ sudo apt-get update
 sudo apt-get install -y \
   build-essential \
   alsa-utils \
+  clang-format \
   cmake \
   can-utils \
   iproute2 \
   kmod \
+  gstreamer1.0-plugins-base \
+  gstreamer1.0-plugins-good \
+  gstreamer1.0-tools \
   libgrpc++-dev \
   libasound2-dev \
+  libgstreamer1.0-dev \
+  libgstreamer-plugins-base1.0-dev \
   libprotobuf-dev \
   libxkbcommon-dev \
   libyaml-cpp-dev \
@@ -18,6 +24,7 @@ sudo apt-get install -y \
   pkg-config \
   protobuf-compiler \
   protobuf-compiler-grpc \
+  pre-commit \
   qml6-module-qtqml-workerscript \
   qml6-module-qtquick \
   qml6-module-qtquick-controls \

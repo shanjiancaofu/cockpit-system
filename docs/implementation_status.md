@@ -15,6 +15,9 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Vehicle state model, prototype CAN codec, and SocketCAN RAII wrapper.
 - Platform-independent PCM16 format and RIFF/WAVE read/write module.
 - ALSA PCM RAII driver and `audio-probe` list/capture/play diagnostic tool.
+- V4L2 camera discovery adapter and `camera-probe` list/formats diagnostic tool.
+- Camera frame model and optional GStreamer preview pipeline boundary.
+- Optional `camera-preview-probe` for GStreamer USB camera frame/FPS diagnostics.
 - Immutable 20 ms voice frames and a fixed-capacity lock-free SPSC ring buffer.
 - Non-blocking ALSA poll capture and a threaded `AudioCaptureStream` with explicit state,
   xrun recovery, discontinuity flags, and runtime metrics.
@@ -60,7 +63,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Production vehicle CAN mapping from an approved DBC or signal specification.
 - MQTT client.
 - WebSocket dashboard stream.
-- GStreamer/V4L2 camera path.
+- Camera preview integration into the Qt/HMI bridge.
+- V4L2 frame capture stream and zero-copy/shared-memory video path.
 - SQLite storage and recorder index.
 - Shared memory ring buffer.
 - Real speech TTS provider and Jetson microphone/speaker calibration.
@@ -71,6 +75,10 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 ## Verification
 
 Verified in WSL2 / Ubuntu 22.04, most recently on 2026-06-23.
+
+USB camera note: after refreshing the shell group with `newgrp video`, a UVC `1080P USB Camera`
+was detected on `/dev/video0`; `camera-preview-probe` successfully captured 30 preview frames from
+the GStreamer `v4l2src -> appsink` path.
 
 SocketCAN foundation re-verified from the new repository path on 2026-06-20 using the standard
 `build/` directory.
@@ -97,6 +105,7 @@ Result:
 - CTest 13/13 passed across audio, voice, config, vehicle, and UI model tests.
 - Smoke chain ran:
   - `can-simulator`
+  - `camera-probe`
   - `audio-service`
   - `voice-interaction-service`
   - `vehicle-data-service`

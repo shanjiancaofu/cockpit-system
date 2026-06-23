@@ -53,6 +53,16 @@ bash scripts/build.sh
 bash scripts/run_smoke.sh
 ```
 
+启用提交前检查：
+
+```bash
+pre-commit install
+pre-commit run
+```
+
+摄像头设备需要当前用户属于 `video` 组。若 `/dev/video*` 存在但提示 Permission denied，执行
+`newgrp video` 或重新登录 WSL/Jetson 终端后再试。
+
 从旧目录复制过来的 `build/` 可能保存旧 CMake 路径。遇到 cache path mismatch 时删除
 `build/`，然后重新执行标准构建脚本。
 

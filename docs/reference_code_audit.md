@@ -56,6 +56,14 @@
   - `src/app/MainWindow.cpp`
   - `src/apps/camera_v4l2/v4l2.cpp`
   - `src/apps/weather/httpdownload.cpp`
+- `VechicleSystem-main`
+  - `service/mediad/CameraDevice.h`
+  - `service/mediad/CameraDevice.cpp`
+  - `app/pages/CameraPage.h`
+  - `app/pages/CameraPage.cpp`
+- `无人车`
+  - `v1/camera/src/main.cpp`
+  - `camera/v4l2-mplane-yuyv/v4l2_capture.cpp`
 
 ## 0. znavigator 运行时与模块编排
 
@@ -139,6 +147,47 @@ navigator main
 - systemd 与脚本已经无法覆盖部署需求。
 
 即使后续增加，也应优先做静态服务编排和 typed gRPC 控制，不先做动态 `.so` 插件。
+
+## 0.1 摄像头与媒体链路
+
+### 可参考代码
+
+- `vehicle-system/src/apps/camera_v4l2/v4l2.cpp`
+- `无人车/v1/camera/src/main.cpp`
+- `无人车/camera/v4l2-mplane-yuyv/v4l2_capture.cpp`
+- `VechicleSystem-main/service/mediad/CameraDevice.cpp`
+- `VechicleSystem-main/app/pages/CameraPage.cpp`
+
+### 观察
+
+裸 V4L2 代码的共同生命周期是：
+
+```text
+open /dev/videoX
+VIDIOC_QUERYCAP
+VIDIOC_ENUM_FMT / VIDIOC_ENUM_FRAMESIZES
+VIDIOC_S_FMT
+VIDIOC_REQBUFS / VIDIOC_QUERYBUF / mmap / VIDIOC_QBUF
+VIDIOC_STREAMON
+VIDIOC_DQBUF / process frame / VIDIOC_QBUF
+VIDIOC_STREAMOFF / munmap / close
+```
+
+`无人车` 代码更偏实时采集线程和 FPS 统计，适合作为后续 capture stream 参考。
+`VechicleSystem-main` 的 `CameraDevice` 更贴近座舱媒体业务：它使用 GStreamer
+`v4l2src -> videoconvert -> tee`，再用 `valve` 分出 preview 和 recording，preview 走
+`appsink` 转 `QImage`，录制分支动态链接 encoder/mux/filesink。`CameraPage` 在页面 show/hide
+时启动/停止 preview，录制时保持 pipeline 存活。
+
+### 对 cockpit-system 的规则
+
+- `drivers/v4l2` 只负责 Linux 摄像头设备发现、能力查询和后续低层采集封装。
+- 用户可见的预览、拍照、录制更接近 media/camera 业务模块，不直接塞进 voice。
+- 当前已按这个方向新增 `modules/camera`：基础帧模型不依赖 GStreamer，可选
+  `GstreamerPreviewPipeline` 才接入 `v4l2src/appsink`。
+- 研发录包、雷达/摄像头采集和数据留存仍应走 recording/diagnostics 边界。
+- 第一阶段先做 `camera-probe`，可在 WSL 无摄像头环境验证；Jetson 上再验证真实 `/dev/video*`。
+- 第二阶段再决定 GStreamer pipeline 是放 `modules/media`、`modules/camera`，还是独立 media service。
 
 ## 1. 服务生命周期
 
