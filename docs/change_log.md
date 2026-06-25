@@ -5,6 +5,29 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-06-25 - Camera Service Capture Pipeline
+
+### 变更内容 / Changed
+
+- camera-service 通过 `CameraPreviewSource` 持有本地采集 pipeline，默认使用可选的
+  `GstreamerPreviewPipeline`。
+- `StartPreview` 现在真正启动 `v4l2src -> appsink`，`StopPreview` 释放 pipeline 和摄像头设备。
+- 有效帧和无效帧分别累计到 `frames_received`、`frames_dropped`，通过原有 gRPC status 查询。
+- camera service 单元测试注入 fake preview source，覆盖真实启停调用、配置传递和帧计数，且不依赖硬件。
+
+### 设计决定 / Design Decisions
+
+- gRPC 继续只作为控制面；视频帧停留在进程内 callback，后续再接 HMI 或共享内存数据面。
+- camera-service 依赖抽象采集接口，不把 GStreamer 类型暴露给服务 API，方便 Jetson 后续替换 pipeline。
+- 新 start 请求先停止旧 pipeline，确保服务状态和实际设备生命周期一致。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 针对本批文件通过。
+- `bash scripts/build.sh` 通过，CTest 18/18。
+- `pre-commit run clang-tidy --hook-stage manual -a` 通过。
+- `bash scripts/run_smoke.sh` 通过；当前会话无 `/dev/video*` 时，camera 控制面仍正常运行。
+
 ## 2026-06-24 - Camera Control CLI
 
 ### 变更内容 / Changed

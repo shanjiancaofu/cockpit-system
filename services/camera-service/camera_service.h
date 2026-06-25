@@ -2,11 +2,13 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
 #include "drivers/v4l2/v4l2_camera.h"
+#include "modules/camera/camera_preview_source.h"
 
 namespace cockpit {
 namespace camera {
@@ -40,7 +42,8 @@ class CameraService {
   using DeviceLister = std::function<std::vector<VideoDeviceInfo>(std::string*)>;
 
   CameraService();
-  explicit CameraService(DeviceLister device_lister);
+  CameraService(DeviceLister device_lister, std::unique_ptr<CameraPreviewSource> preview_source);
+  ~CameraService();
 
   CameraService(const CameraService&) = delete;
   CameraService& operator=(const CameraService&) = delete;
@@ -53,9 +56,12 @@ class CameraService {
  private:
   static bool IsUsableCaptureDevice(const VideoDeviceInfo& device);
   bool DeviceExists(const std::string& device, std::string* error) const;
+  void HandleFrame(const CameraFrame& frame);
   void SetError(std::string error);
 
   DeviceLister device_lister_;
+  std::unique_ptr<CameraPreviewSource> preview_source_;
+  mutable std::mutex lifecycle_mutex_;
   mutable std::mutex mutex_;
   CameraServiceStatus status_;
 };

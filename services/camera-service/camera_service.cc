@@ -2,6 +2,10 @@
 
 #include <utility>
 
+#if defined(COCKPIT_HAS_GSTREAMER_CAMERA)
+#include "modules/camera/gstreamer_preview_pipeline.h"
+#endif
+
 namespace cockpit {
 namespace camera {
 namespace {
@@ -12,16 +16,31 @@ void AssignError(std::string* error, const std::string& message) {
   }
 }
 
+std::unique_ptr<CameraPreviewSource> CreateDefaultPreviewSource() {
+#if defined(COCKPIT_HAS_GSTREAMER_CAMERA)
+  return std::make_unique<GstreamerPreviewPipeline>();
+#else
+  return nullptr;
+#endif
+}
+
 }  // namespace
 
 CameraService::CameraService()
-    : CameraService([](std::string* error) {
-        return V4l2Camera::ListDevices(error);
-      }) {
+    : CameraService(
+          [](std::string* error) {
+            return V4l2Camera::ListDevices(error);
+          },
+          CreateDefaultPreviewSource()) {
 }
 
-CameraService::CameraService(DeviceLister device_lister)
-    : device_lister_(std::move(device_lister)) {
+CameraService::CameraService(DeviceLister device_lister,
+                             std::unique_ptr<CameraPreviewSource> preview_source)
+    : device_lister_(std::move(device_lister)), preview_source_(std::move(preview_source)) {
+}
+
+CameraService::~CameraService() {
+  StopPreview();
 }
 
 std::vector<VideoDeviceInfo> CameraService::ListDevices(std::string* error) const {
@@ -29,6 +48,10 @@ std::vector<VideoDeviceInfo> CameraService::ListDevices(std::string* error) cons
 }
 
 bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::string* error) {
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+  if (preview_source_ != nullptr) {
+    preview_source_->Stop();
+  }
   if (request.device.empty()) {
     AssignError(error, "camera device must not be empty");
     SetError("camera device must not be empty");
@@ -43,20 +66,57 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     SetError(error == nullptr ? "camera device is not available" : *error);
     return false;
   }
+  if (preview_source_ == nullptr) {
+    AssignError(error, "camera preview backend is not available");
+    SetError("camera preview backend is not available");
+    return false;
+  }
 
-  std::lock_guard<std::mutex> lock(mutex_);
-  status_.state = CameraPreviewState::kRunning;
-  status_.device = request.device;
-  status_.width = request.width;
-  status_.height = request.height;
-  status_.fps = request.fps;
-  status_.frames_received = 0;
-  status_.frames_dropped = 0;
-  status_.last_error.clear();
+  CameraPreviewConfig config;
+  config.device = request.device;
+  config.width = request.width;
+  config.height = request.height;
+  config.fps = request.fps;
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    status_.state = CameraPreviewState::kStopped;
+    status_.device = request.device;
+    status_.width = request.width;
+    status_.height = request.height;
+    status_.fps = request.fps;
+    status_.frames_received = 0;
+    status_.frames_dropped = 0;
+    status_.last_error.clear();
+  }
+
+  std::string start_error;
+  if (!preview_source_->Start(
+          config,
+          [this](const CameraFrame& frame) {
+            HandleFrame(frame);
+          },
+          &start_error)) {
+    if (start_error.empty()) {
+      start_error = "start camera preview backend failed";
+    }
+    AssignError(error, start_error);
+    SetError(start_error);
+    return false;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    status_.state = CameraPreviewState::kRunning;
+  }
   return true;
 }
 
 void CameraService::StopPreview() {
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+  if (preview_source_ != nullptr) {
+    preview_source_->Stop();
+  }
   std::lock_guard<std::mutex> lock(mutex_);
   status_.state = CameraPreviewState::kStopped;
 }
@@ -84,6 +144,15 @@ bool CameraService::DeviceExists(const std::string& device, std::string* error) 
     AssignError(error, "camera device is not available for capture: " + device);
   }
   return false;
+}
+
+void CameraService::HandleFrame(const CameraFrame& frame) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (frame.IsValid()) {
+    ++status_.frames_received;
+  } else {
+    ++status_.frames_dropped;
+  }
 }
 
 void CameraService::SetError(std::string error) {
