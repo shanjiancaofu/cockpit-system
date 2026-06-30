@@ -65,6 +65,9 @@ struct AudioServiceConfig {
 
 struct CameraServiceConfig {
   GrpcServerConfig grpc{"127.0.0.1:50054"};
+  std::string frame_transport = "shared_memory";
+  std::string shared_memory_name = "/cockpit_camera_preview";
+  int max_frame_bytes = 8 * 1024 * 1024;
 };
 
 struct VoiceInteractionServiceConfig {

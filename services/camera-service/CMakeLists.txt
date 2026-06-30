@@ -12,5 +12,5 @@ add_executable(camera-service
     main.cc
 )
 target_link_libraries(camera-service
-    PRIVATE camera_service contracts logging runtime
+    PRIVATE camera_service camera_shm contracts logging runtime
 )

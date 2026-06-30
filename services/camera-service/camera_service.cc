@@ -36,6 +36,14 @@ CameraService::CameraService()
           CreateDefaultPreviewSource()) {
 }
 
+CameraService::CameraService(std::shared_ptr<CameraFrameSink> frame_sink)
+    : CameraService(
+          [](std::string* error) {
+            return V4l2Camera::ListDevices(error);
+          },
+          CreateDefaultPreviewSource(), std::move(frame_sink)) {
+}
+
 CameraService::CameraService(DeviceLister device_lister,
                              std::unique_ptr<CameraPreviewSource> preview_source,
                              std::shared_ptr<CameraFrameSink> frame_sink)

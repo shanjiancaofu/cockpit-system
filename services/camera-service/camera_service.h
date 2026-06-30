@@ -43,6 +43,7 @@ class CameraService {
   using DeviceLister = std::function<std::vector<VideoDeviceInfo>(std::string*)>;
 
   CameraService();
+  explicit CameraService(std::shared_ptr<CameraFrameSink> frame_sink);
   CameraService(DeviceLister device_lister, std::unique_ptr<CameraPreviewSource> preview_source,
                 std::shared_ptr<CameraFrameSink> frame_sink = nullptr);
   ~CameraService();

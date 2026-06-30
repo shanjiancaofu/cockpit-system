@@ -5,6 +5,31 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-01 - Camera Shared-Memory Double Buffer
+
+### 变更内容 / Changed
+
+- 新增 `camera_shm` 模块，提供 `SharedFrameWriter` 和 `SharedFrameReader`。
+- 新增通用 `core/ipc/SharedMemoryRegion`，统一 POSIX shared memory 创建、打开、映射和清理。
+- 使用 POSIX shared memory、双帧槽和 `PTHREAD_PROCESS_SHARED` 读写锁传输相机帧。
+- camera-service 启动时创建共享内存 sink，帧像素不经过 gRPC。
+- 配置增加 `services.camera.frame_transport/shared_memory_name/max_frame_bytes`。
+- 新增跨映射测试，覆盖双槽发布、读取、generation、payload 和超限拒绝。
+
+### 设计决定 / Design Decisions
+
+- 通用映射生命周期位于 `core/ipc`；相机双槽布局仍保留在 `modules/camera`。
+- writer 写入非活动槽后切换 active slot；reader 只在复制当前帧时持有进程共享读锁。
+- camera-service 仍依赖 `CameraFrameSink` 抽象，GStreamer 继续保持可选依赖。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 针对本批文件通过。
+- `bash scripts/build.sh` 通过，CTest 20/20。
+- 分层调整后 `bash scripts/build.sh` 通过，CTest 21/21。
+- `pre-commit run clang-tidy --hook-stage manual -a` 通过。
+- `bash scripts/run_smoke.sh` 单独运行通过；camera-service 正常创建并清理共享内存区域。
+
 ## 2026-07-01 - Camera Frame Sink and Latest Buffer
 
 ### 变更内容 / Changed

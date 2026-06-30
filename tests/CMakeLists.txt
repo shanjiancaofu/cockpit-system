@@ -15,6 +15,10 @@ add_executable(event_queue_test event_queue_test.cc)
 target_link_libraries(event_queue_test PRIVATE event Threads::Threads)
 add_test(NAME event_queue_test COMMAND event_queue_test)
 
+add_executable(shared_memory_region_test shared_memory_region_test.cc)
+target_link_libraries(shared_memory_region_test PRIVATE ipc)
+add_test(NAME shared_memory_region_test COMMAND shared_memory_region_test)
+
 add_executable(camera_frame_test camera_frame_test.cc)
 target_link_libraries(camera_frame_test PRIVATE camera)
 add_test(NAME camera_frame_test COMMAND camera_frame_test)
@@ -22,6 +26,10 @@ add_test(NAME camera_frame_test COMMAND camera_frame_test)
 add_executable(latest_frame_buffer_test latest_frame_buffer_test.cc)
 target_link_libraries(latest_frame_buffer_test PRIVATE camera)
 add_test(NAME latest_frame_buffer_test COMMAND latest_frame_buffer_test)
+
+add_executable(shared_frame_buffer_test shared_frame_buffer_test.cc)
+target_link_libraries(shared_frame_buffer_test PRIVATE camera_shm)
+add_test(NAME shared_frame_buffer_test COMMAND shared_frame_buffer_test)
 
 add_executable(camera_service_test camera_service_test.cc)
 target_link_libraries(camera_service_test PRIVATE camera_service)

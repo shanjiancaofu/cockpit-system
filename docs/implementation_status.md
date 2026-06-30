@@ -11,6 +11,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 
 - Top-level CMake project with Linux/WSL shell scripts.
 - Core config, logging, runtime, and time helpers.
+- Core POSIX shared-memory region abstraction for reusable local IPC mappings.
 - yaml-cpp `SystemConfig` with typed sections and startup validation.
 - Vehicle state model, prototype CAN codec, and SocketCAN RAII wrapper.
 - Platform-independent PCM16 format and RIFF/WAVE read/write module.
@@ -18,6 +19,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - V4L2 camera discovery adapter and `camera-probe` list/formats diagnostic tool.
 - Camera frame model and optional GStreamer preview pipeline boundary.
 - Move-based camera frame sink and bounded latest-frame buffer for local consumers.
+- POSIX shared-memory camera double buffer with independent writer/reader mappings.
 - Optional `camera-preview-probe` for GStreamer USB camera frame/FPS diagnostics.
 - `camera-service` with gRPC list/start/stop/status control plane, local GStreamer capture ownership,
   and live frame counters.
@@ -69,7 +71,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - MQTT client.
 - WebSocket dashboard stream.
 - Camera preview integration into the Qt/HMI bridge.
-- Zero-copy/shared-memory video path between camera-service and external consumers.
+- Qt/HMI reader integration for the shared-memory camera path.
 - SQLite storage and recorder index.
 - Shared memory ring buffer.
 - Real speech TTS provider and Jetson microphone/speaker calibration.
@@ -107,7 +109,7 @@ Result:
 
 - CMake configure and generate succeeded.
 - Ninja build completed, including generated protobuf/gRPC code.
-- CTest 19/19 passed across audio, camera, voice, config, vehicle, and UI model tests.
+- CTest 21/21 passed across IPC, audio, camera, voice, config, vehicle, and UI model tests.
 - Smoke chain ran:
   - `can-simulator`
   - `camera-probe`

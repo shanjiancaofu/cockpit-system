@@ -3,6 +3,12 @@ add_cockpit_library(camera
     latest_frame_buffer.cc
 )
 
+find_package(Threads REQUIRED)
+add_cockpit_library(camera_shm
+    shared_frame_buffer.cc
+)
+target_link_libraries(camera_shm PUBLIC camera ipc Threads::Threads)
+
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
     pkg_check_modules(GSTREAMER QUIET

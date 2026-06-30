@@ -43,6 +43,8 @@ Current implementation boundary:
   mock TTS and bounded asynchronous ALSA playback without moving PCM between processes.
 - `voice-interaction-service` owns intent/action orchestration and sends response text to
   `audio-service`; it never opens ALSA devices.
+- `camera-service` owns the V4L2/GStreamer capture pipeline. gRPC carries camera lifecycle and
+  status only; preview frames use a local POSIX shared-memory double buffer.
 - Vehicle-status voice actions query the gateway's latest snapshot through a unary gRPC method.
   The gateway rejects missing or older-than-two-second state instead of serving stale data.
 - Camera preview and music voice actions are modeled as HMI handoff commands. The C++ runtime does
@@ -75,6 +77,9 @@ cockpit-system/
   tools/                # developer and simulator binaries
   tests/                # smoke and unit tests
 ```
+
+`core/ipc` owns generic shared-memory mapping lifecycle. Domain-specific memory layouts remain in
+their modules; for example, camera frame slots are defined by `modules/camera`, not by `core`.
 
 The layout follows the useful part of the zelos/znavigator style: a thin executable entry, small
 internal libraries, explicit per-module build files, and service/library boundaries that can be

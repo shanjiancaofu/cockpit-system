@@ -39,6 +39,9 @@ services:
       pre_roll_ms: 100
       max_segment_ms: 15000
   camera:
+    frame_transport: shared_memory
+    shared_memory_name: /cockpit_camera_preview
+    max_frame_bytes: 8388608
     grpc:
       listen_address: 127.0.0.1:50054
   voice_interaction:

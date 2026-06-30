@@ -173,6 +173,15 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.camera.grpc.listen_address =
       Read(camera_grpc, "listen_address", config.services_.camera.grpc.listen_address,
            "services.camera.grpc.listen_address");
+  config.services_.camera.frame_transport =
+      Read(camera_service, "frame_transport", config.services_.camera.frame_transport,
+           "services.camera.frame_transport");
+  config.services_.camera.shared_memory_name =
+      Read(camera_service, "shared_memory_name", config.services_.camera.shared_memory_name,
+           "services.camera.shared_memory_name");
+  config.services_.camera.max_frame_bytes =
+      Read(camera_service, "max_frame_bytes", config.services_.camera.max_frame_bytes,
+           "services.camera.max_frame_bytes");
 
   const YAML::Node voice_interaction =
       ChildMap(services, "voice_interaction", "services.voice_interaction");
@@ -323,6 +332,14 @@ void SystemConfig::Validate() const {
         "services.audio.speech_segment.pre_roll_ms must be less than max_segment_ms");
   }
   ValidateAddress(services_.camera.grpc.listen_address, "services.camera.grpc.listen_address");
+  if (services_.camera.frame_transport != "shared_memory") {
+    throw std::runtime_error("services.camera.frame_transport currently supports shared_memory");
+  }
+  RequireNotEmpty(services_.camera.shared_memory_name, "services.camera.shared_memory_name");
+  if (services_.camera.shared_memory_name.front() != '/') {
+    throw std::runtime_error("services.camera.shared_memory_name must begin with '/'");
+  }
+  RequirePositive(services_.camera.max_frame_bytes, "services.camera.max_frame_bytes");
   ValidateAddress(services_.voice_interaction.audio_address,
                   "services.voice_interaction.audio_address");
   ValidateAddress(services_.voice_interaction.gateway_address,

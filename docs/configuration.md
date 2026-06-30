@@ -64,6 +64,12 @@ services:
     speech_segment:
       pre_roll_ms: 100
       max_segment_ms: 15000
+  camera:
+    frame_transport: shared_memory
+    shared_memory_name: /cockpit_camera_preview
+    max_frame_bytes: 8388608
+    grpc:
+      listen_address: 127.0.0.1:50054
   voice_interaction:
     audio_address: 127.0.0.1:50052
     gateway_address: 127.0.0.1:50051
@@ -112,6 +118,9 @@ the YAML path.
 Speech segmentation is bounded to 2 seconds of pre-roll and 60 seconds per segment. Both values
 must align with `hardware.audio.frame_ms`, and pre-roll must be shorter than the segment limit.
 Voice mode and ASR/TTS providers currently accept only `push_to_talk` and `mock`.
+
+Camera pixels use a local POSIX shared-memory double buffer. `max_frame_bytes` is the capacity of
+each of the two slots, not the total mapping size; the default fits one 1920x1080 BGRx frame.
 
 ## Implemented
 
