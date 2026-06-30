@@ -5,6 +5,29 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-01 - Camera Frame Sink and Latest Buffer
+
+### 变更内容 / Changed
+
+- 新增 `CameraFrameSink`，把摄像头采集源与帧消费者解耦。
+- 新增线程安全的 `LatestFrameBuffer`，固定只保存最新一帧，并记录发布、替换和 generation。
+- 相机回调改为按值传递，GStreamer 生成的 `CameraFrame` 通过 move 交给 service 和 sink。
+- camera-service 默认使用 latest-frame sink，采集到的帧不再只做计数后丢弃。
+- 新增 `latest_frame_buffer_test`，覆盖无效帧、覆盖语义、读取、状态指标和清理。
+
+### 设计决定 / Design Decisions
+
+- 当前数据面先保持进程内，不提前引入复杂共享内存协议。
+- latest-frame 模型适合预览：消费者变慢时覆盖旧帧，不反压采集线程，也不形成无界视频队列。
+- 生产路径移动帧所有权；只有消费者调用 `ReadLatest()` 时才复制图像数据。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 针对本批文件通过。
+- `bash scripts/build.sh` 通过，CTest 19/19。
+- `pre-commit run clang-tidy --hook-stage manual -a` 通过。
+- `bash scripts/run_smoke.sh` 通过；当前会话无 `/dev/video*` 时，camera 控制面正常降级运行。
+
 ## 2026-06-25 - Camera Service Capture Pipeline
 
 ### 变更内容 / Changed

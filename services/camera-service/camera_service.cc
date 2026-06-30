@@ -2,6 +2,8 @@
 
 #include <utility>
 
+#include "modules/camera/latest_frame_buffer.h"
+
 #if defined(COCKPIT_HAS_GSTREAMER_CAMERA)
 #include "modules/camera/gstreamer_preview_pipeline.h"
 #endif
@@ -35,8 +37,12 @@ CameraService::CameraService()
 }
 
 CameraService::CameraService(DeviceLister device_lister,
-                             std::unique_ptr<CameraPreviewSource> preview_source)
-    : device_lister_(std::move(device_lister)), preview_source_(std::move(preview_source)) {
+                             std::unique_ptr<CameraPreviewSource> preview_source,
+                             std::shared_ptr<CameraFrameSink> frame_sink)
+    : device_lister_(std::move(device_lister)),
+      preview_source_(std::move(preview_source)),
+      frame_sink_(frame_sink == nullptr ? std::make_shared<LatestFrameBuffer>()
+                                        : std::move(frame_sink)) {
 }
 
 CameraService::~CameraService() {
@@ -93,8 +99,8 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
   std::string start_error;
   if (!preview_source_->Start(
           config,
-          [this](const CameraFrame& frame) {
-            HandleFrame(frame);
+          [this](CameraFrame frame) {
+            HandleFrame(std::move(frame));
           },
           &start_error)) {
     if (start_error.empty()) {
@@ -146,13 +152,14 @@ bool CameraService::DeviceExists(const std::string& device, std::string* error) 
   return false;
 }
 
-void CameraService::HandleFrame(const CameraFrame& frame) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (frame.IsValid()) {
-    ++status_.frames_received;
-  } else {
+void CameraService::HandleFrame(CameraFrame frame) {
+  if (!frame.IsValid() || frame_sink_ == nullptr || !frame_sink_->Publish(std::move(frame))) {
+    std::lock_guard<std::mutex> lock(mutex_);
     ++status_.frames_dropped;
+    return;
   }
+  std::lock_guard<std::mutex> lock(mutex_);
+  ++status_.frames_received;
 }
 
 void CameraService::SetError(std::string error) {

@@ -18,7 +18,7 @@ struct CameraPreviewConfig {
 
 class CameraPreviewSource {
  public:
-  using FrameCallback = std::function<void(const CameraFrame&)>;
+  using FrameCallback = std::function<void(CameraFrame)>;
 
   virtual ~CameraPreviewSource() = default;
 

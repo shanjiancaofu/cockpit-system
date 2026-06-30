@@ -1,5 +1,6 @@
 add_cockpit_library(camera
     camera_frame.cc
+    latest_frame_buffer.cc
 )
 
 find_package(PkgConfig QUIET)

@@ -19,6 +19,10 @@ add_executable(camera_frame_test camera_frame_test.cc)
 target_link_libraries(camera_frame_test PRIVATE camera)
 add_test(NAME camera_frame_test COMMAND camera_frame_test)
 
+add_executable(latest_frame_buffer_test latest_frame_buffer_test.cc)
+target_link_libraries(latest_frame_buffer_test PRIVATE camera)
+add_test(NAME latest_frame_buffer_test COMMAND latest_frame_buffer_test)
+
 add_executable(camera_service_test camera_service_test.cc)
 target_link_libraries(camera_service_test PRIVATE camera_service)
 add_test(NAME camera_service_test COMMAND camera_service_test)

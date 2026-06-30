@@ -259,7 +259,7 @@ int GstreamerPreviewPipeline::HandleNewSample(GstSample* sample) {
   std::memcpy(frame.data.data(), map.data, copy_size);
 
   gst_buffer_unmap(buffer, &map);
-  callback(frame);
+  callback(std::move(frame));
   return GST_FLOW_OK;
 }
 

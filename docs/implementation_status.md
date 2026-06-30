@@ -17,6 +17,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - ALSA PCM RAII driver and `audio-probe` list/capture/play diagnostic tool.
 - V4L2 camera discovery adapter and `camera-probe` list/formats diagnostic tool.
 - Camera frame model and optional GStreamer preview pipeline boundary.
+- Move-based camera frame sink and bounded latest-frame buffer for local consumers.
 - Optional `camera-preview-probe` for GStreamer USB camera frame/FPS diagnostics.
 - `camera-service` with gRPC list/start/stop/status control plane, local GStreamer capture ownership,
   and live frame counters.
@@ -68,7 +69,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - MQTT client.
 - WebSocket dashboard stream.
 - Camera preview integration into the Qt/HMI bridge.
-- V4L2 frame capture stream and zero-copy/shared-memory video path.
+- Zero-copy/shared-memory video path between camera-service and external consumers.
 - SQLite storage and recorder index.
 - Shared memory ring buffer.
 - Real speech TTS provider and Jetson microphone/speaker calibration.
@@ -78,7 +79,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 
 ## Verification
 
-Verified in WSL2 / Ubuntu 22.04, most recently on 2026-06-24.
+Verified in WSL2 / Ubuntu 22.04, most recently on 2026-07-01.
 
 USB camera note: after refreshing the shell group with `newgrp video`, a UVC `1080P USB Camera`
 was detected on `/dev/video0`; `camera-preview-probe` successfully captured 30 preview frames from
@@ -106,7 +107,7 @@ Result:
 
 - CMake configure and generate succeeded.
 - Ninja build completed, including generated protobuf/gRPC code.
-- CTest 18/18 passed across audio, camera, voice, config, vehicle, and UI model tests.
+- CTest 19/19 passed across audio, camera, voice, config, vehicle, and UI model tests.
 - Smoke chain ran:
   - `can-simulator`
   - `camera-probe`
