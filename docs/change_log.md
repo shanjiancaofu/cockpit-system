@@ -5,6 +5,25 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-01 - Audio Capture Runtime Module
+
+### 变更内容 / Changed
+
+- audio-service 新增 `AudioCaptureModule`，把 `AudioCaptureStream` 包装成 runtime module。
+- `AudioService` 内部使用 `ModuleManager` 管理采集流启动和停止。
+- VAD、speech segment、ASR 处理逻辑保持在 audio-service 内部，不提前拆成独立 module。
+
+### 设计决定 / Design Decisions
+
+- 只模块化真正占用麦克风资源且有独立生命周期的 capture stream。
+- 音频 PCM 数据仍走进程内 ring buffer，不引入 gRPC 或跨进程传输。
+- 当前目标是统一资源生命周期，不扩大 service 数量。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 针对本批文件通过。
+- `bash scripts/build.sh` 通过，CTest 22/22。
+
 ## 2026-07-01 - Camera Service Runtime Module
 
 ### 变更内容 / Changed

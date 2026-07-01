@@ -13,6 +13,7 @@
 #include <thread>
 
 #include "core/config/system_config.h"
+#include "core/runtime/ModuleManager.h"
 #include "modules/audio/audio_capture_source.h"
 #include "modules/audio/audio_capture_stream.h"
 #include "modules/audio/pcm_format.h"
@@ -21,6 +22,7 @@
 #include "modules/audio/voice_activity_detector.h"
 #include "modules/voice/speech_recognizer.h"
 #include "modules/voice/speech_transcript.h"
+#include "services/audio-service/audio_capture_module.h"
 
 namespace cockpit {
 namespace audio {
@@ -85,6 +87,7 @@ class AudioService {
 
  private:
   void StopCaptureLocked();
+  AudioCaptureState CaptureStateLocked() const;
   void ProcessVoiceActivity();
   void ResetVadMetrics();
   void PublishSpeechSegment(SpeechSegment segment);
@@ -98,7 +101,8 @@ class AudioService {
   const config::SpeechSegmentConfig segment_config_;
   const SourceFactory source_factory_;
   mutable std::mutex mutex_;
-  std::unique_ptr<AudioCaptureStream> capture_stream_;
+  runtime::ModuleManager module_manager_;
+  AudioCaptureModule* capture_module_{nullptr};
   std::unique_ptr<VoiceActivityDetector> vad_;
   std::unique_ptr<SpeechSegmenter> segmenter_;
   std::unique_ptr<voice::SpeechRecognizer> recognizer_;

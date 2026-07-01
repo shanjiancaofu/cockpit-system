@@ -1,5 +1,5 @@
-add_cockpit_library(audio_service audio_service.cc)
-target_link_libraries(audio_service PUBLIC alsa_audio audio config voice)
+add_cockpit_library(audio_service audio_capture_module.cc audio_service.cc)
+target_link_libraries(audio_service PUBLIC alsa_audio audio config runtime voice)
 
 add_cockpit_library(speech_output speech_output.cc)
 target_link_libraries(speech_output PUBLIC audio voice)

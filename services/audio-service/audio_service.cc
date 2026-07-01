@@ -77,6 +77,10 @@ AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_con
       segment_config_(segment_config),
       source_factory_(std::move(source_factory)),
       recognizer_(std::move(recognizer)) {
+  auto capture_module = std::make_unique<AudioCaptureModule>();
+  capture_module_ = capture_module.get();
+  module_manager_.Add(std::move(capture_module));
+
   if (vad_config_.enabled) {
     EnergyVadConfig energy_config;
     energy_config.speech_threshold_dbfs = vad_config_.speech_threshold_dbfs;
@@ -98,16 +102,14 @@ AudioService::~AudioService() {
 
 bool AudioService::StartCapture(const std::string& input_device, std::string* error) {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (capture_stream_ != nullptr) {
-    const AudioCaptureState state = capture_stream_->state();
-    if (state != AudioCaptureState::kStopped && state != AudioCaptureState::kFaulted) {
-      if (error != nullptr) {
-        *error = "audio capture is already active";
-      }
-      return false;
+  const AudioCaptureState state = CaptureStateLocked();
+  if (state != AudioCaptureState::kStopped && state != AudioCaptureState::kFaulted) {
+    if (error != nullptr) {
+      *error = "audio capture is already active";
     }
-    StopCaptureLocked();
+    return false;
   }
+  StopCaptureLocked();
 
   input_device_ = input_device.empty() ? config_.input_device : input_device;
   auto source = source_factory_(input_device_, ToPcmFormat(config_));
@@ -117,20 +119,22 @@ bool AudioService::StartCapture(const std::string& input_device, std::string* er
     }
     return false;
   }
-  capture_stream_ = std::make_unique<AudioCaptureStream>(std::move(source));
-  if (!capture_stream_->Start(error)) {
-    capture_stream_.reset();
+  capture_module_->Configure(std::make_unique<AudioCaptureStream>(std::move(source)));
+  if (!module_manager_.StartAll()) {
+    if (error != nullptr) {
+      *error = capture_module_->last_error();
+    }
     return false;
   }
 
   const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
-  while (capture_stream_->state() == AudioCaptureState::kStarting &&
+  while (capture_module_->capture_state() == AudioCaptureState::kStarting &&
          std::chrono::steady_clock::now() < deadline) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
-  if (capture_stream_->state() == AudioCaptureState::kFaulted) {
+  if (capture_module_->capture_state() == AudioCaptureState::kFaulted) {
     if (error != nullptr) {
-      *error = capture_stream_->last_error();
+      *error = capture_module_->last_error();
     }
     return false;
   }
@@ -142,7 +146,7 @@ bool AudioService::StartCapture(const std::string& input_device, std::string* er
     try {
       asr_worker_ = std::thread(&AudioService::ProcessSpeechSegments, this);
     } catch (const std::exception& exception) {
-      capture_stream_->Stop();
+      module_manager_.StopAll();
       if (error != nullptr) {
         *error = exception.what();
       }
@@ -156,7 +160,7 @@ bool AudioService::StartCapture(const std::string& input_device, std::string* er
     try {
       vad_worker_ = std::thread(&AudioService::ProcessVoiceActivity, this);
     } catch (const std::exception& exception) {
-      capture_stream_->Stop();
+      module_manager_.StopAll();
       asr_stop_.store(true);
       if (asr_worker_.joinable()) {
         asr_worker_.join();
@@ -223,18 +227,16 @@ AudioServiceStatus AudioService::status() const {
   result.asr_segments_processed = asr_segments_processed_.load();
   result.transcripts_published = transcripts_published_.load();
   result.asr_errors = asr_errors_.load();
-  if (capture_stream_ != nullptr) {
-    result.capture_state = capture_stream_->state();
-    result.metrics = capture_stream_->metrics();
-    result.last_error = capture_stream_->last_error();
+  if (capture_module_ != nullptr) {
+    result.capture_state = capture_module_->capture_state();
+    result.metrics = capture_module_->metrics();
+    result.last_error = capture_module_->last_error();
   }
   return result;
 }
 
 void AudioService::StopCaptureLocked() {
-  if (capture_stream_ != nullptr) {
-    capture_stream_->Stop();
-  }
+  module_manager_.StopAll();
   vad_stop_.store(true);
   if (vad_worker_.joinable()) {
     vad_worker_.join();
@@ -246,9 +248,14 @@ void AudioService::StopCaptureLocked() {
   transcript_changed_.notify_all();
 }
 
+AudioCaptureState AudioService::CaptureStateLocked() const {
+  return capture_module_ == nullptr ? AudioCaptureState::kStopped
+                                    : capture_module_->capture_state();
+}
+
 void AudioService::ProcessVoiceActivity() {
   while (true) {
-    auto frame = capture_stream_->TryPop();
+    auto frame = capture_module_->TryPop();
     if (!frame.has_value()) {
       if (vad_stop_.load()) {
         break;
