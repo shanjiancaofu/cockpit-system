@@ -7,9 +7,11 @@
 #include <string>
 #include <vector>
 
+#include "core/runtime/ModuleManager.h"
 #include "drivers/v4l2/v4l2_camera.h"
 #include "modules/camera/camera_frame_sink.h"
 #include "modules/camera/camera_preview_source.h"
+#include "services/camera-service/camera_preview_module.h"
 
 namespace cockpit {
 namespace camera {
@@ -63,7 +65,8 @@ class CameraService {
   void SetError(std::string error);
 
   DeviceLister device_lister_;
-  std::unique_ptr<CameraPreviewSource> preview_source_;
+  runtime::ModuleManager module_manager_;
+  CameraPreviewModule* preview_module_{nullptr};
   std::shared_ptr<CameraFrameSink> frame_sink_;
   mutable std::mutex lifecycle_mutex_;
   mutable std::mutex mutex_;

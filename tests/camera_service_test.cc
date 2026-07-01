@@ -145,7 +145,7 @@ int main() {
   status = service.status();
   if (!Check(status.state == cockpit::camera::CameraPreviewState::kStopped,
              "camera preview did not stop") ||
-      !Check(preview_source_ptr->stop_count() >= 2, "camera preview source was not stopped") ||
+      !Check(preview_source_ptr->stop_count() >= 1, "camera preview source was not stopped") ||
       !Check(list_calls >= 3, "camera service did not use injected device lister")) {
     return 1;
   }

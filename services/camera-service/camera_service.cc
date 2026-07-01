@@ -1,5 +1,6 @@
 #include "camera_service.h"
 
+#include <memory>
 #include <utility>
 
 #include "modules/camera/latest_frame_buffer.h"
@@ -48,9 +49,11 @@ CameraService::CameraService(DeviceLister device_lister,
                              std::unique_ptr<CameraPreviewSource> preview_source,
                              std::shared_ptr<CameraFrameSink> frame_sink)
     : device_lister_(std::move(device_lister)),
-      preview_source_(std::move(preview_source)),
       frame_sink_(frame_sink == nullptr ? std::make_shared<LatestFrameBuffer>()
                                         : std::move(frame_sink)) {
+  auto preview_module = std::make_unique<CameraPreviewModule>(std::move(preview_source));
+  preview_module_ = preview_module.get();
+  module_manager_.Add(std::move(preview_module));
 }
 
 CameraService::~CameraService() {
@@ -63,9 +66,7 @@ std::vector<VideoDeviceInfo> CameraService::ListDevices(std::string* error) cons
 
 bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::string* error) {
   std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
-  if (preview_source_ != nullptr) {
-    preview_source_->Stop();
-  }
+  module_manager_.StopAll();
   if (request.device.empty()) {
     AssignError(error, "camera device must not be empty");
     SetError("camera device must not be empty");
@@ -80,7 +81,7 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     SetError(error == nullptr ? "camera device is not available" : *error);
     return false;
   }
-  if (preview_source_ == nullptr) {
+  if (preview_module_ == nullptr || !preview_module_->available()) {
     AssignError(error, "camera preview backend is not available");
     SetError("camera preview backend is not available");
     return false;
@@ -104,13 +105,11 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     status_.last_error.clear();
   }
 
-  std::string start_error;
-  if (!preview_source_->Start(
-          config,
-          [this](CameraFrame frame) {
-            HandleFrame(std::move(frame));
-          },
-          &start_error)) {
+  preview_module_->Configure(config, [this](CameraFrame frame) {
+    HandleFrame(std::move(frame));
+  });
+  if (!module_manager_.StartAll()) {
+    std::string start_error = preview_module_->last_error();
     if (start_error.empty()) {
       start_error = "start camera preview backend failed";
     }
@@ -128,9 +127,7 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
 
 void CameraService::StopPreview() {
   std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
-  if (preview_source_ != nullptr) {
-    preview_source_->Stop();
-  }
+  module_manager_.StopAll();
   std::lock_guard<std::mutex> lock(mutex_);
   status_.state = CameraPreviewState::kStopped;
 }

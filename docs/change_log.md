@@ -5,6 +5,25 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-01 - Camera Service Runtime Module
+
+### 变更内容 / Changed
+
+- camera-service 新增 `CameraPreviewModule`，把 GStreamer preview source 包装成 runtime module。
+- `CameraService` 内部使用 `ModuleManager` 管理预览启动、停止和失败回滚。
+- 对外 gRPC/CLI 行为保持不变，仍然由 camera-service 独占摄像头设备。
+
+### 设计决定 / Design Decisions
+
+- 只把 preview pipeline 收进进程内 lifecycle，不新增 camera 子服务。
+- 共享内存帧数据面保持不变，runtime module 只负责生命周期。
+- 这一步用于验证 runtime 层在真实服务中可用，避免停留在空框架。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 针对本批文件通过。
+- `bash scripts/build.sh` 通过，CTest 22/22。
+
 ## 2026-07-01 - Runtime Module Lifecycle
 
 ### 变更内容 / Changed
