@@ -1,6 +1,6 @@
 # 旧项目参考与复用分析
 
-本文档对应 `../architecture_refined_v0.3.md` 第 20 和第 23 节，用于记录
+本文档对应 `architecture_refined_v0.4.md` 的参考项目约束，用于记录
 `E:\code\project` 下旧项目对新工程 `system` 的影响。
 
 更细的逐文件审计见 [reference_code_audit.md](reference_code_audit.md)。

@@ -25,17 +25,20 @@
 - `audio-service` 麦克风采集控制面和 `audio-probe --start/--stop/--status`。
 - 本地能量 VAD、输入 dBFS、speech/silence 状态和运行指标。
 - Mock ASR consumer、transcript 历史和 gRPC 文本事件流。
-- Qt/QML cockpit UI 和本地 Web dashboard 目录骨架。
+- V4L2 摄像头枚举、GStreamer 预览采集和 camera-service 控制面。
+- `core/ipc` POSIX shared memory 与 camera shared-frame 双缓冲数据面。
+- Qt/QML cockpit UI，支持车辆状态、相机预览和相机 start/stop 控制。
+- 本地 Web dashboard 目录骨架。
 
-尚未完成的真实传输包括：gateway 对 UI 的 gRPC/WebSocket 输出和 MQTT。
+尚未完成的真实传输包括：WebSocket dashboard 输出、MQTT 云端上报和真实 AI provider。
 
 ## 目录
 
 ```text
 apps/       Qt/QML UI 与本地浏览器调试页面
-core/       配置、日志、生命周期和基础工具
-modules/    vehicle、can、audio、voice 等平台无关领域能力
-drivers/    SocketCAN 等 Linux/硬件适配层
+core/       配置、日志、生命周期、事件队列、IPC 和基础工具
+modules/    vehicle、can、audio、voice、camera 等平台无关领域能力
+drivers/    SocketCAN、ALSA、V4L2 等 Linux/硬件适配层
 proto/      protobuf 与 gRPC 接口契约
 configs/    YAML 与 systemd 配置
 docs/       架构、范围、参考审计和变更记录
@@ -80,6 +83,9 @@ build/bin/vehicle-data-service --source socketcan --config configs/config.yaml -
 build/bin/vehicle-data-service --config configs/config.yaml --forever
 build/bin/cockpit-gateway-service --config configs/config.yaml --samples 3
 build/bin/cloud-uplink-service --config configs/config.yaml --once
+build/bin/camera-probe --list --config configs/config.yaml
+build/bin/camera-preview-probe --device /dev/video0 --frames 30 --config configs/config.yaml
+build/bin/camera-service --config configs/config.yaml
 build/bin/topic list --config configs/config.yaml
 build/bin/topic echo /dev/smoke --tail 1 --config configs/config.yaml
 build/bin/topic hz /dev/smoke --window 100 --config configs/config.yaml
@@ -93,7 +99,7 @@ WSL/Ubuntu 虚拟 CAN 端到端验证：
 bash scripts/run_vcan_smoke.sh
 ```
 
-Qt6 车机界面联调（自动启动车辆服务和网关）：
+Qt6 车机界面联调（自动启动车辆服务、网关和 camera-service）：
 
 ```bash
 bash scripts/run_cockpit_ui.sh
@@ -105,7 +111,7 @@ bash scripts/run_cockpit_ui.sh
 
 重要文档：
 
-- [总体架构蓝图](docs/architecture_refined_v0.3.md)
+- [总体架构蓝图](docs/architecture_refined_v0.4.md)
 - [当前架构快照](docs/architecture.md)
 - [项目范围与仓库策略](docs/project_scope_and_repo_strategy.md)
 - [模块化策略](docs/modularization_strategy.md)

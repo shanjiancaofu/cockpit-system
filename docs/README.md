@@ -5,7 +5,7 @@
 
 ## 文档层级
 
-1. [architecture_refined_v0.3.md](architecture_refined_v0.3.md)
+1. [architecture_refined_v0.4.md](architecture_refined_v0.4.md)
    - 完整系统蓝图。
    - 描述长期模块、通信方式、部署和工程规范。
    - 不代表所有模块都要在当前阶段实现。

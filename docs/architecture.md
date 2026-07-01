@@ -1,6 +1,6 @@
 # Architecture Snapshot
 
-Source document: `docs/architecture_refined_v0.3.md`.
+Source document: `docs/architecture_refined_v0.4.md`.
 
 Scope and repository decision: see `docs/project_scope_and_repo_strategy.md`.
 

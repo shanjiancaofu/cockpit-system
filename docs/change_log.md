@@ -5,6 +5,26 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-01 - Architecture Blueprint v0.4
+
+### 变更内容 / Changed
+
+- 将总体架构蓝图从 `architecture_refined_v0.3.md` 更新为 `architecture_refined_v0.4.md`。
+- 同步当前工程状态：`core/ipc` 通用共享内存、camera-service 共享内存数据面、Qt 相机控制面、
+  audio/voice/camera/vehicle 当前模块边界。
+- 更新 README 和 docs 索引，统一指向 v0.4 架构蓝图。
+
+### 设计决定 / Design Decisions
+
+- 继续保持单仓库、内部模块化，避免过早拆成多个代码库。
+- 明确少量 device-owner process + 本地 runtime/event/ipc 的路线，避免把内部高频链路做成普通微服务。
+- 明确 gRPC 主要用于低频控制面，音频帧和相机帧等高频数据优先走本地队列或共享内存。
+
+### 验证结果 / Verification
+
+- 文档入口已从 v0.3 同步到 v0.4。
+- 本批为文档更新，无需重新编译代码。
+
 ## 2026-07-01 - Qt Camera Lifecycle Controls
 
 ### 变更内容 / Changed
