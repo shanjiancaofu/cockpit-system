@@ -6,6 +6,9 @@ target_include_directories(ui_model PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ui_model PUBLIC Qt6::Core)
 
 add_executable(cockpit-ui
+    camera_frame_client.cc
+    camera_frame_model.cc
+    camera_image_provider.cc
     gateway_client.cc
     main.cc
     qml.qrc
@@ -22,6 +25,7 @@ target_link_libraries(cockpit-ui
         Qt6::Quick
         Qt6::QuickControls2
         contracts
+        camera_shm
         logging
         runtime
         ui_model

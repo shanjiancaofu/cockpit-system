@@ -48,6 +48,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - VehicleState server-streaming from `vehicle-data-service` to `cockpit-gateway-service`.
 - CockpitEvent server-streaming from `cockpit-gateway-service` to local debug clients.
 - Optional Qt 6/QML cockpit UI with a worker-thread gRPC client and UI-thread vehicle model.
+- Qt camera worker, image provider, and Camera tab consuming the shared-memory preview path.
 - Qt UI freshness tracking with explicit live, stale, and disconnected states.
 - Runnable placeholders for:
   - `vehicle-data-service`
@@ -71,7 +72,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - MQTT client.
 - WebSocket dashboard stream.
 - Camera preview integration into the Qt/HMI bridge.
-- Qt/HMI reader integration for the shared-memory camera path.
+- Camera lifecycle controls in the Qt UI instead of demo-script auto-start only.
 - SQLite storage and recorder index.
 - Shared memory ring buffer.
 - Real speech TTS provider and Jetson microphone/speaker calibration.

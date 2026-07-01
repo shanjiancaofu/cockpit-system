@@ -15,8 +15,11 @@ Current implementation:
 - `VehicleStateModel` distinguishes transport connection from fresh vehicle data; data becomes
   stale after 1.5 seconds without an update.
 - `GatewayClient` subscribes to `CockpitGateway.SubscribeCockpitEvents` on a worker thread.
+- `CameraFrameClient` reads the camera-service POSIX shared-memory double buffer on a worker thread.
+- `CameraImageProvider` publishes BGRx/RGB frames through `image://camera` without exposing IPC to
+  QML.
 - Model updates cross into the Qt UI thread through queued invocations.
-- The dashboard shows live VehicleState data and reconnect status.
+- Dashboard and Camera tabs show live vehicle state and the latest camera frame.
 - The dashboard marks LIVE, STALE, and DISCONNECTED states separately while retaining the last
   known values for diagnosis.
 
@@ -33,6 +36,9 @@ For a complete local demo with mock vehicle data and automatic process cleanup:
 ```bash
 bash scripts/run_cockpit_ui.sh
 ```
+
+The demo starts camera-service and automatically starts `/dev/video0` when it exists. Override or
+disable this behavior with `CAMERA_DEVICE=/dev/video2` or `CAMERA_AUTO_START=false`.
 
 Headless runtime verification:
 

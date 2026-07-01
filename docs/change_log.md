@@ -5,6 +5,29 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-01 - Qt Shared-Memory Camera View
+
+### 变更内容 / Changed
+
+- cockpit-ui 新增后台 `CameraFrameClient`，从 camera-service 共享内存读取最新帧。
+- 新增 `CameraImageProvider` 和 `CameraFrameModel`，通过 queued invocation 安全更新 UI。
+- QML 增加 Dashboard/Camera tabs，显示相机连接、分辨率、帧序号和实时画面。
+- `run_cockpit_ui.sh` 管理 camera-service，等待控制面就绪，并在设备存在时自动启动预览。
+
+### 设计决定 / Design Decisions
+
+- QML 不访问共享内存、V4L2 或 GStreamer；硬件和 IPC 仍由 C++ 层负责。
+- reader 在工作线程按 generation 读取，只有新帧才转换和刷新 `image://camera`。
+- 当前 UI 支持 GStreamer 默认输出的 BGRx/RGB；压缩格式和 YUV 转换留在采集 pipeline。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 针对本批文件通过。
+- `bash scripts/build.sh` 通过，CTest 21/21。
+- `pre-commit run clang-tidy --hook-stage manual -a` 通过。
+- `run_cockpit_ui.sh --offscreen` 完整启动 vehicle、gateway、camera-service 和 cockpit-ui；
+  QML Camera tab 加载成功，限时退出后无残留进程或 QML context 错误。
+
 ## 2026-07-01 - Camera Shared-Memory Double Buffer
 
 ### 变更内容 / Changed

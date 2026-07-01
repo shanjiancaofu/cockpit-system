@@ -78,23 +78,42 @@ Item {
             }
         }
 
-        RowLayout {
+        TabBar {
+            id: viewTabs
+            Layout.fillWidth: true
+            Layout.preferredHeight: 42
+
+            TabButton {
+                text: "DASHBOARD"
+            }
+
+            TabButton {
+                text: "CAMERA"
+            }
+        }
+
+        StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 18
+            currentIndex: viewTabs.currentIndex
 
-            Rectangle {
+            RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumWidth: 560
-                radius: 8
-                color: root.surface
-                border.color: root.borderColor
+                spacing: 18
 
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 30
-                    spacing: 8
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumWidth: 560
+                    radius: 8
+                    color: root.surface
+                    border.color: root.borderColor
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 30
+                        spacing: 8
 
                     Label {
                         text: "VEHICLE SPEED"
@@ -142,13 +161,13 @@ Item {
                             color: root.cyan
                         }
                     }
+                    }
                 }
-            }
 
-            ColumnLayout {
-                Layout.preferredWidth: 330
-                Layout.fillHeight: true
-                spacing: 18
+                ColumnLayout {
+                    Layout.preferredWidth: 330
+                    Layout.fillHeight: true
+                    spacing: 18
 
                 Rectangle {
                     Layout.fillWidth: true
@@ -223,6 +242,79 @@ Item {
                                 radius: 5
                                 color: vehicleState.socPercent > 20 ? root.green : root.amber
                             }
+                        }
+                    }
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                radius: 8
+                color: "#080b0d"
+                border.color: root.borderColor
+
+                Image {
+                    anchors.fill: parent
+                    anchors.margins: 2
+                    source: cameraFrame.frameSource
+                    fillMode: Image.PreserveAspectFit
+                    cache: false
+                    visible: cameraFrame.hasFrame
+                }
+
+                Column {
+                    anchors.centerIn: parent
+                    spacing: 8
+                    visible: !cameraFrame.hasFrame
+
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: cameraFrame.connected ? "WAITING FOR CAMERA FRAMES"
+                                                    : "CAMERA SERVICE DISCONNECTED"
+                        color: cameraFrame.connected ? root.secondaryText : root.red
+                        font.pixelSize: 16
+                        font.bold: true
+                    }
+
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: cameraFrame.connected ? "Shared memory connected" : "Retrying"
+                        color: root.secondaryText
+                        font.pixelSize: 12
+                    }
+                }
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: 42
+                    color: "#d90e1214"
+                    visible: cameraFrame.hasFrame
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 16
+                        anchors.rightMargin: 16
+
+                        Label {
+                            text: cameraFrame.connected ? "LIVE CAMERA" : "LAST FRAME"
+                            color: cameraFrame.connected ? root.green : root.amber
+                            font.pixelSize: 12
+                            font.bold: true
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: cameraFrame.frameWidth + " x " + cameraFrame.frameHeight
+                                  + "   FRAME " + cameraFrame.sequence
+                            color: root.secondaryText
+                            font.pixelSize: 12
                         }
                     }
                 }
