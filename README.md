@@ -83,6 +83,7 @@ build/bin/vehicle-data-service --source socketcan --config configs/config.yaml -
 build/bin/vehicle-data-service --config configs/config.yaml --forever
 build/bin/cockpit-gateway-service --config configs/config.yaml --samples 3
 build/bin/cloud-uplink-service --config configs/config.yaml --once
+build/bin/cockpit-ctl status --config configs/config.yaml
 build/bin/camera-probe --list --config configs/config.yaml
 build/bin/camera-preview-probe --device /dev/video0 --frames 30 --config configs/config.yaml
 build/bin/camera-service --config configs/config.yaml

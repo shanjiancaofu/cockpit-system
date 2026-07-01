@@ -5,6 +5,28 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-01 - Cockpit Diagnostics CLI
+
+### 变更内容 / Changed
+
+- 新增 `cockpit-ctl status` 顶层诊断工具。
+- 通过现有 gRPC 控制面汇总 gateway、audio、voice 和 camera 状态。
+- 服务未启动时显示 `available: no` 和 RPC 错误，不让整条诊断命令失败。
+- README 增加 `cockpit-ctl status` 常用命令。
+
+### 设计决定 / Design Decisions
+
+- 当前保持只读诊断，不直接暴露 restart 或控制命令。
+- 不新增 proto，复用各 service 已有 `GetStatus` / `GetLatestVehicleState`。
+- 先把分散的 probe/ctl 能力收成一个入口，后续再接 runtime module status。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 针对本批文件通过。
+- `bash scripts/build.sh` 通过，CTest 22/22。
+- `build/bin/cockpit-ctl status --config configs/config.yaml` 在服务未启动时正常输出
+  unavailable 状态。
+
 ## 2026-07-01 - Audio Capture Runtime Module
 
 ### 变更内容 / Changed
