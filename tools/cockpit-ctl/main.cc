@@ -53,7 +53,7 @@ void PrintUsage() {
 }
 
 void SetContext(grpc::ClientContext* context) {
-  context->set_wait_for_ready(false);
+  context->set_wait_for_ready(true);
   context->set_deadline(std::chrono::system_clock::now() +
                         std::chrono::milliseconds(kRpcTimeoutMs));
 }
@@ -128,6 +128,34 @@ const char* InteractionStateName(proto::voice::InteractionState state) {
   }
 }
 
+const char* RuntimeModuleStateName(proto::common::RuntimeModuleState state) {
+  switch (state) {
+    case proto::common::RUNTIME_MODULE_STATE_CREATED:
+      return "created";
+    case proto::common::RUNTIME_MODULE_STATE_STARTING:
+      return "starting";
+    case proto::common::RUNTIME_MODULE_STATE_RUNNING:
+      return "running";
+    case proto::common::RUNTIME_MODULE_STATE_STOPPING:
+      return "stopping";
+    case proto::common::RUNTIME_MODULE_STATE_STOPPED:
+      return "stopped";
+    case proto::common::RUNTIME_MODULE_STATE_FAILED:
+      return "failed";
+    case proto::common::RUNTIME_MODULE_STATE_UNSPECIFIED:
+    default:
+      return "unspecified";
+  }
+}
+
+template <typename RepeatedModules>
+void PrintModules(const RepeatedModules& modules) {
+  for (const auto& module : modules) {
+    std::cout << "  module: " << module.name() << '=' << RuntimeModuleStateName(module.state())
+              << "\n";
+  }
+}
+
 void PrintServiceHeader(const std::string& name, const std::string& address) {
   std::cout << name << " (" << address << ")\n";
 }
@@ -177,6 +205,7 @@ void PrintAudioStatus(const std::string& address) {
             << " dBFS frames=" << audio.metrics().vad_frames_processed() << "\n"
             << "  asr: " << (audio.asr_enabled() ? "enabled" : "disabled")
             << " transcripts=" << audio.metrics().transcripts_published() << "\n";
+  PrintModules(audio.modules());
   if (!audio.last_error().empty()) {
     std::cout << "  last_error: " << audio.last_error() << "\n";
   }
@@ -227,6 +256,7 @@ void PrintCameraStatus(const std::string& address) {
             << " size=" << camera.width() << "x" << camera.height() << "@" << camera.fps() << "\n"
             << "  frames: received=" << camera.frames_received()
             << " dropped=" << camera.frames_dropped() << "\n";
+  PrintModules(camera.modules());
   if (!camera.last_error().empty()) {
     std::cout << "  last_error: " << camera.last_error() << "\n";
   }

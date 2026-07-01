@@ -125,6 +125,9 @@ int main() {
       !Check(preview_source_ptr->start_count() == 1, "camera preview source was not started") ||
       !Check(preview_source_ptr->config().device == "/dev/video0",
              "camera preview source device mismatch") ||
+      !Check(status.modules.size() == 1 && status.modules[0].name == "camera-preview" &&
+                 status.modules[0].state == cockpit::runtime::ModuleState::kRunning,
+             "camera preview module status mismatch") ||
       !Check(status.last_error.empty(), "camera preview kept stale error")) {
     return 1;
   }
@@ -146,6 +149,9 @@ int main() {
   if (!Check(status.state == cockpit::camera::CameraPreviewState::kStopped,
              "camera preview did not stop") ||
       !Check(preview_source_ptr->stop_count() >= 1, "camera preview source was not stopped") ||
+      !Check(status.modules.size() == 1 &&
+                 status.modules[0].state == cockpit::runtime::ModuleState::kStopped,
+             "camera preview module did not stop") ||
       !Check(list_calls >= 3, "camera service did not use injected device lister")) {
     return 1;
   }

@@ -114,7 +114,9 @@ int main() {
   if (status.capture_state != cockpit::audio::AudioCaptureState::kStopped ||
       status.input_device != "fake-input" || status.metrics.audio_frames_published < 3 ||
       !fake_state->opened.load() || !fake_state->closed.load() || status.vad_frames_processed < 3 ||
-      !status.vad_enabled || status.speech_segments_completed < 1) {
+      !status.vad_enabled || status.speech_segments_completed < 1 || status.modules.size() != 1 ||
+      status.modules[0].name != "audio-capture" ||
+      status.modules[0].state != cockpit::runtime::ModuleState::kStopped) {
     std::cerr << "audio service stopped status is invalid\n";
     return 1;
   }

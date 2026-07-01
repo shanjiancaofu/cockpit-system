@@ -86,6 +86,7 @@ message AudioStatus {
   VoiceActivityState voice_activity_state = 8;
   double input_level_dbfs = 9;
   bool asr_enabled = 10;
+  repeated cockpit.proto.common.RuntimeModuleStatus modules = 11;
 }
 
 service AudioControl {

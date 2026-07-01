@@ -134,7 +134,9 @@ void CameraService::StopPreview() {
 
 CameraServiceStatus CameraService::status() const {
   std::lock_guard<std::mutex> lock(mutex_);
-  return status_;
+  CameraServiceStatus result = status_;
+  result.modules = module_manager_.Status();
+  return result;
 }
 
 bool CameraService::IsUsableCaptureDevice(const VideoDeviceInfo& device) {

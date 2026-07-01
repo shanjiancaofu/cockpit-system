@@ -18,6 +18,24 @@ proto::camera::CameraPreviewState ToProtoState(CameraPreviewState state) {
   return proto::camera::CAMERA_PREVIEW_STATE_UNSPECIFIED;
 }
 
+proto::common::RuntimeModuleState ToProtoModuleState(runtime::ModuleState state) {
+  switch (state) {
+    case runtime::ModuleState::kCreated:
+      return proto::common::RUNTIME_MODULE_STATE_CREATED;
+    case runtime::ModuleState::kStarting:
+      return proto::common::RUNTIME_MODULE_STATE_STARTING;
+    case runtime::ModuleState::kRunning:
+      return proto::common::RUNTIME_MODULE_STATE_RUNNING;
+    case runtime::ModuleState::kStopping:
+      return proto::common::RUNTIME_MODULE_STATE_STOPPING;
+    case runtime::ModuleState::kStopped:
+      return proto::common::RUNTIME_MODULE_STATE_STOPPED;
+    case runtime::ModuleState::kFailed:
+      return proto::common::RUNTIME_MODULE_STATE_FAILED;
+  }
+  return proto::common::RUNTIME_MODULE_STATE_UNSPECIFIED;
+}
+
 }  // namespace
 
 CameraGrpcService::CameraGrpcService(CameraService& camera_service)
@@ -114,6 +132,11 @@ void CameraGrpcService::FillStatus(const CameraServiceStatus& status,
   response->set_frames_received(status.frames_received);
   response->set_frames_dropped(status.frames_dropped);
   response->set_last_error(status.last_error);
+  for (const auto& module : status.modules) {
+    auto* module_status = response->add_modules();
+    module_status->set_name(module.name);
+    module_status->set_state(ToProtoModuleState(module.state));
+  }
 }
 
 }  // namespace camera

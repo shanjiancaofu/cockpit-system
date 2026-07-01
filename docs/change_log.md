@@ -5,6 +5,29 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-01 - Runtime Module Status Surface
+
+### 变更内容 / Changed
+
+- `common.proto` 新增通用 runtime module 状态枚举和消息。
+- audio/camera status 增加 module 列表，暴露 `audio-capture` 和 `camera-preview` 生命周期。
+- `cockpit-ctl status` 展示各服务内部 module 的 created/running/stopped/failed 状态。
+- 修正新建 gRPC channel 快速失败的问题，在 deadline 内等待服务连接就绪。
+- audio/camera 单元测试增加 module 状态断言。
+
+### 设计决定 / Design Decisions
+
+- module 状态复用现有 service status RPC，不新增独立 runtime service。
+- 当前只暴露只读状态，不开放远程 module restart。
+- service 仍是进程与资源边界，module 状态只是进程内部诊断信息。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 针对本批文件通过。
+- `bash scripts/build.sh` 通过，CTest 22/22。
+- 临时启动 audio-service 和 camera-service 后，`cockpit-ctl status` 成功显示
+  `audio-capture=created` 和 `camera-preview=created`。
+
 ## 2026-07-01 - Cockpit Diagnostics CLI
 
 ### 变更内容 / Changed

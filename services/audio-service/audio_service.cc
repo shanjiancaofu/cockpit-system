@@ -227,6 +227,7 @@ AudioServiceStatus AudioService::status() const {
   result.asr_segments_processed = asr_segments_processed_.load();
   result.transcripts_published = transcripts_published_.load();
   result.asr_errors = asr_errors_.load();
+  result.modules = module_manager_.Status();
   if (capture_module_ != nullptr) {
     result.capture_state = capture_module_->capture_state();
     result.metrics = capture_module_->metrics();

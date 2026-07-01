@@ -42,6 +42,7 @@ message CameraStatus {
   uint64 frames_received = 6;
   uint64 frames_dropped = 7;
   string last_error = 8;
+  repeated cockpit.proto.common.RuntimeModuleStatus modules = 9;
 }
 
 service CameraControl {

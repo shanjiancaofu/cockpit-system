@@ -7,5 +7,20 @@ message Error {
   string message = 2;
 }
 
+enum RuntimeModuleState {
+  RUNTIME_MODULE_STATE_UNSPECIFIED = 0;
+  RUNTIME_MODULE_STATE_CREATED = 1;
+  RUNTIME_MODULE_STATE_STARTING = 2;
+  RUNTIME_MODULE_STATE_RUNNING = 3;
+  RUNTIME_MODULE_STATE_STOPPING = 4;
+  RUNTIME_MODULE_STATE_STOPPED = 5;
+  RUNTIME_MODULE_STATE_FAILED = 6;
+}
+
+message RuntimeModuleStatus {
+  string name = 1;
+  RuntimeModuleState state = 2;
+}
+
 message Empty {
 }

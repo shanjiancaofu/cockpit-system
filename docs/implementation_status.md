@@ -11,6 +11,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 
 - Top-level CMake project with Linux/WSL shell scripts.
 - Core config, logging, runtime, and time helpers.
+- Runtime module lifecycle manager with ordered start, reverse stop, failure rollback, and status.
 - Core POSIX shared-memory region abstraction for reusable local IPC mappings.
 - yaml-cpp `SystemConfig` with typed sections and startup validation.
 - Vehicle state model, prototype CAN codec, and SocketCAN RAII wrapper.
@@ -50,6 +51,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Optional Qt 6/QML cockpit UI with a worker-thread gRPC client and UI-thread vehicle model.
 - Qt camera worker, image provider, and Camera tab consuming the shared-memory preview path.
 - Qt asynchronous camera device discovery and preview start/stop controls.
+- `cockpit-ctl status` and watch mode for aggregated gateway/audio/voice/camera diagnostics,
+  including audio/camera runtime module state.
 - Qt UI freshness tracking with explicit live, stale, and disconnected states.
 - Runnable placeholders for:
   - `vehicle-data-service`
@@ -72,7 +75,6 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Production vehicle CAN mapping from an approved DBC or signal specification.
 - MQTT client.
 - WebSocket dashboard stream.
-- Camera preview integration into the Qt/HMI bridge.
 - SQLite storage and recorder index.
 - Shared memory ring buffer.
 - Real speech TTS provider and Jetson microphone/speaker calibration.
@@ -110,7 +112,7 @@ Result:
 
 - CMake configure and generate succeeded.
 - Ninja build completed, including generated protobuf/gRPC code.
-- CTest 21/21 passed across IPC, audio, camera, voice, config, vehicle, and UI model tests.
+- CTest 22/22 passed across runtime, IPC, audio, camera, voice, config, vehicle, and UI model tests.
 - Smoke chain ran:
   - `can-simulator`
   - `camera-probe`
@@ -129,3 +131,7 @@ processes, verifies the upstream VehicleState stream, and verifies downstream to
 
 The `vcan0` path was verified on 2026-06-21: `can-simulator` sent three prototype VehicleState
 frames through SocketCAN and `vehicle-data-service` received and decoded all three successfully.
+
+Runtime module status was verified on 2026-07-01 by starting audio-service and camera-service and
+querying `cockpit-ctl status`; the tool reported `audio-capture=created` and
+`camera-preview=created` through their existing gRPC status APIs.

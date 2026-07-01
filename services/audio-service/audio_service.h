@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "core/config/system_config.h"
 #include "core/runtime/ModuleManager.h"
@@ -49,6 +50,7 @@ struct AudioServiceStatus {
   std::uint64_t asr_errors = 0;
   bool asr_enabled = false;
   bool vad_enabled = false;
+  std::vector<runtime::ModuleStatus> modules;
   std::string last_error;
 };
 

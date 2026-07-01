@@ -33,6 +33,24 @@ proto::audio::VoiceActivityState ToProtoVoiceActivityState(const AudioServiceSta
              : proto::audio::VOICE_ACTIVITY_STATE_SILENCE;
 }
 
+proto::common::RuntimeModuleState ToProtoModuleState(runtime::ModuleState state) {
+  switch (state) {
+    case runtime::ModuleState::kCreated:
+      return proto::common::RUNTIME_MODULE_STATE_CREATED;
+    case runtime::ModuleState::kStarting:
+      return proto::common::RUNTIME_MODULE_STATE_STARTING;
+    case runtime::ModuleState::kRunning:
+      return proto::common::RUNTIME_MODULE_STATE_RUNNING;
+    case runtime::ModuleState::kStopping:
+      return proto::common::RUNTIME_MODULE_STATE_STOPPING;
+    case runtime::ModuleState::kStopped:
+      return proto::common::RUNTIME_MODULE_STATE_STOPPED;
+    case runtime::ModuleState::kFailed:
+      return proto::common::RUNTIME_MODULE_STATE_FAILED;
+  }
+  return proto::common::RUNTIME_MODULE_STATE_UNSPECIFIED;
+}
+
 }  // namespace
 
 AudioGrpcService::AudioGrpcService(AudioService& audio_service,
@@ -162,6 +180,11 @@ void AudioGrpcService::FillStatus(const AudioServiceStatus& status,
   metrics->set_tts_played(output.played);
   metrics->set_tts_failed(output.failed);
   metrics->set_tts_dropped(output.dropped);
+  for (const auto& module : status.modules) {
+    auto* module_status = response->add_modules();
+    module_status->set_name(module.name);
+    module_status->set_state(ToProtoModuleState(module.state));
+  }
 }
 
 void AudioGrpcService::FillTranscript(const voice::SpeechTranscript& transcript,
