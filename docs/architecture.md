@@ -37,8 +37,9 @@ Current implementation boundary:
   remains process-local while VAD state and metrics cross gRPC.
 - Speech segmentation adds pre-roll and bounded duration, then publishes completed PCM segments
   to a local eight-entry SPSC queue for one ASR consumer.
-- The ASR boundary lives in `modules/voice`; mock ASR currently consumes segments in-process and
-  publishes text-only transcript events through gRPC with a bounded 32-event replay history.
+- The ASR boundary lives in `modules/voice`; mock is the default provider and an optional
+  whisper.cpp adapter can consume segments in-process. Text-only transcript events cross gRPC
+  with a bounded 32-event replay history.
 - `audio-service` exclusively owns microphone and speaker devices. Its `Speak(text)` RPC runs
   mock TTS and bounded asynchronous ALSA playback without moving PCM between processes.
 - `voice-interaction-service` owns intent/action orchestration and sends response text to

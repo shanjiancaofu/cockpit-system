@@ -95,6 +95,9 @@ features:
     enabled: false
     mode: push_to_talk
     asr_provider: mock
+    asr_model_path: ""
+    asr_language: zh
+    asr_threads: 4
     tts_provider: mock
   ai:
     provider: mock
@@ -104,6 +107,25 @@ tools:
     backend: file
     dir: logs/topics
 ```
+
+Supported ASR providers:
+
+- `mock`: default deterministic provider; no model dependency.
+- `whisper_cpp`: optional local inference provider. It requires a model path and a build configured
+  with `BUILD_WHISPER_CPP_ASR=ON`.
+
+Example optional build:
+
+```bash
+cmake -S . -B build -G Ninja \
+  -DBUILD_COCKPIT_UI=ON \
+  -DBUILD_WHISPER_CPP_ASR=ON \
+  -DWHISPER_CPP_DIR=/home/ffz/code/third_party/whisper.cpp
+cmake --build build
+```
+
+Model binaries must stay outside Git. Configure the deployed path with
+`features.voice.asr_model_path`.
 
 ## Typed Ownership
 
@@ -117,7 +139,8 @@ the YAML path.
 
 Speech segmentation is bounded to 2 seconds of pre-roll and 60 seconds per segment. Both values
 must align with `hardware.audio.frame_ms`, and pre-roll must be shorter than the segment limit.
-Voice mode and ASR/TTS providers currently accept only `push_to_talk` and `mock`.
+Voice mode currently accepts `push_to_talk`; ASR accepts `mock` or optional `whisper_cpp`, while
+TTS currently accepts only `mock`.
 
 Camera pixels use a local POSIX shared-memory double buffer. `max_frame_bytes` is the capacity of
 each of the two slots, not the total mapping size; the default fits one 1920x1080 BGRx frame.

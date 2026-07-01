@@ -14,11 +14,37 @@
 #include "modules/voice/mock_speech_recognizer.h"
 #include "modules/voice/mock_speech_synthesizer.h"
 
+#if defined(COCKPIT_HAS_WHISPER_CPP_ASR)
+#include "modules/voice/whisper_speech_recognizer.h"
+#endif
+
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "audio-service");
   std::unique_ptr<cockpit::voice::SpeechRecognizer> recognizer;
   if (runtime.config().features().voice.enabled) {
-    recognizer = std::make_unique<cockpit::voice::MockSpeechRecognizer>();
+    const auto& voice_config = runtime.config().features().voice;
+    if (voice_config.asr_provider == "mock") {
+      recognizer = std::make_unique<cockpit::voice::MockSpeechRecognizer>();
+    } else if (voice_config.asr_provider == "whisper_cpp") {
+#if defined(COCKPIT_HAS_WHISPER_CPP_ASR)
+      cockpit::voice::WhisperRecognizerConfig whisper_config;
+      whisper_config.model_path = voice_config.asr_model_path;
+      whisper_config.language = voice_config.asr_language;
+      whisper_config.threads = voice_config.asr_threads;
+      auto whisper_recognizer =
+          std::make_unique<cockpit::voice::WhisperSpeechRecognizer>(std::move(whisper_config));
+      if (!whisper_recognizer->IsReady()) {
+        LOG_ERROR(whisper_recognizer->initialization_error());
+        runtime.MarkStopped();
+        return 1;
+      }
+      recognizer = std::move(whisper_recognizer);
+#else
+      LOG_ERROR("whisper_cpp ASR requested but BUILD_WHISPER_CPP_ASR is disabled");
+      runtime.MarkStopped();
+      return 1;
+#endif
+    }
   }
   cockpit::audio::AudioService audio_service(
       runtime.config().hardware().audio, runtime.config().services().audio.vad,

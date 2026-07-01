@@ -14,7 +14,10 @@ int main() {
       config.services().audio.speech_segment.max_segment_ms != 15000 ||
       config.services().voice_interaction.grpc.listen_address != "127.0.0.1:50053" ||
       config.services().voice_interaction.gateway_address != "127.0.0.1:50051" ||
-      config.hardware().can.interface != "vcan0" || config.tools().topic.backend != "file") {
+      config.hardware().can.interface != "vcan0" ||
+      config.features().voice.asr_provider != "mock" ||
+      config.features().voice.asr_language != "zh" || config.features().voice.asr_threads != 4 ||
+      config.tools().topic.backend != "file") {
     std::cerr << "typed config fields do not match config.yaml" << std::endl;
     return 1;
   }

@@ -261,6 +261,13 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(voice, "mode", config.features_.voice.mode, "features.voice.mode");
   config.features_.voice.asr_provider = Read(
       voice, "asr_provider", config.features_.voice.asr_provider, "features.voice.asr_provider");
+  config.features_.voice.asr_model_path =
+      Read(voice, "asr_model_path", config.features_.voice.asr_model_path,
+           "features.voice.asr_model_path");
+  config.features_.voice.asr_language = Read(
+      voice, "asr_language", config.features_.voice.asr_language, "features.voice.asr_language");
+  config.features_.voice.asr_threads =
+      Read(voice, "asr_threads", config.features_.voice.asr_threads, "features.voice.asr_threads");
   config.features_.voice.tts_provider = Read(
       voice, "tts_provider", config.features_.voice.tts_provider, "features.voice.tts_provider");
   const YAML::Node ai = ChildMap(features, "ai", "features.ai");
@@ -388,8 +395,17 @@ void SystemConfig::Validate() const {
   if (features_.voice.mode != "push_to_talk") {
     throw std::runtime_error("features.voice.mode currently supports only push_to_talk");
   }
-  if (features_.voice.asr_provider != "mock") {
-    throw std::runtime_error("features.voice.asr_provider currently supports only mock");
+  if (features_.voice.asr_provider != "mock" && features_.voice.asr_provider != "whisper_cpp") {
+    throw std::runtime_error("features.voice.asr_provider must be mock or whisper_cpp");
+  }
+  if (features_.voice.asr_provider == "whisper_cpp" && features_.voice.asr_model_path.empty()) {
+    throw std::runtime_error("features.voice.asr_model_path is required for whisper_cpp");
+  }
+  if (features_.voice.asr_language.empty()) {
+    throw std::runtime_error("features.voice.asr_language must not be empty");
+  }
+  if (features_.voice.asr_threads <= 0) {
+    throw std::runtime_error("features.voice.asr_threads must be positive");
   }
   if (features_.voice.tts_provider != "mock") {
     throw std::runtime_error("features.voice.tts_provider currently supports only mock");

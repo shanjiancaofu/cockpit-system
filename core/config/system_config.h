@@ -125,6 +125,9 @@ struct VoiceConfig {
   bool enabled = false;
   std::string mode = "push_to_talk";
   std::string asr_provider = "mock";
+  std::string asr_model_path;
+  std::string asr_language = "zh";
+  int asr_threads = 4;
   std::string tts_provider = "mock";
 };
 

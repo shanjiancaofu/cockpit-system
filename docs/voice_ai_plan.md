@@ -104,9 +104,12 @@ audio:
 
 voice:
   enabled: false
-  mode: push_to_talk
-  asr_provider: mock
-  tts_provider: mock
+    mode: push_to_talk
+    asr_provider: mock
+    asr_model_path: ""
+    asr_language: zh
+    asr_threads: 4
+    tts_provider: mock
 
 ai:
   provider: mock

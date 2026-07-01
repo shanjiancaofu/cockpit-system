@@ -36,6 +36,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
   bounded local queue for the next ASR consumer.
 - Mock ASR consumer with ordered transcript IDs, metrics, bounded replay history, and text-only
   server-streaming gRPC events.
+- Optional whisper.cpp ASR adapter, provider selection, model/language/thread configuration, and
+  guarded CMake integration; real model inference is not yet verified in the current environment.
 - voice-interaction-service with deterministic allowlisted intents, ordered response events,
   status metrics, audio transcript subscription, and the voice-ctl gRPC diagnostic tool.
 - Typed ActionDispatcher boundary with explicit success/rejected/not-implemented/failed results,

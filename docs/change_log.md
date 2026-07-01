@@ -5,6 +5,30 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-01 - Optional whisper.cpp ASR Provider
+
+### 变更内容 / Changed
+
+- 新增可选 `WhisperSpeechRecognizer`，把完成的 16 kHz mono speech segment 转成 float PCM
+  并调用 whisper.cpp 本地推理。
+- CMake 新增 `BUILD_WHISPER_CPP_ASR` 和 `WHISPER_CPP_DIR`，默认关闭且不增加默认依赖。
+- voice 配置新增 ASR 模型路径、语言和线程数。
+- audio-service 根据 `asr_provider` 选择 mock 或 whisper.cpp；未编译 provider 时明确拒绝启动。
+- 补充配置、构建和模型资产说明。
+
+### 设计决定 / Design Decisions
+
+- whisper.cpp 作为可选 adapter，不复制第三方源码、不提交模型文件。
+- 默认构建继续使用 mock，保证 WSL、CI 和无模型环境可重复构建。
+- ASR 只消费 VAD 完成后的 speech segment，不直接访问 ALSA 或采集线程。
+
+### 验证结果 / Verification
+
+- 默认 mock 构建通过，CTest 22/22。
+- `pre-commit run` 针对本批文件通过。
+- 配置选择 `whisper_cpp` 但构建未启用 provider 时，audio-service 明确报错并返回 1。
+- 当前环境未安装 whisper.cpp，真实 provider 构建和模型推理需在依赖准备后验证。
+
 ## 2026-07-01 - Runtime Module Status Surface
 
 ### 变更内容 / Changed

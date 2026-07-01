@@ -25,6 +25,7 @@
 - `audio-service` 麦克风采集控制面和 `audio-probe --start/--stop/--status`。
 - 本地能量 VAD、输入 dBFS、speech/silence 状态和运行指标。
 - Mock ASR consumer、transcript 历史和 gRPC 文本事件流。
+- 可选 whisper.cpp ASR adapter，默认关闭并保持 mock 构建无第三方模型依赖。
 - V4L2 摄像头枚举、GStreamer 预览采集和 camera-service 控制面。
 - `core/ipc` POSIX shared memory 与 camera shared-frame 双缓冲数据面。
 - Qt/QML cockpit UI，支持车辆状态、相机预览和相机 start/stop 控制。
