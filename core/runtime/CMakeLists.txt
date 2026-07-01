@@ -1,5 +1,7 @@
 add_cockpit_library(runtime
     Args.cc
+    Module.cc
+    ModuleManager.cc
     ServiceRuntime.cc
 )
 

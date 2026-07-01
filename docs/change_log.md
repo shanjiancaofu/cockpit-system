@@ -5,6 +5,26 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-01 - Runtime Module Lifecycle
+
+### 变更内容 / Changed
+
+- 新增 `runtime::Module`、`runtime::BasicModule` 和 `runtime::ModuleManager`。
+- 支持模块按注册顺序启动、按反向顺序停止。
+- 启动失败时自动回滚已启动模块。
+- 新增 `module_manager_test` 覆盖启动、停止、状态查询和失败回滚。
+
+### 设计决定 / Design Decisions
+
+- 先提供轻量进程内生命周期，不引入插件加载、跨进程调度或复杂 scheduler。
+- runtime 只描述模块生命周期，不持有 audio/camera/voice 等领域逻辑。
+- 该层用于后续逐步收拢服务内部模块，而不是新增更多 service。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 针对本批文件通过。
+- `bash scripts/build.sh` 通过，CTest 22/22。
+
 ## 2026-07-01 - Architecture Blueprint v0.4
 
 ### 变更内容 / Changed

@@ -15,6 +15,10 @@ add_executable(event_queue_test event_queue_test.cc)
 target_link_libraries(event_queue_test PRIVATE event Threads::Threads)
 add_test(NAME event_queue_test COMMAND event_queue_test)
 
+add_executable(module_manager_test module_manager_test.cc)
+target_link_libraries(module_manager_test PRIVATE runtime)
+add_test(NAME module_manager_test COMMAND module_manager_test)
+
 add_executable(shared_memory_region_test shared_memory_region_test.cc)
 target_link_libraries(shared_memory_region_test PRIVATE ipc)
 add_test(NAME shared_memory_region_test COMMAND shared_memory_region_test)
