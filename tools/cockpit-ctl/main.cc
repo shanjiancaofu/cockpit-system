@@ -1,10 +1,13 @@
 #include <grpcpp/grpcpp.h>
 
+#include <atomic>
 #include <chrono>
+#include <csignal>
 #include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 
 #include "audio.grpc.pb.h"
 #include "camera.grpc.pb.h"
@@ -16,13 +19,37 @@
 
 namespace cockpit {
 namespace ctl {
+
+constexpr int kDefaultWatchIntervalSec = 2;
+
 namespace {
 
 constexpr int kRpcTimeoutMs = 700;
 
+std::atomic<bool> g_stop{false};
+
+void SignalHandler(int /*signum*/) {
+  g_stop.store(true);
+}
+
+void SetupSignalHandler() {
+  std::signal(SIGINT, SignalHandler);
+  std::signal(SIGTERM, SignalHandler);
+}
+
+void ClearScreen() {
+  std::cout << "\033[2J\033[H" << std::flush;
+}
+
 void PrintUsage() {
   std::cout << "Usage:\n"
-            << "  cockpit-ctl status [--config configs/config.yaml]\n";
+            << "  cockpit-ctl status [--config configs/config.yaml]\n"
+            << "  cockpit-ctl status --watch [--interval SEC] [--config configs/config.yaml]\n"
+            << "\nOptions:\n"
+            << "  --config PATH    config file path (default: configs/config.yaml)\n"
+            << "  --watch          watch mode, refresh status periodically\n"
+            << "  --interval SEC   refresh interval in seconds (default: "
+            << kDefaultWatchIntervalSec << ")\n";
 }
 
 void SetContext(grpc::ClientContext* context) {
@@ -220,6 +247,21 @@ int RunStatus(const config::SystemConfig& config) {
   return 0;
 }
 
+int WatchStatus(const config::SystemConfig& config, int interval_sec) {
+  SetupSignalHandler();
+  while (!g_stop.load()) {
+    ClearScreen();
+    const int rc = RunStatus(config);
+    if (rc != 0) return rc;
+    // 等待 interval 秒，每秒检查一次停止信号
+    for (int i = 0; i < interval_sec && !g_stop.load(); ++i) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+  }
+  std::cout << "\nstopped.\n";
+  return 0;
+}
+
 }  // namespace
 }  // namespace ctl
 }  // namespace cockpit
@@ -239,5 +281,14 @@ int main(int argc, char** argv) {
 
   const std::string config_path = args.GetString("config", "configs/config.yaml");
   const auto config = cockpit::config::SystemConfig::LoadFromFile(config_path);
+
+  if (args.HasFlag("watch")) {
+    const int interval_sec = args.GetInt("interval", cockpit::ctl::kDefaultWatchIntervalSec);
+    if (interval_sec < 1) {
+      std::cerr << "interval must be >= 1 second\n";
+      return 1;
+    }
+    return cockpit::ctl::WatchStatus(config, interval_sec);
+  }
   return cockpit::ctl::RunStatus(config);
 }

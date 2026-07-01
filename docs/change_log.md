@@ -12,6 +12,9 @@ changes, design decisions, and verification results.
 - 新增 `cockpit-ctl status` 顶层诊断工具。
 - 通过现有 gRPC 控制面汇总 gateway、audio、voice 和 camera 状态。
 - 服务未启动时显示 `available: no` 和 RPC 错误，不让整条诊断命令失败。
+- 新增 `cockpit-ctl status --watch` 持续刷新模式。
+- 支持 `--interval SEC` 自定义刷新间隔，默认 2 秒。
+- SIGINT/SIGTERM 可干净退出 watch 模式。
 - README 增加 `cockpit-ctl status` 常用命令。
 
 ### 设计决定 / Design Decisions
@@ -19,6 +22,7 @@ changes, design decisions, and verification results.
 - 当前保持只读诊断，不直接暴露 restart 或控制命令。
 - 不新增 proto，复用各 service 已有 `GetStatus` / `GetLatestVehicleState`。
 - 先把分散的 probe/ctl 能力收成一个入口，后续再接 runtime module status。
+- watch 模式用 ANSI 清屏 + 每秒检查停止信号，不做复杂的 curses 界面。
 
 ### 验证结果 / Verification
 
@@ -26,6 +30,7 @@ changes, design decisions, and verification results.
 - `bash scripts/build.sh` 通过，CTest 22/22。
 - `build/bin/cockpit-ctl status --config configs/config.yaml` 在服务未启动时正常输出
   unavailable 状态。
+- `build/bin/cockpit-ctl status --watch --interval 1` 每秒刷新正常，Ctrl+C 退出打印 stopped。
 
 ## 2026-07-01 - Audio Capture Runtime Module
 
