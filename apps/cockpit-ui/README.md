@@ -18,8 +18,11 @@ Current implementation:
 - `CameraFrameClient` reads the camera-service POSIX shared-memory double buffer on a worker thread.
 - `CameraImageProvider` publishes BGRx/RGB frames through `image://camera` without exposing IPC to
   QML.
+- `CameraControlModel` performs device discovery and preview start/stop RPCs on a dedicated worker
+  thread.
 - Model updates cross into the Qt UI thread through queued invocations.
 - Dashboard and Camera tabs show live vehicle state and the latest camera frame.
+- The Camera tab selects a device, resolution, and FPS and controls preview lifecycle.
 - The dashboard marks LIVE, STALE, and DISCONNECTED states separately while retaining the last
   known values for diagnosis.
 

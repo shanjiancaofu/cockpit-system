@@ -4,6 +4,7 @@
 #include <QTimer>
 #include <QUrl>
 
+#include "camera_control_model.h"
 #include "camera_frame_client.h"
 #include "camera_frame_model.h"
 #include "camera_image_provider.h"
@@ -25,21 +26,26 @@ int main(int argc, char** argv) {
   cockpit::ui::CameraFrameModel camera_frame(camera_image_provider);
   cockpit::ui::CameraFrameClient camera_client(
       runtime.config().services().camera.shared_memory_name, &camera_frame);
+  cockpit::ui::CameraControlModel camera_control(
+      runtime.config().services().camera.grpc.listen_address);
 
   QQmlApplicationEngine engine;
   engine.addImageProvider(QStringLiteral("camera"), camera_image_provider);
   engine.rootContext()->setContextProperty(QStringLiteral("vehicleState"), &vehicle_state);
   engine.rootContext()->setContextProperty(QStringLiteral("cameraFrame"), &camera_frame);
+  engine.rootContext()->setContextProperty(QStringLiteral("cameraControl"), &camera_control);
   engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
   if (engine.rootObjects().isEmpty()) {
     runtime.MarkStopped();
     return 1;
   }
 
-  QObject::connect(&app, &QCoreApplication::aboutToQuit, [&gateway_client, &camera_client] {
-    camera_client.Stop();
-    gateway_client.Stop();
-  });
+  QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                   [&gateway_client, &camera_client, &camera_control] {
+                     camera_control.Stop();
+                     camera_client.Stop();
+                     gateway_client.Stop();
+                   });
   QTimer shutdown_timer;
   shutdown_timer.setInterval(100);
   QObject::connect(&shutdown_timer, &QTimer::timeout, [&app, &runtime] {
@@ -51,6 +57,7 @@ int main(int argc, char** argv) {
 
   gateway_client.Start();
   camera_client.Start();
+  camera_control.Start();
   const int result = app.exec();
   runtime.MarkStopped();
   return result;

@@ -6,6 +6,7 @@ target_include_directories(ui_model PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ui_model PUBLIC Qt6::Core)
 
 add_executable(cockpit-ui
+    camera_control_model.cc
     camera_frame_client.cc
     camera_frame_model.cc
     camera_image_provider.cc

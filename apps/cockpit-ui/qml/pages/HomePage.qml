@@ -255,66 +255,154 @@ Item {
                 color: "#080b0d"
                 border.color: root.borderColor
 
-                Image {
+                ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 2
-                    source: cameraFrame.frameSource
-                    fillMode: Image.PreserveAspectFit
-                    cache: false
-                    visible: cameraFrame.hasFrame
-                }
+                    spacing: 0
 
-                Column {
-                    anchors.centerIn: parent
-                    spacing: 8
-                    visible: !cameraFrame.hasFrame
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 54
+                        color: root.surfaceRaised
 
-                    Label {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: cameraFrame.connected ? "WAITING FOR CAMERA FRAMES"
-                                                    : "CAMERA SERVICE DISCONNECTED"
-                        color: cameraFrame.connected ? root.secondaryText : root.red
-                        font.pixelSize: 16
-                        font.bold: true
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 14
+                            spacing: 10
+
+                            ComboBox {
+                                id: cameraDeviceBox
+                                Layout.preferredWidth: 210
+                                model: cameraControl.devices
+                                enabled: !cameraControl.busy && !cameraControl.running
+                                displayText: currentText.length > 0 ? currentText : "NO CAMERA DEVICE"
+                            }
+
+                            ComboBox {
+                                id: cameraResolutionBox
+                                Layout.preferredWidth: 130
+                                model: ["640 x 480", "1280 x 720", "1920 x 1080"]
+                                enabled: !cameraControl.busy && !cameraControl.running
+
+                                readonly property int selectedWidth: currentIndex === 0 ? 640
+                                                                       : (currentIndex === 1 ? 1280 : 1920)
+                                readonly property int selectedHeight: currentIndex === 0 ? 480
+                                                                        : (currentIndex === 1 ? 720 : 1080)
+                            }
+
+                            ComboBox {
+                                id: cameraFpsBox
+                                Layout.preferredWidth: 86
+                                model: [30, 60]
+                                enabled: !cameraControl.busy && !cameraControl.running
+                                displayText: currentText + " FPS"
+                            }
+
+                            Button {
+                                text: "START"
+                                enabled: !cameraControl.busy && !cameraControl.running
+                                         && cameraDeviceBox.currentText.length > 0
+                                onClicked: cameraControl.startPreview(
+                                               cameraDeviceBox.currentText,
+                                               cameraResolutionBox.selectedWidth,
+                                               cameraResolutionBox.selectedHeight,
+                                               Number(cameraFpsBox.currentText))
+                            }
+
+                            Button {
+                                text: "STOP"
+                                enabled: !cameraControl.busy && cameraControl.running
+                                onClicked: cameraControl.stopPreview()
+                            }
+
+                            Button {
+                                text: "REFRESH"
+                                enabled: !cameraControl.busy && !cameraControl.running
+                                onClicked: cameraControl.refreshDevices()
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                            }
+
+                            Label {
+                                text: cameraControl.busy ? "WORKING"
+                                                         : (cameraControl.running ? "RUNNING" : "STOPPED")
+                                color: cameraControl.running ? root.green : root.secondaryText
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+                        }
                     }
 
-                    Label {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: cameraFrame.connected ? "Shared memory connected" : "Retrying"
-                        color: root.secondaryText
-                        font.pixelSize: 12
-                    }
-                }
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
 
-                Rectangle {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 42
-                    color: "#d90e1214"
-                    visible: cameraFrame.hasFrame
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 16
-
-                        Label {
-                            text: cameraFrame.connected ? "LIVE CAMERA" : "LAST FRAME"
-                            color: cameraFrame.connected ? root.green : root.amber
-                            font.pixelSize: 12
-                            font.bold: true
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 2
+                            source: cameraFrame.frameSource
+                            fillMode: Image.PreserveAspectFit
+                            cache: false
+                            visible: cameraFrame.hasFrame
                         }
 
-                        Item {
-                            Layout.fillWidth: true
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 8
+                            visible: !cameraFrame.hasFrame
+
+                            Label {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: cameraControl.lastError.length > 0 ? cameraControl.lastError
+                                      : (cameraFrame.connected ? "WAITING FOR CAMERA FRAMES"
+                                                               : "CAMERA SERVICE DISCONNECTED")
+                                color: cameraControl.lastError.length > 0 ? root.red
+                                                                         : root.secondaryText
+                                font.pixelSize: 16
+                                font.bold: true
+                            }
+
+                            Label {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: cameraFrame.connected ? "Shared memory connected" : "Retrying"
+                                color: root.secondaryText
+                                font.pixelSize: 12
+                            }
                         }
 
-                        Label {
-                            text: cameraFrame.frameWidth + " x " + cameraFrame.frameHeight
-                                  + "   FRAME " + cameraFrame.sequence
-                            color: root.secondaryText
-                            font.pixelSize: 12
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: 42
+                            color: "#d90e1214"
+                            visible: cameraFrame.hasFrame
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 16
+                                anchors.rightMargin: 16
+
+                                Label {
+                                    text: cameraFrame.connected ? "LIVE CAMERA" : "LAST FRAME"
+                                    color: cameraFrame.connected ? root.green : root.amber
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                }
+
+                                Item {
+                                    Layout.fillWidth: true
+                                }
+
+                                Label {
+                                    text: cameraFrame.frameWidth + " x " + cameraFrame.frameHeight
+                                          + "   FRAME " + cameraFrame.sequence
+                                    color: root.secondaryText
+                                    font.pixelSize: 12
+                                }
+                            }
                         }
                     }
                 }

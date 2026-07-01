@@ -5,6 +5,29 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-01 - Qt Camera Lifecycle Controls
+
+### 变更内容 / Changed
+
+- 新增 `CameraControlModel`，在独立线程调用 camera-service gRPC 控制面。
+- Camera tab 增加设备刷新与选择、分辨率、FPS、START/STOP 控件。
+- UI 启动时同时拉取设备列表和当前 preview 状态，可接管脚本已启动的相机。
+- 控制失败信息直接反馈到 Camera tab，命令执行期间禁用冲突操作。
+
+### 设计决定 / Design Decisions
+
+- 高频图像继续走共享内存，低频设备与生命周期命令继续走 gRPC。
+- QML 只绑定 `CameraControlModel`，不直接持有 gRPC stub 或执行阻塞调用。
+- 控制模型与帧 reader 分离，避免 RPC 延迟阻塞相机数据面。
+
+### 验证结果 / Verification
+
+- `pre-commit run` 针对本批文件通过。
+- `bash scripts/build.sh` 通过，CTest 21/21。
+- `pre-commit run clang-tidy --hook-stage manual -a` 通过。
+- `run_cockpit_ui.sh --offscreen` 成功加载设备、分辨率、FPS 和启停控件，限时退出无 QML
+  或工作线程清理错误。
+
 ## 2026-07-01 - Qt Shared-Memory Camera View
 
 ### 变更内容 / Changed
