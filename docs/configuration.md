@@ -120,12 +120,17 @@ Example optional build:
 cmake -S . -B build -G Ninja \
   -DBUILD_COCKPIT_UI=ON \
   -DBUILD_WHISPER_CPP_ASR=ON \
-  -DWHISPER_CPP_DIR=/home/ffz/code/third_party/whisper.cpp
+  -DWHISPER_CPP_DIR=/home/ffz/code/third_party/whisper.cpp \
+  -DWHISPER_CPP_MODEL_PATH=/home/ffz/code/third_party/whisper.cpp/models/ggml-small.bin
 cmake --build build
 ```
 
 Model binaries must stay outside Git. Configure the deployed path with
 `features.voice.asr_model_path`.
+
+When `WHISPER_CPP_MODEL_PATH` points to an existing model, the optional build registers
+`whisper_speech_recognizer_test` and runs real adapter inference during CTest. A Release build is
+required for meaningful latency measurements; the repository's default developer build is Debug.
 
 ## Typed Ownership
 

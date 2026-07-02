@@ -55,6 +55,17 @@ add_executable(mock_speech_recognizer_test mock_speech_recognizer_test.cc)
 target_link_libraries(mock_speech_recognizer_test PRIVATE voice)
 add_test(NAME mock_speech_recognizer_test COMMAND mock_speech_recognizer_test)
 
+if(TARGET whisper_asr AND WHISPER_CPP_MODEL_PATH AND EXISTS "${WHISPER_CPP_MODEL_PATH}")
+    add_executable(whisper_speech_recognizer_test whisper_speech_recognizer_test.cc)
+    target_link_libraries(whisper_speech_recognizer_test PRIVATE audio whisper_asr)
+    target_compile_definitions(whisper_speech_recognizer_test
+        PRIVATE
+            WHISPER_TEST_MODEL_PATH="${WHISPER_CPP_MODEL_PATH}"
+            WHISPER_TEST_WAV_PATH="${WHISPER_CPP_DIR}/samples/jfk.wav"
+    )
+    add_test(NAME whisper_speech_recognizer_test COMMAND whisper_speech_recognizer_test)
+endif()
+
 add_executable(mock_voice_assistant_test mock_voice_assistant_test.cc)
 target_link_libraries(mock_voice_assistant_test PRIVATE voice)
 add_test(NAME mock_voice_assistant_test COMMAND mock_voice_assistant_test)

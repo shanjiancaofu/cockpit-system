@@ -27,7 +27,12 @@ changes, design decisions, and verification results.
 - 默认 mock 构建通过，CTest 22/22。
 - `pre-commit run` 针对本批文件通过。
 - 配置选择 `whisper_cpp` 但构建未启用 provider 时，audio-service 明确报错并返回 1。
-- 当前环境未安装 whisper.cpp，真实 provider 构建和模型推理需在依赖准备后验证。
+- 下载并校验官方多语言 `ggml-small.bin`，SHA-1 为
+  `55356645c2b361a969dfd0ef2c5a50d530afd8d5`。
+- whisper.cpp Release CLI 在 WSL CPU 上成功识别 11 秒官方样例，总耗时约 3.8 秒。
+- cockpit-system 启用 `BUILD_WHISPER_CPP_ASR` 后成功编译 adapter；真实模型集成测试通过，
+  CTest 23/23。
+- 中文录音、真实麦克风链路和 Jetson CUDA 性能仍待验证。
 
 ## 2026-07-01 - Runtime Module Status Surface
 

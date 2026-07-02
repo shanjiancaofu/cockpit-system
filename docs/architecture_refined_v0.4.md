@@ -335,14 +335,15 @@ flowchart LR
 - PCM 不通过 gRPC。
 - transcript 以文本事件 stream 输出。
 
-已实现：非阻塞 ALSA、xrun recovery、Energy VAD、speech segment、mock ASR、可选 whisper.cpp adapter、allowlisted intent、typed ActionDispatcher、车辆状态查询、HMI handoff 和 mock TTS。whisper.cpp 真实模型推理仍需在依赖和模型准备后验证。
+已实现：非阻塞 ALSA、xrun recovery、Energy VAD、speech segment、mock ASR、可选 whisper.cpp adapter、allowlisted intent、typed ActionDispatcher、车辆状态查询、HMI handoff 和 mock TTS。whisper.cpp small 已在 WSL CPU 完成模型和 adapter 推理验证，中文麦克风与 Jetson CUDA 仍待验证。
 
 边界：
 
 - 用户语音交互不负责研发录包。
 - 研发录包、雷达采集和诊断数据未来属于 recorder/diagnostics。
 - Android 音乐应用由未来 HMI bridge 控制，不在 C++ 中重造播放器。
-- TensorRT、WebRTC VAD 和 LLM provider 尚未实现；whisper.cpp adapter 已实现但尚未完成真实模型验证。
+- TensorRT、WebRTC VAD 和 LLM provider 尚未实现；whisper.cpp adapter 已完成 WSL CPU
+  样例验证，但尚未完成中文麦克风和 Jetson CUDA 验证。
 
 ---
 

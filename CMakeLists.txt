@@ -17,6 +17,7 @@ option(BUILD_WEB_DASHBOARD "Build web dashboard" OFF)
 option(BUILD_TESTS "Build unit tests" ON)
 option(BUILD_WHISPER_CPP_ASR "Build the optional whisper.cpp ASR provider" OFF)
 set(WHISPER_CPP_DIR "" CACHE PATH "Path to a whisper.cpp source checkout")
+set(WHISPER_CPP_MODEL_PATH "" CACHE FILEPATH "Optional whisper.cpp model used by integration tests")
 
 if(BUILD_WHISPER_CPP_ASR)
     if(NOT WHISPER_CPP_DIR)
