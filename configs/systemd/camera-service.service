@@ -1,0 +1,13 @@
+[Unit]
+Description=cockpit-system Camera Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/cockpit-system
+ExecStart=/cockpit-system/current/bin/camera-service --config /cockpit-system/config/config.yaml
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=cockpit.target

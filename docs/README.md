@@ -9,20 +9,22 @@
    - 完整系统蓝图。
    - 描述长期模块、通信方式、部署和工程规范。
    - 不代表所有模块都要在当前阶段实现。
-2. [architecture.md](architecture.md)
+2. [deployment.md](deployment.md)
+   - Release 打包、`/cockpit-system` 目录、systemd、升级和回滚。
+3. [architecture.md](architecture.md)
    - 当前代码对应的架构快照。
    - 记录已经落地的链路和最近开发顺序。
-3. [project_scope_and_repo_strategy.md](project_scope_and_repo_strategy.md)
+4. [project_scope_and_repo_strategy.md](project_scope_and_repo_strategy.md)
    - 当前项目范围和是否拆分仓库的决策。
-4. [modularization_strategy.md](modularization_strategy.md)
+5. [modularization_strategy.md](modularization_strategy.md)
    - 一个主仓库、多个内部模块以及未来拆库条件。
-5. [implementation_status.md](implementation_status.md)
+6. [implementation_status.md](implementation_status.md)
    - 已完成、未完成和验证状态。
-6. [configuration.md](configuration.md)
+7. [configuration.md](configuration.md)
    - 参考 zcarcloud 后确定的 YAML 分区、类型化与校验规则。
-7. [runtime_communication_strategy.md](runtime_communication_strategy.md)
+8. [runtime_communication_strategy.md](runtime_communication_strategy.md)
    - 车端 runtime 通信分层：函数调用、队列/Actor、共享内存、gRPC/外部通信。
-8. [change_log.md](change_log.md)
+9. [change_log.md](change_log.md)
    - 每批改动的中英双语记录。
 
 ## 参考与专项

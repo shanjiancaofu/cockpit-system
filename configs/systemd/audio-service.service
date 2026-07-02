@@ -4,9 +4,10 @@ After=sound.target network.target
 
 [Service]
 Type=simple
-ExecStart=/opt/cockpit-system/bin/audio-service --config /etc/cockpit-system/config.yaml
+WorkingDirectory=/cockpit-system
+ExecStart=/cockpit-system/current/bin/audio-service --config /cockpit-system/config/config.yaml
 Restart=on-failure
 RestartSec=2
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=cockpit.target

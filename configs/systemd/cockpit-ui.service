@@ -1,0 +1,14 @@
+[Unit]
+Description=cockpit-system Qt UI
+After=graphical.target cockpit-gateway-service.service camera-service.service
+Requires=cockpit-gateway-service.service camera-service.service
+
+[Service]
+Type=simple
+WorkingDirectory=/cockpit-system
+ExecStart=/cockpit-system/current/bin/cockpit-ui --config /cockpit-system/config/config.yaml
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical.target

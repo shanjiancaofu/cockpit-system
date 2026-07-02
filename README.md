@@ -107,6 +107,14 @@ Qt6 车机界面联调（自动启动车辆服务、网关和 camera-service）�
 bash scripts/run_cockpit_ui.sh
 ```
 
+Release 打包与 Jetson 部署：
+
+```bash
+BUILD_DIR=build-release bash scripts/package.sh
+```
+
+部署说明见 [docs/deployment.md](docs/deployment.md)。
+
 ## 文档
 
 文档入口见 [docs/README.md](docs/README.md)。
@@ -115,6 +123,7 @@ bash scripts/run_cockpit_ui.sh
 
 - [总体架构蓝图](docs/architecture_refined_v0.4.md)
 - [当前架构快照](docs/architecture.md)
+- [Jetson 部署](docs/deployment.md)
 - [项目范围与仓库策略](docs/project_scope_and_repo_strategy.md)
 - [模块化策略](docs/modularization_strategy.md)
 - [实施状态](docs/implementation_status.md)

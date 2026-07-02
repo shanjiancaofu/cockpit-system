@@ -5,6 +5,33 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-03 - Release Packaging and Jetson Layout
+
+### 变更内容 / Changed
+
+- 参考 znavigator 的 build/install/package 分层，新增 CMake Runtime install 规则。
+- 新增 `scripts/package.sh`，生成 `stage/` 安装树和 `dist/*.tar.gz` 发布包。
+- 发布包包含正式二进制、可选 whisper/GGML 动态库、配置模板、systemd、构建信息和校验清单。
+- 新增 install、rollback 和 healthcheck 脚本，默认安装根目录为 `/cockpit-system`。
+- systemd 路径统一为 `/cockpit-system/current`，新增核心服务 target 和缺失单元。
+- 新增 Jetson 部署文档和第三方依赖声明。
+
+### 设计决定 / Design Decisions
+
+- 源码、构建目录和车端运行目录分离，不复制整个 `build/`。
+- 版本化程序位于 `releases`；配置、模型、数据和日志跨版本保留。
+- Whisper 模型不进入默认程序包，避免每次升级重复传输大模型。
+- 第一阶段不加入配置加密、Breakpad 或 debug symbol 分包。
+
+### 验证结果 / Verification
+
+- Release 构建通过，包含真实 Whisper 推理的 CTest 23/23。
+- `scripts/package.sh` 成功生成 x86_64 staging tree 和 tar.gz。
+- 可执行文件 RUNPATH 为 `$ORIGIN/../lib`，whisper/GGML RUNPATH 为 `$ORIGIN`；动态库全部
+  从发布包解析，不引用 build 目录。
+- `SHA256SUMS` 全部通过。
+- 临时根目录完成两次安装，验证 `current` 切换、配置保留、`.new` 模板和 healthcheck。
+
 ## 2026-07-01 - Optional whisper.cpp ASR Provider
 
 ### 变更内容 / Changed

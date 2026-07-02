@@ -1,0 +1,14 @@
+[Unit]
+Description=cockpit-system Gateway Service
+After=network.target vehicle-data-service.service
+Requires=vehicle-data-service.service
+
+[Service]
+Type=simple
+WorkingDirectory=/cockpit-system
+ExecStart=/cockpit-system/current/bin/cockpit-gateway-service --config /cockpit-system/config/config.yaml
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=cockpit.target

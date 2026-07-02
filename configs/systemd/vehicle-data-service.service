@@ -4,9 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/opt/cockpit-system/bin/vehicle-data-service --config /etc/cockpit-system/config.yaml --forever
+WorkingDirectory=/cockpit-system
+ExecStart=/cockpit-system/current/bin/vehicle-data-service --config /cockpit-system/config/config.yaml --forever
 Restart=on-failure
 RestartSec=2
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=cockpit.target

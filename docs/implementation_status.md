@@ -56,6 +56,8 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - Qt asynchronous camera device discovery and preview start/stop controls.
 - `cockpit-ctl status` and watch mode for aggregated gateway/audio/voice/camera diagnostics,
   including audio/camera runtime module state.
+- CMake Runtime install rules and zelos-style Release packaging with versioned `/cockpit-system`
+  deployment, relative RPATH, systemd units, checksums, health check, and rollback scripts.
 - Qt UI freshness tracking with explicit live, stale, and disconnected states.
 - Runnable placeholders for:
   - `vehicle-data-service`
