@@ -10,6 +10,7 @@
 #include "voice_interaction_service.h"
 
 #include "core/runtime/ServiceRuntime.h"
+#include "modules/voice/async_voice_response_sink.h"
 #include "modules/voice/cockpit_action_dispatcher.h"
 #include "modules/voice/mock_voice_assistant.h"
 
@@ -26,8 +27,9 @@ int main(int argc, char** argv) {
         std::make_unique<cockpit::voice::GatewayVehicleStatusClient>(
             runtime.config().services().voice_interaction.gateway_address),
         std::make_unique<cockpit::voice::LocalHmiCommandProvider>());
-    output = std::make_unique<cockpit::voice::AudioSpeechClient>(
-        runtime.config().services().voice_interaction.audio_address);
+    output = std::make_unique<cockpit::voice::AsyncVoiceResponseSink>(
+        std::make_unique<cockpit::voice::AudioSpeechClient>(
+            runtime.config().services().voice_interaction.audio_address));
   }
   cockpit::voice::VoiceInteractionService service(enabled, std::move(assistant),
                                                   std::move(dispatcher), std::move(output));

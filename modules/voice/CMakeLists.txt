@@ -1,4 +1,5 @@
 add_cockpit_library(voice
+    async_voice_response_sink.cc
     cockpit_action_dispatcher.cc
     hmi_command_provider.cc
     mock_action_dispatcher.cc

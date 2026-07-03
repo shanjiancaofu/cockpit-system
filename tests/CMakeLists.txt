@@ -70,6 +70,10 @@ add_executable(mock_voice_assistant_test mock_voice_assistant_test.cc)
 target_link_libraries(mock_voice_assistant_test PRIVATE voice)
 add_test(NAME mock_voice_assistant_test COMMAND mock_voice_assistant_test)
 
+add_executable(async_voice_response_sink_test async_voice_response_sink_test.cc)
+target_link_libraries(async_voice_response_sink_test PRIVATE voice Threads::Threads)
+add_test(NAME async_voice_response_sink_test COMMAND async_voice_response_sink_test)
+
 add_executable(cockpit_action_dispatcher_test cockpit_action_dispatcher_test.cc)
 target_link_libraries(cockpit_action_dispatcher_test PRIVATE voice)
 add_test(NAME cockpit_action_dispatcher_test COMMAND cockpit_action_dispatcher_test)

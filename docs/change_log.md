@@ -5,6 +5,26 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-03 - 异步语音响应输出 / Asynchronous Voice Response Output
+
+### 变更内容 / Changed
+
+- 新增通用 `AsyncVoiceResponseSink`，通过有界队列和独立 worker 调用实际输出端。
+- voice-interaction-service 使用异步包装后的 AudioSpeechClient，命令响应不再等待 TTS RPC。
+- 新增阻塞下游测试，覆盖非阻塞提交、容量上限、丢弃指标和队列消费。
+
+### 设计决定 / Design Decisions
+
+- 异步能力属于 voice module，不绑定 gRPC，后续 Android bridge 或本地 TTS 可以复用。
+- 停止时丢弃尚未发送的播报并计数，等待正在执行的单次下游调用结束。
+
+### 验证结果 / Verification
+
+- x86_64 Debug 构建通过，CTest 22/22。
+- 阻塞下游测试确认提交不等待下游，容量为 1 时第三条请求被拒绝并计入 dropped。
+- 完整 WSL smoke 通过，三条语音动作均立即返回，异步 TTS 接收 3/3、无失败和丢弃。
+- voice-interaction-service 停止后 worker 正常退出，无悬挂进程。
+
 ## 2026-07-03 - WSL Null Audio Capture Pacing
 
 ### 变更内容 / Changed
