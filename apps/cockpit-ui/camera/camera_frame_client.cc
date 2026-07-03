@@ -49,6 +49,10 @@ void CameraFrameClient::Run() {
     PostConnected(true);
     std::uint64_t last_generation = 0;
     while (running_.load()) {
+      if (!reader->IsAvailable()) {
+        PostConnected(false);
+        break;
+      }
       camera::CameraFrame frame;
       std::uint64_t generation = 0;
       if (reader->ReadLatest(&frame, &generation, &error) && generation != last_generation) {
@@ -58,6 +62,7 @@ void CameraFrameClient::Run() {
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(33));
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   PostConnected(false);
 }

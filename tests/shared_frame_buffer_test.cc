@@ -46,6 +46,10 @@ int main() {
     return 1;
   }
 
+  if (!Check(reader->IsAvailable(), "shared frame reader did not detect its writer")) {
+    return 1;
+  }
+
   cockpit::camera::CameraFrame output;
   std::uint64_t generation = 0;
   if (!Check(!reader->ReadLatest(&output, &generation, &error),
@@ -65,9 +69,12 @@ int main() {
 
   auto oversized = MakeFrame(3, 0x33);
   oversized.data.resize(65);
-  return Check(!writer->Publish(std::move(oversized)), "oversized shared frame was accepted") &&
-                 Check(writer->status().frames_rejected == 1,
-                       "shared frame rejection metric mismatch")
-             ? 0
-             : 1;
+  if (!Check(!writer->Publish(std::move(oversized)), "oversized shared frame was accepted") ||
+      !Check(writer->status().frames_rejected == 1, "shared frame rejection metric mismatch")) {
+    return 1;
+  }
+
+  writer.reset();
+  return Check(!reader->IsAvailable(), "shared frame reader did not detect writer shutdown") ? 0
+                                                                                             : 1;
 }

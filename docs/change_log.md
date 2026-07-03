@@ -5,6 +5,30 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-04 - 相机卡帧与断连检测 / Camera Stall and Disconnect Detection
+
+### 变更内容 / Changed
+
+- `SharedFrameReader` 新增 writer 可用性检测，camera-service 退出后 UI reader 主动断开并重连。
+- Qt `CameraFrameModel` 新增 1 秒 freshness 定时器，界面区分 live、stalled 和 last frame。
+- `cockpit-ctl status` 输出 camera frame health、帧龄、最后序号和源端跳帧数。
+- `cockpit-ctl` 不再等待离线服务变为 ready，单机诊断在部分服务离线时立即返回。
+- 新增 Qt camera model 测试，并补充共享内存 writer 退出测试。
+
+### 设计决定 / Design Decisions
+
+- UI freshness 属于消费者观察状态，不回写 camera-service，也不改变共享内存数据布局。
+- camera-service 的 2 秒 CLI 卡帧阈值与 UI 的 1 秒显示阈值分开，诊断工具更保守。
+- 保留最后一帧供用户查看，但不得把旧帧标记为实时画面。
+
+### 验证结果 / Verification
+
+- x86_64 Debug 构建通过，CTest 22/22。
+- Qt 6 完整构建通过；shared memory、vehicle model、camera model 定向测试 3/3。
+- 完整 `scripts/run_smoke.sh` 通过。
+- 单独运行 camera-service 时，`cockpit-ctl status` 正确报告其他服务离线，并输出
+  `frame_health: inactive`。
+
 ## 2026-07-04 - 剩余职责目录整理 / Remaining Responsibility Layout
 
 ### 变更内容 / Changed

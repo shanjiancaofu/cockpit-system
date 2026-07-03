@@ -59,6 +59,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - CMake Runtime install rules and zelos-style Release packaging with versioned `/cockpit-system`
   deployment, relative RPATH, systemd units, checksums, health check, and rollback scripts.
 - Qt UI freshness tracking with explicit live, stale, and disconnected states.
+- Qt camera freshness tracking with live, stalled, last-frame, and shared-memory reconnect states.
 - Runnable placeholders for:
   - `vehicle-data-service`
   - `cockpit-gateway-service`

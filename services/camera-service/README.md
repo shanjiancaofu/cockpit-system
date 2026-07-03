@@ -20,6 +20,7 @@ Current scope:
   `services.camera`.
 - Report received/rejected frames, source sequence gaps, and latest-frame timestamps through the
   status control plane.
+- Let shared-memory readers detect writer shutdown instead of treating the last frame as live.
 - Keep frame data out of gRPC; future frame delivery should use local pipeline/shared memory.
 
 `CameraService` depends on the `CameraPreviewSource` interface, so tests and future Jetson-specific

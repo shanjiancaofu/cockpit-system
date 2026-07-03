@@ -25,6 +25,7 @@ constexpr int kDefaultWatchIntervalSec = 2;
 namespace {
 
 constexpr int kRpcTimeoutMs = 700;
+constexpr std::uint64_t kCameraStaleTimeoutMs = 2000;
 
 std::atomic<bool> g_stop{false};
 
@@ -53,7 +54,6 @@ void PrintUsage() {
 }
 
 void SetContext(grpc::ClientContext* context) {
-  context->set_wait_for_ready(true);
   context->set_deadline(std::chrono::system_clock::now() +
                         std::chrono::milliseconds(kRpcTimeoutMs));
 }
@@ -110,6 +110,25 @@ const char* CameraStateName(proto::camera::CameraPreviewState state) {
     default:
       return "unspecified";
   }
+}
+
+std::uint64_t NowMs() {
+  return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::system_clock::now().time_since_epoch())
+                                        .count());
+}
+
+const char* CameraFrameHealth(const proto::camera::CameraStatus& camera, std::uint64_t now_ms) {
+  if (camera.state() != proto::camera::CAMERA_PREVIEW_STATE_RUNNING) {
+    return "inactive";
+  }
+  if (camera.frames_received() == 0 || camera.last_frame_received_at_ms() == 0) {
+    return "waiting";
+  }
+  const std::uint64_t age_ms = now_ms >= camera.last_frame_received_at_ms()
+                                   ? now_ms - camera.last_frame_received_at_ms()
+                                   : 0;
+  return age_ms <= kCameraStaleTimeoutMs ? "live" : "stalled";
 }
 
 const char* InteractionStateName(proto::voice::InteractionState state) {
@@ -251,11 +270,19 @@ void PrintCameraStatus(const std::string& address) {
     PrintUnavailable(status);
     return;
   }
+  const std::uint64_t now_ms = NowMs();
+  const std::uint64_t frame_age_ms =
+      camera.last_frame_received_at_ms() > 0 && now_ms >= camera.last_frame_received_at_ms()
+          ? now_ms - camera.last_frame_received_at_ms()
+          : 0;
   std::cout << "  available: yes\n"
             << "  preview: " << CameraStateName(camera.state()) << " device=" << camera.device()
             << " size=" << camera.width() << "x" << camera.height() << "@" << camera.fps() << "\n"
             << "  frames: received=" << camera.frames_received()
-            << " dropped=" << camera.frames_dropped() << "\n";
+            << " dropped=" << camera.frames_dropped()
+            << " source_skipped=" << camera.source_frames_skipped() << "\n"
+            << "  frame_health: " << CameraFrameHealth(camera, now_ms) << " age_ms=" << frame_age_ms
+            << " sequence=" << camera.last_frame_sequence() << "\n";
   PrintModules(camera.modules());
   if (!camera.last_error().empty()) {
     std::cout << "  last_error: " << camera.last_error() << "\n";

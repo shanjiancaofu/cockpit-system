@@ -57,6 +57,7 @@ class SharedFrameReader {
   SharedFrameReader(const SharedFrameReader&) = delete;
   SharedFrameReader& operator=(const SharedFrameReader&) = delete;
 
+  bool IsAvailable() const;
   bool ReadLatest(CameraFrame* frame, std::uint64_t* generation, std::string* error) const;
   std::size_t max_frame_bytes() const {
     return slot_capacity_;

@@ -222,10 +222,19 @@ SharedFrameReader::SharedFrameReader(std::unique_ptr<ipc::SharedMemoryRegion> re
 
 SharedFrameReader::~SharedFrameReader() = default;
 
+bool SharedFrameReader::IsAvailable() const {
+  return region_ != nullptr &&
+         Header(region_->data())->initialized.load(std::memory_order_acquire) == 1U;
+}
+
 bool SharedFrameReader::ReadLatest(CameraFrame* frame, std::uint64_t* generation,
                                    std::string* error) const {
   if (frame == nullptr) {
     AssignError(error, "camera frame output must not be null");
+    return false;
+  }
+  if (!IsAvailable()) {
+    AssignError(error, "shared frame writer is not available");
     return false;
   }
   const auto* header = Header(region_->data());

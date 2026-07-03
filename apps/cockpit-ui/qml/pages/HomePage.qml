@@ -386,8 +386,11 @@ Item {
                                 anchors.rightMargin: 16
 
                                 Label {
-                                    text: cameraFrame.connected ? "LIVE CAMERA" : "LAST FRAME"
-                                    color: cameraFrame.connected ? root.green : root.amber
+                                    text: cameraFrame.connected && cameraFrame.fresh
+                                          ? "LIVE CAMERA"
+                                          : (cameraFrame.connected ? "CAMERA STALLED" : "LAST FRAME")
+                                    color: cameraFrame.connected && cameraFrame.fresh
+                                           ? root.green : root.amber
                                     font.pixelSize: 12
                                     font.bold: true
                                 }

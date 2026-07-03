@@ -18,6 +18,8 @@ Current implementation:
 - `CameraFrameClient` reads the camera-service POSIX shared-memory double buffer on a worker thread.
 - `CameraImageProvider` publishes BGRx/RGB frames through `image://camera` without exposing IPC to
   QML.
+- Camera freshness tracking marks the preview stalled after one second without a new frame and
+  reconnects when the shared-memory writer restarts.
 - `CameraControlModel` performs device discovery and preview start/stop RPCs on a dedicated worker
   thread.
 - Model updates cross into the Qt UI thread through queued invocations.

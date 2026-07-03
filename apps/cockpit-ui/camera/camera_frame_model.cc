@@ -7,8 +7,14 @@
 namespace cockpit {
 namespace ui {
 
-CameraFrameModel::CameraFrameModel(CameraImageProvider* image_provider, QObject* parent)
+CameraFrameModel::CameraFrameModel(CameraImageProvider* image_provider, QObject* parent,
+                                   int stale_timeout_ms)
     : QObject(parent), image_provider_(image_provider) {
+  stale_timer_.setSingleShot(true);
+  stale_timer_.setInterval(stale_timeout_ms);
+  connect(&stale_timer_, &QTimer::timeout, this, [this] {
+    SetFresh(false);
+  });
 }
 
 void CameraFrameModel::SetConnected(bool connected) {
@@ -16,6 +22,10 @@ void CameraFrameModel::SetConnected(bool connected) {
     return;
   }
   connected_ = connected;
+  if (!connected_) {
+    stale_timer_.stop();
+    SetFresh(false);
+  }
   emit connectedChanged();
 }
 
@@ -29,7 +39,17 @@ void CameraFrameModel::UpdateFrame(QImage image, quint64 sequence, quint64 gener
   image_provider_->SetImage(std::move(image));
   frame_source_ = QStringLiteral("image://camera/frame?generation=%1").arg(generation);
   has_frame_ = true;
+  SetFresh(true);
+  stale_timer_.start();
   emit frameChanged();
+}
+
+void CameraFrameModel::SetFresh(bool fresh) {
+  if (fresh_ == fresh) {
+    return;
+  }
+  fresh_ = fresh;
+  emit freshnessChanged();
 }
 
 }  // namespace ui
