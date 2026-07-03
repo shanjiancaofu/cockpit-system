@@ -38,16 +38,20 @@ bool AudioSpeechClient::Submit(std::string text) {
     active_context_ = nullptr;
   }
   if (status.ok() && response.accepted()) {
-    if (!available_.exchange(true) && connected_once_.exchange(true)) {
-      reconnects_.fetch_add(1U);
-    }
+    MarkReachable();
+    last_success_timestamp_ms_.store(
+        static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       std::chrono::system_clock::now().time_since_epoch())
+                                       .count()));
     queued_.fetch_add(1U);
     return true;
   }
-  available_.store(false);
   if (status.error_code() == grpc::StatusCode::RESOURCE_EXHAUSTED) {
+    MarkReachable();
     dropped_.fetch_add(1U);
   } else {
+    available_.store(false);
+    consecutive_failures_.fetch_add(1U);
     failed_.fetch_add(1U);
   }
   return false;
@@ -59,8 +63,17 @@ VoiceOutputMetrics AudioSpeechClient::metrics() const {
   result.failed = failed_.load();
   result.dropped = dropped_.load();
   result.reconnects = reconnects_.load();
+  result.consecutive_failures = consecutive_failures_.load();
+  result.last_success_timestamp_ms = last_success_timestamp_ms_.load();
   result.available = available_.load();
   return result;
+}
+
+void AudioSpeechClient::MarkReachable() {
+  if (!available_.exchange(true) && connected_once_.exchange(true)) {
+    reconnects_.fetch_add(1U);
+  }
+  consecutive_failures_.store(0);
 }
 
 void AudioSpeechClient::Stop() {

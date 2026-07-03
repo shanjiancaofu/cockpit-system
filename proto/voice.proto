@@ -39,6 +39,8 @@ message VoiceMetrics {
   uint64 transcript_events_dropped = 12;
   bool speech_output_available = 13;
   uint64 speech_output_reconnects = 14;
+  uint64 speech_output_consecutive_failures = 15;
+  uint64 speech_output_last_success_timestamp_ms = 16;
 }
 
 message VoiceInteractionStatus {

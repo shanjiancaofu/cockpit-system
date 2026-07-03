@@ -2,6 +2,7 @@
 
 #include <grpcpp/grpcpp.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <thread>
@@ -14,6 +15,7 @@ namespace voice {
 namespace {
 
 constexpr auto kConnectProbeTimeout = std::chrono::milliseconds(250);
+constexpr int kMaxRetryDelayMs = 5000;
 
 void RetryDelay(int delay_ms, const AudioTranscriptClient::ContinueHandler& should_continue) {
   const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(delay_ms);
@@ -40,15 +42,18 @@ int AudioTranscriptClient::Stream(const TranscriptHandler& transcript_handler,
   auto channel = grpc::CreateCustomChannel(address_, grpc::InsecureChannelCredentials(), arguments);
   auto stub = proto::audio::AudioControl::NewStub(channel);
   std::uint64_t observed_id = 0;
+  int current_retry_delay_ms = retry_delay_ms_;
 
   while (should_continue()) {
     if (!channel->WaitForConnected(std::chrono::system_clock::now() + kConnectProbeTimeout)) {
       if (should_continue()) {
         reconnect_handler();
-        RetryDelay(retry_delay_ms_, should_continue);
+        RetryDelay(current_retry_delay_ms, should_continue);
+        current_retry_delay_ms = std::min(current_retry_delay_ms * 2, kMaxRetryDelayMs);
       }
       continue;
     }
+    current_retry_delay_ms = retry_delay_ms_;
 
     grpc::ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() +

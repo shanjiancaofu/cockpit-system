@@ -5,6 +5,28 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-03 - 语音输出健康指标与退避 / Voice Output Health and Backoff
+
+### 变更内容 / Changed
+
+- 语音输出状态新增 consecutive failures 和 last success timestamp。
+- AudioSpeechClient 区分传输失败与远端队列满，避免把 RESOURCE_EXHAUSTED 误判为掉线。
+- AudioTranscriptClient 未连接重试采用指数退避，从配置基准开始，最高 5 秒。
+- voice-ctl 展示输出健康指标，protobuf 使用追加字段保持兼容。
+
+### 设计决定 / Design Decisions
+
+- 最近成功时间表示响应已被 audio-service 接收，不表示扬声器已经播放完成。
+- 正常建立连接后立即重置退避，重试等待保持可被 SIGTERM 快速打断。
+
+### 验证结果 / Verification
+
+- x86_64 Debug 构建通过，CTest 22/22。
+- audio-service 缺失 2.2 秒内 transcript 探测 4 次；输出显示 unavailable、连续失败 1、
+  最近成功 0，进程退出耗时 13 ms。
+- 完整 WSL smoke 通过；正常投递后 available=yes、连续失败归零、最近成功时间非零。
+- protobuf 生成和 pre-commit 检查通过。
+
 ## 2026-07-03 - 可取消语音输出与可用状态 / Cancellable Voice Output
 
 ### 变更内容 / Changed

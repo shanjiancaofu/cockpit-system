@@ -58,7 +58,11 @@ void PrintStatus(const cockpit::proto::voice::VoiceInteractionStatus& status) {
             << "speech requests dropped: " << metrics.speech_requests_dropped() << '\n'
             << "speech output available: " << (metrics.speech_output_available() ? "yes" : "no")
             << '\n'
-            << "speech output reconnects: " << metrics.speech_output_reconnects() << '\n';
+            << "speech output reconnects: " << metrics.speech_output_reconnects() << '\n'
+            << "speech output consecutive failures: "
+            << metrics.speech_output_consecutive_failures() << '\n'
+            << "speech output last success ms: "
+            << metrics.speech_output_last_success_timestamp_ms() << '\n';
   if (status.has_latest_response()) {
     PrintResponse(status.latest_response());
   }

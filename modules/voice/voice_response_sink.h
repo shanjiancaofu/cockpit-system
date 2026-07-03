@@ -12,6 +12,8 @@ struct VoiceOutputMetrics {
   std::uint64_t failed = 0;
   std::uint64_t dropped = 0;
   std::uint64_t reconnects = 0;
+  std::uint64_t consecutive_failures = 0;
+  std::uint64_t last_success_timestamp_ms = 0;
   bool available = false;
 };
 
