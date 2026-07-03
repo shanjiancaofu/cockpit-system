@@ -3,6 +3,7 @@
 #include <memory>
 #include <utility>
 
+#include "core/utils/Time.h"
 #include "modules/camera/latest_frame_buffer.h"
 
 #if defined(COCKPIT_HAS_GSTREAMER_CAMERA)
@@ -102,6 +103,10 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     status_.fps = request.fps;
     status_.frames_received = 0;
     status_.frames_dropped = 0;
+    status_.source_frames_skipped = 0;
+    status_.last_frame_sequence = 0;
+    status_.last_frame_timestamp_ms = 0;
+    status_.last_frame_received_at_ms = 0;
     status_.last_error.clear();
   }
 
@@ -160,13 +165,28 @@ bool CameraService::DeviceExists(const std::string& device, std::string* error) 
 }
 
 void CameraService::HandleFrame(CameraFrame frame) {
-  if (!frame.IsValid() || frame_sink_ == nullptr || !frame_sink_->Publish(std::move(frame))) {
+  if (!frame.IsValid()) {
     std::lock_guard<std::mutex> lock(mutex_);
     ++status_.frames_dropped;
     return;
   }
+
+  const std::uint64_t sequence = frame.sequence;
+  const std::uint64_t timestamp_ms = frame.timestamp_ms;
+  if (frame_sink_ == nullptr || !frame_sink_->Publish(std::move(frame))) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    ++status_.frames_dropped;
+    return;
+  }
+
   std::lock_guard<std::mutex> lock(mutex_);
+  if (status_.frames_received > 0 && sequence > status_.last_frame_sequence + 1U) {
+    status_.source_frames_skipped += sequence - status_.last_frame_sequence - 1U;
+  }
   ++status_.frames_received;
+  status_.last_frame_sequence = sequence;
+  status_.last_frame_timestamp_ms = timestamp_ms;
+  status_.last_frame_received_at_ms = static_cast<std::uint64_t>(utils::NowMs());
 }
 
 void CameraService::SetError(std::string error) {

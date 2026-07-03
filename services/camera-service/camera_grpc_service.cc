@@ -131,6 +131,10 @@ void CameraGrpcService::FillStatus(const CameraServiceStatus& status,
   response->set_fps(status.fps);
   response->set_frames_received(status.frames_received);
   response->set_frames_dropped(status.frames_dropped);
+  response->set_source_frames_skipped(status.source_frames_skipped);
+  response->set_last_frame_sequence(status.last_frame_sequence);
+  response->set_last_frame_timestamp_ms(status.last_frame_timestamp_ms);
+  response->set_last_frame_received_at_ms(status.last_frame_received_at_ms);
   response->set_last_error(status.last_error);
   for (const auto& module : status.modules) {
     auto* module_status = response->add_modules();

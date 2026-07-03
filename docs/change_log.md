@@ -5,6 +5,25 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-04 - 相机帧健康指标 / Camera Frame Health Metrics
+
+### 变更内容 / Changed
+
+- camera-service 状态新增源端跳帧数、最后帧序号、设备时间戳和服务接收时间。
+- 将无效帧/发布失败与摄像头源序号跳跃分开统计，避免 `frames_dropped` 含义混杂。
+- camera gRPC、`camera-ctl` 和服务单元测试同步新增字段。
+
+### 设计决定 / Design Decisions
+
+- 帧像素数据继续只走共享内存；gRPC 仅传输小型健康状态。
+- 当前用单调递增的帧 sequence 检测源端缺口，不把消费者读取速度算作摄像头丢帧。
+
+### 验证结果 / Verification
+
+- x86_64 Debug 构建通过，CTest 22/22。
+- 完整 `scripts/run_smoke.sh` 通过，`camera-ctl status` 已输出新增健康字段。
+- 本批文件 pre-commit 与 `git diff --check` 通过。
+
 ## 2026-07-03 - Voice 职责目录与独立 Target / Voice Responsibility Directories
 
 ### 变更内容 / Changed

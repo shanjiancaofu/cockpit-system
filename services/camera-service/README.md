@@ -10,7 +10,8 @@ Current scope:
 - Publish captured frames through `CameraFrameSink`; the default sink keeps only the latest frame.
 - The process entry injects a POSIX shared-memory double-buffer sink configured under
   `services.camera`.
-- Report received and invalid frame counters through the status control plane.
+- Report received/rejected frames, source sequence gaps, and latest-frame timestamps through the
+  status control plane.
 - Keep frame data out of gRPC; future frame delivery should use local pipeline/shared memory.
 
 `CameraService` depends on the `CameraPreviewSource` interface, so tests and future Jetson-specific

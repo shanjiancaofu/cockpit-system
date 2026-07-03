@@ -30,6 +30,10 @@ struct CameraServiceStatus {
   std::uint32_t fps = 0;
   std::uint64_t frames_received = 0;
   std::uint64_t frames_dropped = 0;
+  std::uint64_t source_frames_skipped = 0;
+  std::uint64_t last_frame_sequence = 0;
+  std::uint64_t last_frame_timestamp_ms = 0;
+  std::uint64_t last_frame_received_at_ms = 0;
   std::vector<runtime::ModuleStatus> modules;
   std::string last_error;
 };

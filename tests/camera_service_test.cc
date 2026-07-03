@@ -44,17 +44,24 @@ class FakePreviewSource : public cockpit::camera::CameraPreviewSource {
   bool Start(const cockpit::camera::CameraPreviewConfig& config, FrameCallback callback,
              std::string*) override {
     config_ = config;
+    callback_ = std::move(callback);
     running_ = true;
     ++start_count_;
 
+    EmitFrame(1, 1000);
+    return true;
+  }
+
+  void EmitFrame(std::uint64_t sequence, std::uint64_t timestamp_ms) {
     cockpit::camera::CameraFrame frame;
-    frame.width = config.width;
-    frame.height = config.height;
-    frame.stride_bytes = config.width * 4;
+    frame.sequence = sequence;
+    frame.timestamp_ms = timestamp_ms;
+    frame.width = config_.width;
+    frame.height = config_.height;
+    frame.stride_bytes = config_.width * 4;
     frame.format = cockpit::camera::CameraPixelFormat::kBgrx;
     frame.data.resize(static_cast<std::size_t>(frame.stride_bytes) * frame.height);
-    callback(frame);
-    return true;
+    callback_(std::move(frame));
   }
 
   void Stop() override {
@@ -80,6 +87,7 @@ class FakePreviewSource : public cockpit::camera::CameraPreviewSource {
 
  private:
   cockpit::camera::CameraPreviewConfig config_;
+  FrameCallback callback_;
   bool running_ = false;
   int start_count_ = 0;
   int stop_count_ = 0;
@@ -122,6 +130,11 @@ int main() {
       !Check(status.width == 1280 && status.height == 720 && status.fps == 30,
              "camera preview config mismatch") ||
       !Check(status.frames_received == 1, "camera preview frame was not counted") ||
+      !Check(status.source_frames_skipped == 0, "camera preview reported an initial frame gap") ||
+      !Check(status.last_frame_sequence == 1, "camera preview sequence metric mismatch") ||
+      !Check(status.last_frame_timestamp_ms == 1000, "camera preview timestamp metric mismatch") ||
+      !Check(status.last_frame_received_at_ms > 0,
+             "camera preview receive time was not recorded") ||
       !Check(preview_source_ptr->start_count() == 1, "camera preview source was not started") ||
       !Check(preview_source_ptr->config().device == "/dev/video0",
              "camera preview source device mismatch") ||
@@ -129,6 +142,15 @@ int main() {
                  status.modules[0].state == cockpit::runtime::ModuleState::kRunning,
              "camera preview module status mismatch") ||
       !Check(status.last_error.empty(), "camera preview kept stale error")) {
+    return 1;
+  }
+
+  preview_source_ptr->EmitFrame(4, 1100);
+  status = service.status();
+  if (!Check(status.frames_received == 2, "second camera preview frame was not counted") ||
+      !Check(status.source_frames_skipped == 2, "camera source frame gap metric mismatch") ||
+      !Check(status.last_frame_sequence == 4, "latest camera frame sequence mismatch") ||
+      !Check(status.last_frame_timestamp_ms == 1100, "latest camera frame timestamp mismatch")) {
     return 1;
   }
 

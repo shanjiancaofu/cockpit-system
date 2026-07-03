@@ -23,7 +23,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 - POSIX shared-memory camera double buffer with independent writer/reader mappings.
 - Optional `camera-preview-probe` for GStreamer USB camera frame/FPS diagnostics.
 - `camera-service` with gRPC list/start/stop/status control plane, local GStreamer capture ownership,
-  and live frame counters.
+  live frame counters, source-gap detection, and latest-frame health timestamps.
 - `camera-ctl` gRPC diagnostic client for camera-service status/list/start/stop.
 - Immutable 20 ms voice frames and a fixed-capacity lock-free SPSC ring buffer.
 - Non-blocking ALSA poll capture and a threaded `AudioCaptureStream` with explicit state,

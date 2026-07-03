@@ -51,7 +51,11 @@ void PrintStatus(const cockpit::proto::camera::CameraStatus& status) {
             << "format: " << status.width() << 'x' << status.height() << " @ " << status.fps()
             << " fps\n"
             << "frames received: " << status.frames_received() << '\n'
-            << "frames dropped: " << status.frames_dropped() << '\n';
+            << "frames dropped: " << status.frames_dropped() << '\n'
+            << "source frames skipped: " << status.source_frames_skipped() << '\n'
+            << "last frame sequence: " << status.last_frame_sequence() << '\n'
+            << "last frame timestamp ms: " << status.last_frame_timestamp_ms() << '\n'
+            << "last frame received at ms: " << status.last_frame_received_at_ms() << '\n';
   if (!status.last_error().empty()) {
     std::cout << "last error: " << status.last_error() << '\n';
   }
