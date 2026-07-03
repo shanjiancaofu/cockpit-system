@@ -10,9 +10,10 @@ and driver interfaces, but must not depend on services or applications.
 - `voice`: ASR/TTS/intent/action interfaces plus deterministic mock providers.
 
 Larger modules are split by concrete responsibility and give each subdirectory its own CMake
-target. For example, `voice` uses `asr`, `tts`, `assistant`, `actions`, and `responses`. Small
-modules such as `can` and `vehicle` remain flat until they contain multiple real responsibilities.
-Do not create generic `base`, `common`, or `misc` directories.
+target. `audio` uses `frames`, `capture`, `vad`, `playback`, and `wav`; `camera` uses `frames`,
+`capture`, and `shared_memory`; `voice` uses `asr`, `tts`, `assistant`, `actions`, and `responses`.
+Small modules such as `can` and `vehicle` remain flat until they contain multiple real
+responsibilities. Do not create generic `base`, `common`, or `misc` directories.
 
 Future modules may include `media`, `storage`, and model-provider adapters when real requirements
 appear. Hardware APIs still belong in `drivers/`, and daemon ownership belongs in `services/`.

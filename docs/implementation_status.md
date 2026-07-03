@@ -89,7 +89,7 @@ after there is a real deployable boundary. See `docs/project_scope_and_repo_stra
 
 ## Verification
 
-Verified in WSL2 / Ubuntu 22.04, most recently on 2026-07-01.
+Verified in WSL2 / Ubuntu 22.04, most recently on 2026-07-04.
 
 USB camera note: after refreshing the shell group with `newgrp video`, a UVC `1080P USB Camera`
 was detected on `/dev/video0`; `camera-preview-probe` successfully captured 30 preview frames from

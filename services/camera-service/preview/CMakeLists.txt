@@ -1,0 +1,2 @@
+add_cockpit_library(camera_preview camera_preview_module.cc)
+target_link_libraries(camera_preview PUBLIC camera_capture runtime)

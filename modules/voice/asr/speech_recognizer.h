@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "modules/audio/speech_segment.h"
+#include "modules/audio/vad/speech_segment.h"
 
 namespace cockpit {
 namespace voice {

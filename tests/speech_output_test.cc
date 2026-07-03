@@ -1,4 +1,4 @@
-#include "services/audio-service/speech_output.h"
+#include "services/audio-service/playback/speech_output.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -7,7 +7,7 @@
 #include <mutex>
 #include <string>
 
-#include "modules/audio/audio_player.h"
+#include "modules/audio/playback/audio_player.h"
 #include "modules/voice/tts/mock_speech_synthesizer.h"
 
 namespace {

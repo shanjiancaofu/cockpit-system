@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
-#include "modules/audio/audio_capture_source.h"
-#include "modules/audio/pcm_format.h"
+#include "modules/audio/capture/audio_capture_source.h"
+#include "modules/audio/frames/pcm_format.h"
 
 namespace cockpit {
 namespace audio {

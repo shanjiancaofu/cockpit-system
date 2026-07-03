@@ -4,7 +4,7 @@
 #include <string>
 
 #include "drivers/alsa/alsa_pcm.h"
-#include "modules/audio/audio_capture_source.h"
+#include "modules/audio/capture/audio_capture_source.h"
 
 namespace cockpit {
 namespace audio {

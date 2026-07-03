@@ -1,11 +1,8 @@
-add_cockpit_library(audio
-    audio_capture_stream.cc
-    audio_frame.cc
-    energy_vad.cc
-    pcm_format.cc
-    speech_segmenter.cc
-    wav_file.cc
-)
+add_subdirectory(frames)
+add_subdirectory(capture)
+add_subdirectory(vad)
+add_subdirectory(wav)
+add_subdirectory(playback)
 
-find_package(Threads REQUIRED)
-target_link_libraries(audio PUBLIC Threads::Threads)
+add_library(audio INTERFACE)
+target_link_libraries(audio INTERFACE audio_capture audio_frames audio_playback audio_vad audio_wav)

@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "modules/audio/wav_file.h"
+#include "modules/audio/wav/wav_file.h"
 
 namespace cockpit {
 namespace voice {

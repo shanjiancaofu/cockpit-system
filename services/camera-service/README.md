@@ -2,6 +2,14 @@
 
 Local camera control service for Jetson-side cockpit camera features.
 
+```text
+camera-service/
+├── preview/  # runtime lifecycle wrapper around a preview source
+├── control/  # device validation, preview state and health metrics
+├── grpc/     # control/status API
+└── main.cc   # shared-memory writer and process assembly
+```
+
 Current scope:
 
 - List V4L2 camera devices.

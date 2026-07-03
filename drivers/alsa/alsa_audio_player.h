@@ -1,6 +1,6 @@
 #pragma once
 
-#include "modules/audio/audio_player.h"
+#include "modules/audio/playback/audio_player.h"
 
 namespace cockpit {
 namespace audio {

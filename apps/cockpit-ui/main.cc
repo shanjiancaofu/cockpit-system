@@ -4,13 +4,12 @@
 #include <QTimer>
 #include <QUrl>
 
-#include "camera_control_model.h"
-#include "camera_frame_client.h"
-#include "camera_frame_model.h"
-#include "camera_image_provider.h"
-#include "gateway_client.h"
-#include "vehicle_state_model.h"
-
+#include "apps/cockpit-ui/camera/camera_control_model.h"
+#include "apps/cockpit-ui/camera/camera_frame_client.h"
+#include "apps/cockpit-ui/camera/camera_frame_model.h"
+#include "apps/cockpit-ui/camera/camera_image_provider.h"
+#include "apps/cockpit-ui/vehicle/gateway_client.h"
+#include "apps/cockpit-ui/vehicle/vehicle_state_model.h"
 #include "core/runtime/ServiceRuntime.h"
 
 int main(int argc, char** argv) {

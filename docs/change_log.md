@@ -5,6 +5,32 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-04 - 剩余职责目录整理 / Remaining Responsibility Layout
+
+### 变更内容 / Changed
+
+- `modules/audio` 拆为 `frames`、`capture`、`vad`、`playback`、`wav`，并提供独立 target。
+- `modules/camera` 拆为 `frames`、`capture`、`shared_memory`，共享内存布局仍属于相机领域。
+- audio-service 拆为 `capture`、`processing`、`playback`、`grpc`；camera-service 拆为
+  `preview`、`control`、`grpc`，两个进程入口只负责装配。
+- cockpit-ui 拆为 `vehicle` 和 `camera`，Qt model/worker 不再堆在应用根目录。
+- 全仓库 include、CMake、测试和架构文档同步新路径。
+
+### 设计决定 / Design Decisions
+
+- 父级 `audio`、`camera`、`audio_service`、`camera_service` 只保留 INTERFACE 兼容聚合；新代码
+  链接最小 target。
+- `tools/topic` 已按命令文件组织，`core/runtime` 也保持单一生命周期职责，因此不继续硬拆。
+- `can`、`vehicle` 和小型 service 保持扁平，只有出现多个真实职责才增加子目录。
+
+### 验证结果 / Verification
+
+- x86_64 Debug 构建通过，CTest 22/22。
+- 启用 Qt 6、GStreamer 和 whisper.cpp 的完整 `build/` 构建通过，`cockpit-ui` 成功链接。
+- 完整 `scripts/run_smoke.sh` 通过；一次 TTS 状态查询超时复跑未复现。
+- `vehicle_state_model_test` 在 Qt 完整构建中通过。
+- 全仓库 pre-commit 与旧路径扫描通过。
+
 ## 2026-07-04 - 相机帧健康指标 / Camera Frame Health Metrics
 
 ### 变更内容 / Changed

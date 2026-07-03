@@ -6,7 +6,7 @@
 #include <string>
 
 #include "core/runtime/ServiceRuntime.h"
-#include "modules/camera/gstreamer_preview_pipeline.h"
+#include "modules/camera/capture/gstreamer_preview_pipeline.h"
 
 namespace {
 

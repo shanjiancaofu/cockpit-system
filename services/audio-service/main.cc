@@ -4,15 +4,14 @@
 #include <thread>
 #include <utility>
 
-#include "audio_grpc_service.h"
-#include "audio_service.h"
-#include "speech_output.h"
-
 #include "core/logging/Logger.h"
 #include "core/runtime/ServiceRuntime.h"
 #include "drivers/alsa/alsa_audio_player.h"
 #include "modules/voice/asr/mock_speech_recognizer.h"
 #include "modules/voice/tts/mock_speech_synthesizer.h"
+#include "services/audio-service/grpc/audio_grpc_service.h"
+#include "services/audio-service/playback/speech_output.h"
+#include "services/audio-service/processing/audio_service.h"
 
 #if defined(COCKPIT_HAS_WHISPER_CPP_ASR)
 #include "modules/voice/asr/whisper_speech_recognizer.h"

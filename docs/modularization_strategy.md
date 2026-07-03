@@ -179,6 +179,15 @@ cockpit-system/
     vehicle/
     can/
     audio/
+      frames/
+      capture/
+      vad/
+      playback/
+      wav/
+    camera/
+      frames/
+      capture/
+      shared_memory/
     voice/
       asr/
       tts/
@@ -193,6 +202,14 @@ cockpit-system/
     vehicle-data-service/
     cockpit-gateway-service/
     audio-service/
+      capture/
+      processing/
+      playback/
+      grpc/
+    camera-service/
+      preview/
+      control/
+      grpc/
     voice-interaction-service/
   tools/
     can-simulator/
@@ -210,7 +227,10 @@ utils    # low-level helpers
 vehicle  # base vehicle models; depends on utils
 can      # platform-independent CAN frame model
 socketcan # Linux SocketCAN adapter; depends on can
-audio    # microphone/speaker capture and playback helpers
+audio    # compatibility aggregate
+audio_frames / audio_capture / audio_vad / audio_playback / audio_wav
+camera   # compatibility aggregate
+camera_frames / camera_capture / camera_shm
 voice    # ASR/TTS/intent/action interfaces and orchestration helpers
 voice_asr / voice_tts / voice_assistant / voice_actions / voice_responses
          # concrete voice responsibility targets aggregated by voice

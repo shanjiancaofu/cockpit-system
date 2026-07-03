@@ -181,6 +181,8 @@ flowchart TB
 ```text
 cockpit-system/
 ├── apps/cockpit-ui/
+│   ├── vehicle/
+│   └── camera/
 ├── core/
 │   ├── config/
 │   ├── event/
@@ -194,7 +196,15 @@ cockpit-system/
 │   └── v4l2/
 ├── modules/
 │   ├── audio/
+│   │   ├── frames/
+│   │   ├── capture/
+│   │   ├── vad/
+│   │   ├── playback/
+│   │   └── wav/
 │   ├── camera/
+│   │   ├── frames/
+│   │   ├── capture/
+│   │   └── shared_memory/
 │   ├── can/
 │   ├── vehicle/
 │   └── voice/
@@ -380,7 +390,7 @@ flowchart LR
 共享内存分层：
 
 - `core/ipc/SharedMemoryRegion`：通用 POSIX mapping RAII。
-- `modules/camera/shared_frame_buffer`：相机 metadata、双槽和进程共享读写锁。
+- `modules/camera/shared_memory`：相机 metadata、双槽和进程共享读写锁。
 - camera-service：writer owner。
 - cockpit-ui：reader。
 

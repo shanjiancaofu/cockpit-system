@@ -1,0 +1,3 @@
+add_cockpit_library(audio_grpc audio_grpc_service.cc)
+target_link_libraries(audio_grpc PUBLIC audio_processing contracts speech_output)
+target_link_libraries(audio_grpc PRIVATE logging)

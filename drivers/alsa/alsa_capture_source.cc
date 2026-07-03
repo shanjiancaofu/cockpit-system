@@ -4,7 +4,7 @@
 #include <thread>
 #include <utility>
 
-#include "modules/audio/audio_frame.h"
+#include "modules/audio/frames/audio_frame.h"
 
 namespace cockpit {
 namespace audio {

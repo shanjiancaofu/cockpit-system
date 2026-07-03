@@ -1,4 +1,4 @@
-#include "modules/audio/audio_capture_stream.h"
+#include "modules/audio/capture/audio_capture_stream.h"
 
 #include <atomic>
 #include <chrono>

@@ -11,7 +11,7 @@
 #include "core/logging/Logger.h"
 #include "core/runtime/ServiceRuntime.h"
 #include "drivers/alsa/alsa_pcm.h"
-#include "modules/audio/wav_file.h"
+#include "modules/audio/wav/wav_file.h"
 
 namespace {
 

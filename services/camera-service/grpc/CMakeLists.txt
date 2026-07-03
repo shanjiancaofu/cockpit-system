@@ -1,0 +1,3 @@
+add_cockpit_library(camera_grpc camera_grpc_service.cc)
+target_link_libraries(camera_grpc PUBLIC camera_control contracts)
+target_link_libraries(camera_grpc PRIVATE logging)

@@ -1,4 +1,4 @@
-#include "modules/audio/energy_vad.h"
+#include "modules/audio/vad/energy_vad.h"
 
 #include <cmath>
 #include <cstdint>

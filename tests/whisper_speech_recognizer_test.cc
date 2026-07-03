@@ -5,8 +5,8 @@
 #include <iostream>
 #include <string>
 
-#include "modules/audio/speech_segment.h"
-#include "modules/audio/wav_file.h"
+#include "modules/audio/vad/speech_segment.h"
+#include "modules/audio/wav/wav_file.h"
 
 int main() {
   cockpit::audio::PcmBuffer pcm;

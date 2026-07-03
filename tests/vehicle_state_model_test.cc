@@ -1,4 +1,4 @@
-#include "vehicle_state_model.h"
+#include "apps/cockpit-ui/vehicle/vehicle_state_model.h"
 
 #include <QSignalSpy>
 #include <QtTest>

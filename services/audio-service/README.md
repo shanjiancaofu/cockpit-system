@@ -2,6 +2,15 @@
 
 Jetson-local microphone and speaker owner with a gRPC control plane.
 
+```text
+audio-service/
+├── capture/     # capture lifecycle module
+├── processing/  # VAD, segmentation and ASR orchestration
+├── playback/    # TTS queue and speaker output
+├── grpc/        # control/status API
+└── main.cc      # process assembly
+```
+
 The service owns `AudioCaptureStream`, its ALSA source, and the ring's single VAD consumer. gRPC
 exposes start, stop, status, and metrics only; raw PCM remains in the local SPSC data plane. ASR
 providers consume speech-segment output from the VAD pipeline, not the frame ring as a second

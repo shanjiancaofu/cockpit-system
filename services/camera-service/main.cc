@@ -1,12 +1,11 @@
 #include <chrono>
 #include <thread>
 
-#include "camera_grpc_service.h"
-#include "camera_service.h"
-
 #include "core/logging/Logger.h"
 #include "core/runtime/ServiceRuntime.h"
-#include "modules/camera/shared_frame_buffer.h"
+#include "modules/camera/shared_memory/shared_frame_buffer.h"
+#include "services/camera-service/control/camera_service.h"
+#include "services/camera-service/grpc/camera_grpc_service.h"
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "camera-service");

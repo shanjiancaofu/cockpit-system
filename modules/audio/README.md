@@ -2,6 +2,19 @@
 
 Platform-independent audio types and file handling.
 
+```text
+audio/
+├── frames/    # PCM format, AudioFrame, SPSC frame queue
+├── capture/   # capture source interface and capture thread
+├── vad/       # voice activity detection and speech segmentation
+├── playback/  # platform-independent audio player interface
+└── wav/       # RIFF/WAVE file handling
+```
+
+The matching targets are `audio_frames`, `audio_capture`, `audio_vad`, `audio_playback`, and
+`audio_wav`. The parent `audio` target is a compatibility aggregate; new code should link the
+smallest target it uses.
+
 Current scope:
 
 - PCM16 little-endian format validation.
