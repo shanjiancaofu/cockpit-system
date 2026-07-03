@@ -8,6 +8,8 @@ namespace cockpit {
 namespace voice {
 namespace {
 
+constexpr auto kControlDeadline = std::chrono::seconds(7);
+
 bool FinishRpc(const grpc::Status& status, std::string* error) {
   if (status.ok()) {
     return true;
@@ -63,7 +65,7 @@ bool VoiceControlClient::SubscribeResponses(std::uint64_t after_id, std::uint32_
 
 void VoiceControlClient::SetDeadline(grpc::ClientContext* context) {
   context->set_wait_for_ready(true);
-  context->set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(2));
+  context->set_deadline(std::chrono::system_clock::now() + kControlDeadline);
 }
 
 }  // namespace voice

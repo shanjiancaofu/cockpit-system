@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <string>
 
 #include "drivers/alsa/alsa_pcm.h"
@@ -18,8 +19,12 @@ class AlsaCaptureSource final : public AudioCaptureSource {
   void Close() override;
 
  private:
+  void PaceNullDevice(std::size_t frames_read);
+
   const std::string device_;
   const PcmFormat format_;
+  const bool pace_null_device_;
+  std::chrono::steady_clock::time_point next_read_deadline_{};
   AlsaPcm pcm_;
 };
 

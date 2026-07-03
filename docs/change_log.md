@@ -5,6 +5,25 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-03 - WSL Null Audio Capture Pacing
+
+### 变更内容 / Changed
+
+- ALSA capture adapter 对 `null` 输入设备按采样率模拟实时时钟。
+- 防止 WSL smoke 中 null plugin 无阻塞读取占满 CPU、压垮 VAD consumer 和 gRPC 控制面。
+- voice-ctl 控制 RPC deadline 调整为覆盖 gateway 重试和 TTS 下游调用的完整超时预算。
+
+### 设计决定 / Design Decisions
+
+- 节流只作用于明确的 `null` 测试设备；真实麦克风继续由 ALSA/硬件时钟驱动。
+- 该行为属于设备 adapter，不进入平台无关的 `AudioCaptureStream`。
+
+### 验证结果 / Verification
+
+- x86_64 Debug 增量构建通过，CTest 21/21。
+- 完整 `scripts/run_smoke.sh` 通过；null capture 稳定在约 16,000 PCM frames/s、零丢帧。
+- 车辆状态查询、HMI 动作、TTS、camera 控制和 topic 链路均通过。
+
 ## 2026-07-03 - 多架构构建目录与 Jetson 工具链 / Multi-architecture Build Layout
 
 ### 变更内容 / Changed
@@ -28,8 +47,7 @@ changes, design decisions, and verification results.
   均正确写入 `BUILD_INFO.json`。
 - 发布包 SHA256 清单全部通过，可执行文件为 x86-64 ELF，RUNPATH 为 `$ORIGIN/../lib`。
 - ARM64 工具链完成参数与失败路径检查；真实交叉链接等待 Jetson sysroot。
-- 完整 smoke 已使用新目录启动，但音频 null 设备高吞吐后出现一次 gRPC deadline；需在后续
-  单独收紧 null capture 节流或 smoke 超时。
+- 完整 smoke 初次暴露 null capture 高吞吐和控制端超时预算问题，已在同日后续批次修复。
 
 ## 2026-07-03 - Release Packaging and Jetson Layout
 
