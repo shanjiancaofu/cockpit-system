@@ -5,8 +5,7 @@
 #include <memory>
 #include <string>
 
-#include "voice_interaction_service.h"
-
+#include "services/voice-interaction-service/interaction/voice_interaction_service.h"
 #include "voice.grpc.pb.h"
 
 namespace cockpit {

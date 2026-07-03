@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "modules/voice/speech_recognizer.h"
+#include "modules/voice/asr/speech_recognizer.h"
 
 struct whisper_context;
 

@@ -21,8 +21,8 @@
 #include "modules/audio/speech_segmenter.h"
 #include "modules/audio/spsc_ring_buffer.h"
 #include "modules/audio/voice_activity_detector.h"
-#include "modules/voice/speech_recognizer.h"
-#include "modules/voice/speech_transcript.h"
+#include "modules/voice/asr/speech_recognizer.h"
+#include "modules/voice/assistant/speech_transcript.h"
 #include "services/audio-service/audio_capture_module.h"
 
 namespace cockpit {

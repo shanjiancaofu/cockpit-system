@@ -1,4 +1,4 @@
-#include "modules/voice/mock_speech_synthesizer.h"
+#include "modules/voice/tts/mock_speech_synthesizer.h"
 
 #include <algorithm>
 #include <cmath>

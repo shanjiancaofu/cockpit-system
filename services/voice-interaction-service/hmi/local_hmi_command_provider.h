@@ -1,6 +1,6 @@
 #pragma once
 
-#include "modules/voice/hmi_command_provider.h"
+#include "modules/voice/actions/hmi_command_provider.h"
 
 namespace cockpit {
 namespace voice {

@@ -4,7 +4,7 @@
 #include <string>
 
 #include "gateway.grpc.pb.h"
-#include "modules/voice/vehicle_status_provider.h"
+#include "modules/voice/actions/vehicle_status_provider.h"
 
 namespace cockpit {
 namespace voice {

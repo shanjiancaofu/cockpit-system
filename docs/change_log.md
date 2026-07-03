@@ -5,6 +5,29 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-03 - Voice 职责目录与独立 Target / Voice Responsibility Directories
+
+### 变更内容 / Changed
+
+- `modules/voice` 按 `asr`、`tts`、`assistant`、`actions`、`responses` 拆分。
+- 每个 voice 子目录拥有独立 CMake target，父级 `voice` 改为兼容聚合 target。
+- `voice-interaction-service` 按 `interaction`、`audio`、`vehicle`、`hmi`、`grpc` 拆分，
+  `main.cc` 只负责进程装配。
+- 全仓库 include、测试和文档同步到新路径。
+
+### 设计决定 / Design Decisions
+
+- 参考 zelos 的职责目录和独立 target，但不照搬大型项目层级。
+- 目录名必须直接说明用途，不使用 `base`、`common`、`misc` 等模糊收纳目录。
+- `can`、`vehicle` 和小型 service 继续保持扁平，出现多个真实职责后再拆。
+
+### 验证结果 / Verification
+
+- 新分层完成 x86_64 Debug 构建，CTest 22/22，完整 WSL smoke 通过。
+- 启用 whisper.cpp 的旧构建目录重新配置并完成 217 个构建步骤，真实模型测试通过，
+  耗时约 24.9 秒。
+- 旧 include 路径扫描清零，pre-commit 检查通过。
+
 ## 2026-07-03 - 语音输出健康指标与退避 / Voice Output Health and Backoff
 
 ### 变更内容 / Changed

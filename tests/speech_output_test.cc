@@ -8,7 +8,7 @@
 #include <string>
 
 #include "modules/audio/audio_player.h"
-#include "modules/voice/mock_speech_synthesizer.h"
+#include "modules/voice/tts/mock_speech_synthesizer.h"
 
 namespace {
 

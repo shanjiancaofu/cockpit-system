@@ -1,4 +1,4 @@
-#include "modules/voice/mock_voice_assistant.h"
+#include "modules/voice/assistant/mock_voice_assistant.h"
 
 #include <algorithm>
 #include <cctype>

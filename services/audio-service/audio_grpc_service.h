@@ -8,7 +8,7 @@
 #include "audio_service.h"
 
 #include "audio.grpc.pb.h"
-#include "modules/voice/voice_response_sink.h"
+#include "modules/voice/responses/voice_response_sink.h"
 
 namespace cockpit {
 namespace audio {

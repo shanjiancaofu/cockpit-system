@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-#include "modules/voice/speech_transcript.h"
+#include "modules/voice/assistant/speech_transcript.h"
 
 namespace cockpit {
 namespace voice {

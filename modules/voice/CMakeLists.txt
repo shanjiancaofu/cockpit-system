@@ -1,17 +1,14 @@
-add_cockpit_library(voice
-    async_voice_response_sink.cc
-    cockpit_action_dispatcher.cc
-    hmi_command_provider.cc
-    mock_action_dispatcher.cc
-    mock_speech_synthesizer.cc
-    mock_speech_recognizer.cc
-    mock_voice_assistant.cc
-)
-target_link_libraries(voice PUBLIC audio)
+add_subdirectory(asr)
+add_subdirectory(tts)
+add_subdirectory(assistant)
+add_subdirectory(actions)
+add_subdirectory(responses)
 
-if(TARGET whisper)
-    add_cockpit_library(whisper_asr
-        whisper_speech_recognizer.cc
-    )
-    target_link_libraries(whisper_asr PUBLIC audio whisper)
-endif()
+add_library(voice INTERFACE)
+target_link_libraries(voice INTERFACE
+    voice_actions
+    voice_asr
+    voice_assistant
+    voice_responses
+    voice_tts
+)

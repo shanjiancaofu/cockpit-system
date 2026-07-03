@@ -10,8 +10,8 @@
 #include <thread>
 
 #include "modules/audio/audio_player.h"
-#include "modules/voice/speech_synthesizer.h"
-#include "modules/voice/voice_response_sink.h"
+#include "modules/voice/responses/voice_response_sink.h"
+#include "modules/voice/tts/speech_synthesizer.h"
 
 namespace cockpit {
 namespace audio {

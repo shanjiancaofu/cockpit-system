@@ -12,10 +12,10 @@
 #include <thread>
 
 #include "core/event/event_queue.h"
-#include "modules/voice/action_dispatcher.h"
-#include "modules/voice/speech_transcript.h"
-#include "modules/voice/voice_assistant.h"
-#include "modules/voice/voice_response_sink.h"
+#include "modules/voice/actions/action_dispatcher.h"
+#include "modules/voice/assistant/speech_transcript.h"
+#include "modules/voice/assistant/voice_assistant.h"
+#include "modules/voice/responses/voice_response_sink.h"
 
 namespace cockpit {
 namespace voice {

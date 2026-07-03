@@ -1,6 +1,6 @@
 #pragma once
 
-#include "modules/voice/speech_synthesizer.h"
+#include "modules/voice/tts/speech_synthesizer.h"
 
 namespace cockpit {
 namespace voice {

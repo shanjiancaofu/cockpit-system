@@ -1,4 +1,4 @@
-#include "modules/voice/whisper_speech_recognizer.h"
+#include "modules/voice/asr/whisper_speech_recognizer.h"
 
 #include <algorithm>
 #include <cctype>

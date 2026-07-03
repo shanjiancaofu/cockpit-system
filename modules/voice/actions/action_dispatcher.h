@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "modules/voice/voice_assistant.h"
+#include "modules/voice/assistant/voice_assistant.h"
 
 namespace cockpit {
 namespace voice {

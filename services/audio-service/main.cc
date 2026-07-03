@@ -11,11 +11,11 @@
 #include "core/logging/Logger.h"
 #include "core/runtime/ServiceRuntime.h"
 #include "drivers/alsa/alsa_audio_player.h"
-#include "modules/voice/mock_speech_recognizer.h"
-#include "modules/voice/mock_speech_synthesizer.h"
+#include "modules/voice/asr/mock_speech_recognizer.h"
+#include "modules/voice/tts/mock_speech_synthesizer.h"
 
 #if defined(COCKPIT_HAS_WHISPER_CPP_ASR)
-#include "modules/voice/whisper_speech_recognizer.h"
+#include "modules/voice/asr/whisper_speech_recognizer.h"
 #endif
 
 int main(int argc, char** argv) {

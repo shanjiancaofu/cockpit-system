@@ -2,9 +2,9 @@
 
 #include <memory>
 
-#include "modules/voice/action_dispatcher.h"
-#include "modules/voice/hmi_command_provider.h"
-#include "modules/voice/vehicle_status_provider.h"
+#include "modules/voice/actions/action_dispatcher.h"
+#include "modules/voice/actions/hmi_command_provider.h"
+#include "modules/voice/actions/vehicle_status_provider.h"
 
 namespace cockpit {
 namespace voice {

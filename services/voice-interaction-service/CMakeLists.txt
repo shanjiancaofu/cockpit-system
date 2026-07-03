@@ -1,17 +1,19 @@
-add_cockpit_library(voice_interaction
-    voice_interaction_service.cc
-)
-target_link_libraries(voice_interaction PUBLIC voice)
-target_link_libraries(voice_interaction PUBLIC event)
+add_subdirectory(interaction)
+add_subdirectory(audio)
+add_subdirectory(vehicle)
+add_subdirectory(hmi)
+add_subdirectory(grpc)
 
-add_executable(voice-interaction-service
-    audio_speech_client.cc
-    audio_transcript_client.cc
-    gateway_vehicle_status_client.cc
-    local_hmi_command_provider.cc
-    main.cc
-    voice_grpc_service.cc
-)
+add_executable(voice-interaction-service main.cc)
 target_link_libraries(voice-interaction-service
-    PRIVATE contracts logging runtime voice_interaction
+    PRIVATE
+        contracts
+        logging
+        runtime
+        voice
+        voice_audio_clients
+        voice_grpc
+        voice_hmi
+        voice_interaction
+        voice_vehicle_client
 )

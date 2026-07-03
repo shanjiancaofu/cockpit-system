@@ -6,7 +6,7 @@
 #include <string>
 #include <thread>
 
-#include "modules/voice/mock_speech_recognizer.h"
+#include "modules/voice/asr/mock_speech_recognizer.h"
 #include "services/audio-service/audio_service.h"
 
 namespace {

@@ -122,6 +122,15 @@ core/CMakeLists.txt
 modules/CMakeLists.txt
   -> add_subdirectory(vehicle)
   -> add_subdirectory(can)
+  -> add_subdirectory(audio)
+  -> add_subdirectory(voice)
+
+modules/voice/CMakeLists.txt
+  -> add_subdirectory(asr)
+  -> add_subdirectory(tts)
+  -> add_subdirectory(assistant)
+  -> add_subdirectory(actions)
+  -> add_subdirectory(responses)
 
 drivers/CMakeLists.txt
   -> add_subdirectory(socketcan)
@@ -130,6 +139,11 @@ drivers/CMakeLists.txt
   -> source files
   -> direct target dependencies
 ```
+
+Directory names describe concrete behavior. Avoid generic `base`, `common`, and `misc` buckets.
+Do not add a child directory for one or two files unless it already represents a stable dependency
+boundary. `can` and `vehicle` therefore remain flat, while voice is split because its ASR, TTS,
+assistant, action, and response-output responsibilities evolve independently.
 
 Useful ideas for `cockpit-system`:
 
@@ -166,6 +180,11 @@ cockpit-system/
     can/
     audio/
     voice/
+      asr/
+      tts/
+      assistant/
+      actions/
+      responses/
   drivers/
     socketcan/
     alsa/
@@ -193,6 +212,8 @@ can      # platform-independent CAN frame model
 socketcan # Linux SocketCAN adapter; depends on can
 audio    # microphone/speaker capture and playback helpers
 voice    # ASR/TTS/intent/action interfaces and orchestration helpers
+voice_asr / voice_tts / voice_assistant / voice_actions / voice_responses
+         # concrete voice responsibility targets aggregated by voice
 proto    # protobuf contracts and generated code
 ```
 
@@ -221,6 +242,8 @@ apps/services/tools
 Rules:
 
 - Every `core/<module>`, `modules/<module>`, and `drivers/<module>` owns its `CMakeLists.txt`.
+- A large module may add responsibility subdirectories; each child owns a target and the parent may
+  expose an INTERFACE aggregation target for compatibility.
 - Every target declares direct dependencies instead of relying on global link state.
 - `core/` is a directory category, not an umbrella CMake target.
 - Binaries declare the smallest direct targets they use instead of linking all core libraries.

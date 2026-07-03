@@ -1,4 +1,4 @@
-#include "modules/voice/mock_action_dispatcher.h"
+#include "modules/voice/actions/mock_action_dispatcher.h"
 
 #include <string>
 

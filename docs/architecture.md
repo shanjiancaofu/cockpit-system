@@ -67,7 +67,12 @@ cockpit-system/
     audio/              # PCM/WAV types, voice frames, local SPSC data plane
     can/                # platform-independent CAN frame model
     vehicle/            # hand-written vehicle model before generated proto is enabled
-    voice/              # ASR/TTS/intent/action interfaces and deterministic mock providers
+    voice/
+      asr/              # speech recognition interfaces, mock, optional whisper.cpp
+      tts/              # speech synthesis interface and mock
+      assistant/        # transcript and intent handling
+      actions/          # typed vehicle/HMI actions
+      responses/        # asynchronous response output
   drivers/
     alsa/               # Linux ALSA capture/playback adapter
     socketcan/          # Linux SocketCAN adapter

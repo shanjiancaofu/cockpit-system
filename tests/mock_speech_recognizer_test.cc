@@ -1,4 +1,4 @@
-#include "modules/voice/mock_speech_recognizer.h"
+#include "modules/voice/asr/mock_speech_recognizer.h"
 
 #include <iostream>
 

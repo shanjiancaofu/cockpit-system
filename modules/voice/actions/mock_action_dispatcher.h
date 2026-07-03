@@ -1,6 +1,6 @@
 #pragma once
 
-#include "modules/voice/action_dispatcher.h"
+#include "modules/voice/actions/action_dispatcher.h"
 
 namespace cockpit {
 namespace voice {

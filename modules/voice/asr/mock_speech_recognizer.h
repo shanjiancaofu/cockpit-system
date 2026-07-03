@@ -1,6 +1,6 @@
 #pragma once
 
-#include "modules/voice/speech_recognizer.h"
+#include "modules/voice/asr/speech_recognizer.h"
 
 namespace cockpit {
 namespace voice {

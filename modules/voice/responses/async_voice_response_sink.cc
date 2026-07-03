@@ -1,4 +1,4 @@
-#include "modules/voice/async_voice_response_sink.h"
+#include "modules/voice/responses/async_voice_response_sink.h"
 
 #include <exception>
 #include <stdexcept>

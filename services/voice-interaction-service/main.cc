@@ -2,17 +2,16 @@
 #include <memory>
 #include <thread>
 
-#include "audio_speech_client.h"
-#include "audio_transcript_client.h"
-#include "gateway_vehicle_status_client.h"
-#include "local_hmi_command_provider.h"
-#include "voice_grpc_service.h"
-#include "voice_interaction_service.h"
-
 #include "core/runtime/ServiceRuntime.h"
-#include "modules/voice/async_voice_response_sink.h"
-#include "modules/voice/cockpit_action_dispatcher.h"
-#include "modules/voice/mock_voice_assistant.h"
+#include "modules/voice/actions/cockpit_action_dispatcher.h"
+#include "modules/voice/assistant/mock_voice_assistant.h"
+#include "modules/voice/responses/async_voice_response_sink.h"
+#include "services/voice-interaction-service/audio/audio_speech_client.h"
+#include "services/voice-interaction-service/audio/audio_transcript_client.h"
+#include "services/voice-interaction-service/grpc/voice_grpc_service.h"
+#include "services/voice-interaction-service/hmi/local_hmi_command_provider.h"
+#include "services/voice-interaction-service/interaction/voice_interaction_service.h"
+#include "services/voice-interaction-service/vehicle/gateway_vehicle_status_client.h"
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "voice-interaction-service");
