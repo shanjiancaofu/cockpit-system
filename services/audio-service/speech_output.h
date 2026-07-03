@@ -26,7 +26,7 @@ class SpeechOutput final : public voice::VoiceResponseSink {
   SpeechOutput& operator=(const SpeechOutput&) = delete;
 
   bool Start(std::string* error = nullptr);
-  void Stop();
+  void Stop() override;
   bool Submit(std::string text) override;
   voice::VoiceOutputMetrics metrics() const override;
 

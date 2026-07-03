@@ -78,6 +78,10 @@ voice::VoiceOutputMetrics SpeechOutput::metrics() const {
   result.played = played_.load();
   result.failed = failed_.load();
   result.dropped = dropped_.load();
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    result.available = running_ && !stop_requested_;
+  }
   return result;
 }
 

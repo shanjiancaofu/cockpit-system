@@ -17,12 +17,20 @@ AsyncVoiceResponseSink::AsyncVoiceResponseSink(std::unique_ptr<VoiceResponseSink
 }
 
 AsyncVoiceResponseSink::~AsyncVoiceResponseSink() {
+  Stop();
+}
+
+void AsyncVoiceResponseSink::Stop() {
   {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_requested_) {
+      return;
+    }
     stop_requested_ = true;
     dropped_.fetch_add(static_cast<std::uint64_t>(queue_.size()));
     queue_.clear();
   }
+  sink_->Stop();
   changed_.notify_all();
   if (worker_.joinable()) {
     worker_.join();
@@ -42,11 +50,14 @@ bool AsyncVoiceResponseSink::Submit(std::string text) {
 }
 
 VoiceOutputMetrics AsyncVoiceResponseSink::metrics() const {
+  const VoiceOutputMetrics sink_metrics = sink_->metrics();
   VoiceOutputMetrics result;
   result.queued = queued_.load();
-  result.played = sink_->metrics().played;
+  result.played = sink_metrics.played;
   result.failed = failed_.load();
   result.dropped = dropped_.load();
+  result.reconnects = sink_metrics.reconnects;
+  result.available = sink_metrics.available;
   return result;
 }
 

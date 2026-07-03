@@ -11,6 +11,8 @@ struct VoiceOutputMetrics {
   std::uint64_t played = 0;
   std::uint64_t failed = 0;
   std::uint64_t dropped = 0;
+  std::uint64_t reconnects = 0;
+  bool available = false;
 };
 
 class VoiceResponseSink {
@@ -19,6 +21,8 @@ class VoiceResponseSink {
 
   virtual bool Submit(std::string text) = 0;
   virtual VoiceOutputMetrics metrics() const = 0;
+  virtual void Stop() {
+  }
 };
 
 }  // namespace voice

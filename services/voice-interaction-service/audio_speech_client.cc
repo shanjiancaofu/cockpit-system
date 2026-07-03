@@ -24,11 +24,27 @@ bool AudioSpeechClient::Submit(std::string text) {
   grpc::ClientContext context;
   context.set_wait_for_ready(true);
   context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(2));
+  {
+    std::lock_guard<std::mutex> lock(context_mutex_);
+    if (stopping_) {
+      dropped_.fetch_add(1U);
+      return false;
+    }
+    active_context_ = &context;
+  }
   const grpc::Status status = stub_->Speak(&context, request, &response);
+  {
+    std::lock_guard<std::mutex> lock(context_mutex_);
+    active_context_ = nullptr;
+  }
   if (status.ok() && response.accepted()) {
+    if (!available_.exchange(true) && connected_once_.exchange(true)) {
+      reconnects_.fetch_add(1U);
+    }
     queued_.fetch_add(1U);
     return true;
   }
+  available_.store(false);
   if (status.error_code() == grpc::StatusCode::RESOURCE_EXHAUSTED) {
     dropped_.fetch_add(1U);
   } else {
@@ -42,7 +58,18 @@ VoiceOutputMetrics AudioSpeechClient::metrics() const {
   result.queued = queued_.load();
   result.failed = failed_.load();
   result.dropped = dropped_.load();
+  result.reconnects = reconnects_.load();
+  result.available = available_.load();
   return result;
+}
+
+void AudioSpeechClient::Stop() {
+  std::lock_guard<std::mutex> lock(context_mutex_);
+  stopping_ = true;
+  available_.store(false);
+  if (active_context_ != nullptr) {
+    active_context_->TryCancel();
+  }
 }
 
 }  // namespace voice

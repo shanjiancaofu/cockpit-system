@@ -5,6 +5,30 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-03 - 可取消语音输出与可用状态 / Cancellable Voice Output
+
+### 变更内容 / Changed
+
+- VoiceResponseSink 增加默认 Stop 生命周期钩子，异步包装器停止时先取消下游调用。
+- AudioSpeechClient 跟踪活动 gRPC context，停止时通过 TryCancel 中断等待。
+- AudioTranscriptClient 在建立长期流前执行 250 ms channel 连接预检，避免无服务时卡满 10 秒。
+- 语音状态新增 speech output available 和 reconnects，并由 voice-ctl 展示。
+- 异步输出测试新增阻塞下游取消和退出耗时验证。
+
+### 设计决定 / Design Decisions
+
+- gRPC channel 自身负责连接恢复，业务层只记录从不可用恢复为可用的次数。
+- protobuf 只追加字段，保持已有客户端兼容。
+
+### 验证结果 / Verification
+
+- x86_64 Debug 构建通过，CTest 22/22。
+- audio-service 缺失时状态显示 `speech output available: no`，voice service 退出从约 9.9 秒
+  缩短到 17 ms。
+- 完整 WSL smoke 通过；audio-service 正常时显示 `speech output available: yes`，三次异步
+  播报均接收成功。
+- protobuf 生成、异步阻塞取消测试和服务 worker 回收均通过。
+
 ## 2026-07-03 - 异步语音响应输出 / Asynchronous Voice Response Output
 
 ### 变更内容 / Changed

@@ -11,6 +11,18 @@
 
 namespace cockpit {
 namespace voice {
+namespace {
+
+constexpr auto kConnectProbeTimeout = std::chrono::milliseconds(250);
+
+void RetryDelay(int delay_ms, const AudioTranscriptClient::ContinueHandler& should_continue) {
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(delay_ms);
+  while (should_continue() && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+}
+
+}  // namespace
 
 AudioTranscriptClient::AudioTranscriptClient(std::string address, int stream_timeout_ms,
                                              int retry_delay_ms)
@@ -30,8 +42,15 @@ int AudioTranscriptClient::Stream(const TranscriptHandler& transcript_handler,
   std::uint64_t observed_id = 0;
 
   while (should_continue()) {
+    if (!channel->WaitForConnected(std::chrono::system_clock::now() + kConnectProbeTimeout)) {
+      if (should_continue()) {
+        reconnect_handler();
+        RetryDelay(retry_delay_ms_, should_continue);
+      }
+      continue;
+    }
+
     grpc::ClientContext context;
-    context.set_wait_for_ready(true);
     context.set_deadline(std::chrono::system_clock::now() +
                          std::chrono::milliseconds(stream_timeout_ms_));
     proto::audio::SubscribeTranscriptsRequest request;
@@ -77,7 +96,7 @@ int AudioTranscriptClient::Stream(const TranscriptHandler& transcript_handler,
         status.error_code() != grpc::StatusCode::CANCELLED) {
       error_handler(status.error_message());
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(retry_delay_ms_));
+    RetryDelay(retry_delay_ms_, should_continue);
   }
   return 0;
 }

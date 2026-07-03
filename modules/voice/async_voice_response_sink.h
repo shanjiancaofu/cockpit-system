@@ -26,6 +26,7 @@ class AsyncVoiceResponseSink final : public VoiceResponseSink {
 
   bool Submit(std::string text) override;
   VoiceOutputMetrics metrics() const override;
+  void Stop() override;
 
  private:
   void Run();

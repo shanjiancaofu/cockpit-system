@@ -41,6 +41,14 @@ class BlockingSink final : public cockpit::voice::VoiceResponseSink {
     return {};
   }
 
+  void Stop() override {
+    {
+      std::lock_guard<std::mutex> lock(state_->mutex);
+      state_->released = true;
+    }
+    state_->changed.notify_all();
+  }
+
  private:
   const std::shared_ptr<BlockingState> state_;
 };
@@ -93,6 +101,28 @@ int main() {
   }
   if (state->submitted.load() != 2) {
     std::cerr << "async sink did not drain accepted responses\n";
+    return 1;
+  }
+
+  auto cancel_state = std::make_shared<BlockingState>();
+  const auto cancel_start = std::chrono::steady_clock::now();
+  {
+    cockpit::voice::AsyncVoiceResponseSink cancellable(
+        std::make_unique<BlockingSink>(cancel_state));
+    if (!cancellable.Submit("blocked")) {
+      std::cerr << "cancellable sink rejected a response\n";
+      return 1;
+    }
+    std::unique_lock<std::mutex> lock(cancel_state->mutex);
+    if (!cancel_state->changed.wait_for(lock, std::chrono::milliseconds(500), [cancel_state] {
+          return cancel_state->entered;
+        })) {
+      std::cerr << "cancellable sink did not enter the downstream call\n";
+      return 1;
+    }
+  }
+  if (std::chrono::steady_clock::now() - cancel_start > std::chrono::milliseconds(600)) {
+    std::cerr << "async sink cancellation took too long\n";
     return 1;
   }
 

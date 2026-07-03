@@ -124,6 +124,8 @@ void VoiceGrpcService::FillStatus(const VoiceInteractionStatus& value,
   metrics->set_speech_requests_accepted(value.metrics.output.queued);
   metrics->set_speech_requests_failed(value.metrics.output.failed);
   metrics->set_speech_requests_dropped(value.metrics.output.dropped);
+  metrics->set_speech_output_available(value.metrics.output.available);
+  metrics->set_speech_output_reconnects(value.metrics.output.reconnects);
   if (value.latest_response.has_value()) {
     FillResponse(*value.latest_response, response->mutable_latest_response());
   }
