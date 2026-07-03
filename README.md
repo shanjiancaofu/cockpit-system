@@ -52,7 +52,6 @@ tests/      smoke 与单元测试
 
 ```bash
 cd /home/ffz/code/github/cockpit-system
-rm -rf build
 bash scripts/build.sh
 bash scripts/run_smoke.sh
 ```
@@ -66,31 +65,25 @@ pre-commit run -a
 pre-commit run clang-tidy --hook-stage manual -a
 ```
 
-`clang-tidy` 依赖 `build/compile_commands.json`，首次运行前先执行 `bash scripts/build.sh`。
+默认开发目录是 `build/x86_64-debug`（Jetson 上为 `build/arm64-debug`）。`clang-tidy`
+依赖其中的 `compile_commands.json`，首次运行前先执行 `bash scripts/build.sh`。
 
 摄像头设备需要当前用户属于 `video` 组。若 `/dev/video*` 存在但提示 Permission denied，执行
 `newgrp video` 或重新登录 WSL/Jetson 终端后再试。
 
-从旧目录复制过来的 `build/` 可能保存旧 CMake 路径。遇到 cache path mismatch 时删除
-`build/`，然后重新执行标准构建脚本。
+构建目录统一采用 `build/<目标架构>-<构建类型>`，例如 `build/x86_64-debug` 和
+`build/arm64-release`。不同架构不能共用 CMake cache。
 
 ## 常用命令
 
 ```bash
-build/bin/can-simulator --backend stdout --samples 3
-build/bin/can-simulator --backend socketcan --samples 3
-build/bin/vehicle-data-service --config configs/config.yaml --samples 3
-build/bin/vehicle-data-service --source socketcan --config configs/config.yaml --samples 3
-build/bin/vehicle-data-service --config configs/config.yaml --forever
-build/bin/cockpit-gateway-service --config configs/config.yaml --samples 3
-build/bin/cloud-uplink-service --config configs/config.yaml --once
-build/bin/cockpit-ctl status --config configs/config.yaml
-build/bin/camera-probe --list --config configs/config.yaml
-build/bin/camera-preview-probe --device /dev/video0 --frames 30 --config configs/config.yaml
-build/bin/camera-service --config configs/config.yaml
-build/bin/topic list --config configs/config.yaml
-build/bin/topic echo /dev/smoke --tail 1 --config configs/config.yaml
-build/bin/topic hz /dev/smoke --window 100 --config configs/config.yaml
+build/x86_64-debug/bin/can-simulator --backend stdout --samples 3
+build/x86_64-debug/bin/vehicle-data-service --config configs/config.yaml --samples 3
+build/x86_64-debug/bin/cockpit-gateway-service --config configs/config.yaml --samples 3
+build/x86_64-debug/bin/cockpit-ctl status --config configs/config.yaml
+build/x86_64-debug/bin/camera-probe --list --config configs/config.yaml
+build/x86_64-debug/bin/camera-service --config configs/config.yaml
+build/x86_64-debug/bin/topic list --config configs/config.yaml
 ```
 
 SocketCAN 模式需要已经启动的 `vcan0` 或真实 `can0`。
@@ -110,7 +103,8 @@ bash scripts/run_cockpit_ui.sh
 Release 打包与 Jetson 部署：
 
 ```bash
-BUILD_DIR=build-release bash scripts/package.sh
+bash scripts/build.sh --arch x86_64 --type release
+bash scripts/package.sh
 ```
 
 部署说明见 [docs/deployment.md](docs/deployment.md)。

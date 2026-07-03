@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-build_dir="${BUILD_DIR:-build}"
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib/build_paths.sh"
+
+build_dir="${BUILD_DIR:-$(cockpit_default_debug_build_dir)}"
 jobs="${JOBS:-$(nproc)}"
 repo_dir="$(pwd -P)"
 header_filter="^${repo_dir}/(apps|core|drivers|modules|services|tests|tools)/.*"

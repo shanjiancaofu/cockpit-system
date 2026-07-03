@@ -5,6 +5,32 @@
 This file records every implementation batch for cockpit-system. Future entries include
 changes, design decisions, and verification results.
 
+## 2026-07-03 - 多架构构建目录与 Jetson 工具链 / Multi-architecture Build Layout
+
+### 变更内容 / Changed
+
+- 构建目录统一为 `build/<目标架构>-<debug|release>`。
+- `scripts/build.sh` 新增 `--arch`、`--type`、`--no-test` 和 CMake 参数透传。
+- 新增 Jetson AArch64 CMake toolchain 和 sysroot 同步脚本。
+- smoke、vcan、Qt UI 和 clang-tidy 脚本同步使用新的默认 Debug 目录。
+- 打包脚本改为读取 CMake 目标架构，支持在 x86_64 上生成正确命名的 ARM64 包。
+
+### 设计决定 / Design Decisions
+
+- 目录名只描述目标架构和构建类型，不混入构建机器或设备型号。
+- Jetson 原生构建仍是当前默认发布方式；交叉编译要求匹配 JetPack/L4T 的 sysroot。
+- x86_64 到 ARM64 的交叉构建不运行目标程序测试。
+
+### 验证结果 / Verification
+
+- x86_64 Debug 和 Release 均完成 178 个构建步骤，CTest 均为 21/21 通过。
+- Release 包成功生成为 `cockpit-system-0.1.0-linux-x86_64.tar.gz`，目标架构和构建机架构
+  均正确写入 `BUILD_INFO.json`。
+- 发布包 SHA256 清单全部通过，可执行文件为 x86-64 ELF，RUNPATH 为 `$ORIGIN/../lib`。
+- ARM64 工具链完成参数与失败路径检查；真实交叉链接等待 Jetson sysroot。
+- 完整 smoke 已使用新目录启动，但音频 null 设备高吞吐后出现一次 gRPC deadline；需在后续
+  单独收紧 null capture 节流或 smoke 超时。
+
 ## 2026-07-03 - Release Packaging and Jetson Layout
 
 ### 变更内容 / Changed

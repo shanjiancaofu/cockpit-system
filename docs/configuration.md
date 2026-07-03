@@ -117,12 +117,11 @@ Supported ASR providers:
 Example optional build:
 
 ```bash
-cmake -S . -B build -G Ninja \
+bash scripts/build.sh --arch x86_64 --type debug -- \
   -DBUILD_COCKPIT_UI=ON \
   -DBUILD_WHISPER_CPP_ASR=ON \
   -DWHISPER_CPP_DIR=/home/ffz/code/third_party/whisper.cpp \
   -DWHISPER_CPP_MODEL_PATH=/home/ffz/code/third_party/whisper.cpp/models/ggml-small.bin
-cmake --build build
 ```
 
 Model binaries must stay outside Git. Configure the deployed path with

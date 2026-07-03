@@ -469,7 +469,9 @@ bash scripts/build.sh
 bash scripts/run_smoke.sh
 ```
 
-标准：C++17、`.cc/.h`、`build/`、CMake + Ninja。Qt UI 由 `BUILD_COCKPIT_UI` 控制，可选依赖不存在时不能破坏无关 target。
+标准：C++17、`.cc/.h`、CMake + Ninja。构建目录使用
+`build/<目标架构>-<debug|release>`；Qt UI 由 `BUILD_COCKPIT_UI` 控制，可选依赖不存在时
+不能破坏无关 target。
 
 普通 pre-commit 执行格式和文件检查；clang-tidy 保持手动门禁：
 

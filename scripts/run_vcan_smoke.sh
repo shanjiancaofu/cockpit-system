@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-build_dir="${BUILD_DIR:-build}"
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib/build_paths.sh"
+
+build_dir="${BUILD_DIR:-$(cockpit_default_debug_build_dir)}"
 bin_dir="${build_dir}/bin"
 config_path="${CONFIG_PATH:-configs/config.yaml}"
 interface_name="${CAN_INTERFACE:-vcan0}"

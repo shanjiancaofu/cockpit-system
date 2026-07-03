@@ -1,25 +1,93 @@
-# Jetson Deployment
+# Jetson 构建与部署
 
-cockpit-system follows the same build/install/package separation used by the referenced zelos
-projects:
+cockpit-system 参考 zelos/znavigator 的思路，将源码、构建、安装暂存、发布包和车端运行目录
+分开：
 
 ```text
-source repository -> build directory -> staging directory -> release archive -> target root
+源码 -> build/<架构>-<类型> -> stage -> dist/*.tar.gz -> /cockpit-system
 ```
 
-The source repository remains in the developer workspace. The Jetson runtime root is
-`/cockpit-system`; source code and CMake intermediate files are never installed there.
+## 构建目录
 
-## Runtime Layout
+```text
+build/
+├── x86_64-debug/
+├── x86_64-release/
+├── arm64-debug/
+└── arm64-release/
+```
+
+WSL/Ubuntu 日常开发：
+
+```bash
+bash scripts/build.sh
+bash scripts/build.sh --arch x86_64 --type release
+```
+
+在 Jetson 上执行相同脚本时，默认目录是 `build/arm64-debug`：
+
+```bash
+bash scripts/build.sh
+bash scripts/build.sh --arch arm64 --type release
+```
+
+额外 CMake 参数放在 `--` 后面。例如启用 Whisper：
+
+```bash
+bash scripts/build.sh --arch arm64 --type release -- \
+  -DBUILD_WHISPER_CPP_ASR=ON \
+  -DWHISPER_CPP_DIR=/path/to/whisper.cpp \
+  -DGGML_CUDA=ON
+```
+
+## WSL 交叉编译 ARM64
+
+交叉编译需要 `aarch64-linux-gnu-g++`、与目标 Jetson 完全匹配的 JetPack/L4T sysroot，
+以及 sysroot 中 ARM64 版本的 Qt、ALSA、GStreamer、gRPC、protobuf 和 yaml-cpp。启用 CUDA
+时还需要匹配版本的 Jetson CUDA 头文件和目标库。
+
+```bash
+sudo apt-get install -y g++-aarch64-linux-gnu rsync
+
+bash scripts/prepare_jetson_sysroot.sh \
+  --source ffz@JETSON_IP \
+  --output toolchains/jetson-sysroot
+
+JETSON_SYSROOT="$PWD/toolchains/jetson-sysroot" \
+  bash scripts/build.sh --arch arm64 --type release
+```
+
+需要 CUDA 时给 sysroot 脚本添加 `--with-cuda`。CUDA 目录较大，因此默认不复制。
+
+工具链文件位于 `cmake/toolchains/jetson-aarch64.cmake`。交叉构建不运行 CTest，因为 ARM64
+程序不能直接在 x86_64 WSL 中执行。当前优先推荐 Jetson 原生构建；CUDA、TensorRT 和
+Jetson 多媒体库与 JetPack 版本绑定较强，原生构建更稳定。
+
+## 打包
+
+脚本默认选择当前机器对应的 Release 目录，也可以显式指定：
+
+```bash
+bash scripts/package.sh
+BUILD_DIR=build/arm64-release bash scripts/package.sh
+```
+
+包名中的架构读取 CMake 目标架构，不使用构建机的 `uname -m`。所以在 x86_64 WSL 中交叉
+编译得到的包仍命名为 `linux-arm64`。
+
+```text
+stage/cockpit-system-<version>-<system>-<arch>/
+dist/cockpit-system-<version>-<system>-<arch>.tar.gz
+```
+
+Whisper 模型不进入程序包，避免每次升级重复传输大文件。
+
+## 车端目录
 
 ```text
 /cockpit-system/
 ├── current -> releases/0.1.0
-├── releases/
-│   └── 0.1.0/
-│       ├── bin/
-│       ├── lib/
-│       └── share/
+├── releases/0.1.0/{bin,lib,share}
 ├── config/config.yaml
 ├── models/whisper/ggml-small.bin
 ├── data/
@@ -27,46 +95,7 @@ The source repository remains in the developer workspace. The Jetson runtime roo
 └── run/
 ```
 
-Programs and libraries are versioned under `releases`; configuration, models, data, and logs are
-shared across upgrades. `current` is switched atomically during installation or rollback.
-
-## Release Build
-
-Create a Release build. Whisper is optional:
-
-```bash
-cmake -S . -B build-release -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_COCKPIT_UI=ON \
-  -DBUILD_WHISPER_CPP_ASR=ON \
-  -DWHISPER_CPP_DIR=/home/ffz/code/third_party/whisper.cpp \
-  -DWHISPER_CPP_MODEL_PATH=/home/ffz/code/third_party/whisper.cpp/models/ggml-small.bin
-cmake --build build-release
-ctest --test-dir build-release --output-on-failure
-```
-
-On Jetson, enable the whisper.cpp CUDA backend with the CMake option supported by the checked-out
-whisper.cpp revision, currently `-DGGML_CUDA=ON`.
-
-## Package
-
-```bash
-BUILD_DIR=build-release bash scripts/package.sh
-```
-
-The script creates:
-
-```text
-stage/cockpit-system-<version>-<system>-<arch>/
-dist/cockpit-system-<version>-<system>-<arch>.tar.gz
-```
-
-The package contains runtime binaries, optional whisper/GGML libraries, a configuration template,
-systemd units, deployment scripts, build metadata, and checksums. The Whisper model is not bundled.
-
-## Install
-
-Copy the archive and model to the Jetson, then run:
+安装和启动：
 
 ```bash
 tar -xzf cockpit-system-*.tar.gz
@@ -75,30 +104,23 @@ sudo bash deploy/install.sh
 sudo systemctl enable --now cockpit.target
 ```
 
-Install the model separately:
+模型单独安装：
 
 ```bash
 sudo install -m 0644 ggml-small.bin /cockpit-system/models/whisper/ggml-small.bin
 ```
 
-Update `/cockpit-system/config/config.yaml` with the deployed model path.
-
-## Health Check And Rollback
+检查、回滚和不修改系统的安装模拟：
 
 ```bash
 sudo bash deploy/healthcheck.sh
 sudo bash deploy/rollback.sh 0.1.0
 sudo systemctl restart cockpit.target
-```
 
-For a non-root installation simulation, use a temporary root and skip systemd:
-
-```bash
 COCKPIT_ROOT=/tmp/cockpit-system-test INSTALL_SYSTEMD=false bash deploy/install.sh
 ```
 
-## Dependency Policy
+## 依赖策略
 
-The release bundles project-built whisper.cpp/GGML shared libraries when enabled. Qt, ALSA, gRPC,
-protobuf, yaml-cpp, GStreamer, and platform libraries are supplied by the Jetson OS image to avoid
-mixing incompatible system ABIs.
+发布包包含项目构建产生的 Whisper/GGML 动态库。Qt、ALSA、gRPC、protobuf、yaml-cpp、
+GStreamer 和平台库由 Jetson 系统提供，避免混用不同 JetPack/Ubuntu ABI。

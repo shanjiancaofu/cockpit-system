@@ -2,7 +2,9 @@
 set -euo pipefail
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-build_dir="${BUILD_DIR:-${root_dir}/build-release}"
+source "${root_dir}/scripts/lib/build_paths.sh"
+
+build_dir="${BUILD_DIR:-${root_dir}/$(cockpit_default_release_build_dir)}"
 stage_dir="${STAGE_DIR:-${root_dir}/stage}"
 dist_dir="${DIST_DIR:-${root_dir}/dist}"
 
@@ -27,13 +29,13 @@ else
   git_dirty=false
 fi
 
-system_name="$(uname -s | tr '[:upper:]' '[:lower:]')"
-machine="$(uname -m)"
-case "${machine}" in
-  aarch64|arm64) architecture="arm64" ;;
-  x86_64|amd64) architecture="x86_64" ;;
-  *) architecture="${machine}" ;;
-esac
+target_system="$(sed -n 's/^COCKPIT_TARGET_SYSTEM:STRING=//p' "${build_dir}/CMakeCache.txt")"
+architecture="$(sed -n 's/^COCKPIT_TARGET_ARCH:STRING=//p' "${build_dir}/CMakeCache.txt")"
+if [[ -z "${target_system}" || -z "${architecture}" ]]; then
+  echo "target system metadata missing; reconfigure ${build_dir} with the current CMake files" >&2
+  exit 1
+fi
+system_name="$(printf '%s' "${target_system}" | tr '[:upper:]' '[:lower:]')"
 
 package_name="cockpit-system-${version}-${system_name}-${architecture}"
 package_root="${stage_dir}/${package_name}"
@@ -77,6 +79,7 @@ cat >"${package_root}/manifest/BUILD_INFO.json" <<EOF
   "build_time_utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "system": "${system_name}",
   "architecture": "${architecture}",
+  "build_machine_architecture": "$(uname -m)",
   "compiler": "${compiler}",
   "whisper_cpp_revision": "${whisper_commit}",
   "whisper_model_sha1": "${model_sha1}"

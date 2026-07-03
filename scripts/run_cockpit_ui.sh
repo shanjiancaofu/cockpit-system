@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib/build_paths.sh"
+
 if [[ "${1:-}" == "--offscreen" ]]; then
   export QT_QPA_PLATFORM=offscreen
   shift
@@ -10,7 +12,7 @@ if [[ "$#" -ne 0 ]]; then
   exit 2
 fi
 
-build_dir="${BUILD_DIR:-build}"
+build_dir="${BUILD_DIR:-$(cockpit_default_debug_build_dir)}"
 bin_dir="${build_dir}/bin"
 config_path="${CONFIG_PATH:-configs/config.yaml}"
 vehicle_source="${VEHICLE_SOURCE:-mock}"

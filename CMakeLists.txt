@@ -6,6 +6,19 @@ project(cockpit-system
     LANGUAGES CXX
 )
 
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" cockpit_system_processor)
+if(cockpit_system_processor MATCHES "^(aarch64|arm64)$")
+    set(cockpit_target_arch "arm64")
+elseif(cockpit_system_processor MATCHES "^(x86_64|amd64)$")
+    set(cockpit_target_arch "x86_64")
+else()
+    set(cockpit_target_arch "${cockpit_system_processor}")
+endif()
+set(COCKPIT_TARGET_ARCH "${cockpit_target_arch}" CACHE STRING
+    "Normalized architecture used for deployment packages")
+set(COCKPIT_TARGET_SYSTEM "${CMAKE_SYSTEM_NAME}" CACHE STRING
+    "Target operating system used for deployment packages")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)

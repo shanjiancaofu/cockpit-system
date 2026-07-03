@@ -54,6 +54,7 @@ Build/
 build-*/
 stage/
 dist/
+toolchains/jetson-sysroot/
 
 # CMake generated files
 CMakeFiles/
