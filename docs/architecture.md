@@ -1,141 +1,113 @@
-# Architecture Snapshot
+# 当前架构概览
 
-Source document: `docs/architecture_refined_v0.4.md`.
+详细架构基线见 `docs/architecture_refined_v0.4.md`。
 
-Scope and repository decision: see `docs/project_scope_and_repo_strategy.md`.
+## 项目定位
 
-This folder implements the Jetson vehicle-side client from that document:
+`cockpit-system` 是运行在 Jetson/Linux 上的智能座舱车端系统。当前保持单仓库，通过 CMake
+target 和职责目录实现内部模块化，不提前拆分云端前端、后端或共享协议仓库。
 
-```text
-vcan0 / can-simulator
-  -> vehicle-data-service
-  -> cockpit-gateway-service
-  -> cockpit-ui / web-dashboard
-  -> cloud-uplink-service
-```
+项目采用 C++17、CMake、Ninja、protobuf 和 gRPC。`znavigator` 主要作为运行时组织、薄入口、
+独立 target 和模块边界的参考，不照搬动态插件、复杂发布规则和历史兼容结构。
 
-Current implementation boundary:
-
-- C++17 + CMake is the main build path.
-- This repository is the Jetson-side smart cockpit system. Cloud/backend/frontend projects are deferred
-  until the local vehicle-side chain is stable.
-- The project stays as one repository/folder for now. It should grow through internal CMake
-  libraries and service modules, not early repository splitting.
-- znavigator is used as a runtime/orchestrator reference, not as an algorithm-stack template.
-  cockpit-system currently avoids generic plugin loading and uses explicit services plus typed gRPC
-  boundaries instead.
-- Internal communication is not treated as ordinary microservice RPC. gRPC is the control/debug
-  plane; high-rate data stays in process through queues/rings and may later move to local IPC or
-  shared memory when there is a real cross-process need.
-- C++ source files use `.cc` consistently to match the zelos C++ repositories.
-- `proto` generates a C++ `contracts` target through CMake.
-- yaml-cpp loads an immutable typed `SystemConfig` and validates component settings at startup.
-- `vehicle-data-service` exposes a VehicleState gRPC stream consumed by `cockpit-gateway-service`.
-- `cloud-uplink-service` remains a transport placeholder; `can-simulator` is runnable.
-- ALSA microphone capture, local SPSC transport, and the audio gRPC control plane are implemented.
-- `audio-service` owns the ring consumer and runs a replaceable energy-VAD implementation; PCM
-  remains process-local while VAD state and metrics cross gRPC.
-- Speech segmentation adds pre-roll and bounded duration, then publishes completed PCM segments
-  to a local eight-entry SPSC queue for one ASR consumer.
-- The ASR boundary lives in `modules/voice`; mock is the default provider and an optional
-  whisper.cpp adapter can consume segments in-process. Text-only transcript events cross gRPC
-  with a bounded 32-event replay history.
-- `audio-service` exclusively owns microphone and speaker devices. Its `Speak(text)` RPC runs
-  mock TTS and bounded asynchronous ALSA playback without moving PCM between processes.
-- `voice-interaction-service` owns intent/action orchestration and sends response text to
-  `audio-service`; it never opens ALSA devices.
-- `camera-service` owns the V4L2/GStreamer capture pipeline. gRPC carries camera lifecycle and
-  status only; preview frames use a local POSIX shared-memory double buffer.
-- Vehicle-status voice actions query the gateway's latest snapshot through a unary gRPC method.
-  The gateway rejects missing or older-than-two-second state instead of serving stale data.
-- Camera preview and music voice actions are modeled as HMI handoff commands. The C++ runtime does
-  not implement Android app playback; a future Qt/Android bridge should handle those commands.
-- Qt/QML, WebSocket, MQTT, GStreamer, WebRTC, SQLite, shared memory, real model providers, and
-  broader AI integration remain explicit module boundaries for later phases.
-
-Current directory shape:
+## 分层结构
 
 ```text
-cockpit-system/
-  apps/                 # Qt/QML cockpit and local Jetson debug dashboard placeholders
-  core/
-    config/             # config file reader, later yaml-cpp
-    logging/            # service logger
-    runtime/            # args, config load, logger init, signal handling
-    utils/              # low-level helpers
-  modules/
-    audio/              # PCM/WAV types, voice frames, local SPSC data plane
-    can/                # platform-independent CAN frame model
-    vehicle/            # hand-written vehicle model before generated proto is enabled
-    voice/
-      asr/              # speech recognition interfaces, mock, optional whisper.cpp
-      tts/              # speech synthesis interface and mock
-      assistant/        # transcript and intent handling
-      actions/          # typed vehicle/HMI actions
-      responses/        # asynchronous response output
-  drivers/
-    alsa/               # Linux ALSA capture/playback adapter
-    socketcan/          # Linux SocketCAN adapter
-  proto/                # protobuf contracts
-  configs/              # runtime YAML and systemd examples
-  docs/                 # architecture and old-project references
-  services/             # long-running local services
-  tools/                # developer and simulator binaries
-  tests/                # smoke and unit tests
+apps / tools
+    ↓
+services                 长运行进程、设备所有权、对外控制接口
+    ↓
+modules                  平台无关的领域模型与处理流程
+    ↓
+drivers                  ALSA、V4L2、SocketCAN 等 Linux 适配
+    ↓
+core                     配置、日志、生命周期、事件、IPC、工具
 ```
 
-`core/ipc` owns generic shared-memory mapping lifecycle. Domain-specific memory layouts remain in
-their modules; for example, camera frame slots are defined by `modules/camera`, not by `core`.
-
-The layout follows the useful part of the zelos/znavigator style: a thin executable entry, small
-internal libraries, explicit per-module build files, and service/library boundaries that can be
-split later if a real deployment or release boundary appears.
-
-Communication model:
+主要目录：
 
 ```text
-same thread         -> function call
-same process        -> queue / actor mailbox / callback / SPSC ring
-cross process       -> Unix domain socket or shared memory + notification later
-control/debug       -> gRPC + CLI tools
-external/cloud      -> MQTT / HTTP / WebSocket later
+apps/cockpit-ui/          Qt 6/QML 车机界面
+core/                     通用基础设施
+drivers/                  Linux/硬件适配
+modules/audio/            PCM、采集线程、VAD、语音分段、WAV
+modules/camera/           相机帧、采集接口、共享内存布局
+modules/vehicle/          车辆状态与 CAN codec
+modules/voice/            ASR、TTS、意图、动作、回复
+services/                 车端守护进程
+proto/                    protobuf/gRPC 契约
+tools/                    诊断和模拟工具
+tests/                    单元测试与 smoke test
 ```
 
-This keeps the project closer to a lightweight vehicle-side runtime than to a cloud microservice
-graph. It also matches the current audio design: `audio-service` owns devices and only exposes
-control/status/transcript text through gRPC, while PCM remains local.
-See `docs/runtime_communication_strategy.md` for the detailed transport rules.
+## 进程职责
 
-Planned voice/AI chain:
+- `vehicle-data-service`：独占 CAN 或 mock 车辆数据源，发布 `VehicleState`。
+- `cockpit-gateway-service`：聚合车辆状态，向 UI、topic 和语音动作提供数据。
+- `audio-service`：独占麦克风和扬声器，运行采集、VAD、分段、ASR 和 TTS 播放。
+- `camera-service`：独占摄像头，负责预览生命周期和共享内存写入。
+- `voice-interaction-service`：订阅识别文本，执行意图、动作和语音回复编排。
+- `cloud-uplink-service`：当前为 MQTT 上传占位实现。
+
+## 通信模型
 
 ```text
-microphone
-  -> audio-service              # capture, VAD, segmentation, ASR, transcript events
-  -> voice-interaction-service  # PTT, intent, dialog, LLM tools, response text
-  -> audio-service              # TTS queue and speaker playback
-  -> local model or remote LLM  # configurable provider
-  -> cockpit-gateway-service
-  -> cockpit-ui / speaker
+同线程             函数调用
+同进程控制         callback / EventQueue
+音频连续流         SPSC RingBuffer
+相机跨进程帧       POSIX Shared Memory 双缓冲
+控制、状态、文本   gRPC unary / streaming
+外部云端           MQTT / WebSocket（后续）
 ```
 
-Voice/AI scope for this Jetson project:
+gRPC 不承载 PCM、图片等高频大数据。控制面和数据面分离：gRPC 管理生命周期、状态和文本；
+ring buffer 或共享内存传输连续数据。
 
-- Microphone input and speaker output are local hardware capabilities.
-- `audio-service` owns audio devices; UI must not access ALSA/PulseAudio/PipeWire directly.
-- `audio-service` owns in-process ASR because raw speech segments stay local.
-- `voice-interaction-service` subscribes transcripts and owns intent/TTS/LLM orchestration.
-- LLM provider should be configurable:
-  - local/offline model for demo without network
-  - remote API for stronger reasoning or speech features
-- The first version can use push-to-talk before wake word.
-- Voice commands should call local service APIs, not shell commands directly.
+## 车辆链路
 
-Immediate next engineering tasks:
+```text
+can-simulator / SocketCAN
+    → vehicle-data-service
+    → VehicleState gRPC stream
+    → cockpit-gateway-service
+    → cockpit-ui / topic / voice action
+```
 
-1. Add ALSA poll/status results and the threaded `AudioCaptureStream` producer. Completed.
-2. Build `audio-service` control/status APIs without sending raw PCM through gRPC. Completed.
-3. Build mock transcript-to-intent handling in `voice-interaction-service`. Completed.
-4. Add text-only Speak RPC, mock TTS, and asynchronous ALSA playback. Completed.
-5. Decode production chassis frames after an approved DBC or signal specification is available.
-6. Keep recording/data-package capture as a developer diagnostics boundary. Do not expose it as a
-   normal user voice action.
+当前 CAN 映射是原型格式；正式车辆接入必须基于确认后的 DBC 或信号文档。
+
+## 音频与语音链路
+
+```text
+ALSA microphone
+    → AudioCaptureStream
+    → AudioFrame（20 ms）
+    → SPSC RingBuffer
+    → Energy VAD
+    → SpeechSegmenter
+    → mock ASR / whisper.cpp
+    → voice-interaction-service
+    → intent / action
+    → mock TTS
+    → ALSA speaker
+```
+
+PCM 和语音片段保持在 `audio-service` 进程内，只有 transcript、控制和指标通过 gRPC。
+
+## 相机链路
+
+```text
+USB Camera
+    → V4L2
+    → GStreamer appsink
+    → camera-service
+    → POSIX Shared Memory 双缓冲
+    → Qt camera worker
+    → QML Camera 页面
+```
+
+UI 能区分等待首帧、实时画面、卡帧、最后一帧和共享内存断开，并在 writer 重启后自动重连。
+
+## 当前边界
+
+已具备可运行的 WSL/Jetson 车机原型架构，但尚缺正式 DBC、真实 TTS、麦克风/扬声器标定、
+Jetson CUDA/TensorRT 验证、SQLite/录包、MQTT、WebSocket、视觉 AI 和完整 LLM 应用层。

@@ -1,15 +1,6 @@
 # web-dashboard
 
-Local Jetson browser debug dashboard placeholder.
+未来本地或云端浏览器仪表盘的占位目录。
 
-This is not the cloud management frontend. The cloud management frontend lives in
-`../../cloud-frontend` at the project workspace level.
-
-The architecture keeps this separate from the Qt cockpit UI:
-
-- WebSocket + JSON for status and log debug streams.
-- WebRTC for browser video preview.
-- No video frames over WebSocket.
-
-The existing `../zelos/car_cloud_front_end` React + Vite project is the nearest
-frontend reference for API mapping, tests, and build scripts.
+当前实际 UI 是 `apps/cockpit-ui`。WebSocket 数据流和 Web 前端尚未实现，在车端链路稳定前不扩展
+此目录。

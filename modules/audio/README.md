@@ -1,46 +1,19 @@
-# audio
-
-Platform-independent audio types and file handling.
+# audio 模块
 
 ```text
 audio/
-├── frames/    # PCM format, AudioFrame, SPSC frame queue
-├── capture/   # capture source interface and capture thread
-├── vad/       # voice activity detection and speech segmentation
-├── playback/  # platform-independent audio player interface
-└── wav/       # RIFF/WAVE file handling
+├── frames/    PCM 格式、AudioFrame、SPSC queue
+├── capture/   采集接口和采集线程
+├── vad/       VAD 和语音分段
+├── playback/  平台无关播放接口
+└── wav/       RIFF/WAVE 读写
 ```
 
-The matching targets are `audio_frames`, `audio_capture`, `audio_vad`, `audio_playback`, and
-`audio_wav`. The parent `audio` target is a compatibility aggregate; new code should link the
-smallest target it uses.
+对应 target：`audio_frames`、`audio_capture`、`audio_vad`、`audio_playback`、`audio_wav`。
+父级 `audio` 仅用于兼容聚合，新代码应链接最小 target。
 
-Current scope:
+音频数据固定为 PCM16、16 kHz、mono、20 ms frame。采集线程是 SPSC producer，VAD/ASR
+pipeline 是 consumer；队列满时丢帧并记录指标，不阻塞采集。
 
-- PCM16 little-endian format validation.
-- Bytes-per-frame and frames-per-period calculation.
-- RIFF/WAVE PCM16 read and write.
-- Bounded WAV input allocation and malformed-file errors.
-- Immutable 16 kHz mono 20 ms voice frames.
-- Fixed-capacity lock-free SPSC frame transport with overflow metrics.
-- Threaded `AudioCaptureStream` with explicit timeout, xrun, stop, and device-error states.
-- Pluggable voice-activity interface and stateful energy VAD with debounce and hangover.
-- Speech segmentation with pre-roll, endpoint flush, discontinuity handling, and duration limits.
-
-`AudioFrame` is immutable after construction. `SpscRingBuffer` requires exactly one producer and
-one consumer; `Available()` is an approximate concurrent snapshot, not a synchronization API.
-
-This module does not open microphones or speakers. Linux ALSA handles belong in `drivers/alsa`;
-service lifecycle belongs in `services/audio-service`.
-
-The capture data plane has one producer thread and one consumer. It accumulates partial PCM reads
-into fixed 20 ms frames, marks discontinuities after xrun or overflow, and never blocks the
-consumer. Platform drivers implement `AudioCaptureSource`; raw PCM does not cross gRPC.
-
-`EnergyVad` is the dependency-free baseline for WSL and Jetson bring-up. It reports RMS dBFS and
-stable speech/silence transitions. A future WebRTC implementation should implement the same
-`VoiceActivityDetector` interface.
-
-`SpeechSegmenter` converts per-frame VAD decisions into contiguous PCM16 speech segments. The
-audio service publishes completed segments to a bounded in-process SPSC queue for the future ASR
-consumer.
+本模块不直接打开麦克风或扬声器，ALSA 实现在 `drivers/alsa`，进程生命周期在
+`services/audio-service`。

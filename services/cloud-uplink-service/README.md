@@ -1,38 +1,13 @@
 # cloud-uplink-service
 
-## Responsibility
+车端云上传进程的占位实现。
 
-Bridge local vehicle state to cloud protocol.
+当前只读取配置并打印计划上传的 topic/payload，没有真实 MQTT 连接。后续接入时应负责：
 
-First phase:
+- MQTT 连接、重连和 QoS。
+- 车辆身份和认证。
+- 有界离线队列。
+- 上传频率限制和隐私过滤。
+- TLS 和证书管理。
 
-- Load MQTT/cloud config.
-- Convert a mock `VehicleState` to the planned cloud telemetry shape.
-- Keep MQTT integration as an explicit placeholder.
-
-Later phases:
-
-- Subscribe to cockpit gateway or vehicle data summaries.
-- Publish MQTT protobuf telemetry.
-- Pull platform/vehicle config according to the car cloud API.
-- Handle reconnect, heartbeat, offline buffering, and command ACK.
-
-## Input
-
-- Vehicle state summary.
-- Cloud config and credentials.
-
-## Output
-
-- MQTT protobuf telemetry.
-- Future config pull/download requests.
-
-## Config
-
-- `system.vehicle_id`
-- `services.cloud_uplink.enabled`
-- `services.cloud_uplink.mqtt.broker`
-- `services.cloud_uplink.mqtt.telemetry_topic`
-- `services.cloud_uplink.mqtt.qos`
-- `paths.log_dir`
-- `logging.level`
+原始音频和相机帧默认不上传。

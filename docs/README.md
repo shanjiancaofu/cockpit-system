@@ -1,4 +1,4 @@
-# 文档导航 / Documentation
+# 文档导航
 
 本目录是 cockpit-system 的文档入口。当前实现以
 `/home/ffz/code/github/cockpit-system` 仓库为准。
@@ -25,7 +25,7 @@
 8. [runtime_communication_strategy.md](runtime_communication_strategy.md)
    - 车端 runtime 通信分层：函数调用、队列/Actor、共享内存、gRPC/外部通信。
 9. [change_log.md](change_log.md)
-   - 每批改动的中英双语记录。
+   - 每批改动的中文记录。
 
 ## 参考与专项
 
@@ -33,7 +33,7 @@
 - [reference_code_audit.md](reference_code_audit.md)：旧代码细粒度审计。
 - [voice_ai_plan.md](voice_ai_plan.md)：麦克风、扬声器、语音与大模型规划。
 
-## 目录放置速查 / Placement Quick Guide
+## 目录放置速查
 
 ```text
 core/      通用基础设施：配置、日志、生命周期、低层工具

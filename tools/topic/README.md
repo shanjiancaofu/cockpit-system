@@ -1,104 +1,37 @@
 # topic
 
-Local topic debugging tool, inspired by ROS topic commands.
+参考 ROS topic 使用方式的本地调试工具。
 
-This is a development tool for the current single-Jetson stage. It supports a file-backed local
-store and live gRPC subscription through `cockpit-gateway-service`.
-
-## Commands
+## 命令
 
 ```bash
-build/bin/topic list --config configs/config.yaml
-build/bin/topic info /vehicle/state --config configs/config.yaml
-build/bin/topic pub /vehicle/state '{"speed_kph":12.3}' --config configs/config.yaml
-build/bin/topic echo /vehicle/state --tail 5 --config configs/config.yaml
-build/bin/topic hz /vehicle/state --window 100 --config configs/config.yaml
-build/bin/topic list --backend grpc --config configs/config.yaml
-build/bin/topic info /vehicle/state --backend grpc --config configs/config.yaml
-build/bin/topic echo /vehicle/state --backend grpc --count 5 --config configs/config.yaml
-build/bin/topic hz /vehicle/state --backend grpc --window 20 --count 20 --config configs/config.yaml
+topic list
+topic info /vehicle/state
+topic echo /vehicle/state
+topic hz /vehicle/state
+topic pub /dev/test '{"ok":true}'
 ```
 
-Messages are stored as JSON lines:
+`/vehicle/state` 使用 live gRPC backend：
 
-```json
-{"timestamp_ms":1781867205540,"topic":"/vehicle/state","payload":{"speed_kph":12.3}}
-```
+- `list`：发现 gateway 可订阅 topic。
+- `info`：显示类型、来源和 transport。
+- `echo`：输出实时消息。
+- `hz`：计算接收频率。
 
-## Scope
+开发 topic 可以使用 file backend，默认目录是 `logs/topics`。file backend 只用于单机调试，
+不是正式 Runtime MessageBus。
 
-Current scope:
+## 文件组织
 
-- `list`
-- `info`
-- `pub`
-- `echo`
-- `echo --follow`
-- `hz`
-- `hz --follow`
-- live `/vehicle/state` gRPC `echo` and `hz`
-- live gRPC `list` and typed `info`
-
-## Source Layout
-
-Each command is a separate translation unit:
+每个命令独立实现：
 
 ```text
-main.cc             # dispatch only
-topic_list.cc/.h
-topic_info.cc/.h
-topic_pub.cc/.h
-topic_echo.cc/.h
-topic_hz.cc/.h
-topic_grpc_discovery.cc/.h
-topic_grpc_subscriber.cc/.h
-topic_command_line.cc/.h
-topic_store.cc/.h
-topic_message.cc/.h
-topic_text.cc/.h
-topic_usage.cc/.h
+topic_list.cc
+topic_info.cc
+topic_echo.cc
+topic_hz.cc
+topic_pub.cc
 ```
 
-CMake builds command code into `topic_commands` first, then links the `topic` executable. This
-keeps commands independently compiled and easy to split later.
-
-Namespace:
-
-```text
-cockpit::topic
-```
-
-CMake visibility:
-
-- `topic_commands` publishes only its local include directory.
-- `topic_commands` links `config`, `contracts`, and `utils`.
-- `topic` links `config` because `main.cc` loads runtime configuration.
-- `topic` links `topic_commands` privately.
-
-Future scope:
-
-- add typed topic schemas from protobuf
-- extend discovery and subscription beyond `/vehicle/state`
-- add publishable command topics before enabling gRPC `pub`
-- add WebSocket gateway backend for browser dashboard subscription
-- keep MQTT for cloud/remote publish and optional remote subscription
-
-## Backend Direction
-
-Current backends:
-
-```text
-topic CLI -> file backend -> logs/topics/*.jsonl
-topic echo/hz -> gRPC -> cockpit-gateway-service -> vehicle-data-service
-```
-
-Recommended runtime backend later:
-
-```text
-C++ services/tools -> gRPC streaming -> cockpit-gateway-service
-browser dashboard  -> WebSocket      -> cockpit-gateway-service
-cloud/remote       -> MQTT           -> cloud-uplink-service
-```
-
-`topic echo` and `topic hz` can now subscribe through the gateway gRPC stream on the Jetson.
-WebSocket remains intended for browser clients. MQTT is kept for cloud or remote devices.
+保持这种按命令命名的扁平结构，不再增加模糊的 command/common 子目录。

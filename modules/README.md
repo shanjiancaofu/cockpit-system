@@ -1,19 +1,12 @@
 # modules
 
-Reusable product and domain capabilities. Modules may depend on individual targets under `core/`
-and driver interfaces, but must not depend on services or applications.
+可测试、可复用、尽量平台无关的领域能力：
 
-- `vehicle`: vehicle state domain model.
-- `can`: platform-independent CAN frame model.
-- `camera`: camera frame model and optional GStreamer preview pipeline boundary.
-- `audio`: platform-independent PCM format, frames, stream, VAD, speech segment, and WAV helpers.
-- `voice`: ASR/TTS/intent/action interfaces plus deterministic mock providers.
+- `audio`：音频 frame、采集线程、VAD、分段、播放接口和 WAV。
+- `camera`：相机 frame、采集接口和共享内存布局。
+- `can`：平台无关 CAN frame。
+- `vehicle`：车辆状态和 CAN codec。
+- `voice`：ASR、TTS、assistant、action 和 response。
 
-Larger modules are split by concrete responsibility and give each subdirectory its own CMake
-target. `audio` uses `frames`, `capture`, `vad`, `playback`, and `wav`; `camera` uses `frames`,
-`capture`, and `shared_memory`; `voice` uses `asr`, `tts`, `assistant`, `actions`, and `responses`.
-Small modules such as `can` and `vehicle` remain flat until they contain multiple real
-responsibilities. Do not create generic `base`, `common`, or `misc` directories.
-
-Future modules may include `media`, `storage`, and model-provider adapters when real requirements
-appear. Hardware APIs still belong in `drivers/`, and daemon ownership belongs in `services/`.
+较大模块按明确职责建立子目录和独立 target；小模块保持扁平。禁止使用 `base`、`misc`、
+`common` 作为临时收纳目录。硬件 API 放在 `drivers`，进程所有权放在 `services`。

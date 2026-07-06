@@ -1,35 +1,12 @@
 # vehicle-data-service
 
-## Responsibility
+车辆数据源所有者。
 
-Own vehicle state ingestion and normalization.
+支持：
 
-Current:
+- `mock`：无硬件开发和 smoke。
+- `socketcan`：从 `vcan0` 或真实 CAN 接口读取。
+- 使用原型 `VehicleCanCodec` 解码车辆状态。
+- 通过 gRPC server streaming 发布 VehicleState。
 
-- Read mock or SocketCAN input.
-- Decode the prototype VehicleState CAN frame.
-- Publish JSON for diagnostics and a gRPC VehicleState stream.
-
-Later phases:
-
-- Replace the prototype CAN mapping with an approved DBC.
-- Decode additional chassis and sensor fields.
-
-## Input
-
-- `configs/config.yaml`
-- SocketCAN frames from `hardware.can.interface`
-
-## Output
-
-- JSON lines, service log, and `cockpit.proto.vehicle.VehicleState` gRPC stream.
-
-## Config
-
-- `system.vehicle_id`
-- `services.vehicle_data.source`
-- `services.vehicle_data.publish_interval_ms`
-- `services.vehicle_data.grpc.listen_address`
-- `hardware.can.interface`
-- `paths.log_dir`
-- `logging.level`
+正式车辆接入前必须替换为基于 DBC/信号文档的 codec，并补充错误值、超时和总线故障处理。

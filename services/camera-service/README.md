@@ -1,28 +1,14 @@
 # camera-service
 
-Local camera control service for Jetson-side cockpit camera features.
+Jetson 本地摄像头所有者。
 
 ```text
 camera-service/
-├── preview/  # runtime lifecycle wrapper around a preview source
-├── control/  # device validation, preview state and health metrics
-├── grpc/     # control/status API
-└── main.cc   # shared-memory writer and process assembly
+├── preview/  preview source 的 Runtime 生命周期包装
+├── control/  设备校验、预览状态和健康指标
+├── grpc/     list/start/stop/status API
+└── main.cc   共享内存 writer 和进程装配
 ```
 
-Current scope:
-
-- List V4L2 camera devices.
-- Expose preview start/stop/status through gRPC control plane.
-- Own the local GStreamer `v4l2src -> appsink` preview pipeline when GStreamer is available.
-- Publish captured frames through `CameraFrameSink`; the default sink keeps only the latest frame.
-- The process entry injects a POSIX shared-memory double-buffer sink configured under
-  `services.camera`.
-- Report received/rejected frames, source sequence gaps, and latest-frame timestamps through the
-  status control plane.
-- Let shared-memory readers detect writer shutdown instead of treating the last frame as live.
-- Keep frame data out of gRPC; future frame delivery should use local pipeline/shared memory.
-
-`CameraService` depends on the `CameraPreviewSource` interface, so tests and future Jetson-specific
-capture implementations do not need to depend directly on GStreamer. The independent frame-sink
-boundary is the extension point for the future Qt bridge or shared-memory transport.
+GStreamer pipeline 采集的像素写入 POSIX shared memory 双缓冲，不经过 gRPC。状态接口包含接收帧、
+拒绝帧、源端跳帧、最后序号和时间戳。reader 能检测 writer 退出并自动重连。

@@ -1,37 +1,18 @@
 # voice-interaction-service
 
-The service directory follows the runtime responsibility rather than a generic `src/include`
-layout:
+用户语音交互编排进程。
 
 ```text
 voice-interaction-service/
-├── main.cc       process wiring and lifecycle
-├── interaction/  transcript-to-response orchestration
-├── audio/        audio-service transcript and speech clients
-├── vehicle/      cockpit-gateway vehicle-status client
-├── hmi/          typed Qt/Android handoff provider
-└── grpc/         external control and status API
+├── interaction/  transcript、intent 和 response 主流程
+├── audio/        transcript 订阅和 Speak client
+├── vehicle/      gateway 车辆状态 client
+├── hmi/          Qt/Android handoff
+├── grpc/         状态和调试 API
+└── main.cc       进程装配
 ```
 
-Each subdirectory owns an explicit CMake target. `main.cc` links those targets and contains no
-domain implementation.
+服务不打开麦克风或扬声器，也不处理原始 PCM。它消费 transcript，执行白名单 intent 和类型化
+action，再把回复文本发送给 audio-service。
 
-Consumes text transcripts from `audio-service`, maps them to allowlisted cockpit actions,
-dispatches typed actions, and publishes response events with a separate execution status. It
-never reads raw PCM and never executes shell commands.
-
-The current assistant is deterministic. Actions use explicit local service clients behind the
-`ActionDispatcher` boundary. Response text is sent to
-`audio-service` through `Speak(text)`; this service never opens an ALSA device or transports PCM.
-
-`query_vehicle_status` is the first real action. It queries the latest fresh snapshot from
-`cockpit-gateway-service`. Camera and media actions currently use an explicit local HMI handoff
-placeholder; they are not implemented as C++ media/UI features.
-
-Recording/data-package capture is a developer diagnostic workflow and should be handled by a
-separate recording boundary, not by user voice interaction.
-
-Camera preview and media actions are user-facing HMI commands. They should be handed off to a future
-Qt or Android bridge rather than implemented as a C++ media player inside this service.
-The current runtime uses `LocalHmiCommandProvider`, which only records the handoff and returns a
-clear placeholder response.
+录音、录像和研发录包不属于本服务。

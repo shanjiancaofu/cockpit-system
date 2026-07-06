@@ -1,71 +1,28 @@
 # cockpit-ui
 
-Qt 6/QML cockpit UI for the local Jetson display.
+Jetson 车机端 Qt 6/QML 应用。
 
-Current rule:
+## 当前能力
 
-- QML does not access hardware directly.
-- QML talks to C++ models.
-- C++ models talk to `cockpit-gateway-service` through gRPC.
-- The old `../vehicle-system/src/app` Widgets shell is the nearest UI migration reference.
+- 后台 gRPC worker 订阅 gateway 车辆状态。
+- UI 线程中的 `VehicleStateModel` 提供 live/stale/disconnected 状态。
+- Camera 页面通过 gRPC 控制 camera-service 启停。
+- `CameraFrameClient` 在后台读取共享内存最新帧。
+- `CameraImageProvider` 通过 `image://camera` 向 QML 提供 BGRx/RGB 图像。
+- 相机状态区分 waiting/live/stalled/last-frame/disconnected，并在 writer 重启后重连。
 
-Current implementation:
-
-- `VehicleStateModel` exposes connection, speed, gear, SOC, cloud, and source properties to QML.
-- `VehicleStateModel` distinguishes transport connection from fresh vehicle data; data becomes
-  stale after 1.5 seconds without an update.
-- `GatewayClient` subscribes to `CockpitGateway.SubscribeCockpitEvents` on a worker thread.
-- `CameraFrameClient` reads the camera-service POSIX shared-memory double buffer on a worker thread.
-- `CameraImageProvider` publishes BGRx/RGB frames through `image://camera` without exposing IPC to
-  QML.
-- Camera freshness tracking marks the preview stalled after one second without a new frame and
-  reconnects when the shared-memory writer restarts.
-- `CameraControlModel` performs device discovery and preview start/stop RPCs on a dedicated worker
-  thread.
-- Model updates cross into the Qt UI thread through queued invocations.
-- Dashboard and Camera tabs show live vehicle state and the latest camera frame.
-- The Camera tab selects a device, resolution, and FPS and controls preview lifecycle.
-- The dashboard marks LIVE, STALE, and DISCONNECTED states separately while retaining the last
-  known values for diagnosis.
-
-The target remains optional so headless service builds do not require Qt:
-
-```bash
-cmake -S . -B build -G Ninja -DBUILD_COCKPIT_UI=ON
-cmake --build build
-build/bin/cockpit-ui --config configs/config.yaml
-```
-
-For a complete local demo with mock vehicle data and automatic process cleanup:
+## 运行
 
 ```bash
 bash scripts/run_cockpit_ui.sh
 ```
 
-The demo starts camera-service and automatically starts `/dev/video0` when it exists. Override or
-disable this behavior with `CAMERA_DEVICE=/dev/video2` or `CAMERA_AUTO_START=false`.
-
-Headless runtime verification:
+WSL 无显示环境：
 
 ```bash
 bash scripts/run_cockpit_ui.sh --offscreen
 ```
 
-Use SocketCAN on Jetson or `vcan0` without changing the checked-in config:
+脚本会启动需要的 vehicle、gateway 和 camera service。有 `/dev/video0` 时会尝试启动预览。
 
-```bash
-VEHICLE_SOURCE=socketcan bash scripts/run_cockpit_ui.sh
-```
-
-## Qt baseline
-
-- Qt 5 is not supported by this target.
-- Ubuntu 22.04 provides Qt 6.2.4 as the WSL build baseline.
-- Jetson release images should use one pinned Qt 6.8 LTS toolchain for both development and
-  deployment instead of mixing distribution Qt packages and custom Qt builds.
-- For a custom Qt installation, pass its prefix explicitly:
-
-```bash
-cmake -S . -B build -G Ninja -DBUILD_COCKPIT_UI=ON \
-  -DCMAKE_PREFIX_PATH=/opt/qt/6.8/gcc_arm64
-```
+UI 不直接访问 ALSA、V4L2 或 SocketCAN，所有硬件能力由 service 持有。

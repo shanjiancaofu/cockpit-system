@@ -1,21 +1,13 @@
 # proto
 
-Protobuf contracts for local gRPC and future cloud transport.
+车端服务之间的 protobuf/gRPC 契约：
 
-- Packages use `cockpit.proto.*` so generated transport classes do not collide with domain models
-  under `cockpit::*`.
-- CMake generates C++ and gRPC sources into `build/proto/generated`.
-- Consumers link the `contracts` target; generated files are never committed.
-- Existing field numbers must not be reused or renumbered after a contract is released.
+- `common.proto`：通用状态和空请求。
+- `vehicle_state.proto`：车辆状态。
+- `gateway.proto`：gateway 查询和事件流。
+- `audio.proto`：音频控制、指标、transcript 和 Speak。
+- `voice.proto`：语音交互状态和回复。
+- `camera.proto`：相机控制和健康状态。
+- `cloud.proto`：云端占位契约。
 
-Current local endpoint:
-
-```text
-vehicle-data-service  127.0.0.1:50050  VehicleDataService/SubscribeVehicleState
-cockpit-gateway       127.0.0.1:50051  CockpitGateway/ListTopics
-cockpit-gateway       127.0.0.1:50051  CockpitGateway/GetTopicInfo
-cockpit-gateway       127.0.0.1:50051  CockpitGateway/SubscribeCockpitEvents
-```
-
-The connection currently uses insecure credentials because it is limited to local vehicle-side
-service communication. Remote interfaces require an explicit authentication and TLS design.
+CMake 将生成代码放在 build 目录并提供 `contracts` target。禁止手工修改生成文件。

@@ -1,11 +1,9 @@
 # drivers
 
-Platform and hardware adapters used by modules, services, and diagnostic tools.
+Linux 和硬件适配层：
 
-- `socketcan`: Linux SocketCAN user-space adapter.
-- `alsa`: Linux ALSA capture and playback adapters.
-- `v4l2`: Linux V4L2 camera discovery and capability query adapter.
-- Future adapters may include GPIO, I2C, IIO, camera, and radar devices.
+- `alsa`：音频采集和播放。
+- `socketcan`：CAN socket。
+- `v4l2`：摄像头设备发现和 capability 查询。
 
-Kernel modules and device-tree sources belong under their device directory, but are excluded from
-the default user-space build unless explicitly enabled.
+driver 将平台 API 适配为 module 接口，不包含语音、UI 或车辆业务策略。

@@ -1,31 +1,20 @@
 # can-simulator
 
-## Responsibility
+生成项目原型 VehicleState CAN frame。
 
-Generate deterministic CAN-like frames for the first vehicle-data-service chain.
-
-The tool supports two backends:
-
-- `stdout`: print deterministic frames without CAN hardware.
-- `socketcan`: send real Linux CAN frames through `vcan0` or `can0`.
-
-Example:
+终端输出：
 
 ```bash
-build/bin/can-simulator --backend stdout --samples 3
-build/bin/can-simulator --backend socketcan --samples 3
+build/bin/can-simulator --backend stdout --config configs/config.yaml
 ```
 
-Both modes print `candump`-style text:
+发送到 SocketCAN：
 
-```text
-vcan0 123#0001020304050607
+```bash
+sudo modprobe vcan
+sudo ip link add dev vcan0 type vcan
+sudo ip link set up vcan0
+build/bin/can-simulator --backend socketcan --interface vcan0 --config configs/config.yaml
 ```
 
-## Config
-
-- `hardware.can.interface`
-- `hardware.can.simulator_backend`
-- `hardware.can.simulator_interval_ms`
-- `paths.log_dir`
-- `logging.level`
+该帧格式仅用于联调，不代表正式车辆协议。

@@ -1,12 +1,12 @@
 # 旧项目参考与复用分析
 
 本文档对应 `architecture_refined_v0.4.md` 的参考项目约束，用于记录
-`E:\code\project` 下旧项目对新工程 `system` 的影响。
+`/home/ffz/code/project` 下旧项目对当前 `cockpit-system` 的影响。
 
 更细的逐文件审计见 [reference_code_audit.md](reference_code_audit.md)。
 
-当前仓库边界：`system` 只作为 Jetson 车端客户端。云端后端与云端前端分别放在
-`../cloud-backend` 和 `../cloud-frontend`。
+当前仓库边界：`cockpit-system` 只作为 Jetson 车端系统。云端后端和前端尚未创建，等待出现
+真实部署需求后再决定是否拆分。
 
 ## 结论摘要
 

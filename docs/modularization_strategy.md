@@ -1,396 +1,146 @@
-# Modularization Strategy
+# 模块化策略
 
-This document records the current code organization decision for `cockpit-system`.
+## 目标
 
-## Decision
+保持一个主仓库，通过职责目录、独立 CMake target 和稳定接口实现内部模块化。结构参考
+`zelos/znavigator` 的薄入口和小型 target，但不照搬动态插件、复杂构建兼容和大型组织层级。
 
-Keep one main project:
-
-```text
-cockpit-system/
-```
-
-Use internal modules inside this project:
-
-```text
-config
-logging
-runtime
-utils
-vehicle
-can
-audio
-ai
-proto
-```
-
-Implemented internal targets:
-
-```text
-config
-logging
-runtime
-utils
-vehicle
-can
-```
-
-Do not create separate repositories yet. The code should still be organized so that a module can
-be moved to its own repository later with limited churn.
-
-## Reference: zelos/znavigator
-
-`zelos/znavigator` is useful as a modularization reference, not as a build-system template to copy.
-From the directory shape, it should be treated as an application runtime, module orchestrator, and
-process/plugin management shell rather than an autonomous-driving algorithm stack.
-
-Observed pattern:
-
-```text
-navigator/
-  main.cc
-  common/
-  connection/
-  library/
-    *_entry.cc
-    *_entry.h
-  run_config/
-  util/
-  title_edit/
-  testdata/
-  ...
-```
-
-The main binary depends on small internal targets:
-
-```text
-navigator
-  -> navigator.common
-  -> navigator.connection
-  -> navigator.run_config
-  -> navigator.util
-  -> navigator.title_edit
-```
-
-Mapping for this project:
-
-```text
-znavigator/common       -> core/ plus small platform-independent primitives
-znavigator/run_config   -> core/config and configs/*.yaml
-znavigator/util         -> core/utils
-znavigator/connection   -> proto plus service clients
-znavigator/library/*    -> services/* as independently runnable capabilities
-znavigator/testdata     -> tests/testdata when fixtures become necessary
-znavigator/script       -> scripts
-```
-
-Architectural lessons:
-
-- `library/*_entry` is an adapter pattern: the runtime talks to a stable entry surface, while the
-  real business module can evolve behind it.
-- `dl_api` suggests dynamic `.so` loading with `dlopen`/`dlsym`; this is useful for a mature product
-  runtime, but it adds ABI, packaging, crash isolation, and deployment complexity.
-- `common/zoe_*` suggests a uniform module model: module metadata, options, status, and operator
-  actions such as start, stop, and status.
-- `connection/ipc_connector` uses Unix `socketpair` file descriptors, `poll`, a fixed message
-  header, and `ProtocolUnit` payloads. It is local runtime IPC, not a service-to-service gRPC API.
-- `transfer/controller` and `transfer/restful` show a separate control plane for command, config,
-  signal, and module description APIs.
-- `application.yaml` contains channel maps and feature flags; it configures runtime wiring rather
-  than only application business options.
-
-Current cockpit-system stance:
-
-- Use static CMake-linked services and typed gRPC control APIs first.
-- Do not add a generic plugin loader or dynamic module ABI in the current Jetson phase.
-- Keep the service entry surface explicit through `proto/` and service clients.
-- Treat gRPC as a control/debug boundary. Do not push high-frequency audio/video/sensor data through
-  gRPC just because two modules need to communicate.
-- Prefer in-process queues, callbacks, SPSC rings, and later local IPC/shared memory for data paths.
-- Add orchestration only when multiple independently deployed services need one launcher/control
-  process. Until then, systemd plus smoke scripts are enough.
-
-Applied CMake pattern:
-
-```text
-core/CMakeLists.txt
-  -> add_subdirectory(config)
-  -> add_subdirectory(logging)
-  -> add_subdirectory(runtime)
-  -> add_subdirectory(utils)
-
-modules/CMakeLists.txt
-  -> add_subdirectory(vehicle)
-  -> add_subdirectory(can)
-  -> add_subdirectory(audio)
-  -> add_subdirectory(voice)
-
-modules/voice/CMakeLists.txt
-  -> add_subdirectory(asr)
-  -> add_subdirectory(tts)
-  -> add_subdirectory(assistant)
-  -> add_subdirectory(actions)
-  -> add_subdirectory(responses)
-
-drivers/CMakeLists.txt
-  -> add_subdirectory(socketcan)
-
-<layer>/<module>/CMakeLists.txt
-  -> source files
-  -> direct target dependencies
-```
-
-Directory names describe concrete behavior. Avoid generic `base`, `common`, and `misc` buckets.
-Do not add a child directory for one or two files unless it already represents a stable dependency
-boundary. `can` and `vehicle` therefore remain flat, while voice is split because its ASR, TTS,
-assistant, action, and response-output responsibilities evolve independently.
-
-Useful ideas for `cockpit-system`:
-
-- Keep entry binaries thin.
-- Put real behavior in internal modules.
-- Keep service entry files as lifecycle wiring, not as business logic containers.
-- Use one small CMake target per module or service boundary.
-- Give each module its own build target.
-- Keep tests close to the module boundary.
-- Express dependencies between modules explicitly in CMake.
-- Avoid making every service directly depend on every shared helper.
-
-Ideas not copied directly:
-
-- Keep CMake instead of switching this project back to xmake.
-- Do not introduce heavy package/build rules before the local Jetson chain is stable.
-- Do not use long target names like `cockpit_common_runtime`.
-- Do not introduce `dlopen` plugins before there is a real independent release and ABI boundary.
-- Do not create a generic REST control server while gRPC tools already cover local debugging.
-
-## Target Shape
-
-Short-term layout:
+## 分层
 
 ```text
 cockpit-system/
-  core/
-    config/
-    logging/
-    runtime/
-    utils/
-  modules/
-    vehicle/
-    can/
-    audio/
-      frames/
-      capture/
-      vad/
-      playback/
-      wav/
-    camera/
-      frames/
-      capture/
-      shared_memory/
-    voice/
-      asr/
-      tts/
-      assistant/
-      actions/
-      responses/
-  drivers/
-    socketcan/
-    alsa/
-  proto/
-  services/
-    vehicle-data-service/
-    cockpit-gateway-service/
-    audio-service/
-      capture/
-      processing/
-      playback/
-      grpc/
-    camera-service/
-      preview/
-      control/
-      grpc/
-    voice-interaction-service/
-  tools/
-    can-simulator/
-    audio-probe/
-  tests/
+├── apps/       用户应用
+├── core/       通用基础设施
+├── drivers/    Linux/硬件适配
+├── modules/    平台无关领域能力
+├── proto/      跨进程契约
+├── services/   长运行进程
+├── tools/      诊断和模拟器
+├── tests/      单元与集成测试
+└── scripts/    构建、运行和部署脚本
 ```
 
-CMake targets:
+依赖方向：
 
 ```text
-config   # runtime configuration
-logging  # logging implementation
-runtime  # service lifecycle; depends on config and logging
-utils    # low-level helpers
-vehicle  # base vehicle models; depends on utils
-can      # platform-independent CAN frame model
-socketcan # Linux SocketCAN adapter; depends on can
-audio    # compatibility aggregate
-audio_frames / audio_capture / audio_vad / audio_playback / audio_wav
-camera   # compatibility aggregate
-camera_frames / camera_capture / camera_shm
-voice    # ASR/TTS/intent/action interfaces and orchestration helpers
-voice_asr / voice_tts / voice_assistant / voice_actions / voice_responses
-         # concrete voice responsibility targets aggregated by voice
-proto    # protobuf contracts and generated code
+apps / services / tools
+          ↓
+       modules
+          ↓
+       drivers
+          ↓
+         core
 ```
 
-Binary targets:
+实际依赖按接口决定，禁止反向依赖：
+
+- `core` 不依赖业务模块。
+- `modules` 不依赖 service 或 app。
+- `drivers` 只适配硬件接口，不包含业务策略。
+- UI 不直接打开硬件设备。
+- service 之间通过 proto/gRPC 或明确 IPC 通信，不直接 include 对方实现。
+
+## core
+
+只存放跨领域基础设施：
+
+- `config`：类型化配置。
+- `event`：进程内事件。
+- `ipc`：共享内存映射等通用 IPC。
+- `logging`：日志。
+- `runtime`：参数、信号和模块生命周期。
+- `utils`：时间等基础工具。
+
+禁止把暂时不知道放哪里的代码塞进 `core/common/base/misc`。
+
+## modules
+
+领域代码必须能在没有长运行进程和真实硬件时测试。
 
 ```text
-vehicle-data-service
-cockpit-gateway-service
-audio-service
-voice-interaction-service
-can-simulator
-audio-probe
+modules/audio/
+  frames/ capture/ vad/ playback/ wav/
+
+modules/camera/
+  frames/ capture/ shared_memory/
+
+modules/voice/
+  asr/ tts/ assistant/ actions/ responses/
 ```
 
-## Dependency Rules
+每个真实职责拥有自己的 `CMakeLists.txt` 和 target。父级可提供 INTERFACE 聚合 target 兼容旧
+调用，但新代码应链接最小 target。
 
-Default dependency direction:
+`can`、`vehicle` 等文件较少且职责单一的模块保持扁平，不为了目录对称而硬拆。
+
+## services
+
+service 表示车端 daemon/node/process，不等于云端微服务。
+
+只有满足以下条件之一才建立独立进程：
+
+- 独占硬件设备。
+- 需要故障隔离。
+- 有独立生命周期。
+- 有真实部署边界。
+
+当前进程：
+
+- `vehicle-data-service`
+- `cockpit-gateway-service`
+- `audio-service`
+- `camera-service`
+- `voice-interaction-service`
+- `cloud-uplink-service`（占位）
+
+VAD、ASR adapter、intent parser 等优先作为进程内模块，不单独创建 service。
+
+复杂 service 可按职责拆目录：
 
 ```text
-apps/services/tools
-  -> required feature modules
-  -> required platform drivers
-  -> runtime/config/logging/utils
+audio-service/
+  capture/ processing/ playback/ grpc/
+
+camera-service/
+  preview/ control/ grpc/
+
+voice-interaction-service/
+  interaction/ audio/ vehicle/ hmi/ grpc/
 ```
 
-Rules:
+`main.cc` 只做配置读取、依赖装配、启动和退出。
 
-- Every `core/<module>`, `modules/<module>`, and `drivers/<module>` owns its `CMakeLists.txt`.
-- A large module may add responsibility subdirectories; each child owns a target and the parent may
-  expose an INTERFACE aggregation target for compatibility.
-- Every target declares direct dependencies instead of relying on global link state.
-- `core/` is a directory category, not an umbrella CMake target.
-- Binaries declare the smallest direct targets they use instead of linking all core libraries.
-- New binaries should link the smallest module targets they need.
-- `can`, `audio`, and `ai` may depend on core modules, but not service code.
-- Platform-independent modules must not include Linux or hardware APIs directly.
-- User-space hardware adapters belong in `drivers/<device>` and may depend on module data types.
-- Kernel modules and device-tree sources stay under the matching driver directory and are opt-in.
-- `proto` should stay mostly independent; generated code can be linked by services and gateway.
-- UI code must not access hardware modules directly.
-- Hardware access belongs in service/tool modules.
-- Service-to-service interaction should go through gateway/proto boundaries, not direct includes.
+## CMake target
 
-## Communication Rules
-
-Use different transport choices for different traffic:
+命名使用简短职责名：
 
 ```text
-Same thread:
-  function call
-
-Same process:
-  queue / actor mailbox / callback / SPSC ring
-
-Same machine, cross process:
-  Unix domain socket or shared memory + small notification message later
-
-Control plane:
-  gRPC / CLI tools
-  start, stop, status, config, debug commands
-
-Local event plane:
-  in-process queue or typed event bus
-  transcripts, intents, UI events, low-rate status changes
-
-High-frequency data plane:
-  SPSC ring, callback, shared memory later
-  audio PCM, camera frames, sensor packets
-
-External plane:
-  MQTT / HTTP / WebSocket later
-  cloud upload and browser dashboard
+config logging runtime ipc
+audio_frames audio_capture audio_vad audio_wav
+camera_frames camera_capture camera_shm
+voice_asr voice_tts voice_actions
 ```
 
-Rules:
+避免 `cockpit_common_runtime` 这类冗长名称。每个 target 声明自己的直接依赖，不依赖全局 link
+状态。
 
-- Do not model the Jetson system as ordinary cloud microservices.
-- `services/*` means vehicle-side daemon/node/process, not a scalable web backend service.
-- gRPC is allowed and useful, but it should mostly carry control/status and low-rate typed events.
-- Raw PCM, image frames, and high-rate CAN/sensor streams should stay local and use ring buffers,
-  callbacks, or future shared memory.
-- A generic runtime message bus can be introduced later under `core/event` or `core/runtime`, but
-  only after at least two modules need the same typed event mechanism.
-- Shared memory should be introduced only when large payloads must cross process boundaries; small
-  messages should carry metadata such as frame id, timestamp, and shared-memory handle.
+## 通信规则
 
-## Placement Rules
+- 同线程：函数调用。
+- 同进程低频：callback/EventQueue。
+- 音频连续流：SPSC RingBuffer。
+- 相机大帧：shared memory。
+- 控制、状态和文本：gRPC。
+- 云端：未来 MQTT/WebSocket。
 
-Use these rules when adding the next feature:
+不把 PCM、图片或未来点云直接放进 gRPC。
 
-```text
-core/<name>/
-```
+## 何时增加抽象
 
-Only for infrastructure that is not specific to vehicles, audio, voice, UI, cloud, or hardware:
-configuration, logging, process lifecycle, time, string/path helpers, and generic storage helpers.
+只有至少两个真实调用方出现相同需求时，才增加通用 Actor、MessageBus、Scheduler、Recorder、
+Monitor 或插件框架。不要先创建空接口等待未来使用。
 
-```text
-modules/<name>/
-```
+## 何时拆仓
 
-For product/domain logic that should be testable without a long-running process. Examples:
-vehicle state decoding, CAN frame codecs, audio frames, VAD, speech segmenting, ASR/TTS interfaces,
-intent parsing, and action dispatch interfaces.
-
-```text
-drivers/<name>/
-```
-
-For Linux or Jetson hardware adapters. Examples: SocketCAN, ALSA, camera, GPIO, I2C, IIO, serial,
-and later optional device-tree or kernel-side materials. Drivers adapt hardware APIs into module
-interfaces; they should not contain voice, UI, or vehicle business policy.
-
-```text
-services/<name>/
-```
-
-For daemon-style runtime ownership: gRPC servers, threads, service metrics, device ownership,
-reconnection, lifecycle, and integration between modules. Service `main.cc` should stay small and
-mostly wire config, runtime, dependencies, and the service object.
-
-```text
-tools/<name>/
-```
-
-For developer commands, smoke helpers, simulators, and diagnostics. Tools may use drivers directly
-when their purpose is probing hardware, but production flows should go through services.
-
-## Future Split Rule
-
-A module is ready to split into another repository only when all of these are true:
-
-- It has a stable public API.
-- It has its own tests or smoke tool.
-- Its dependencies are explicit and small.
-- It is useful outside the current `system` build.
-- It has a real independent release or deployment reason.
-
-Possible future splits:
-
-```text
-shared-proto
-can-lib
-audio-ai-lib
-```
-
-Do not split simply because the directory is large. Split only when the boundary is real.
-
-## Current Practical Rule
-
-For now, keep coding inside one project.
-
-When adding a new feature:
-
-1. Put generic reusable code in the smallest internal module.
-2. Put long-running behavior in `services/<name>/`.
-3. Put hardware access adapters in `drivers/<name>/`.
-4. Put hardware probes and developer commands in `tools/<name>/`.
-5. Add a smoke path before adding a full UI integration.
-6. Keep target names short and readable.
+出现独立部署、独立版本、稳定协议和明确维护责任后再拆仓。当前所有模块继续保留在
+`cockpit-system`。

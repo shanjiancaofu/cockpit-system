@@ -1,29 +1,9 @@
-# Configuration Architecture
+# 配置说明
 
-## Reference
+主配置文件是 `configs/config.yaml`，由 `core/config/SystemConfig` 解析并在进程启动时校验。
+所有服务共享同一份配置结构，但只读取自己需要的 section。
 
-The configuration design references
-`/home/ffz/code/project/zelos/zcarcloud/zcarcloud/carcloud/conf/z-car-cloud.yaml` and its loading
-path through `CarCloud::InitEnv` and `ConfigManager`.
-
-Useful patterns adopted here:
-
-- Group settings by infrastructure, internal components, and external connections.
-- Parse YAML once during process startup.
-- Convert YAML nodes into typed configuration objects before starting components.
-- Validate required fields and ranges before opening sockets or starting worker threads.
-- Pass immutable component-specific configuration into constructors.
-- Keep component lifecycle explicit with `Start`/`Stop` or a blocking `Run` boundary.
-
-Patterns intentionally not copied:
-
-- Global singleton configuration managers.
-- A service-locator container for ordinary dependencies.
-- Platform-specific `zcore`, `zexchange`, shared-memory, or deployer dependencies.
-- String-based component factories before multiple implementations actually exist.
-- Runtime mutation of unrelated configuration from arbitrary modules.
-
-## Target Layout
+## 基础信息
 
 ```yaml
 system:
@@ -33,28 +13,82 @@ system:
 paths:
   data_dir: data
   log_dir: logs
+```
 
+- `system.name`：系统名称。
+- `system.vehicle_id`：车辆标识，未来用于云端 topic、存储和诊断。
+- `paths.data_dir`：运行数据目录。
+- `paths.log_dir`：日志目录。
+
+## 日志
+
+```yaml
 logging:
   level: info
   max_bytes: 2097152
   mirror_stderr: true
+```
 
+- `level`：`debug/info/warn/error`。
+- `max_bytes`：单个日志文件的大小限制。
+- `mirror_stderr`：是否同时输出到终端。
+
+## 服务地址
+
+| 服务 | 默认地址 | 用途 |
+|---|---|---|
+| vehicle-data | `127.0.0.1:50050` | VehicleState streaming |
+| gateway | `127.0.0.1:50051` | UI、topic 和车辆状态查询 |
+| audio | `127.0.0.1:50052` | 音频控制、transcript、Speak |
+| voice interaction | `127.0.0.1:50053` | 语音交互控制和回复 |
+| camera | `127.0.0.1:50054` | 相机 list/start/stop/status |
+
+`retry_delay_ms` 控制断线重试基础间隔，`stream_timeout_ms` 控制 streaming RPC 的会话超时。
+
+## 车辆数据
+
+```yaml
 services:
   vehicle_data:
     source: mock
     publish_interval_ms: 200
-    grpc:
-      listen_address: 127.0.0.1:50050
-  gateway:
-    vehicle_data_address: 127.0.0.1:50050
-    grpc:
-      listen_address: 127.0.0.1:50051
-    websocket:
-      listen_address: 127.0.0.1:18080
+
+hardware:
+  can:
+    interface: vcan0
+    simulator_backend: stdout
+    simulator_interval_ms: 100
+    receive_timeout_ms: 500
+    max_idle_timeouts: 10
+```
+
+- `source`：`mock` 或 `socketcan`。
+- `interface`：SocketCAN 接口，例如 `vcan0`、`can0`。
+- `simulator_backend`：`stdout` 或 `socketcan`。
+
+## 音频
+
+```yaml
+hardware:
+  audio:
+    capture_backend: alsa
+    playback_backend: alsa
+    input_device: default
+    output_device: default
+    sample_rate_hz: 16000
+    channels: 1
+    frame_ms: 20
+```
+
+当前语音链路固定使用 16 kHz、mono、PCM16、20 ms frame。Jetson 部署时将 `input_device` 和
+`output_device` 改为实际 ALSA device，例如 `plughw:1,0`。
+
+VAD：
+
+```yaml
+services:
   audio:
     auto_start: false
-    grpc:
-      listen_address: 127.0.0.1:50052
     vad:
       enabled: true
       backend: energy
@@ -64,32 +98,29 @@ services:
     speech_segment:
       pre_roll_ms: 100
       max_segment_ms: 15000
+```
+
+- `speech_threshold_dbfs` 必须根据真实麦克风环境标定。
+- `speech_start_frames` 防止短噪声触发。
+- `speech_end_frames` 提供尾部静音 hangover。
+- `pre_roll_ms` 保留起始语音前的少量音频。
+
+## 相机
+
+```yaml
+services:
   camera:
     frame_transport: shared_memory
     shared_memory_name: /cockpit_camera_preview
     max_frame_bytes: 8388608
-    grpc:
-      listen_address: 127.0.0.1:50054
-  voice_interaction:
-    audio_address: 127.0.0.1:50052
-    gateway_address: 127.0.0.1:50051
-    grpc:
-      listen_address: 127.0.0.1:50053
-  cloud_uplink:
-    enabled: false
-    mqtt:
-      broker: tcp://127.0.0.1:1883
-      telemetry_topic: vehicle/status
-      qos: 1
+```
 
-hardware:
-  can:
-    interface: vcan0
-    receive_timeout_ms: 500
-  audio:
-    capture_backend: alsa
-    playback_backend: alsa
+帧像素通过 POSIX shared memory 传输，gRPC 只负责控制和状态。`max_frame_bytes` 必须覆盖目标
+分辨率和像素格式的单帧大小。
 
+## 语音和 AI
+
+```yaml
 features:
   voice:
     enabled: false
@@ -101,58 +132,27 @@ features:
     tts_provider: mock
   ai:
     provider: mock
-
-tools:
-  topic:
-    backend: file
-    dir: logs/topics
+    model: local-demo
+    request_timeout_ms: 10000
 ```
 
-Supported ASR providers:
+启用 whisper.cpp：
 
-- `mock`: default deterministic provider; no model dependency.
-- `whisper_cpp`: optional local inference provider. It requires a model path and a build configured
-  with `BUILD_WHISPER_CPP_ASR=ON`.
-
-Example optional build:
-
-```bash
-bash scripts/build.sh --arch x86_64 --type debug -- \
-  -DBUILD_COCKPIT_UI=ON \
-  -DBUILD_WHISPER_CPP_ASR=ON \
-  -DWHISPER_CPP_DIR=/home/ffz/code/third_party/whisper.cpp \
-  -DWHISPER_CPP_MODEL_PATH=/home/ffz/code/third_party/whisper.cpp/models/ggml-small.bin
+```yaml
+features:
+  voice:
+    enabled: true
+    asr_provider: whisper_cpp
+    asr_model_path: /cockpit-system/models/whisper/ggml-small.bin
+    asr_language: zh
 ```
 
-Model binaries must stay outside Git. Configure the deployed path with
-`features.voice.asr_model_path`.
+当前 `tts_provider` 和 `features.ai` 仍是 mock。未知 provider 会在启动校验或创建 provider 时失败，
+不会静默回退。
 
-When `WHISPER_CPP_MODEL_PATH` points to an existing model, the optional build registers
-`whisper_speech_recognizer_test` and runs real adapter inference during CTest. A Release build is
-required for meaningful latency measurements; the repository's default developer build is Debug.
+## 配置原则
 
-## Typed Ownership
-
-`SystemConfig` is the immutable root loaded by `ServiceRuntime`. It owns typed child structures such
-as `VehicleDataConfig`, `GatewayConfig`, `CanConfig`, `AudioConfig`, and `CloudUplinkConfig`.
-Binaries consume those objects directly instead of reading dotted string keys.
-
-Configuration errors are startup failures. Missing optional values receive documented defaults;
-invalid required addresses, ports, intervals, or enum-like values produce a concrete error naming
-the YAML path.
-
-Speech segmentation is bounded to 2 seconds of pre-roll and 60 seconds per segment. Both values
-must align with `hardware.audio.frame_ms`, and pre-roll must be shorter than the segment limit.
-Voice mode currently accepts `push_to_talk`; ASR accepts `mock` or optional `whisper_cpp`, while
-TTS currently accepts only `mock`.
-
-Camera pixels use a local POSIX shared-memory double buffer. `max_frame_bytes` is the capacity of
-each of the two slots, not the total mapping size; the default fits one 1920x1080 BGRx frame.
-
-## Implemented
-
-- `core/config/SystemConfig` is loaded once by `ServiceRuntime` through yaml-cpp.
-- All service, CAN, MQTT placeholder, logging, and topic settings use typed child structures.
-- The former dotted-string getters and separate `configs/logging.yaml` have been removed.
-- CTest covers the real configuration and rejects invalid gRPC, audio backend, and VAD threshold
-  values with their YAML paths.
+- 配置文件描述部署差异，不存放业务状态。
+- 密钥和 token 不提交到仓库，未来使用环境变量或独立 secret 文件。
+- 新增配置必须同步类型化结构、校验、示例和测试。
+- 不允许模块自行重复解析 YAML。

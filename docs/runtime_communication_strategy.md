@@ -1,166 +1,78 @@
-# Runtime Communication Strategy
+# Runtime 通信策略
 
-This document records the communication strategy for the Jetson-side cockpit runtime. The goal is
-to avoid both extremes: cloud-style over-service design and one large unstructured process.
+## 目标
 
-## Decision
+车端系统不采用“所有模块都拆成 gRPC 微服务”的方式。通信机制按线程、进程、数据大小和实时性
+选择，减少不必要的序列化、复制和故障点。
 
-Use the smallest communication boundary that fits the latency, ownership, and deployment need:
+## 分层选择
 
-```text
-same thread
-  -> function call
+| 场景 | 当前机制 | 适用数据 |
+|---|---|---|
+| 同线程 | 函数调用 | 同步控制、纯计算 |
+| 同进程低频 | callback / EventQueue | 状态变化、控制事件 |
+| 同进程连续流 | SPSC RingBuffer | PCM、固定帧数据 |
+| 跨进程大数据 | POSIX Shared Memory | 相机帧，未来视频/模型输入 |
+| 跨进程控制 | gRPC unary | start/stop/status/config |
+| 跨进程小消息流 | gRPC streaming | VehicleState、transcript、事件 |
+| 跨机器 | MQTT/WebSocket/HTTP | 云端和浏览器，后续实现 |
 
-same process
-  -> queue / actor mailbox / callback / SPSC ring
+## 控制面与数据面
 
-same machine, cross process
-  -> Unix domain socket or shared memory + small notification message
+控制面负责：
 
-cross machine or external tool
-  -> TCP / gRPC / DDS-like middleware / MQTT / HTTP
-```
+- 生命周期管理。
+- 配置、状态和指标。
+- 文本命令和调试接口。
+- 低频结构化消息。
 
-For the current project phase, this means:
+数据面负责：
 
-- Keep gRPC for control, status, debug tools, and low-rate typed events.
-- Keep raw audio, future video frames, and other high-rate payloads out of gRPC.
-- Prefer in-process queues and rings until there is a real cross-process requirement.
-- Add shared memory only when large payloads must cross process boundaries.
-- Do not introduce ROS 2, DDS, CyberRT, or a custom plugin ABI before the project needs that scale.
+- 音频 PCM。
+- 相机帧和未来视频流。
+- 未来雷达、点云或模型张量。
 
-## Industry Reference
+大数据不直接塞进 gRPC。共享内存传数据本体，控制接口传名称、generation、时间戳和状态。
 
-Autonomous-driving systems usually separate control messages from high-rate data paths.
+## 当前链路
 
-```text
-Apollo CyberRT:
-  Publish/Subscribe + Shared Memory + Zero Copy
-
-Autoware:
-  ROS 2 + DDS, often with shared-memory optimization for same-machine traffic
-
-Production self-developed runtime:
-  Scheduler + MessageBus + SharedMemory + Recorder + Monitor
-```
-
-Large payloads such as images and point clouds normally do not travel as protobuf-over-TCP RPC
-payloads. A common pattern is:
+### 音频
 
 ```text
-Camera process
-  -> writes image to shared memory
-  -> publishes ImageReady { frame_id, timestamp, shm_handle }
-
-Perception process
-  -> receives ImageReady
-  -> reads image bytes from shared memory
+ALSA capture thread
+    → SPSC RingBuffer<AudioFrame>
+    → VAD/segment/ASR consumer
 ```
 
-The message bus carries metadata and synchronization; the data plane carries the large buffer.
+单生产者、单消费者、固定容量。队列满时丢帧并记录指标，采集线程不得等待 ASR。
 
-## Cockpit-System Layers
+### 相机
 
 ```text
-Control plane:
-  gRPC + CLI tools
-  start / stop / status / config / debug / low-rate typed stream
-
-Local event plane:
-  queue / actor mailbox / future EventBus
-  transcript events / intent events / UI events / vehicle status notifications
-
-High-frequency data plane:
-  SPSC ring / callback / future shared memory
-  audio PCM / camera frames / sensor packets
-
-External plane:
-  MQTT / HTTP / WebSocket later
-  cloud upload / browser dashboard / remote debugging
+GStreamer callback
+    → SharedFrameWriter
+    → POSIX shared memory 双缓冲
+    → Qt SharedFrameReader
 ```
 
-## Current Mapping
+writer 写入非活动槽后切换 generation。reader 只读取最新帧，不积压视频队列。
 
-```text
-audio-service:
-  ALSA capture/playback ownership
-  local AudioFrame SPSC ring
-  gRPC control/status/transcript/Speak only
+### 车辆状态
 
-voice-interaction-service:
-  text transcript and intent/action orchestration
-  no ALSA and no raw PCM
+VehicleState 体积小、频率低，当前使用 gRPC streaming。未来只有在频率和消费者数量明显增长时，
+才考虑本地 message bus。
 
-vehicle-data-service:
-  CAN or mock vehicle state source
-  publishes vehicle state through typed interfaces
+## Runtime 边界
 
-cockpit-gateway-service:
-  aggregation boundary for UI/tools
-  should not become a high-rate data tunnel
-```
+`core/runtime` 只管理模块生命周期，不承载领域业务。`ModuleManager` 提供顺序启动、逆序停止、
+失败回滚和状态查询。
 
-## Evolution Plan
+当前不引入通用 Actor、DDS、共享内存 ring 或动态插件系统。只有至少两个真实模块出现相同需求后，
+才抽象通用 MessageBus、Scheduler、Recorder 或 Monitor。
 
-### Stage 1: Current Jetson Project
+## 后续演进
 
-```text
-modules/*       -> domain logic
-drivers/*       -> hardware adapters
-services/*      -> daemon/node ownership where needed
-proto/*         -> control/debug contracts
-SPSC queues     -> local high-rate data
-```
-
-No generic runtime bus yet. Add simple typed queues where they remove direct coupling.
-The first concrete primitive is `core/event/EventQueue<T>`, a bounded in-process queue for low-rate
-events. It is intentionally mutex-backed and blocking-capable because it targets control and event
-traffic, not audio/video hot paths.
-
-### Stage 2: Small Runtime Layer
-
-Add a small `core/event` only when multiple modules need the same low-rate event mechanism.
-
-Possible shape:
-
-```cpp
-bus.Publish(event);
-bus.Subscribe<EventType>(handler);
-```
-
-Initial implementation should stay in-process. It should not become a network middleware.
-
-### Stage 3: Cross-Process High-Rate Data
-
-Add `core/shm` only when camera/video or another large payload must cross process boundaries.
-
-```text
-small message -> event bus / Unix domain socket
-large payload -> shared memory handle
-```
-
-### Stage 4: Recorder and Monitor
-
-Add recorder and monitor after there are enough topics/events to justify them.
-
-```text
-Recorder:
-  selected event metadata
-  selected audio/video references or files
-
-Monitor:
-  process health
-  queue depth
-  drop count
-  latency and timestamp checks
-```
-
-## Rules
-
-- Do not create a new service only because a new feature exists.
-- Create a daemon/node when it owns hardware, needs an independent lifecycle, or is used by multiple
-  frontends/tools.
-- Keep algorithms and domain behavior in `modules/*` until a deployment boundary is real.
-- Do not send raw PCM, images, point clouds, or other large buffers through gRPC.
-- Do not add shared memory before a callback/ring/queue becomes insufficient.
-- Keep control APIs typed; avoid generic shell-command or string-command execution.
+1. 保持单进程模块优先。
+2. 出现设备独占、故障隔离或独立部署需求时再拆进程。
+3. 小消息使用 IPC/gRPC，大数据使用 shared memory。
+4. 摄像头 AI 等新消费者通过模块接口接入，不直接依赖 UI 或 service 实现。

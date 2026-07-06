@@ -1,238 +1,76 @@
-# Project Scope and Repository Strategy
+# 项目范围与仓库策略
 
-This document records the current scope decision for `cockpit-system`.
+## 当前决定
 
-## Current Project Goal
+当前只维护一个仓库：`cockpit-system`。
 
-`cockpit-system` is the Jetson-side smart cockpit project.
+它负责 Jetson 车端的车辆数据、音频、语音、相机、Qt UI、诊断工具和部署脚本。云端后端、Web
+前端和共享协议仓库暂不创建。
 
-The first goal is not to build a full cloud platform. The first goal is to build a usable local
-Jetson vehicle smart cockpit system:
+## 为什么保持单仓库
 
-```text
-Jetson hardware
-  -> local services
-  -> cockpit gateway
-  -> Qt/QML cockpit UI
-  -> local logs/config/status
-```
+- 当前只有一个主要设备和一个开发者。
+- 大部分模块共同构建、共同部署、共同调试。
+- 协议和模块边界仍在快速演进。
+- 提前拆仓会增加版本同步、CI、发布和依赖管理成本。
 
-The project may later add a local data backend and Web dashboard, but they are not part of the
-current first-stage scope.
+仓库内部通过目录和 CMake target 隔离职责，已经为以后拆分保留边界。
 
-## Repository Decision
+## 当前范围
 
-Current decision:
+包含：
 
-```text
-Use one repository/folder: cockpit-system
-Do not create backend/frontend repositories yet
-Do not split common modules into separate external libraries yet
-```
+- SocketCAN 车辆数据。
+- ALSA 音频采集和播放。
+- VAD、ASR、TTS 和语音交互。
+- V4L2/GStreamer 相机预览。
+- Qt 6/QML 车机 UI。
+- gRPC 控制和诊断。
+- systemd、打包和部署。
 
-Internal modularization follows `docs/modularization_strategy.md`, using `zelos/znavigator` as a
-reference for a thin main binary plus small internal build targets.
+暂不包含：
 
-Reason:
+- 完整云平台。
+- 浏览器生产前端。
+- 多租户和车队管理。
+- 自动驾驶感知、规划和控制。
+- Android 双系统或虚拟化平台。
+- 量产级 OTA、安全和功能安全认证。
 
-- There is currently one Jetson board and one main deliverable.
-- Splitting repositories too early increases build, dependency, and debugging cost.
-- The core vehicle-side chain is not complete yet.
-- Local services still need to share config, logging, runtime, proto drafts, and test helpers.
+## 何时拆仓
 
-Recommended current shape:
+只有同时出现以下条件时才考虑拆分：
 
-```text
-cockpit-system/
-  apps/                 # Qt/QML cockpit UI and local debug dashboard
-  core/                 # process-independent infrastructure
-  modules/              # reusable domain and product capabilities
-  drivers/              # Linux and hardware adapters
-  proto/                # service contracts
-  configs/              # runtime config and systemd examples
-  docs/                 # architecture, reference notes, plans
-  services/             # long-running local services
-  tools/                # simulator, probe, developer tools
-  tests/                # smoke/unit tests
-```
+1. 组件能够独立部署。
+2. 组件具有独立版本周期。
+3. 跨仓协议已经稳定。
+4. 有明确维护责任或不同技术栈。
+5. 独立 CI/CD 的收益大于同步成本。
 
-## Internal Libraries
-
-The project should still use internal CMake libraries. This keeps code modular without creating
-separate repositories.
-
-Current internal libraries:
+未来可能形成：
 
 ```text
-config
-logging
-runtime
-utils
-vehicle
-can
-socketcan
+cockpit-system          Jetson 车端
+cockpit-cloud           云端 API 和存储
+cockpit-web             浏览器前端
+cockpit-proto           稳定后才可能独立的协议
 ```
 
-Planned internal libraries:
+现阶段不创建这些空仓库。
 
-```text
-audio   # microphone, speaker, capture/playback helpers
-ai      # ASR, TTS, LLM provider adapters and orchestration helpers
-proto   # protobuf contracts and generated code
-```
+## 云端最小扩展
 
-These should stay in the same repository until there is a strong reason to split them.
-The names are intentionally short because the repository and directory paths already provide the
-cockpit/system context.
+本地链路稳定后，如确实需要历史数据展示，可以先增加一个小型后端和 Web 页面：
 
-## When To Split Repositories
+- 接收车辆状态。
+- 保存 SQLite/PostgreSQL。
+- 查询最近状态和历史曲线。
+- 简单设备鉴权。
 
-Do not split now. Split later only if at least one condition is true:
+不直接建设完整车联网平台。
 
-- A local backend is actually needed to store history in SQLite.
-- A Web dashboard becomes a separate deployable product.
-- The Qt cockpit UI and backend have different release cycles.
-- The frontend has a large Node/Vite dependency tree that slows vehicle-side development.
-- A shared protocol package is used by multiple independently built projects.
-- Another person or team works on the backend/frontend independently.
+## 原则
 
-Possible future shape:
-
-```text
-project/
-  cockpit-system/       # Jetson cockpit client
-  local-server/         # optional local data backend
-  web-dashboard/        # optional browser dashboard
-  shared-proto/         # optional shared protocol package
-```
-
-This is a future option, not the current plan.
-
-## Usability
-
-The architecture must stay usable on one Jetson board.
-
-Rules:
-
-- Every phase should produce something runnable.
-- Tools should have smoke commands.
-- Config should have safe defaults.
-- Logs should be easy to find.
-- Hardware access should have mock mode and real mode.
-- First version of each hardware feature should include a probe tool.
-
-Examples:
-
-```text
-tools/can-simulator
-tools/audio-probe
-services/vehicle-data-service --source mock
-services/vehicle-data-service --source socketcan
-```
-
-## Feasibility
-
-The project must remain feasible for a single-developer Jetson project.
-
-Rules:
-
-- Use C++17 + CMake for the vehicle-side mainline.
-- Add heavy dependencies only when a runnable chain needs them.
-- Use mock providers before real hardware/provider integrations.
-- Avoid building full cloud, account, permission, OTA, and multi-vehicle features in the first
-  stage.
-- Prefer local hardware capabilities before remote/cloud dependency.
-
-Phased dependency plan:
-
-```text
-Stage 1: C++17, CMake, SocketCAN, local logs/config
-Stage 2: Qt/QML, protobuf/gRPC
-Stage 3: V4L2/GStreamer, SQLite
-Stage 4: ALSA/PulseAudio/PipeWire, voice mock pipeline
-Stage 5: real ASR/TTS/LLM provider
-```
-
-## Extensibility
-
-Extensibility should come from clear module boundaries, not early repository splitting.
-
-Rules:
-
-- UI does not access hardware directly.
-- Services own hardware and system interfaces.
-- `cockpit-gateway-service` aggregates and throttles data for UI.
-- Large data such as video/audio frames should not be pushed through gRPC as raw payloads.
-- Every service has a README describing responsibility, input, output, config, and startup.
-- Protocol files live under `proto` until shared externally.
-
-Target service boundary:
-
-```text
-vehicle-data-service      # CAN, vehicle state, sensors
-camera-service            # V4L2/GStreamer camera
-media-service             # music/video playback
-audio-service             # microphone/speaker
-voice-interaction-service # ASR/TTS/LLM orchestration
-ai-assistant-service      # intent/tool dispatch, optional later
-cockpit-gateway-service   # UI aggregation
-```
-
-## Open Source and Old Code Reference Strategy
-
-Reference code is used to guide structure, not copied blindly.
-
-Reference dimensions:
-
-- build system
-- directory layout
-- service lifecycle
-- config loading
-- logging
-- hardware abstraction
-- protocol boundaries
-- tests and smoke tools
-- deployment scripts
-
-Local old-code references:
-
-- `../vehicle-system`: Qt vehicle UI migration, process bridge, logging.
-- `../zelos/zcarcloud`: service lifecycle, config reload, transfer handlers.
-- `../zelos/car_cloud_server`: API shape, status storage, checksum rules.
-- `../zelos/safe_ota`: HTTP/protobuf client and token refresh patterns.
-- legacy hardware demos: V4L2/ioctl sequence and sensor access order.
-
-Open-source project references should be used for architecture ideas only:
-
-- Qt/QML dashboard projects: UI page organization and model/view separation.
-- Linux SocketCAN examples: CAN socket setup and frame loop.
-- GStreamer examples: Jetson camera/audio pipeline shape.
-- ROS/Autoware-style projects: sensor separation and runtime launch discipline.
-- Home Assistant-style projects: local-first device integration thinking.
-
-Do not import large frameworks just because they are popular. The project stays Jetson-local and
-demo-oriented until the core chain is stable.
-
-## Current Answer
-
-Does the project need to split into several repositories now?
-
-```text
-No.
-```
-
-Does the project need internal libraries/modules?
-
-```text
-Yes.
-```
-
-Current strategy:
-
-```text
-One repository/folder.
-Many internal CMake targets.
-Split external repositories later only when there is a real deployable boundary.
-```
-
-Detailed module boundary rules are recorded in `docs/modularization_strategy.md`.
+- 真实部署边界决定仓库边界。
+- 先让单机系统可用、可测、可诊断。
+- 不为未来想象创建空 service、空 repo 或复杂基础设施。

@@ -1,17 +1,12 @@
 # core
 
-Process-independent infrastructure shared by applications, services, tools, modules, and drivers.
+与具体业务无关的基础设施：
 
-- `config`: runtime configuration.
-- `event`: bounded in-process queues for low-rate typed events.
-- `ipc`: process-independent local IPC primitives such as POSIX shared-memory mappings.
-- `logging`: unified logging.
-- `runtime`: service lifecycle and command-line handling.
-- `utils`: small foundational helpers.
+- `config`：类型化 YAML 配置和启动校验。
+- `event`：有界进程内事件队列。
+- `ipc`：POSIX shared memory 映射生命周期。
+- `logging`：统一日志。
+- `runtime`：参数、信号、服务和模块生命周期。
+- `utils`：时间等小型工具。
 
-`core` must not contain vehicle-domain models, hardware access, or product features.
-There is intentionally no umbrella `core` CMake target; consumers link only the libraries they use.
-
-`ipc::SharedMemoryRegion` owns only generic POSIX mapping lifecycle. Creators use exclusive names
-and unlink their mapping on destruction; domain-specific headers, slots, and synchronization stay
-inside the consuming module.
+`core` 不存放车辆、音频、相机、语音或硬件业务代码，也不作为大而全的聚合 target。
