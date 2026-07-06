@@ -129,6 +129,8 @@ services:
     vehicle_data_address: 127.0.0.1:50050
     stream_timeout_ms: 10000
     retry_delay_ms: 200
+    max_sessions: 100
+    max_total_bytes: 5368709120
     grpc:
       listen_address: 127.0.0.1:50055
 ```
@@ -139,6 +141,8 @@ services:
 - 异常退出遗留的 `.recording_*` 会在下次启动时改名为 `interrupted_*` 并写入
   `INTERRUPTED` 标记。
 - 当前只记录 VehicleState；相机、音频和事件数据源尚未接入。
+- `max_sessions` 和 `max_total_bytes` 同时生效；完成会话后自动从最旧数据开始清理。
+- `recording-ctl --prune` 按同一策略立即执行清理，不会删除当前活动会话。
 
 ## 语音和 AI
 

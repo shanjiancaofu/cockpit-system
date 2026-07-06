@@ -18,6 +18,10 @@ class RecordingControlClient {
              std::string* error);
   bool Stop(proto::recording::RecordingStatus* status, std::string* error);
   bool GetStatus(proto::recording::RecordingStatus* status, std::string* error);
+  bool List(std::uint32_t limit, proto::recording::ListRecordingsResponse* response,
+            std::string* error);
+  bool Delete(const std::string& session_id, std::string* error);
+  bool Prune(proto::recording::PruneRecordingsResponse* response, std::string* error);
 
  private:
   static void SetDeadline(grpc::ClientContext* context);

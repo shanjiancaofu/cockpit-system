@@ -27,8 +27,15 @@ int main(int argc, char** argv) {
     LOG_WARN("recovered interrupted recordings count=" + std::to_string(recovered));
   }
 
-  cockpit::recording::RecordingService recording_service(recording_directory,
-                                                         runtime.config().system().vehicle_id);
+  cockpit::recording::RecordingService recording_service(
+      recording_directory, runtime.config().system().vehicle_id,
+      {static_cast<std::size_t>(config.max_sessions), config.max_total_bytes});
+  std::string initialization_error;
+  if (!recording_service.Initialize(&initialization_error)) {
+    LOG_ERROR("initialize recording catalog failed: " + initialization_error);
+    runtime.MarkStopped();
+    return 1;
+  }
   if (config.auto_start) {
     std::string error;
     if (!recording_service.Start("auto_start", &error)) {

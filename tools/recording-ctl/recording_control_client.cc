@@ -49,6 +49,33 @@ bool RecordingControlClient::GetStatus(proto::recording::RecordingStatus* status
   return FinishRpc(stub_->GetStatus(&context, request, status), error);
 }
 
+bool RecordingControlClient::List(std::uint32_t limit,
+                                  proto::recording::ListRecordingsResponse* response,
+                                  std::string* error) {
+  proto::recording::ListRecordingsRequest request;
+  request.set_limit(limit);
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->List(&context, request, response), error);
+}
+
+bool RecordingControlClient::Delete(const std::string& session_id, std::string* error) {
+  proto::recording::DeleteRecordingRequest request;
+  request.set_session_id(session_id);
+  proto::common::Empty response;
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->Delete(&context, request, &response), error);
+}
+
+bool RecordingControlClient::Prune(proto::recording::PruneRecordingsResponse* response,
+                                   std::string* error) {
+  proto::common::Empty request;
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->Prune(&context, request, response), error);
+}
+
 void RecordingControlClient::SetDeadline(grpc::ClientContext* context) {
   context->set_wait_for_ready(true);
   context->set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(2));

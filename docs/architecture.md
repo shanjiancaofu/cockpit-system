@@ -116,12 +116,12 @@ vehicle-data-service
     → sessions/<id>/manifest.json + COMPLETE
 ```
 
-`recording-ctl` 通过 gRPC 启动、停止和查询会话。原始数据以文件为权威来源；进程异常退出后，
-下次启动将未完成目录标记为 `interrupted_*`。该服务属于研发诊断边界，不接收用户语音动作。
-SQLite 后续只用于会话索引、查询和保留策略，不替代 JSONL、音频或视频文件。
+`recording-ctl` 通过 gRPC 启动、停止、查询、删除和清理会话。原始数据以文件为权威来源；
+进程异常退出后，下次启动将未完成目录标记为 `interrupted_*`。目录索引从 manifest 重建，
+并按最大会话数和总字节数清理最旧数据。该服务属于研发诊断边界，不接收用户语音动作。
 
 ## 当前边界
 
 已具备可运行的 WSL/Jetson 车机原型架构，但尚缺正式 DBC、真实 TTS、麦克风/扬声器标定、
-Jetson CUDA/TensorRT 验证、多源录包与 SQLite 索引、MQTT、WebSocket、视觉 AI 和完整 LLM
+Jetson CUDA/TensorRT 验证、音视频多源录包、MQTT、WebSocket、视觉 AI 和完整 LLM
 应用层。

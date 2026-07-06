@@ -116,6 +116,14 @@ fi
 sleep 0.5
 "${bin_dir}/recording-ctl" --config "${config_path}"
 "${bin_dir}/recording-ctl" --stop --config "${config_path}"
+recording_list="$(${bin_dir}/recording-ctl --list --config "${config_path}")"
+echo "${recording_list}"
+if [[ "${recording_list}" != *"total sessions: 1"* || \
+      "${recording_list}" != *"state=complete"* ]]; then
+  echo "recording smoke did not list the completed session" >&2
+  exit 1
+fi
+"${bin_dir}/recording-ctl" --prune --config "${config_path}"
 if ! find "${recording_directory}/sessions" -name COMPLETE -type f -print -quit | grep -q .; then
   echo "recording smoke did not create a COMPLETE session" >&2
   exit 1
@@ -123,6 +131,18 @@ fi
 if ! find "${recording_directory}/sessions" -name vehicle_state.jsonl -type f \
     -size +0c -print -quit | grep -q .; then
   echo "recording smoke did not persist vehicle states" >&2
+  exit 1
+fi
+recording_session_id="$(printf '%s\n' "${recording_list}" | awk '/state=complete/{print $1; exit}')"
+if [[ -z "${recording_session_id}" ]]; then
+  echo "recording smoke could not resolve the completed session id" >&2
+  exit 1
+fi
+"${bin_dir}/recording-ctl" --delete "${recording_session_id}" --config "${config_path}"
+recording_list_after_delete="$(${bin_dir}/recording-ctl --list --config "${config_path}")"
+echo "${recording_list_after_delete}"
+if [[ "${recording_list_after_delete}" != *"total sessions: 0"* ]]; then
+  echo "recording smoke did not delete the completed session" >&2
   exit 1
 fi
 kill "${recording_pid}"

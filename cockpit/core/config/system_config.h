@@ -95,6 +95,8 @@ struct RecordingServiceConfig {
   std::string vehicle_data_address = "127.0.0.1:50050";
   int stream_timeout_ms = 10000;
   int retry_delay_ms = 200;
+  int max_sessions = 100;
+  std::uint64_t max_total_bytes = 5368709120ULL;
   GrpcServerConfig grpc{"127.0.0.1:50055"};
 };
 

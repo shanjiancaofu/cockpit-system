@@ -232,6 +232,12 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.recording.retry_delay_ms =
       Read(recording, "retry_delay_ms", config.services_.recording.retry_delay_ms,
            "services.recording.retry_delay_ms");
+  config.services_.recording.max_sessions =
+      Read(recording, "max_sessions", config.services_.recording.max_sessions,
+           "services.recording.max_sessions");
+  config.services_.recording.max_total_bytes =
+      Read(recording, "max_total_bytes", config.services_.recording.max_total_bytes,
+           "services.recording.max_total_bytes");
   const YAML::Node recording_grpc = ChildMap(recording, "grpc", "services.recording.grpc");
   config.services_.recording.grpc.listen_address =
       Read(recording_grpc, "listen_address", config.services_.recording.grpc.listen_address,
@@ -384,6 +390,10 @@ void SystemConfig::Validate() const {
                   "services.recording.grpc.listen_address");
   RequirePositive(services_.recording.stream_timeout_ms, "services.recording.stream_timeout_ms");
   RequirePositive(services_.recording.retry_delay_ms, "services.recording.retry_delay_ms");
+  RequirePositive(services_.recording.max_sessions, "services.recording.max_sessions");
+  if (services_.recording.max_total_bytes == 0) {
+    throw std::runtime_error("services.recording.max_total_bytes must be greater than zero");
+  }
 
   RequireNotEmpty(services_.cloud_uplink.mqtt.broker, "services.cloud_uplink.mqtt.broker");
   RequireNotEmpty(services_.cloud_uplink.mqtt.telemetry_topic,

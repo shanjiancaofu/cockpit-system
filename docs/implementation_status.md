@@ -63,7 +63,9 @@ Qt UI 链路，云端前后端暂缓。
 - 独立 `recording-service`，不与用户语音交互职责混合。
 - 订阅 VehicleState gRPC stream，按会话写入 JSONL 和 manifest。
 - 临时目录、原子完成目录、`COMPLETE` 标记和异常中断恢复。
-- `recording-ctl` 支持 start/stop/status，systemd 与安装目标已接入。
+- 启动扫描目录索引、历史列表、空间统计、删除和损坏 manifest 隔离。
+- 最大会话数/总空间保留策略，完成后自动清理并支持手动 prune。
+- `recording-ctl` 支持 start/stop/status/list/delete/prune，systemd 与安装目标已接入。
 
 ## 尚未完成
 
@@ -89,7 +91,7 @@ Qt UI 链路，云端前后端暂缓。
 
 ### 存储与外部系统
 
-- SQLite 状态、事件、录包会话索引和磁盘保留策略。
+- SQLite 通用状态/事件存储；录包 v1 已使用可重建的文件目录索引，不依赖 SQLite。
 - MQTT 客户端和真实云端上传。
 - WebSocket 浏览器数据流。
 - TLS、鉴权、OTA、崩溃收集和长期稳定性测试。
@@ -104,7 +106,7 @@ bash scripts/run_smoke.sh
 ```
 
 - 默认 Debug 构建通过。
-- CTest 23/23 通过。
+- CTest 24/24 通过。
 - Qt、GStreamer、whisper.cpp 完整构建通过。
 - VehicleState、recording、topic、audio、voice、camera 和 cloud placeholder smoke 链路通过。
 - `vcan0` SocketCAN 收发已验证。

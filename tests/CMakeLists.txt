@@ -27,6 +27,10 @@ add_executable(recording_session_test recording_session_test.cc)
 target_link_libraries(recording_session_test PRIVATE recording)
 add_test(NAME recording_session_test COMMAND recording_session_test)
 
+add_executable(recording_catalog_test recording_catalog_test.cc)
+target_link_libraries(recording_catalog_test PRIVATE recording)
+add_test(NAME recording_catalog_test COMMAND recording_catalog_test)
+
 add_executable(camera_frame_test camera_frame_test.cc)
 target_link_libraries(camera_frame_test PRIVATE camera)
 add_test(NAME camera_frame_test COMMAND camera_frame_test)

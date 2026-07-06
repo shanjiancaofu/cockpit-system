@@ -27,9 +27,19 @@ class RecordingGrpcService final : public proto::recording::RecordingControl::Se
                     proto::recording::RecordingStatus* response) override;
   grpc::Status GetStatus(grpc::ServerContext* context, const proto::common::Empty* request,
                          proto::recording::RecordingStatus* response) override;
+  grpc::Status List(grpc::ServerContext* context,
+                    const proto::recording::ListRecordingsRequest* request,
+                    proto::recording::ListRecordingsResponse* response) override;
+  grpc::Status Delete(grpc::ServerContext* context,
+                      const proto::recording::DeleteRecordingRequest* request,
+                      proto::common::Empty* response) override;
+  grpc::Status Prune(grpc::ServerContext* context, const proto::common::Empty* request,
+                     proto::recording::PruneRecordingsResponse* response) override;
 
   static void FillStatus(const RecordingStatus& status,
                          proto::recording::RecordingStatus* response);
+  static void FillSession(const RecordingSessionInfo& session,
+                          proto::recording::RecordingSessionInfo* response);
 
   RecordingService& recording_service_;
   std::unique_ptr<grpc::Server> server_;

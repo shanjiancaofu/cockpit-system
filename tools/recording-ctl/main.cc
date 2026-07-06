@@ -30,6 +30,8 @@ void PrintStatus(const cockpit::proto::recording::RecordingStatus& status) {
             << "started at ms: " << status.started_at_ms() << '\n'
             << "stopped at ms: " << status.stopped_at_ms() << '\n'
             << "last message timestamp ms: " << status.last_message_timestamp_ms() << '\n';
+  std::cout << "stored sessions: " << status.stored_sessions() << '\n'
+            << "stored bytes: " << status.stored_bytes() << '\n';
   if (!status.last_error().empty()) {
     std::cout << "last error: " << status.last_error() << '\n';
   }
@@ -49,7 +51,37 @@ int main(int argc, char** argv) {
   cockpit::proto::recording::RecordingStatus status;
   std::string error;
   bool ok = false;
-  if (runtime.args().HasFlag("start")) {
+  const std::string delete_session_id = runtime.args().GetString("delete", "");
+  if (runtime.args().HasFlag("list")) {
+    cockpit::proto::recording::ListRecordingsResponse response;
+    const int limit = runtime.args().GetInt("limit", 0);
+    ok = client.List(limit > 0 ? static_cast<std::uint32_t>(limit) : 0, &response, &error);
+    if (ok) {
+      std::cout << "total sessions: " << response.total_sessions() << '\n'
+                << "total bytes: " << response.total_bytes() << '\n';
+      for (const auto& session : response.sessions()) {
+        std::cout << session.session_id() << " state=" << session.state()
+                  << " trigger=" << session.trigger() << " messages=" << session.messages_written()
+                  << " bytes=" << session.size_bytes()
+                  << " started_at_ms=" << session.started_at_ms()
+                  << " directory=" << session.directory() << '\n';
+      }
+    }
+  } else if (!delete_session_id.empty()) {
+    ok = client.Delete(delete_session_id, &error);
+    if (ok) {
+      std::cout << "recording deleted\n";
+    }
+  } else if (runtime.args().HasFlag("prune")) {
+    cockpit::proto::recording::PruneRecordingsResponse response;
+    ok = client.Prune(&response, &error);
+    if (ok) {
+      std::cout << "sessions deleted: " << response.sessions_deleted() << '\n'
+                << "bytes deleted: " << response.bytes_deleted() << '\n'
+                << "sessions remaining: " << response.sessions_remaining() << '\n'
+                << "bytes remaining: " << response.bytes_remaining() << '\n';
+    }
+  } else if (runtime.args().HasFlag("start")) {
     ok = client.Start(runtime.args().GetString("trigger", "manual"), &status, &error);
   } else if (runtime.args().HasFlag("stop")) {
     ok = client.Stop(&status, &error);
@@ -60,6 +92,9 @@ int main(int argc, char** argv) {
     std::cerr << (error.empty() ? "recording control request failed" : error) << '\n';
     return Finish(runtime, 1);
   }
-  PrintStatus(status);
+  if (!runtime.args().HasFlag("list") && delete_session_id.empty() &&
+      !runtime.args().HasFlag("prune")) {
+    PrintStatus(status);
+  }
   return Finish(runtime, 0);
 }

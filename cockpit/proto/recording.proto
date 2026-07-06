@@ -26,10 +26,47 @@ message RecordingStatus {
   int64 first_message_timestamp_ms = 8;
   int64 last_message_timestamp_ms = 9;
   string last_error = 10;
+  uint64 stored_sessions = 11;
+  uint64 stored_bytes = 12;
+}
+
+message RecordingSessionInfo {
+  string session_id = 1;
+  string state = 2;
+  string trigger = 3;
+  string directory = 4;
+  uint64 messages_written = 5;
+  uint64 size_bytes = 6;
+  int64 started_at_ms = 7;
+  int64 stopped_at_ms = 8;
+}
+
+message ListRecordingsRequest {
+  uint32 limit = 1;
+}
+
+message ListRecordingsResponse {
+  repeated RecordingSessionInfo sessions = 1;
+  uint64 total_sessions = 2;
+  uint64 total_bytes = 3;
+}
+
+message DeleteRecordingRequest {
+  string session_id = 1;
+}
+
+message PruneRecordingsResponse {
+  uint64 sessions_deleted = 1;
+  uint64 bytes_deleted = 2;
+  uint64 sessions_remaining = 3;
+  uint64 bytes_remaining = 4;
 }
 
 service RecordingControl {
   rpc Start(StartRecordingRequest) returns (RecordingStatus);
   rpc Stop(cockpit.proto.common.Empty) returns (RecordingStatus);
   rpc GetStatus(cockpit.proto.common.Empty) returns (RecordingStatus);
+  rpc List(ListRecordingsRequest) returns (ListRecordingsResponse);
+  rpc Delete(DeleteRecordingRequest) returns (cockpit.proto.common.Empty);
+  rpc Prune(cockpit.proto.common.Empty) returns (PruneRecordingsResponse);
 }

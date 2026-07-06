@@ -27,6 +27,8 @@ struct RecordingStatus {
   std::int64_t stopped_at_ms = 0;
   std::int64_t first_message_timestamp_ms = 0;
   std::int64_t last_message_timestamp_ms = 0;
+  std::uint64_t stored_sessions = 0;
+  std::uint64_t stored_bytes = 0;
   std::string last_error;
 };
 
