@@ -35,9 +35,9 @@
 
 新工程决策：
 
-- UI 初期可以参考 Widgets shell 的页面组织，但新工程保留 `apps/cockpit-ui` QML 方向。
+- UI 初期可以参考 Widgets shell 的页面组织，但新工程保留 `cockpit/apps/cockpit-ui` QML 方向。
 - 日志策略采用“每服务独立日志文件 + 滚动 + 可镜像 stderr”，已落到
-  `core/logging`。
+  `cockpit/core/logging`。
 - 旧应用启动模式只作为迁移桥，不作为新架构长期方案。
 - 硬件访问必须从 UI 中剥离到 service/platform 层。
 
@@ -99,7 +99,7 @@
 
 新工程决策：
 
-- YAML 和日志是所有服务共同基础设施，已优先创建 `core/config` 和 `core/logging`。
+- YAML 和日志是所有服务共同基础设施，已优先创建 `cockpit/core/config` 和 `cockpit/core/logging`。
 - 后续业务复杂后可以引入 factory，但当前阶段不提前抽象。
 - 工具类二进制统一放在 `tools/`，安装时进入 `bin/tools/...`。
 
@@ -124,6 +124,6 @@
 2. 第 9 节 protobuf：保留内部 proto 和云端 proto 分离；云端字段参考 `vehicle_cloud_api.proto`。
 3. 第 10 节 YAML：采用默认值覆盖模型；服务端口、日志目录、CAN 接口、MQTT broker
    已进入 `configs/config.yaml`。
-4. 第 15 节工程规范：加入信号退出模型、每服务独立日志、安装 proto/config 的规则。
+4. 第 15 节工程规范：加入信号退出模型、每服务独立日志、安装 cockpit/proto/config 的规则。
 5. 第 17 和 18 节：第一阶段仍建议 `can-simulator -> vehicle-data-service -> gateway`，
    Qt/QML、WebSocket、MQTT 按依赖准备情况分阶段接入。

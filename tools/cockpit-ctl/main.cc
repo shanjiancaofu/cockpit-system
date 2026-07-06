@@ -11,9 +11,9 @@
 
 #include "audio.grpc.pb.h"
 #include "camera.grpc.pb.h"
+#include "cockpit/core/config/system_config.h"
+#include "cockpit/core/runtime/Args.h"
 #include "common.pb.h"
-#include "core/config/system_config.h"
-#include "core/runtime/Args.h"
 #include "gateway.grpc.pb.h"
 #include "voice.grpc.pb.h"
 

@@ -1,9 +1,9 @@
-#include "modules/voice/assistant/mock_voice_assistant.h"
+#include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
 
 #include <iostream>
 #include <string>
 
-#include "modules/voice/actions/mock_action_dispatcher.h"
+#include "cockpit/modules/voice/actions/mock_action_dispatcher.h"
 
 namespace {
 

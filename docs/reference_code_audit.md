@@ -57,7 +57,7 @@
 - 未校验 DLC、frame ID 和系统调用结果。
 - 把 ROS2 依赖带入当前轻量车机项目。
 
-因此当前实现拆为 `modules/can`、`drivers/socketcan` 和 `modules/vehicle`。
+因此当前实现拆为 `cockpit/modules/can`、`cockpit/drivers/socketcan` 和 `cockpit/modules/vehicle`。
 
 ## 旧车机/媒体项目
 

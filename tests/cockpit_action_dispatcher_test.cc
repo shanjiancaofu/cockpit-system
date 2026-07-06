@@ -1,4 +1,4 @@
-#include "modules/voice/actions/cockpit_action_dispatcher.h"
+#include "cockpit/modules/voice/actions/cockpit_action_dispatcher.h"
 
 #include <iostream>
 #include <memory>

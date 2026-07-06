@@ -3,7 +3,7 @@
 
 #include "camera_control_client.h"
 
-#include "core/runtime/ServiceRuntime.h"
+#include "cockpit/core/runtime/ServiceRuntime.h"
 
 namespace {
 

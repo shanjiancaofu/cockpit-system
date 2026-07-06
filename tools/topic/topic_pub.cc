@@ -10,7 +10,7 @@
 #include "topic_store.h"
 #include "topic_text.h"
 
-#include "core/utils/Time.h"
+#include "cockpit/core/utils/Time.h"
 
 namespace cockpit {
 namespace topic {

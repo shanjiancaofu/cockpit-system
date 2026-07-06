@@ -14,7 +14,7 @@
 #include "topic_message.h"
 #include "topic_store.h"
 
-#include "core/config/system_config.h"
+#include "cockpit/core/config/system_config.h"
 
 namespace cockpit {
 namespace topic {

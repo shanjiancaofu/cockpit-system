@@ -1,4 +1,4 @@
-#include "modules/camera/frames/latest_frame_buffer.h"
+#include "cockpit/modules/camera/frames/latest_frame_buffer.h"
 
 #include <iostream>
 #include <utility>

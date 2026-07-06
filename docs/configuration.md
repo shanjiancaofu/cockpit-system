@@ -1,6 +1,6 @@
 # 配置说明
 
-主配置文件是 `configs/config.yaml`，由 `core/config/SystemConfig` 解析并在进程启动时校验。
+主配置文件是 `configs/config.yaml`，由 `cockpit/core/config/SystemConfig` 解析并在进程启动时校验。
 所有服务共享同一份配置结构，但只读取自己需要的 section。
 
 ## 基础信息

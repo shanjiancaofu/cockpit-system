@@ -1,4 +1,4 @@
-#include "services/audio-service/processing/audio_service.h"
+#include "cockpit/services/audio-service/processing/audio_service.h"
 
 #include <atomic>
 #include <chrono>

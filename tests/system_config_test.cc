@@ -1,4 +1,4 @@
-#include "core/config/system_config.h"
+#include "cockpit/core/config/system_config.h"
 
 #include <iostream>
 #include <stdexcept>

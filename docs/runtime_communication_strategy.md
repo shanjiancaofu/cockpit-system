@@ -64,7 +64,7 @@ VehicleState 体积小、频率低，当前使用 gRPC streaming。未来只有�
 
 ## Runtime 边界
 
-`core/runtime` 只管理模块生命周期，不承载领域业务。`ModuleManager` 提供顺序启动、逆序停止、
+`cockpit/core/runtime` 只管理模块生命周期，不承载领域业务。`ModuleManager` 提供顺序启动、逆序停止、
 失败回滚和状态查询。
 
 当前不引入通用 Actor、DDS、共享内存 ring 或动态插件系统。只有至少两个真实模块出现相同需求后，

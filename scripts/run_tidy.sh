@@ -6,7 +6,7 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/lib/build_paths.sh"
 build_dir="${BUILD_DIR:-$(cockpit_default_debug_build_dir)}"
 jobs="${JOBS:-$(nproc)}"
 repo_dir="$(pwd -P)"
-header_filter="^${repo_dir}/(apps|core|drivers|modules|services|tests|tools)/.*"
+header_filter="^${repo_dir}/(cockpit|tests|tools)/.*"
 
 if ! command -v clang-tidy >/dev/null 2>&1; then
   echo "clang-tidy not found. Install it with: sudo apt-get install -y clang-tidy" >&2

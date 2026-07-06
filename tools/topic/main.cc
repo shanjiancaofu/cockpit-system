@@ -9,7 +9,7 @@
 #include "topic_pub.h"
 #include "topic_usage.h"
 
-#include "core/config/system_config.h"
+#include "cockpit/core/config/system_config.h"
 
 int main(int argc, char** argv) {
   using cockpit::topic::HasFlag;

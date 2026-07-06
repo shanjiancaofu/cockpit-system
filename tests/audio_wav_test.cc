@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include "modules/audio/frames/pcm_format.h"
-#include "modules/audio/wav/wav_file.h"
+#include "cockpit/modules/audio/frames/pcm_format.h"
+#include "cockpit/modules/audio/wav/wav_file.h"
 
 namespace {
 

@@ -2,8 +2,8 @@
 #include <string>
 #include <vector>
 
-#include "core/runtime/Module.h"
-#include "core/runtime/ModuleManager.h"
+#include "cockpit/core/runtime/Module.h"
+#include "cockpit/core/runtime/ModuleManager.h"
 
 namespace {
 

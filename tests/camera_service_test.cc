@@ -1,4 +1,4 @@
-#include "services/camera-service/control/camera_service.h"
+#include "cockpit/services/camera-service/control/camera_service.h"
 
 #include <iostream>
 #include <memory>

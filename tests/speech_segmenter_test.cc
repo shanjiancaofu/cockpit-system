@@ -1,4 +1,4 @@
-#include "modules/audio/vad/speech_segmenter.h"
+#include "cockpit/modules/audio/vad/speech_segmenter.h"
 
 #include <cstdint>
 #include <iostream>

@@ -1,4 +1,4 @@
-#include "modules/camera/shared_memory/shared_frame_buffer.h"
+#include "cockpit/modules/camera/shared_memory/shared_frame_buffer.h"
 
 #include <unistd.h>
 

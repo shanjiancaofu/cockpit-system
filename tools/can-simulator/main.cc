@@ -4,12 +4,12 @@
 #include <string>
 #include <thread>
 
-#include "core/logging/Logger.h"
-#include "core/runtime/ServiceRuntime.h"
-#include "drivers/socketcan/socket_can.h"
-#include "modules/can/can_frame.h"
-#include "modules/vehicle/VehicleState.h"
-#include "modules/vehicle/vehicle_can_codec.h"
+#include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/runtime/ServiceRuntime.h"
+#include "cockpit/drivers/socketcan/socket_can.h"
+#include "cockpit/modules/can/can_frame.h"
+#include "cockpit/modules/vehicle/VehicleState.h"
+#include "cockpit/modules/vehicle/vehicle_can_codec.h"
 
 namespace {
 

@@ -1,4 +1,4 @@
-#include "modules/voice/responses/async_voice_response_sink.h"
+#include "cockpit/modules/voice/responses/async_voice_response_sink.h"
 
 #include <atomic>
 #include <chrono>

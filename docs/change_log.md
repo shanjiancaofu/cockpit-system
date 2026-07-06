@@ -2,6 +2,29 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-07-06 - 产品源码迁入 cockpit 目录
+
+### 变更内容
+
+- 新增 `cockpit/` 产品源码根目录，将 apps、core、drivers、modules、proto 和 services 整体迁入。
+- 新增 `cockpit/CMakeLists.txt` 聚合产品 target，仓库顶层继续聚合 tools、tests 和安装规则。
+- 全仓 247 个 C++ include 更新为 `cockpit/...` 路径。
+- clang-tidy header filter、架构文档、模块化策略和 README 同步新目录。
+
+### 设计决定
+
+- `cockpit/` 只放最终车机产品代码；tools、tests、docs、cmake、configs 和 scripts 保持根级。
+- C++ namespace、CMake target、二进制名、配置键和部署目录均保持不变。
+- 结构参考 zcarcloud/znavigator 的产品源码根，但不增加重复仓库层或历史构建兼容目录。
+
+### 验证结果
+
+- x86_64 Debug 全量重新配置和构建通过，CTest 22/22。
+- Qt、GStreamer、whisper.cpp 完整构建 260/260，通过包含真实模型的 CTest 25/25。
+- 完整 `scripts/run_smoke.sh` 通过。
+- x86_64 Release 构建、CTest 22/22 和安装包生成通过。
+- 全仓 pre-commit、旧 include 路径扫描和 `git diff --check` 通过。
+
 ## 2026-07-06 - 项目文档统一中文
 
 ### 变更内容

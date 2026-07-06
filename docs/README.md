@@ -36,13 +36,15 @@
 ## 目录放置速查
 
 ```text
-core/      通用基础设施：配置、日志、生命周期、低层工具
-modules/   平台无关领域能力：vehicle、can、audio、voice
-drivers/   Linux/Jetson 硬件适配：SocketCAN、ALSA、后续 camera/GPIO/I2C
-services/  长驻进程：gRPC、线程、设备所有权、模块编排
-tools/     调试工具、仿真器、probe、smoke 辅助
-proto/     服务间接口契约
-configs/   运行配置和 systemd 示例
+cockpit/             产品源码根目录
+  core/              配置、日志、生命周期和 IPC
+  modules/           vehicle、can、audio、camera、voice
+  drivers/           SocketCAN、ALSA、V4L2
+  services/          设备所有者和长驻进程
+  apps/              Qt/QML 车机应用
+  proto/             服务间接口契约
+tools/               调试工具、仿真器和 probe
+configs/             运行配置和 systemd 示例
 ```
 
 ## 当前仓库策略

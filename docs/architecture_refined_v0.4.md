@@ -37,8 +37,8 @@
 
 1. 从“大量独立微服务”收敛为少量设备所有者进程和进程内模块。
 2. 不再规定本机所有数据都通过 gRPC，明确控制面与数据面分离。
-3. 通用共享内存基础设施统一放在 `core/ipc`。
-4. 相机共享内存布局保留在 `modules/camera`。
+3. 通用共享内存基础设施统一放在 `cockpit/core/ipc`。
+4. 相机共享内存布局保留在 `cockpit/modules/camera`。
 5. 音频 PCM 在进程内通过 SPSC ring buffer 传输。
 6. 相机帧通过 POSIX shared memory 双缓冲跨进程传输。
 7. Qt UI 已接入车辆状态、相机帧和相机生命周期控制。
@@ -180,36 +180,29 @@ flowchart TB
 
 ```text
 cockpit-system/
-├── apps/cockpit-ui/
-│   ├── vehicle/
-│   └── camera/
-├── core/
-│   ├── config/
-│   ├── event/
-│   ├── ipc/
-│   ├── logging/
-│   ├── runtime/
-│   └── utils/
-├── drivers/
-│   ├── alsa/
-│   ├── socketcan/
-│   └── v4l2/
-├── modules/
-│   ├── audio/
-│   │   ├── frames/
-│   │   ├── capture/
-│   │   ├── vad/
-│   │   ├── playback/
-│   │   └── wav/
-│   ├── camera/
-│   │   ├── frames/
-│   │   ├── capture/
-│   │   └── shared_memory/
-│   ├── can/
-│   ├── vehicle/
-│   └── voice/
-├── proto/
-├── services/
+├── cockpit/
+│   ├── apps/cockpit-ui/
+│   │   ├── vehicle/
+│   │   └── camera/
+│   ├── core/
+│   │   ├── config/
+│   │   ├── event/
+│   │   ├── ipc/
+│   │   ├── logging/
+│   │   ├── runtime/
+│   │   └── utils/
+│   ├── drivers/
+│   │   ├── alsa/
+│   │   ├── socketcan/
+│   │   └── v4l2/
+│   ├── modules/
+│   │   ├── audio/
+│   │   ├── camera/
+│   │   ├── can/
+│   │   ├── vehicle/
+│   │   └── voice/
+│   ├── proto/
+│   └── services/
 ├── tests/
 ├── tools/
 └── scripts/
@@ -389,8 +382,8 @@ flowchart LR
 
 共享内存分层：
 
-- `core/ipc/SharedMemoryRegion`：通用 POSIX mapping RAII。
-- `modules/camera/shared_memory`：相机 metadata、双槽和进程共享读写锁。
+- `cockpit/core/ipc/SharedMemoryRegion`：通用 POSIX mapping RAII。
+- `cockpit/modules/camera/shared_memory`：相机 metadata、双槽和进程共享读写锁。
 - camera-service：writer owner。
 - cockpit-ui：reader。
 
@@ -434,7 +427,7 @@ Qt 5 不支持。WSL 使用 Qt 6.2.4 验证，Jetson 部署建议固定 Qt 6.8 L
 
 ## 12. IPC 边界
 
-`core/ipc::SharedMemoryRegion` 只负责 POSIX name、`shm_open`、`ftruncate`、`mmap/munmap`、fd 和 owner unlink。
+`cockpit/core/ipc::SharedMemoryRegion` 只负责 POSIX name、`shm_open`、`ftruncate`、`mmap/munmap`、fd 和 owner unlink。
 
 它不负责 CameraFrame、AudioFrame、slot header、ring buffer、领域序列化或服务发现。
 
@@ -444,7 +437,7 @@ Qt 5 不支持。WSL 使用 Qt 6.2.4 验证，Jetson 部署建议固定 Qt 6.8 L
 
 ## 13. protobuf 与 gRPC
 
-`proto/` 保存 common、vehicle、gateway、audio、voice、camera 和 cloud placeholder 契约。
+`cockpit/proto/` 保存 common、vehicle、gateway、audio、voice、camera 和 cloud placeholder 契约。
 
 规则：
 
@@ -580,8 +573,8 @@ Audio capture
 | 本机控制通信 | gRPC + protobuf |
 | 音频数据面 | 进程内 SPSC |
 | 相机数据面 | POSIX shared memory 双缓冲 |
-| 通用 shared memory | `core/ipc` |
-| 相机内存布局 | `modules/camera` |
+| 通用 shared memory | `cockpit/core/ipc` |
+| 相机内存布局 | `cockpit/modules/camera` |
 | UI | Qt 6 / QML |
 | CAN | SocketCAN |
 | 音频 | ALSA |

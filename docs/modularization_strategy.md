@@ -9,15 +9,16 @@
 
 ```text
 cockpit-system/
-├── apps/       用户应用
-├── core/       通用基础设施
-├── drivers/    Linux/硬件适配
-├── modules/    平台无关领域能力
-├── proto/      跨进程契约
-├── services/   长运行进程
-├── tools/      诊断和模拟器
-├── tests/      单元与集成测试
-└── scripts/    构建、运行和部署脚本
+├── cockpit/
+│   ├── apps/       用户应用
+│   ├── core/       通用基础设施
+│   ├── drivers/    Linux/硬件适配
+│   ├── modules/    平台无关领域能力
+│   ├── proto/      跨进程契约
+│   └── services/   长运行进程
+├── tools/          诊断和模拟器
+├── tests/          单元与集成测试
+└── scripts/        构建、运行和部署脚本
 ```
 
 依赖方向：
@@ -38,7 +39,7 @@ apps / services / tools
 - `modules` 不依赖 service 或 app。
 - `drivers` 只适配硬件接口，不包含业务策略。
 - UI 不直接打开硬件设备。
-- service 之间通过 proto/gRPC 或明确 IPC 通信，不直接 include 对方实现。
+- service 之间通过 `cockpit/proto` 定义的 gRPC 契约或明确 IPC 通信，不直接 include 对方实现。
 
 ## core
 
@@ -51,20 +52,20 @@ apps / services / tools
 - `runtime`：参数、信号和模块生命周期。
 - `utils`：时间等基础工具。
 
-禁止把暂时不知道放哪里的代码塞进 `core/common/base/misc`。
+禁止把暂时不知道放哪里的代码塞进 `cockpit/core/common/base/misc`。
 
 ## modules
 
 领域代码必须能在没有长运行进程和真实硬件时测试。
 
 ```text
-modules/audio/
+cockpit/modules/audio/
   frames/ capture/ vad/ playback/ wav/
 
-modules/camera/
+cockpit/modules/camera/
   frames/ capture/ shared_memory/
 
-modules/voice/
+cockpit/modules/voice/
   asr/ tts/ assistant/ actions/ responses/
 ```
 
@@ -98,13 +99,13 @@ VAD、ASR adapter、intent parser 等优先作为进程内模块，不单独创�
 复杂 service 可按职责拆目录：
 
 ```text
-audio-service/
+cockpit/services/audio-service/
   capture/ processing/ playback/ grpc/
 
-camera-service/
+cockpit/services/camera-service/
   preview/ control/ grpc/
 
-voice-interaction-service/
+cockpit/services/voice-interaction-service/
   interaction/ audio/ vehicle/ hmi/ grpc/
 ```
 

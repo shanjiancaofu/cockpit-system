@@ -21,23 +21,34 @@
 ## 架构
 
 ```text
-apps / tools
-    ↓
-services
-    ↓
-modules
-    ↓
-drivers
-    ↓
-core
+tools ───────────────┐
+                     ↓
+cockpit/apps → cockpit/services
+                         ↓
+                   cockpit/modules
+                         ↓
+                   cockpit/drivers
+                         ↓
+                     cockpit/core
 ```
 
-- `core`：配置、日志、Runtime、事件和 IPC。
-- `drivers`：ALSA、SocketCAN、V4L2。
-- `modules`：audio、camera、vehicle、voice 等领域能力。
-- `services`：设备所有者和长运行进程。
-- `apps`：Qt/QML UI。
+- `cockpit/core`：配置、日志、Runtime、事件和 IPC。
+- `cockpit/drivers`：ALSA、SocketCAN、V4L2。
+- `cockpit/modules`：audio、camera、vehicle、voice 等领域能力。
+- `cockpit/services`：设备所有者和长运行进程。
+- `cockpit/apps`：Qt/QML UI。
 - `tools`：模拟器和诊断工具。
+
+```text
+cockpit-system/
+├── cockpit/   产品源码
+├── tools/     诊断与模拟器
+├── tests/     测试
+├── configs/   运行配置
+├── cmake/     构建模块
+├── scripts/   构建与部署脚本
+└── docs/      文档
+```
 
 详细说明见：
 

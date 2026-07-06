@@ -13,31 +13,29 @@ target 和职责目录实现内部模块化，不提前拆分云端前端、后�
 ## 分层结构
 
 ```text
-apps / tools
-    ↓
-services                 长运行进程、设备所有权、对外控制接口
-    ↓
-modules                  平台无关的领域模型与处理流程
-    ↓
-drivers                  ALSA、V4L2、SocketCAN 等 Linux 适配
-    ↓
-core                     配置、日志、生命周期、事件、IPC、工具
+tools ───────────────┐
+                     ↓
+cockpit/apps → cockpit/services    长运行进程、设备所有权、对外控制接口
+                         ↓
+                   cockpit/modules 平台无关领域模型与处理流程
+                         ↓
+                   cockpit/drivers Linux/硬件适配
+                         ↓
+                     cockpit/core  通用基础设施
 ```
 
 主要目录：
 
 ```text
-apps/cockpit-ui/          Qt 6/QML 车机界面
-core/                     通用基础设施
-drivers/                  Linux/硬件适配
-modules/audio/            PCM、采集线程、VAD、语音分段、WAV
-modules/camera/           相机帧、采集接口、共享内存布局
-modules/vehicle/          车辆状态与 CAN codec
-modules/voice/            ASR、TTS、意图、动作、回复
-services/                 车端守护进程
-proto/                    protobuf/gRPC 契约
-tools/                    诊断和模拟工具
-tests/                    单元测试与 smoke test
+cockpit/
+├── apps/cockpit-ui/       Qt 6/QML 车机界面
+├── core/                  通用基础设施
+├── drivers/               Linux/硬件适配
+├── modules/               audio、camera、vehicle、voice
+├── proto/                 protobuf/gRPC 契约
+└── services/              车端守护进程
+tools/                     诊断和模拟工具
+tests/                     单元测试与 smoke test
 ```
 
 ## 进程职责

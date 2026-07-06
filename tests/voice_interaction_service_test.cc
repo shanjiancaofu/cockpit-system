@@ -1,11 +1,11 @@
-#include "services/voice-interaction-service/interaction/voice_interaction_service.h"
+#include "cockpit/services/voice-interaction-service/interaction/voice_interaction_service.h"
 
 #include <chrono>
 #include <iostream>
 #include <memory>
 
-#include "modules/voice/actions/mock_action_dispatcher.h"
-#include "modules/voice/assistant/mock_voice_assistant.h"
+#include "cockpit/modules/voice/actions/mock_action_dispatcher.h"
+#include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
 
 namespace {
 

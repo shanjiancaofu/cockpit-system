@@ -2,8 +2,8 @@
 #include <string>
 #include <vector>
 
-#include "core/runtime/ServiceRuntime.h"
-#include "drivers/v4l2/v4l2_camera.h"
+#include "cockpit/core/runtime/ServiceRuntime.h"
+#include "cockpit/drivers/v4l2/v4l2_camera.h"
 
 namespace {
 

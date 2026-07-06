@@ -5,8 +5,8 @@
 
 #include "voice_control_client.h"
 
-#include "core/logging/Logger.h"
-#include "core/runtime/ServiceRuntime.h"
+#include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/runtime/ServiceRuntime.h"
 
 namespace {
 

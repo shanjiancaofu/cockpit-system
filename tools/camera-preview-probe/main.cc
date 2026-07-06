@@ -5,8 +5,8 @@
 #include <mutex>
 #include <string>
 
-#include "core/runtime/ServiceRuntime.h"
-#include "modules/camera/capture/gstreamer_preview_pipeline.h"
+#include "cockpit/core/runtime/ServiceRuntime.h"
+#include "cockpit/modules/camera/capture/gstreamer_preview_pipeline.h"
 
 namespace {
 

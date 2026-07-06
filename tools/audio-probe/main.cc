@@ -8,10 +8,10 @@
 
 #include "audio_control_client.h"
 
-#include "core/logging/Logger.h"
-#include "core/runtime/ServiceRuntime.h"
-#include "drivers/alsa/alsa_pcm.h"
-#include "modules/audio/wav/wav_file.h"
+#include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/runtime/ServiceRuntime.h"
+#include "cockpit/drivers/alsa/alsa_pcm.h"
+#include "cockpit/modules/audio/wav/wav_file.h"
 
 namespace {
 

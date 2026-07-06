@@ -1,0 +1,15 @@
+add_subdirectory(core)
+add_subdirectory(modules)
+add_subdirectory(drivers)
+add_subdirectory(proto)
+
+add_subdirectory(services/vehicle-data-service)
+add_subdirectory(services/cockpit-gateway-service)
+add_subdirectory(services/cloud-uplink-service)
+add_subdirectory(services/audio-service)
+add_subdirectory(services/camera-service)
+add_subdirectory(services/voice-interaction-service)
+
+if(BUILD_COCKPIT_UI)
+    add_subdirectory(apps/cockpit-ui)
+endif()

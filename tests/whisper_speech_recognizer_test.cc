@@ -1,12 +1,12 @@
-#include "modules/voice/asr/whisper_speech_recognizer.h"
+#include "cockpit/modules/voice/asr/whisper_speech_recognizer.h"
 
 #include <algorithm>
 #include <cctype>
 #include <iostream>
 #include <string>
 
-#include "modules/audio/vad/speech_segment.h"
-#include "modules/audio/wav/wav_file.h"
+#include "cockpit/modules/audio/vad/speech_segment.h"
+#include "cockpit/modules/audio/wav/wav_file.h"
 
 int main() {
   cockpit::audio::PcmBuffer pcm;

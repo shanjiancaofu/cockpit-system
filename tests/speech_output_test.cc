@@ -1,4 +1,4 @@
-#include "services/audio-service/playback/speech_output.h"
+#include "cockpit/services/audio-service/playback/speech_output.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -7,8 +7,8 @@
 #include <mutex>
 #include <string>
 
-#include "modules/audio/playback/audio_player.h"
-#include "modules/voice/tts/mock_speech_synthesizer.h"
+#include "cockpit/modules/audio/playback/audio_player.h"
+#include "cockpit/modules/voice/tts/mock_speech_synthesizer.h"
 
 namespace {
 

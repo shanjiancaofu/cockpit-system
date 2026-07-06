@@ -10,7 +10,7 @@ Qt UI 链路，云端前后端暂缓。
 ### 工程基础
 
 - C++17、CMake、Ninja 构建体系和 WSL/Linux 脚本。
-- `core/config` 类型化 YAML 配置、启动校验和不可变配置模型。
+- `cockpit/core/config` 类型化 YAML 配置、启动校验和不可变配置模型。
 - 日志、参数解析、信号退出、时间工具。
 - Runtime module 生命周期：顺序启动、逆序停止、失败回滚和状态查询。
 - POSIX shared memory 通用映射封装。
