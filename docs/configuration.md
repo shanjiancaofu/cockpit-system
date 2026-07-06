@@ -42,6 +42,7 @@ logging:
 | audio | `127.0.0.1:50052` | 音频控制、transcript、Speak |
 | voice interaction | `127.0.0.1:50053` | 语音交互控制和回复 |
 | camera | `127.0.0.1:50054` | 相机 list/start/stop/status |
+| recording | `127.0.0.1:50055` | 研发录包 start/stop/status |
 
 `retry_delay_ms` 控制断线重试基础间隔，`stream_timeout_ms` 控制 streaming RPC 的会话超时。
 
@@ -117,6 +118,27 @@ services:
 
 帧像素通过 POSIX shared memory 传输，gRPC 只负责控制和状态。`max_frame_bytes` 必须覆盖目标
 分辨率和像素格式的单帧大小。
+
+## 研发录包
+
+```yaml
+services:
+  recording:
+    auto_start: false
+    directory: recordings
+    vehicle_data_address: 127.0.0.1:50050
+    stream_timeout_ms: 10000
+    retry_delay_ms: 200
+    grpc:
+      listen_address: 127.0.0.1:50055
+```
+
+- 相对 `directory` 以 `paths.data_dir` 为基准，默认写入 `data/recordings/sessions`。
+- `auto_start` 适合固定诊断任务；日常开发建议通过 `recording-ctl` 显式控制。
+- 完成会话包含 `manifest.json`、`vehicle_state.jsonl` 和 `COMPLETE`。
+- 异常退出遗留的 `.recording_*` 会在下次启动时改名为 `interrupted_*` 并写入
+  `INTERRUPTED` 标记。
+- 当前只记录 VehicleState；相机、音频和事件数据源尚未接入。
 
 ## 语音和 AI
 

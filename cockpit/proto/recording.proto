@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package cockpit.proto.recording;
+
+import "common.proto";
+
+enum RecordingState {
+  RECORDING_STATE_UNSPECIFIED = 0;
+  RECORDING_STATE_IDLE = 1;
+  RECORDING_STATE_RECORDING = 2;
+  RECORDING_STATE_FAULTED = 3;
+}
+
+message StartRecordingRequest {
+  string trigger = 1;
+}
+
+message RecordingStatus {
+  RecordingState state = 1;
+  string session_id = 2;
+  string directory = 3;
+  string trigger = 4;
+  uint64 messages_written = 5;
+  int64 started_at_ms = 6;
+  int64 stopped_at_ms = 7;
+  int64 first_message_timestamp_ms = 8;
+  int64 last_message_timestamp_ms = 9;
+  string last_error = 10;
+}
+
+service RecordingControl {
+  rpc Start(StartRecordingRequest) returns (RecordingStatus);
+  rpc Stop(cockpit.proto.common.Empty) returns (RecordingStatus);
+  rpc GetStatus(cockpit.proto.common.Empty) returns (RecordingStatus);
+}

@@ -2,6 +2,28 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-07-06 - VehicleState 研发录包与文件持久化
+
+### 变更内容
+
+- 新增平台无关 `RecordingSession`，按会话写入 manifest 和 VehicleState JSONL。
+- 新增 `recording-service`，订阅 vehicle-data-service，并提供 start/stop/status gRPC 控制面。
+- 新增 `recording-ctl`、recording proto、类型化配置、systemd 和安装目标。
+- 完成会话使用最终目录和 `COMPLETE` 标记；异常遗留临时目录在下次启动时标记为
+  `interrupted_*`。
+- smoke 增加真实录制、文件非空和完成标记校验。
+
+### 设计决定
+
+- recording-service 属于研发诊断边界，不接收用户语音动作。
+- 原始数据文件是权威数据；后续 SQLite 仅保存会话索引、查询字段和保留策略。
+- 当前只接入低频 VehicleState，不提前引入通用 MessageBus 或把图像、PCM 塞进 gRPC。
+
+### 验证结果
+
+- x86_64 Debug 构建通过，CTest 23/23。
+- 完整 smoke 通过，录制会话实际持久化 3 条 VehicleState 并生成 `COMPLETE`。
+
 ## 2026-07-06 - 产品源码迁入 cockpit 目录
 
 ### 变更内容

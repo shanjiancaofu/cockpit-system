@@ -57,6 +57,14 @@ services:
       broker: tcp://127.0.0.1:1883
       telemetry_topic: vehicle/status
       qos: 1
+  recording:
+    auto_start: false
+    directory: recordings
+    vehicle_data_address: 127.0.0.1:50050
+    stream_timeout_ms: 10000
+    retry_delay_ms: 200
+    grpc:
+      listen_address: 127.0.0.1:50055
 
 hardware:
   can:

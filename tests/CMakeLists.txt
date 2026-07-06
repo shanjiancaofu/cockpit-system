@@ -23,6 +23,10 @@ add_executable(shared_memory_region_test shared_memory_region_test.cc)
 target_link_libraries(shared_memory_region_test PRIVATE ipc)
 add_test(NAME shared_memory_region_test COMMAND shared_memory_region_test)
 
+add_executable(recording_session_test recording_session_test.cc)
+target_link_libraries(recording_session_test PRIVATE recording)
+add_test(NAME recording_session_test COMMAND recording_session_test)
+
 add_executable(camera_frame_test camera_frame_test.cc)
 target_link_libraries(camera_frame_test PRIVATE camera)
 add_test(NAME camera_frame_test COMMAND camera_frame_test)

@@ -11,13 +11,20 @@ gateway_log="${build_dir}/gateway-grpc-smoke.log"
 audio_log="${build_dir}/audio-grpc-smoke.log"
 voice_log="${build_dir}/voice-grpc-smoke.log"
 camera_log="${build_dir}/camera-grpc-smoke.log"
+recording_log="${build_dir}/recording-grpc-smoke.log"
+recording_directory="$(realpath -m "${build_dir}/recording-smoke-$$")"
 
 vehicle_pid=""
 gateway_pid=""
 audio_pid=""
 voice_pid=""
 camera_pid=""
+recording_pid=""
 cleanup() {
+  if [[ -n "${recording_pid}" ]] && kill -0 "${recording_pid}" >/dev/null 2>&1; then
+    kill "${recording_pid}" >/dev/null 2>&1 || true
+    wait "${recording_pid}" >/dev/null 2>&1 || true
+  fi
   if [[ -n "${camera_pid}" ]] && kill -0 "${camera_pid}" >/dev/null 2>&1; then
     kill "${camera_pid}" >/dev/null 2>&1 || true
     wait "${camera_pid}" >/dev/null 2>&1 || true
@@ -90,6 +97,38 @@ sleep 0.1
 "${bin_dir}/vehicle-data-service" --config "${config_path}" --forever >"${vehicle_log}" 2>&1 &
 vehicle_pid="$!"
 sleep 0.2
+"${bin_dir}/recording-service" --config "${config_path}" \
+  --directory "${recording_directory}" >"${recording_log}" 2>&1 &
+recording_pid="$!"
+recording_ready="false"
+for _ in {1..20}; do
+  if "${bin_dir}/recording-ctl" --config "${config_path}" >/dev/null 2>&1; then
+    recording_ready="true"
+    break
+  fi
+  sleep 0.1
+done
+if [[ "${recording_ready}" != "true" ]]; then
+  echo "recording-service did not become ready" >&2
+  exit 1
+fi
+"${bin_dir}/recording-ctl" --start --trigger smoke --config "${config_path}"
+sleep 0.5
+"${bin_dir}/recording-ctl" --config "${config_path}"
+"${bin_dir}/recording-ctl" --stop --config "${config_path}"
+if ! find "${recording_directory}/sessions" -name COMPLETE -type f -print -quit | grep -q .; then
+  echo "recording smoke did not create a COMPLETE session" >&2
+  exit 1
+fi
+if ! find "${recording_directory}/sessions" -name vehicle_state.jsonl -type f \
+    -size +0c -print -quit | grep -q .; then
+  echo "recording smoke did not persist vehicle states" >&2
+  exit 1
+fi
+kill "${recording_pid}"
+wait "${recording_pid}" || true
+recording_pid=""
+cat "${recording_log}"
 "${bin_dir}/cockpit-gateway-service" --config "${config_path}" \
   >"${gateway_log}" 2>&1 &
 gateway_pid="$!"

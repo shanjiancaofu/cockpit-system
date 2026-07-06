@@ -9,6 +9,7 @@ set(proto_files
     cloud.proto
     common.proto
     gateway.proto
+    recording.proto
     vehicle_state.proto
     voice.proto
 )

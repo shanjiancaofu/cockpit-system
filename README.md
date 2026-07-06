@@ -14,6 +14,7 @@
 - 语音意图、动作分发、车辆状态查询和 HMI handoff。
 - V4L2/GStreamer USB 摄像头预览。
 - 相机帧 POSIX shared memory 双缓冲。
+- VehicleState 研发录包、会话清单和异常中断恢复。
 - Qt 6/QML 车辆和相机界面。
 - `cockpit-ctl` 聚合状态和各类 probe/ctl 工具。
 - systemd、Release 打包、健康检查和回滚脚本。
@@ -87,6 +88,7 @@ build/arm64-release/
 build/x86_64-debug/bin/topic list --config configs/config.yaml
 build/x86_64-debug/bin/audio-probe --list --config configs/config.yaml
 build/x86_64-debug/bin/camera-probe --list --config configs/config.yaml
+build/x86_64-debug/bin/recording-ctl --start --trigger manual --config configs/config.yaml
 build/x86_64-debug/bin/cockpit-ctl status --config configs/config.yaml
 ```
 

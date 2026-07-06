@@ -1,0 +1,9 @@
+# recording-ctl
+
+recording-service 的本地控制工具。
+
+```bash
+build/x86_64-debug/bin/recording-ctl --status --config configs/config.yaml
+build/x86_64-debug/bin/recording-ctl --start --trigger manual --config configs/config.yaml
+build/x86_64-debug/bin/recording-ctl --stop --config configs/config.yaml
+```

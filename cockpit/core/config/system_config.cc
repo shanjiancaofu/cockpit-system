@@ -217,6 +217,26 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.cloud_uplink.mqtt.qos =
       Read(mqtt, "qos", config.services_.cloud_uplink.mqtt.qos, "services.cloud_uplink.mqtt.qos");
 
+  const YAML::Node recording = ChildMap(services, "recording", "services.recording");
+  config.services_.recording.auto_start =
+      Read(recording, "auto_start", config.services_.recording.auto_start,
+           "services.recording.auto_start");
+  config.services_.recording.directory = Read(
+      recording, "directory", config.services_.recording.directory, "services.recording.directory");
+  config.services_.recording.vehicle_data_address =
+      Read(recording, "vehicle_data_address", config.services_.recording.vehicle_data_address,
+           "services.recording.vehicle_data_address");
+  config.services_.recording.stream_timeout_ms =
+      Read(recording, "stream_timeout_ms", config.services_.recording.stream_timeout_ms,
+           "services.recording.stream_timeout_ms");
+  config.services_.recording.retry_delay_ms =
+      Read(recording, "retry_delay_ms", config.services_.recording.retry_delay_ms,
+           "services.recording.retry_delay_ms");
+  const YAML::Node recording_grpc = ChildMap(recording, "grpc", "services.recording.grpc");
+  config.services_.recording.grpc.listen_address =
+      Read(recording_grpc, "listen_address", config.services_.recording.grpc.listen_address,
+           "services.recording.grpc.listen_address");
+
   const YAML::Node hardware = ChildMap(root, "hardware", "hardware");
   const YAML::Node can = ChildMap(hardware, "can", "hardware.can");
   config.hardware_.can.interface =
@@ -357,6 +377,13 @@ void SystemConfig::Validate() const {
                   "services.voice_interaction.stream_timeout_ms");
   RequirePositive(services_.voice_interaction.retry_delay_ms,
                   "services.voice_interaction.retry_delay_ms");
+  RequireNotEmpty(services_.recording.directory, "services.recording.directory");
+  ValidateAddress(services_.recording.vehicle_data_address,
+                  "services.recording.vehicle_data_address");
+  ValidateAddress(services_.recording.grpc.listen_address,
+                  "services.recording.grpc.listen_address");
+  RequirePositive(services_.recording.stream_timeout_ms, "services.recording.stream_timeout_ms");
+  RequirePositive(services_.recording.retry_delay_ms, "services.recording.retry_delay_ms");
 
   RequireNotEmpty(services_.cloud_uplink.mqtt.broker, "services.cloud_uplink.mqtt.broker");
   RequireNotEmpty(services_.cloud_uplink.mqtt.telemetry_topic,

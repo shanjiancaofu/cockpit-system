@@ -13,6 +13,8 @@ set(cockpit_runtime_targets
     camera-probe
     can-simulator
     cockpit-ctl
+    recording-ctl
+    recording-service
     topic
     voice-ctl
 )

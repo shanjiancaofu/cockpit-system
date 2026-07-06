@@ -31,7 +31,7 @@ cockpit/
 ├── apps/cockpit-ui/       Qt 6/QML 车机界面
 ├── core/                  通用基础设施
 ├── drivers/               Linux/硬件适配
-├── modules/               audio、camera、vehicle、voice
+├── modules/               audio、camera、recording、vehicle、voice
 ├── proto/                 protobuf/gRPC 契约
 └── services/              车端守护进程
 tools/                     诊断和模拟工具
@@ -45,6 +45,7 @@ tests/                     单元测试与 smoke test
 - `audio-service`：独占麦克风和扬声器，运行采集、VAD、分段、ASR 和 TTS 播放。
 - `camera-service`：独占摄像头，负责预览生命周期和共享内存写入。
 - `voice-interaction-service`：订阅识别文本，执行意图、动作和语音回复编排。
+- `recording-service`：面向研发诊断，订阅车辆状态并管理持久化录包会话。
 - `cloud-uplink-service`：当前为 MQTT 上传占位实现。
 
 ## 通信模型
@@ -105,7 +106,22 @@ USB Camera
 
 UI 能区分等待首帧、实时画面、卡帧、最后一帧和共享内存断开，并在 writer 重启后自动重连。
 
+## 研发录包链路
+
+```text
+vehicle-data-service
+    → VehicleState gRPC stream
+    → recording-service
+    → sessions/.recording_<id>/vehicle_state.jsonl
+    → sessions/<id>/manifest.json + COMPLETE
+```
+
+`recording-ctl` 通过 gRPC 启动、停止和查询会话。原始数据以文件为权威来源；进程异常退出后，
+下次启动将未完成目录标记为 `interrupted_*`。该服务属于研发诊断边界，不接收用户语音动作。
+SQLite 后续只用于会话索引、查询和保留策略，不替代 JSONL、音频或视频文件。
+
 ## 当前边界
 
 已具备可运行的 WSL/Jetson 车机原型架构，但尚缺正式 DBC、真实 TTS、麦克风/扬声器标定、
-Jetson CUDA/TensorRT 验证、SQLite/录包、MQTT、WebSocket、视觉 AI 和完整 LLM 应用层。
+Jetson CUDA/TensorRT 验证、多源录包与 SQLite 索引、MQTT、WebSocket、视觉 AI 和完整 LLM
+应用层。

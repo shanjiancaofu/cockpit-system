@@ -8,6 +8,7 @@ add_subdirectory(services/cockpit-gateway-service)
 add_subdirectory(services/cloud-uplink-service)
 add_subdirectory(services/audio-service)
 add_subdirectory(services/camera-service)
+add_subdirectory(services/recording-service)
 add_subdirectory(services/voice-interaction-service)
 
 if(BUILD_COCKPIT_UI)

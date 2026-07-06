@@ -343,7 +343,8 @@ flowchart LR
 边界：
 
 - 用户语音交互不负责研发录包。
-- 研发录包、雷达采集和诊断数据未来属于 recorder/diagnostics。
+- 研发录包、雷达采集和诊断数据属于 recording/diagnostics；当前已实现 VehicleState
+  文件录包，相机、音频和事件数据源后续接入。
 - Android 音乐应用由未来 HMI bridge 控制，不在 C++ 中重造播放器。
 - TensorRT、WebRTC VAD 和 LLM provider 尚未实现；whisper.cpp adapter 已完成 WSL CPU
   样例验证，但尚未完成中文麦克风和 Jetson CUDA 验证。
@@ -539,7 +540,8 @@ cockpit-ui
 2. WebSocket 调试页和 WebRTC preview。
 3. Jetson CSI/NVMM/DMABUF 零拷贝。
 4. 多摄像头、雷达或传感器。
-5. 当统一 pub/sub 和录包需求真实出现时再评估 MessageBus/runtime。
+5. 当前 VehicleState 录包复用已有 gRPC stream；当多源同步录包需求出现时，再评估统一
+   MessageBus、时间对齐和 recorder runtime。
 
 ---
 
@@ -582,7 +584,7 @@ Audio capture
 | 服务策略 | 少量设备 owner 进程 |
 | Runtime | 当前轻量，不做通用 Actor 框架 |
 | 云端 | 延后 |
-| 录包 | 未来 recorder/diagnostics，独立于 voice |
+| 录包 | VehicleState recording-service 已实现，独立于 voice；多源录包后续扩展 |
 
 ---
 

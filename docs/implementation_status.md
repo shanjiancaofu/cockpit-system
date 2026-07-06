@@ -58,6 +58,13 @@ Qt UI 链路，云端前后端暂缓。
 - `cockpit-ctl status --watch` 聚合 gateway、audio、voice、camera 状态。
 - `audio-probe`、`camera-probe`、`camera-preview-probe`、`camera-ctl`、`voice-ctl`。
 
+### 研发录包与持久化
+
+- 独立 `recording-service`，不与用户语音交互职责混合。
+- 订阅 VehicleState gRPC stream，按会话写入 JSONL 和 manifest。
+- 临时目录、原子完成目录、`COMPLETE` 标记和异常中断恢复。
+- `recording-ctl` 支持 start/stop/status，systemd 与安装目标已接入。
+
 ## 尚未完成
 
 ### 车辆产品化
@@ -77,12 +84,12 @@ Qt UI 链路，云端前后端暂缓。
 ### 相机与视觉
 
 - CSI 摄像头和 Jetson GStreamer pipeline 验证。
-- 拍照、录像和研发录包服务。
+- 拍照、相机录像，以及音频/相机/事件多源研发录包。
 - 目标检测、驾驶员监控等视觉 AI。
 
 ### 存储与外部系统
 
-- SQLite 状态、事件和录包索引。
+- SQLite 状态、事件、录包会话索引和磁盘保留策略。
 - MQTT 客户端和真实云端上传。
 - WebSocket 浏览器数据流。
 - TLS、鉴权、OTA、崩溃收集和长期稳定性测试。
@@ -97,7 +104,7 @@ bash scripts/run_smoke.sh
 ```
 
 - 默认 Debug 构建通过。
-- CTest 22/22 通过。
+- CTest 23/23 通过。
 - Qt、GStreamer、whisper.cpp 完整构建通过。
-- VehicleState、topic、audio、voice、camera 和 cloud placeholder smoke 链路通过。
+- VehicleState、recording、topic、audio、voice、camera 和 cloud placeholder smoke 链路通过。
 - `vcan0` SocketCAN 收发已验证。
