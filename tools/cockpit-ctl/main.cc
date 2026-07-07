@@ -15,6 +15,7 @@
 #include "cockpit/core/runtime/Args.h"
 #include "common.pb.h"
 #include "gateway.grpc.pb.h"
+#include "recording.grpc.pb.h"
 #include "voice.grpc.pb.h"
 
 namespace cockpit {
@@ -46,6 +47,7 @@ void PrintUsage() {
   std::cout << "Usage:\n"
             << "  cockpit-ctl status [--config configs/config.yaml]\n"
             << "  cockpit-ctl status --watch [--interval SEC] [--config configs/config.yaml]\n"
+            << "  cockpit-ctl health [--config configs/config.yaml]\n"
             << "\nOptions:\n"
             << "  --config PATH    config file path (default: configs/config.yaml)\n"
             << "  --watch          watch mode, refresh status periodically\n"
@@ -162,6 +164,20 @@ const char* RuntimeModuleStateName(proto::common::RuntimeModuleState state) {
     case proto::common::RUNTIME_MODULE_STATE_FAILED:
       return "failed";
     case proto::common::RUNTIME_MODULE_STATE_UNSPECIFIED:
+    default:
+      return "unspecified";
+  }
+}
+
+const char* RecordingStateName(proto::recording::RecordingState state) {
+  switch (state) {
+    case proto::recording::RECORDING_STATE_IDLE:
+      return "idle";
+    case proto::recording::RECORDING_STATE_RECORDING:
+      return "recording";
+    case proto::recording::RECORDING_STATE_FAULTED:
+      return "faulted";
+    case proto::recording::RECORDING_STATE_UNSPECIFIED:
     default:
       return "unspecified";
   }
@@ -289,6 +305,134 @@ void PrintCameraStatus(const std::string& address) {
   }
 }
 
+void PrintRecordingStatus(const std::string& address) {
+  PrintServiceHeader("recording", address);
+  auto stub = proto::recording::RecordingControl::NewStub(
+      grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+  proto::common::Empty request;
+  proto::recording::RecordingStatus recording;
+  grpc::ClientContext context;
+  SetContext(&context);
+  const grpc::Status status = stub->GetStatus(&context, request, &recording);
+  if (!status.ok()) {
+    PrintUnavailable(status);
+    return;
+  }
+  std::cout << "  available: yes\n"
+            << "  state: " << RecordingStateName(recording.state())
+            << " session=" << recording.session_id() << " trigger=" << recording.trigger() << "\n"
+            << "  messages: " << recording.messages_written()
+            << " stored_sessions=" << recording.stored_sessions()
+            << " stored_bytes=" << recording.stored_bytes() << "\n";
+  if (!recording.last_error().empty()) {
+    std::cout << "  last_error: " << recording.last_error() << "\n";
+  }
+}
+
+bool CheckGateway(const std::string& address, std::string* error) {
+  auto stub = proto::gateway::CockpitGateway::NewStub(
+      grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+  proto::common::Empty request;
+  proto::vehicle::VehicleState state;
+  grpc::ClientContext context;
+  SetContext(&context);
+  const grpc::Status status = stub->GetLatestVehicleState(&context, request, &state);
+  if (!status.ok()) {
+    *error = RpcError(status);
+    return false;
+  }
+  return true;
+}
+
+bool CheckAudio(const std::string& address, std::string* error) {
+  auto stub = proto::audio::AudioControl::NewStub(
+      grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+  proto::common::Empty request;
+  proto::audio::AudioStatus audio;
+  grpc::ClientContext context;
+  SetContext(&context);
+  const grpc::Status status = stub->GetStatus(&context, request, &audio);
+  if (!status.ok()) {
+    *error = RpcError(status);
+    return false;
+  }
+  if (audio.capture_state() == proto::audio::CAPTURE_STATE_FAULTED) {
+    *error = audio.last_error().empty() ? "capture faulted" : audio.last_error();
+    return false;
+  }
+  return true;
+}
+
+bool CheckVoice(const std::string& address, std::string* error) {
+  auto stub = proto::voice::VoiceInteractionControl::NewStub(
+      grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+  proto::common::Empty request;
+  proto::voice::VoiceInteractionStatus voice;
+  grpc::ClientContext context;
+  SetContext(&context);
+  const grpc::Status status = stub->GetStatus(&context, request, &voice);
+  if (!status.ok()) {
+    *error = RpcError(status);
+    return false;
+  }
+  if (voice.state() == proto::voice::INTERACTION_STATE_FAULTED) {
+    *error = voice.last_error().empty() ? "voice faulted" : voice.last_error();
+    return false;
+  }
+  return true;
+}
+
+bool CheckCamera(const std::string& address, std::string* error) {
+  auto stub = proto::camera::CameraControl::NewStub(
+      grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+  proto::common::Empty request;
+  proto::camera::CameraStatus camera;
+  grpc::ClientContext context;
+  SetContext(&context);
+  const grpc::Status status = stub->GetStatus(&context, request, &camera);
+  if (!status.ok()) {
+    *error = RpcError(status);
+    return false;
+  }
+  if (camera.state() == proto::camera::CAMERA_PREVIEW_STATE_FAULTED) {
+    *error = camera.last_error().empty() ? "camera faulted" : camera.last_error();
+    return false;
+  }
+  return true;
+}
+
+bool CheckRecording(const std::string& address, std::string* error) {
+  auto stub = proto::recording::RecordingControl::NewStub(
+      grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+  proto::common::Empty request;
+  proto::recording::RecordingStatus recording;
+  grpc::ClientContext context;
+  SetContext(&context);
+  const grpc::Status status = stub->GetStatus(&context, request, &recording);
+  if (!status.ok()) {
+    *error = RpcError(status);
+    return false;
+  }
+  if (recording.state() == proto::recording::RECORDING_STATE_FAULTED) {
+    *error = recording.last_error().empty() ? "recording faulted" : recording.last_error();
+    return false;
+  }
+  return true;
+}
+
+using HealthCheck = bool (*)(const std::string&, std::string*);
+
+bool RunOneHealthCheck(const std::string& name, const std::string& address, HealthCheck check) {
+  std::string error;
+  const bool healthy = check(address, &error);
+  std::cout << (healthy ? "ok   " : "fail ") << name << " " << address;
+  if (!healthy) {
+    std::cout << " error=\"" << error << "\"";
+  }
+  std::cout << "\n";
+  return healthy;
+}
+
 int RunStatus(const config::SystemConfig& config) {
   std::cout << "cockpit-system status\n";
   std::cout << "system: " << config.system().name << " vehicle_id=" << config.system().vehicle_id
@@ -301,7 +445,23 @@ int RunStatus(const config::SystemConfig& config) {
   PrintVoiceStatus(config.services().voice_interaction.grpc.listen_address);
   std::cout << '\n';
   PrintCameraStatus(config.services().camera.grpc.listen_address);
+  std::cout << '\n';
+  PrintRecordingStatus(config.services().recording.grpc.listen_address);
   return 0;
+}
+
+int RunHealth(const config::SystemConfig& config) {
+  bool healthy = true;
+  std::cout << "cockpit-system health\n";
+  healthy &=
+      RunOneHealthCheck("gateway", config.services().gateway.grpc.listen_address, CheckGateway);
+  healthy &= RunOneHealthCheck("audio", config.services().audio.grpc.listen_address, CheckAudio);
+  healthy &= RunOneHealthCheck("voice", config.services().voice_interaction.grpc.listen_address,
+                               CheckVoice);
+  healthy &= RunOneHealthCheck("camera", config.services().camera.grpc.listen_address, CheckCamera);
+  healthy &= RunOneHealthCheck("recording", config.services().recording.grpc.listen_address,
+                               CheckRecording);
+  return healthy ? 0 : 2;
 }
 
 int WatchStatus(const config::SystemConfig& config, int interval_sec) {
@@ -332,7 +492,7 @@ int main(int argc, char** argv) {
     cockpit::ctl::PrintUsage();
     return command.empty() ? 1 : 0;
   }
-  if (command != "status") {
+  if (command != "status" && command != "health") {
     std::cerr << "unknown command: " << command << "\n";
     cockpit::ctl::PrintUsage();
     return 1;
@@ -340,6 +500,10 @@ int main(int argc, char** argv) {
 
   const std::string config_path = args.GetString("config", "configs/config.yaml");
   const auto config = cockpit::config::SystemConfig::LoadFromFile(config_path);
+
+  if (command == "health") {
+    return cockpit::ctl::RunHealth(config);
+  }
 
   if (args.HasFlag("watch")) {
     const int interval_sec = args.GetInt("interval", cockpit::ctl::kDefaultWatchIntervalSec);

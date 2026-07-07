@@ -67,6 +67,11 @@ VehicleState 体积小、频率低，当前使用 gRPC streaming。未来只有�
 `cockpit/core/runtime` 只管理模块生命周期，不承载领域业务。`ModuleManager` 提供顺序启动、逆序停止、
 失败回滚和状态查询。
 
+运行管理当前不新增独立 manager service。参考 `znavigator` 的模块/进程编排思想，现阶段采用更轻的
+组合：systemd 负责进程启动和重启，`ServiceRuntime` 负责单进程生命周期，`ModuleManager` 负责进程内
+模块，`cockpit-ctl status/health` 负责人工查看和脚本化健康检查。`health` 通过各服务 gRPC 控制面
+探测 gateway、audio、voice、camera 和 recording，全部健康返回 0，任一不可达或 faulted 返回非 0。
+
 当前不引入通用 Actor、DDS、共享内存 ring 或动态插件系统。只有至少两个真实模块出现相同需求后，
 才抽象通用 MessageBus、Scheduler、Recorder 或 Monitor。
 

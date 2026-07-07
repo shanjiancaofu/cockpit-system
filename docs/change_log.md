@@ -2,6 +2,24 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-07-07 - cockpit-ctl 健康检查
+
+### 变更内容
+
+- `cockpit-ctl status` 新增 recording-service 状态聚合。
+- `cockpit-ctl health` 新增脚本化健康检查，覆盖 gateway、audio、voice、camera 和 recording。
+- `runtime_communication_strategy.md` 补充当前运行管理边界：systemd + ServiceRuntime + ModuleManager + cockpit-ctl。
+
+### 设计决定
+
+- 参考 `znavigator` 的运行编排思想，但当前不引入独立 manager service 或动态插件系统。
+- `health` 作为部署脚本、systemd ExecStartPost/定时检查和人工排障入口；不可达或 faulted 返回非 0。
+
+### 验证结果
+
+- x86_64 Debug 构建通过，CTest 27/27。
+- 完整 `scripts/run_smoke.sh` 通过，现有服务间 gRPC 链路正常。
+
 ## 2026-07-07 - 录包通用事件流
 
 ### 变更内容

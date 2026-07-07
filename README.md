@@ -91,6 +91,7 @@ build/x86_64-debug/bin/audio-probe --list --config configs/config.yaml
 build/x86_64-debug/bin/camera-probe --list --config configs/config.yaml
 build/x86_64-debug/bin/recording-ctl --start --trigger manual --config configs/config.yaml
 build/x86_64-debug/bin/cockpit-ctl status --config configs/config.yaml
+build/x86_64-debug/bin/cockpit-ctl health --config configs/config.yaml
 ```
 
 运行 Qt UI：
