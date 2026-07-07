@@ -11,11 +11,13 @@ namespace voice {
 VoiceInteractionService::VoiceInteractionService(bool enabled,
                                                  std::unique_ptr<VoiceAssistant> assistant,
                                                  std::unique_ptr<ActionDispatcher> dispatcher,
-                                                 std::unique_ptr<VoiceResponseSink> output)
+                                                 std::unique_ptr<VoiceResponseSink> output,
+                                                 ResponseObserver response_observer)
     : enabled_(enabled),
       assistant_(std::move(assistant)),
       dispatcher_(std::move(dispatcher)),
-      output_(std::move(output)) {
+      output_(std::move(output)),
+      response_observer_(std::move(response_observer)) {
   state_.store(enabled_ ? InteractionState::kListening : InteractionState::kDisabled);
 }
 
@@ -185,6 +187,9 @@ VoiceResponse VoiceInteractionService::PublishResponse(VoiceResponse response) {
   }
   responses_published_.fetch_add(1U);
   response_changed_.notify_all();
+  if (response_observer_) {
+    response_observer_(response);
+  }
   return response;
 }
 

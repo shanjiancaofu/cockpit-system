@@ -5,6 +5,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -61,9 +62,12 @@ struct VoiceInteractionStatus {
 
 class VoiceInteractionService {
  public:
+  using ResponseObserver = std::function<void(const VoiceResponse&)>;
+
   VoiceInteractionService(bool enabled, std::unique_ptr<VoiceAssistant> assistant,
                           std::unique_ptr<ActionDispatcher> dispatcher,
-                          std::unique_ptr<VoiceResponseSink> output = nullptr);
+                          std::unique_ptr<VoiceResponseSink> output = nullptr,
+                          ResponseObserver response_observer = nullptr);
   ~VoiceInteractionService();
 
   VoiceInteractionService(const VoiceInteractionService&) = delete;
@@ -87,6 +91,7 @@ class VoiceInteractionService {
   const std::unique_ptr<VoiceAssistant> assistant_;
   const std::unique_ptr<ActionDispatcher> dispatcher_;
   const std::unique_ptr<VoiceResponseSink> output_;
+  const ResponseObserver response_observer_;
   mutable std::mutex processing_mutex_;
   event::EventQueue<SpeechTranscript> transcript_events_{32};
   std::atomic<bool> worker_running_{false};

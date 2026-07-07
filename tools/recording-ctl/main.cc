@@ -4,6 +4,7 @@
 #include "recording_control_client.h"
 
 #include "cockpit/core/runtime/ServiceRuntime.h"
+#include "cockpit/core/utils/Time.h"
 
 namespace {
 
@@ -52,6 +53,7 @@ int main(int argc, char** argv) {
   std::string error;
   bool ok = false;
   const std::string delete_session_id = runtime.args().GetString("delete", "");
+  const std::string event_topic = runtime.args().GetString("event-topic", "");
   if (runtime.args().HasFlag("list")) {
     cockpit::proto::recording::ListRecordingsResponse response;
     const int limit = runtime.args().GetInt("limit", 0);
@@ -85,6 +87,9 @@ int main(int argc, char** argv) {
     ok = client.Start(runtime.args().GetString("trigger", "manual"), &status, &error);
   } else if (runtime.args().HasFlag("stop")) {
     ok = client.Stop(&status, &error);
+  } else if (!event_topic.empty()) {
+    const std::string payload = runtime.args().GetString("event-payload", "{}");
+    ok = client.AppendEvent(cockpit::utils::NowMs(), event_topic, payload, &status, &error);
   } else {
     ok = client.GetStatus(&status, &error);
   }

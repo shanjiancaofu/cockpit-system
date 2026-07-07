@@ -1,3 +1,5 @@
+add_subdirectory(client)
+
 add_cockpit_library(recording_service recording_service.cc)
 target_link_libraries(recording_service PUBLIC contracts recording)
 
@@ -11,4 +13,5 @@ target_link_libraries(recording-service PRIVATE
     logging
     recording_service
     runtime
+    utils
 )

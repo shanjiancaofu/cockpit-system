@@ -15,6 +15,10 @@ add_executable(event_queue_test event_queue_test.cc)
 target_link_libraries(event_queue_test PRIVATE event Threads::Threads)
 add_test(NAME event_queue_test COMMAND event_queue_test)
 
+add_executable(message_bus_test message_bus_test.cc)
+target_link_libraries(message_bus_test PRIVATE event)
+add_test(NAME message_bus_test COMMAND message_bus_test)
+
 add_executable(module_manager_test module_manager_test.cc)
 target_link_libraries(module_manager_test PRIVATE runtime)
 add_test(NAME module_manager_test COMMAND module_manager_test)

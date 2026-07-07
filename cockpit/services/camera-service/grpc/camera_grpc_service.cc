@@ -1,6 +1,9 @@
 #include "camera_grpc_service.h"
 
+#include <sstream>
+
 #include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/utils/Time.h"
 
 namespace cockpit {
 namespace camera {
@@ -36,11 +39,64 @@ proto::common::RuntimeModuleState ToProtoModuleState(runtime::ModuleState state)
   return proto::common::RUNTIME_MODULE_STATE_UNSPECIFIED;
 }
 
+void FillHealth(const CameraServiceStatus& status, proto::common::ServiceHealth* health) {
+  health->set_service_name("camera-service");
+  health->set_checked_at_ms(utils::NowMs());
+  health->set_last_error(status.last_error);
+  if (status.state == CameraPreviewState::kFaulted) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);
+    health->set_message(status.last_error.empty() ? "camera preview faulted" : status.last_error);
+    return;
+  }
+  if (status.state == CameraPreviewState::kStopped) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
+    health->set_message("camera preview stopped");
+    return;
+  }
+  health->set_state(proto::common::SERVICE_HEALTH_STATE_OK);
+  health->set_message("camera service online");
+}
+
+std::string EscapeJson(const std::string& input) {
+  std::ostringstream output;
+  for (const char character : input) {
+    switch (character) {
+      case '\\':
+        output << "\\\\";
+        break;
+      case '"':
+        output << "\\\"";
+        break;
+      case '\n':
+        output << "\\n";
+        break;
+      default:
+        output << character;
+        break;
+    }
+  }
+  return output.str();
+}
+
+std::string PhotoEventPayload(const CameraPhotoResult& result) {
+  std::ostringstream output;
+  output << "{"
+         << "\"path\":\"" << EscapeJson(result.path) << "\","
+         << "\"frame_sequence\":" << result.frame_sequence << ','
+         << "\"frame_timestamp_ms\":" << result.frame_timestamp_ms << ','
+         << "\"width\":" << result.width << ',' << "\"height\":" << result.height << ','
+         << "\"size_bytes\":" << result.size_bytes << "}";
+  return output.str();
+}
+
 }  // namespace
 
 CameraGrpcService::CameraGrpcService(CameraService& camera_service,
-                                     CameraPhotoService& photo_service)
-    : camera_service_(camera_service), photo_service_(photo_service) {
+                                     CameraPhotoService& photo_service,
+                                     const recording::RecordingEventPublisher* recording_events)
+    : camera_service_(camera_service),
+      photo_service_(photo_service),
+      recording_events_(recording_events) {
 }
 
 CameraGrpcService::~CameraGrpcService() {
@@ -125,6 +181,10 @@ grpc::Status CameraGrpcService::TakePhoto(grpc::ServerContext*,
   response->set_width(result.width);
   response->set_height(result.height);
   response->set_size_bytes(result.size_bytes);
+  if (recording_events_ != nullptr) {
+    recording_events_->Publish(static_cast<std::int64_t>(utils::NowMs()), "/camera/photo",
+                               PhotoEventPayload(result));
+  }
   return grpc::Status::OK;
 }
 
@@ -154,6 +214,7 @@ void CameraGrpcService::FillStatus(const CameraServiceStatus& status,
   response->set_last_frame_timestamp_ms(status.last_frame_timestamp_ms);
   response->set_last_frame_received_at_ms(status.last_frame_received_at_ms);
   response->set_last_error(status.last_error);
+  FillHealth(status, response->mutable_health());
   for (const auto& module : status.modules) {
     auto* module_status = response->add_modules();
     module_status->set_name(module.name);

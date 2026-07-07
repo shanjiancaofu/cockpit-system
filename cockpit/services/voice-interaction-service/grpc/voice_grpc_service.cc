@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/utils/Time.h"
 
 namespace cockpit {
 namespace voice {
@@ -20,6 +21,25 @@ proto::voice::InteractionState ToProtoState(InteractionState state) {
       return proto::voice::INTERACTION_STATE_FAULTED;
   }
   return proto::voice::INTERACTION_STATE_UNSPECIFIED;
+}
+
+void FillHealth(const VoiceInteractionStatus& status, proto::common::ServiceHealth* health) {
+  health->set_service_name("voice-interaction-service");
+  health->set_checked_at_ms(utils::NowMs());
+  health->set_last_error(status.last_error);
+  if (status.state == InteractionState::kFaulted) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);
+    health->set_message(status.last_error.empty() ? "voice interaction faulted"
+                                                  : status.last_error);
+    return;
+  }
+  if (status.state == InteractionState::kDisabled) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
+    health->set_message("voice interaction disabled");
+    return;
+  }
+  health->set_state(proto::common::SERVICE_HEALTH_STATE_OK);
+  health->set_message("voice interaction online");
 }
 
 }  // namespace
@@ -111,6 +131,7 @@ void VoiceGrpcService::FillStatus(const VoiceInteractionStatus& value,
                                   proto::voice::VoiceInteractionStatus* response) {
   response->set_state(ToProtoState(value.state));
   response->set_last_error(value.last_error);
+  FillHealth(value, response->mutable_health());
   auto* metrics = response->mutable_metrics();
   metrics->set_transcripts_received(value.metrics.transcripts_received);
   metrics->set_transcript_events_dropped(value.metrics.transcript_events_dropped);

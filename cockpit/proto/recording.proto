@@ -15,6 +15,12 @@ message StartRecordingRequest {
   string trigger = 1;
 }
 
+message AppendRecordingEventRequest {
+  int64 timestamp_ms = 1;
+  string topic = 2;
+  string payload_json = 3;
+}
+
 message RecordingStatus {
   RecordingState state = 1;
   string session_id = 2;
@@ -28,6 +34,7 @@ message RecordingStatus {
   string last_error = 10;
   uint64 stored_sessions = 11;
   uint64 stored_bytes = 12;
+  cockpit.proto.common.ServiceHealth health = 100;
 }
 
 message RecordingSessionInfo {
@@ -65,6 +72,7 @@ message PruneRecordingsResponse {
 service RecordingControl {
   rpc Start(StartRecordingRequest) returns (RecordingStatus);
   rpc Stop(cockpit.proto.common.Empty) returns (RecordingStatus);
+  rpc AppendEvent(AppendRecordingEventRequest) returns (RecordingStatus);
   rpc GetStatus(cockpit.proto.common.Empty) returns (RecordingStatus);
   rpc List(ListRecordingsRequest) returns (ListRecordingsResponse);
   rpc Delete(DeleteRecordingRequest) returns (cockpit.proto.common.Empty);

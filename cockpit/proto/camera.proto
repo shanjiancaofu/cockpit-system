@@ -47,6 +47,7 @@ message CameraStatus {
   uint64 last_frame_sequence = 11;
   uint64 last_frame_timestamp_ms = 12;
   uint64 last_frame_received_at_ms = 13;
+  cockpit.proto.common.ServiceHealth health = 100;
 }
 
 message TakePhotoRequest {

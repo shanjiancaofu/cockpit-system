@@ -2,6 +2,28 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-07-07 - Runtime MessageBus、统一健康模型与多源录包事件
+
+### 变更内容
+
+- `core/event` 新增进程内 `MessageBus`，支持 topic 订阅、`*` 通配订阅、队列容量、drop 统计和 metrics。
+- `common.proto` 新增 `ServiceHealth`，audio、camera、voice 和 recording status 均携带统一健康字段。
+- recording gRPC 新增 `AppendEvent`；`recording-ctl` 新增 `--event-topic/--event-payload` 调试入口。
+- camera 拍照成功后写入 `/camera/photo` 元数据事件；voice response 写入 `/voice/response` 元数据事件。
+- systemd 服务补充 vehicle/gateway/audio/voice/camera/recording 依赖关系，新增 `scripts/check_health.sh`。
+
+### 设计决定
+
+- `MessageBus` 只用于进程内小消息，不替代 gRPC、shared memory 或 SPSC RingBuffer。
+- 录包事件只保存元数据和小 JSON，不保存图片、音频、视频二进制。
+- camera/voice 对 recording-service 是弱依赖：录包服务不可用时只记录 warning，不影响用户主流程。
+
+### 验证结果
+
+- x86_64 Debug 构建通过，CTest 28/28。
+- 完整 `scripts/run_smoke.sh` 通过，覆盖 recording `AppendEvent`、`events.jsonl` 落盘和现有服务链路。
+- `pre-commit run --all-files` 通过；`git diff --check` 无空白错误。
+
 ## 2026-07-07 - cockpit-ctl 健康检查
 
 ### 变更内容

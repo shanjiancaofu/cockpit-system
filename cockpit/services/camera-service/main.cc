@@ -8,6 +8,7 @@
 #include "cockpit/services/camera-service/control/camera_service.h"
 #include "cockpit/services/camera-service/grpc/camera_grpc_service.h"
 #include "cockpit/services/camera-service/photo/camera_photo_service.h"
+#include "cockpit/services/recording-service/client/recording_event_publisher.h"
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "camera-service");
@@ -31,7 +32,9 @@ int main(int argc, char** argv) {
   cockpit::camera::CameraPhotoService photo_service(
       service_config.shared_memory_name, photo_directory, service_config.photo_jpeg_quality,
       service_config.photo_max_frame_age_ms);
-  cockpit::camera::CameraGrpcService grpc_service(camera_service, photo_service);
+  cockpit::recording::RecordingEventPublisher recording_events(
+      runtime.config().services().recording.grpc.listen_address);
+  cockpit::camera::CameraGrpcService grpc_service(camera_service, photo_service, &recording_events);
 
   if (!grpc_service.Start(service_config.grpc.listen_address)) {
     runtime.MarkStopped();

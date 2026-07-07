@@ -8,13 +8,15 @@
 #include "camera.grpc.pb.h"
 #include "cockpit/services/camera-service/control/camera_service.h"
 #include "cockpit/services/camera-service/photo/camera_photo_service.h"
+#include "cockpit/services/recording-service/client/recording_event_publisher.h"
 
 namespace cockpit {
 namespace camera {
 
 class CameraGrpcService final : public proto::camera::CameraControl::Service {
  public:
-  CameraGrpcService(CameraService& camera_service, CameraPhotoService& photo_service);
+  CameraGrpcService(CameraService& camera_service, CameraPhotoService& photo_service,
+                    const recording::RecordingEventPublisher* recording_events = nullptr);
   ~CameraGrpcService() override;
 
   CameraGrpcService(const CameraGrpcService&) = delete;
@@ -42,6 +44,7 @@ class CameraGrpcService final : public proto::camera::CameraControl::Service {
 
   CameraService& camera_service_;
   CameraPhotoService& photo_service_;
+  const recording::RecordingEventPublisher* recording_events_ = nullptr;
   std::unique_ptr<grpc::Server> server_;
 };
 

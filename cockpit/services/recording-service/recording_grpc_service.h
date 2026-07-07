@@ -25,6 +25,9 @@ class RecordingGrpcService final : public proto::recording::RecordingControl::Se
                      proto::recording::RecordingStatus* response) override;
   grpc::Status Stop(grpc::ServerContext* context, const proto::common::Empty* request,
                     proto::recording::RecordingStatus* response) override;
+  grpc::Status AppendEvent(grpc::ServerContext* context,
+                           const proto::recording::AppendRecordingEventRequest* request,
+                           proto::recording::RecordingStatus* response) override;
   grpc::Status GetStatus(grpc::ServerContext* context, const proto::common::Empty* request,
                          proto::recording::RecordingStatus* response) override;
   grpc::Status List(grpc::ServerContext* context,

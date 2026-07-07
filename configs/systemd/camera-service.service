@@ -1,6 +1,7 @@
 [Unit]
 Description=cockpit-system Camera Service
-After=network.target
+After=network.target recording-service.service
+Wants=recording-service.service
 
 [Service]
 Type=simple

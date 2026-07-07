@@ -41,6 +41,19 @@ bool RecordingControlClient::Stop(proto::recording::RecordingStatus* status, std
   return FinishRpc(stub_->Stop(&context, request, status), error);
 }
 
+bool RecordingControlClient::AppendEvent(std::int64_t timestamp_ms, const std::string& topic,
+                                         const std::string& payload_json,
+                                         proto::recording::RecordingStatus* status,
+                                         std::string* error) {
+  proto::recording::AppendRecordingEventRequest request;
+  request.set_timestamp_ms(timestamp_ms);
+  request.set_topic(topic);
+  request.set_payload_json(payload_json);
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->AppendEvent(&context, request, status), error);
+}
+
 bool RecordingControlClient::GetStatus(proto::recording::RecordingStatus* status,
                                        std::string* error) {
   proto::common::Empty request;

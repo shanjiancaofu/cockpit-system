@@ -9,6 +9,7 @@ target_link_libraries(voice-interaction-service
     PRIVATE
         contracts
         logging
+        recording_event_client
         runtime
         voice
         voice_audio_clients

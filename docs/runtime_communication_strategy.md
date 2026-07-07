@@ -10,7 +10,7 @@
 | 场景 | 当前机制 | 适用数据 |
 |---|---|---|
 | 同线程 | 函数调用 | 同步控制、纯计算 |
-| 同进程低频 | callback / EventQueue | 状态变化、控制事件 |
+| 同进程低频 | callback / EventQueue / MessageBus | 状态变化、控制事件、模块事件 |
 | 同进程连续流 | SPSC RingBuffer | PCM、固定帧数据 |
 | 跨进程大数据 | POSIX Shared Memory | 相机帧，未来视频/模型输入 |
 | 跨进程控制 | gRPC unary | start/stop/status/config |
@@ -57,6 +57,19 @@ GStreamer callback
 
 writer 写入非活动槽后切换 generation。reader 只读取最新帧，不积压视频队列。
 
+### 同进程事件
+
+```text
+Module producer
+    → MessageBus.Publish(EventMessage)
+    → topic subscriber queues
+    → UI adapter / recorder adapter / local consumer
+```
+
+`MessageBus` 是进程内轻量 pub/sub，不跨进程、不做序列化协议绑定。它支持 topic 精确订阅、`*`
+通配订阅、固定容量队列、drop 计数和 metrics。它适合模块间低频事件，不适合相机帧、音频 PCM
+或未来模型张量。
+
 ### 车辆状态
 
 VehicleState 体积小、频率低，当前使用 gRPC streaming。未来只有在频率和消费者数量明显增长时，
@@ -71,9 +84,11 @@ VehicleState 体积小、频率低，当前使用 gRPC streaming。未来只有�
 组合：systemd 负责进程启动和重启，`ServiceRuntime` 负责单进程生命周期，`ModuleManager` 负责进程内
 模块，`cockpit-ctl status/health` 负责人工查看和脚本化健康检查。`health` 通过各服务 gRPC 控制面
 探测 gateway、audio、voice、camera 和 recording，全部健康返回 0，任一不可达或 faulted 返回非 0。
+各业务 status proto 内统一携带 `common.ServiceHealth`，包含 service name、ok/degraded/faulted、
+message、last_error 和检查时间。
 
-当前不引入通用 Actor、DDS、共享内存 ring 或动态插件系统。只有至少两个真实模块出现相同需求后，
-才抽象通用 MessageBus、Scheduler、Recorder 或 Monitor。
+当前不引入通用 Actor、DDS、共享内存 ring 或动态插件系统。`MessageBus` 只作为进程内小消息总线；
+只有出现跨进程小消息路由、统一调度或回放需求后，才继续抽象 Scheduler、Recorder 或 Monitor。
 
 ## 后续演进
 

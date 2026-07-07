@@ -148,7 +148,8 @@ services:
 - `events.jsonl` 只保存轻量研发事件元数据；相机图片、视频和音频数据应保存为独立文件，事件中只记录路径、句柄和时间戳。
 - 异常退出遗留的 `.recording_*` 会在下次启动时改名为 `interrupted_*` 并写入
   `INTERRUPTED` 标记。
-- 当前已记录 VehicleState，并预留通用事件写入入口；相机、音频大块数据源尚未接入。
+- 当前已记录 VehicleState，并通过 `AppendEvent` 接收通用事件；camera 拍照结果和 voice response
+  可写入 `events.jsonl`。相机、音频大块数据源尚未接入。
 - `max_sessions` 和 `max_total_bytes` 同时生效；完成会话后自动从最旧数据开始清理。
 - `recording-ctl --prune` 按同一策略立即执行清理，不会删除当前活动会话。
 

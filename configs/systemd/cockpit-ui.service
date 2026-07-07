@@ -1,7 +1,8 @@
 [Unit]
 Description=cockpit-system Qt UI
-After=graphical.target cockpit-gateway-service.service camera-service.service
+After=graphical.target cockpit-gateway-service.service camera-service.service audio-service.service voice-interaction-service.service
 Requires=cockpit-gateway-service.service camera-service.service
+Wants=audio-service.service voice-interaction-service.service
 
 [Service]
 Type=simple

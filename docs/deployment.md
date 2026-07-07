@@ -120,6 +120,16 @@ sudo systemctl restart cockpit.target
 COCKPIT_ROOT=/tmp/cockpit-system-test INSTALL_SYSTEMD=false bash deploy/install.sh
 ```
 
+开发目录中也可以直接执行本机健康检查：
+
+```bash
+bash scripts/check_health.sh
+```
+
+systemd 依赖关系遵循当前长运行服务边界：vehicle 先于 gateway/recording，audio 和 gateway 先于
+voice，camera/voice 可向 recording 发送轻量研发事件但不强依赖录包服务，Qt UI 依赖 gateway 和
+camera，同时弱依赖 audio/voice。
+
 ## 依赖策略
 
 发布包包含项目构建产生的 Whisper/GGML 动态库。Qt、ALSA、gRPC、protobuf、yaml-cpp、

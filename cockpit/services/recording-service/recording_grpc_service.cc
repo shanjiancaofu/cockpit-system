@@ -1,6 +1,7 @@
 #include "cockpit/services/recording-service/recording_grpc_service.h"
 
 #include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/utils/Time.h"
 
 namespace cockpit {
 namespace recording {
@@ -16,6 +17,20 @@ proto::recording::RecordingState ToProtoState(RecordingState state) {
       return proto::recording::RECORDING_STATE_FAULTED;
   }
   return proto::recording::RECORDING_STATE_UNSPECIFIED;
+}
+
+void FillHealth(const RecordingStatus& status, proto::common::ServiceHealth* health) {
+  health->set_service_name("recording-service");
+  health->set_checked_at_ms(utils::NowMs());
+  health->set_last_error(status.last_error);
+  if (status.state == RecordingState::kFaulted) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);
+    health->set_message(status.last_error.empty() ? "recording faulted" : status.last_error);
+    return;
+  }
+  health->set_state(proto::common::SERVICE_HEALTH_STATE_OK);
+  health->set_message(status.state == RecordingState::kRecording ? "recording active"
+                                                                 : "recording idle");
 }
 
 }  // namespace
@@ -66,6 +81,22 @@ grpc::Status RecordingGrpcService::Stop(grpc::ServerContext*, const proto::commo
   if (!recording_service_.Stop(&error)) {
     FillStatus(recording_service_.status(), response);
     return grpc::Status(grpc::StatusCode::INTERNAL, error);
+  }
+  FillStatus(recording_service_.status(), response);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::AppendEvent(
+    grpc::ServerContext*, const proto::recording::AppendRecordingEventRequest* request,
+    proto::recording::RecordingStatus* response) {
+  RecordingEvent event;
+  event.timestamp_ms = request->timestamp_ms();
+  event.topic = request->topic();
+  event.payload_json = request->payload_json();
+  std::string error;
+  if (!recording_service_.HandleEvent(event, &error)) {
+    FillStatus(recording_service_.status(), response);
+    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error);
   }
   FillStatus(recording_service_.status(), response);
   return grpc::Status::OK;
@@ -132,6 +163,7 @@ void RecordingGrpcService::FillStatus(const RecordingStatus& status,
   response->set_last_error(status.last_error);
   response->set_stored_sessions(status.stored_sessions);
   response->set_stored_bytes(status.stored_bytes);
+  FillHealth(status, response->mutable_health());
 }
 
 void RecordingGrpcService::FillSession(const RecordingSessionInfo& session,

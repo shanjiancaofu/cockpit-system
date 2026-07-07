@@ -13,5 +13,6 @@ target_link_libraries(camera-service PRIVATE
     camera_photo_service
     camera_shm
     logging
+    recording_event_client
     runtime
 )

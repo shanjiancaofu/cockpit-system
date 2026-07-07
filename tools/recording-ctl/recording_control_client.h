@@ -17,6 +17,9 @@ class RecordingControlClient {
   bool Start(const std::string& trigger, proto::recording::RecordingStatus* status,
              std::string* error);
   bool Stop(proto::recording::RecordingStatus* status, std::string* error);
+  bool AppendEvent(std::int64_t timestamp_ms, const std::string& topic,
+                   const std::string& payload_json, proto::recording::RecordingStatus* status,
+                   std::string* error);
   bool GetStatus(proto::recording::RecordingStatus* status, std::string* error);
   bool List(std::uint32_t limit, proto::recording::ListRecordingsResponse* response,
             std::string* error);

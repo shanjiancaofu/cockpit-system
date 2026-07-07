@@ -1,10 +1,11 @@
 [Unit]
-Description=Smart Cockpit Recording Service
+Description=cockpit-system Recording Service
 After=vehicle-data-service.service
+Wants=vehicle-data-service.service
 
 [Service]
 Type=simple
-WorkingDirectory=/cockpit-system/current
+WorkingDirectory=/cockpit-system
 ExecStart=/cockpit-system/current/bin/recording-service --config /cockpit-system/config/config.yaml
 Restart=on-failure
 RestartSec=2

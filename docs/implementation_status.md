@@ -13,6 +13,7 @@ Qt UI 链路，云端前后端暂缓。
 - `cockpit/core/config` 类型化 YAML 配置、启动校验和不可变配置模型。
 - 日志、参数解析、信号退出、时间工具。
 - Runtime module 生命周期：顺序启动、逆序停止、失败回滚和状态查询。
+- 进程内 `MessageBus`：topic 订阅、通配订阅、固定队列、drop 统计和 metrics。
 - POSIX shared memory 通用映射封装。
 - protobuf/gRPC 自动生成及 `contracts` target。
 - pre-commit、clang-format、clang-tidy、CTest 和 smoke test。
@@ -57,14 +58,17 @@ Qt UI 链路，云端前后端暂缓。
 - Qt 6/QML 仪表与相机页面。
 - 车辆数据 live/stale/disconnected 状态。
 - 相机 waiting/live/stalled/last-frame/disconnected 状态。
-- `cockpit-ctl status --watch` 聚合 gateway、audio、voice、camera 状态。
+- `cockpit-ctl status --watch` 聚合 gateway、audio、voice、camera、recording 状态。
+- `cockpit-ctl health` 和 `scripts/check_health.sh` 提供脚本化健康检查。
 - `audio-probe`、`camera-probe`、`camera-preview-probe`、`camera-ctl`、`voice-ctl`。
 
 ### 研发录包与持久化
 
 - 独立 `recording-service`，不与用户语音交互职责混合。
 - 订阅 VehicleState gRPC stream，按会话写入 JSONL 和 manifest。
-- 新增 `events.jsonl` 通用轻量事件流，用于后续接入 camera/voice/audio 元数据；大块音视频数据不直接进入事件 JSONL。
+- 新增 `events.jsonl` 通用轻量事件流，用于接入 camera/voice/audio 元数据；大块音视频数据不直接进入事件 JSONL。
+- recording gRPC 支持 `AppendEvent`；camera 拍照结果、voice response 和 `recording-ctl --event-topic`
+  可写入录包事件。
 - 临时目录、原子完成目录、`COMPLETE` 标记和异常中断恢复。
 - 启动扫描目录索引、历史列表、空间统计、删除和损坏 manifest 隔离。
 - 最大会话数/总空间保留策略，完成后自动清理并支持手动 prune。
@@ -109,7 +113,7 @@ bash scripts/run_smoke.sh
 ```
 
 - 默认 Debug 构建通过。
-- CTest 25/25 通过。
+- CTest 28/28 通过。
 - Qt、GStreamer、whisper.cpp 完整构建通过。
 - VehicleState、recording、topic、audio、voice、camera 和 cloud placeholder smoke 链路通过。
 - `vcan0` SocketCAN 收发已验证。

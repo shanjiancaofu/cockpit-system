@@ -1,17 +1,56 @@
 #include <chrono>
 #include <memory>
+#include <sstream>
 #include <thread>
 
 #include "cockpit/core/runtime/ServiceRuntime.h"
 #include "cockpit/modules/voice/actions/cockpit_action_dispatcher.h"
 #include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
 #include "cockpit/modules/voice/responses/async_voice_response_sink.h"
+#include "cockpit/services/recording-service/client/recording_event_publisher.h"
 #include "cockpit/services/voice-interaction-service/audio/audio_speech_client.h"
 #include "cockpit/services/voice-interaction-service/audio/audio_transcript_client.h"
 #include "cockpit/services/voice-interaction-service/grpc/voice_grpc_service.h"
 #include "cockpit/services/voice-interaction-service/hmi/local_hmi_command_provider.h"
 #include "cockpit/services/voice-interaction-service/interaction/voice_interaction_service.h"
 #include "cockpit/services/voice-interaction-service/vehicle/gateway_vehicle_status_client.h"
+
+namespace {
+
+std::string EscapeJson(const std::string& input) {
+  std::ostringstream output;
+  for (const char character : input) {
+    switch (character) {
+      case '\\':
+        output << "\\\\";
+        break;
+      case '"':
+        output << "\\\"";
+        break;
+      case '\n':
+        output << "\\n";
+        break;
+      default:
+        output << character;
+        break;
+    }
+  }
+  return output.str();
+}
+
+std::string VoiceResponsePayload(const cockpit::voice::VoiceResponse& response) {
+  std::ostringstream output;
+  output << "{"
+         << "\"id\":" << response.id << ',' << "\"transcript_id\":" << response.transcript_id << ','
+         << "\"transcript_text\":\"" << EscapeJson(response.transcript_text) << "\","
+         << "\"intent\":\"" << cockpit::voice::ToString(response.intent) << "\","
+         << "\"action\":\"" << cockpit::voice::ToString(response.action) << "\","
+         << "\"action_status\":\"" << cockpit::voice::ToString(response.action_status) << "\","
+         << "\"response_text\":\"" << EscapeJson(response.response_text) << "\"}";
+  return output.str();
+}
+
+}  // namespace
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "voice-interaction-service");
@@ -30,8 +69,14 @@ int main(int argc, char** argv) {
         std::make_unique<cockpit::voice::AudioSpeechClient>(
             runtime.config().services().voice_interaction.audio_address));
   }
-  cockpit::voice::VoiceInteractionService service(enabled, std::move(assistant),
-                                                  std::move(dispatcher), std::move(output));
+  cockpit::recording::RecordingEventPublisher recording_events(
+      runtime.config().services().recording.grpc.listen_address);
+  cockpit::voice::VoiceInteractionService service(
+      enabled, std::move(assistant), std::move(dispatcher), std::move(output),
+      [&recording_events](const cockpit::voice::VoiceResponse& response) {
+        recording_events.Publish(static_cast<std::int64_t>(response.timestamp_ms),
+                                 "/voice/response", VoiceResponsePayload(response));
+      });
   cockpit::voice::VoiceGrpcService grpc_service(service);
   const auto& config = runtime.config().services().voice_interaction;
   if (!grpc_service.Start(config.grpc.listen_address)) {

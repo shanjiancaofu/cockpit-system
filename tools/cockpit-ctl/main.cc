@@ -169,6 +169,28 @@ const char* RuntimeModuleStateName(proto::common::RuntimeModuleState state) {
   }
 }
 
+const char* ServiceHealthStateName(proto::common::ServiceHealthState state) {
+  switch (state) {
+    case proto::common::SERVICE_HEALTH_STATE_OK:
+      return "ok";
+    case proto::common::SERVICE_HEALTH_STATE_DEGRADED:
+      return "degraded";
+    case proto::common::SERVICE_HEALTH_STATE_FAULTED:
+      return "faulted";
+    case proto::common::SERVICE_HEALTH_STATE_UNSPECIFIED:
+    default:
+      return "unspecified";
+  }
+}
+
+void PrintHealth(const proto::common::ServiceHealth& health) {
+  std::cout << "  health: " << ServiceHealthStateName(health.state());
+  if (!health.message().empty()) {
+    std::cout << " message=\"" << health.message() << "\"";
+  }
+  std::cout << "\n";
+}
+
 const char* RecordingStateName(proto::recording::RecordingState state) {
   switch (state) {
     case proto::recording::RECORDING_STATE_IDLE:
@@ -240,6 +262,7 @@ void PrintAudioStatus(const std::string& address) {
             << " dBFS frames=" << audio.metrics().vad_frames_processed() << "\n"
             << "  asr: " << (audio.asr_enabled() ? "enabled" : "disabled")
             << " transcripts=" << audio.metrics().transcripts_published() << "\n";
+  PrintHealth(audio.health());
   PrintModules(audio.modules());
   if (!audio.last_error().empty()) {
     std::cout << "  last_error: " << audio.last_error() << "\n";
@@ -265,6 +288,7 @@ void PrintVoiceStatus(const std::string& address) {
             << " responses=" << voice.metrics().responses_published()
             << " actions=" << voice.metrics().actions_succeeded() << "/"
             << voice.metrics().actions_attempted() << "\n";
+  PrintHealth(voice.health());
   if (!voice.latest_response().response_text().empty()) {
     std::cout << "  latest: " << voice.latest_response().response_text() << "\n";
   }
@@ -299,6 +323,7 @@ void PrintCameraStatus(const std::string& address) {
             << " source_skipped=" << camera.source_frames_skipped() << "\n"
             << "  frame_health: " << CameraFrameHealth(camera, now_ms) << " age_ms=" << frame_age_ms
             << " sequence=" << camera.last_frame_sequence() << "\n";
+  PrintHealth(camera.health());
   PrintModules(camera.modules());
   if (!camera.last_error().empty()) {
     std::cout << "  last_error: " << camera.last_error() << "\n";
@@ -324,6 +349,7 @@ void PrintRecordingStatus(const std::string& address) {
             << "  messages: " << recording.messages_written()
             << " stored_sessions=" << recording.stored_sessions()
             << " stored_bytes=" << recording.stored_bytes() << "\n";
+  PrintHealth(recording.health());
   if (!recording.last_error().empty()) {
     std::cout << "  last_error: " << recording.last_error() << "\n";
   }
@@ -356,8 +382,8 @@ bool CheckAudio(const std::string& address, std::string* error) {
     *error = RpcError(status);
     return false;
   }
-  if (audio.capture_state() == proto::audio::CAPTURE_STATE_FAULTED) {
-    *error = audio.last_error().empty() ? "capture faulted" : audio.last_error();
+  if (audio.health().state() == proto::common::SERVICE_HEALTH_STATE_FAULTED) {
+    *error = audio.health().message().empty() ? "audio faulted" : audio.health().message();
     return false;
   }
   return true;
@@ -375,8 +401,8 @@ bool CheckVoice(const std::string& address, std::string* error) {
     *error = RpcError(status);
     return false;
   }
-  if (voice.state() == proto::voice::INTERACTION_STATE_FAULTED) {
-    *error = voice.last_error().empty() ? "voice faulted" : voice.last_error();
+  if (voice.health().state() == proto::common::SERVICE_HEALTH_STATE_FAULTED) {
+    *error = voice.health().message().empty() ? "voice faulted" : voice.health().message();
     return false;
   }
   return true;
@@ -394,8 +420,8 @@ bool CheckCamera(const std::string& address, std::string* error) {
     *error = RpcError(status);
     return false;
   }
-  if (camera.state() == proto::camera::CAMERA_PREVIEW_STATE_FAULTED) {
-    *error = camera.last_error().empty() ? "camera faulted" : camera.last_error();
+  if (camera.health().state() == proto::common::SERVICE_HEALTH_STATE_FAULTED) {
+    *error = camera.health().message().empty() ? "camera faulted" : camera.health().message();
     return false;
   }
   return true;
@@ -413,8 +439,9 @@ bool CheckRecording(const std::string& address, std::string* error) {
     *error = RpcError(status);
     return false;
   }
-  if (recording.state() == proto::recording::RECORDING_STATE_FAULTED) {
-    *error = recording.last_error().empty() ? "recording faulted" : recording.last_error();
+  if (recording.health().state() == proto::common::SERVICE_HEALTH_STATE_FAULTED) {
+    *error =
+        recording.health().message().empty() ? "recording faulted" : recording.health().message();
     return false;
   }
   return true;

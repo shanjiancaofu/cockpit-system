@@ -113,6 +113,8 @@ if [[ "${recording_ready}" != "true" ]]; then
   exit 1
 fi
 "${bin_dir}/recording-ctl" --start --trigger smoke --config "${config_path}"
+"${bin_dir}/recording-ctl" --event-topic /dev/smoke-event \
+  --event-payload '{"ok":true,"source":"run_smoke"}' --config "${config_path}"
 sleep 0.5
 "${bin_dir}/recording-ctl" --config "${config_path}"
 "${bin_dir}/recording-ctl" --stop --config "${config_path}"
@@ -131,6 +133,11 @@ fi
 if ! find "${recording_directory}/sessions" -name vehicle_state.jsonl -type f \
     -size +0c -print -quit | grep -q .; then
   echo "recording smoke did not persist vehicle states" >&2
+  exit 1
+fi
+if ! find "${recording_directory}/sessions" -name events.jsonl -type f \
+    -size +0c -print -quit | grep -q .; then
+  echo "recording smoke did not persist events" >&2
   exit 1
 fi
 recording_session_id="$(printf '%s\n' "${recording_list}" | awk '/state=complete/{print $1; exit}')"

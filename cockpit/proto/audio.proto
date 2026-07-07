@@ -87,6 +87,7 @@ message AudioStatus {
   double input_level_dbfs = 9;
   bool asr_enabled = 10;
   repeated cockpit.proto.common.RuntimeModuleStatus modules = 11;
+  cockpit.proto.common.ServiceHealth health = 100;
 }
 
 service AudioControl {

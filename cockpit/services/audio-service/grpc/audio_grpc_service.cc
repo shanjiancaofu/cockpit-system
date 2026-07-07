@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/utils/Time.h"
 
 namespace cockpit {
 namespace audio {
@@ -49,6 +50,24 @@ proto::common::RuntimeModuleState ToProtoModuleState(runtime::ModuleState state)
       return proto::common::RUNTIME_MODULE_STATE_FAILED;
   }
   return proto::common::RUNTIME_MODULE_STATE_UNSPECIFIED;
+}
+
+void FillHealth(const AudioServiceStatus& status, proto::common::ServiceHealth* health) {
+  health->set_service_name("audio-service");
+  health->set_checked_at_ms(utils::NowMs());
+  health->set_last_error(status.last_error);
+  if (status.capture_state == AudioCaptureState::kFaulted) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);
+    health->set_message(status.last_error.empty() ? "audio capture faulted" : status.last_error);
+    return;
+  }
+  if (status.capture_state == AudioCaptureState::kStopped) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
+    health->set_message("audio capture stopped");
+    return;
+  }
+  health->set_state(proto::common::SERVICE_HEALTH_STATE_OK);
+  health->set_message("audio service online");
 }
 
 }  // namespace
@@ -157,6 +176,7 @@ void AudioGrpcService::FillStatus(const AudioServiceStatus& status,
   response->set_voice_activity_state(ToProtoVoiceActivityState(status));
   response->set_input_level_dbfs(status.input_level_dbfs);
   response->set_asr_enabled(status.asr_enabled);
+  FillHealth(status, response->mutable_health());
   auto* metrics = response->mutable_metrics();
   metrics->set_pcm_frames_read(status.metrics.pcm_frames_read);
   metrics->set_audio_frames_published(status.metrics.audio_frames_published);
