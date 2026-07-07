@@ -23,6 +23,10 @@ add_executable(module_manager_test module_manager_test.cc)
 target_link_libraries(module_manager_test PRIVATE runtime)
 add_test(NAME module_manager_test COMMAND module_manager_test)
 
+add_executable(dependency_graph_test dependency_graph_test.cc)
+target_link_libraries(dependency_graph_test PRIVATE runtime)
+add_test(NAME dependency_graph_test COMMAND dependency_graph_test)
+
 add_executable(shared_memory_region_test shared_memory_region_test.cc)
 target_link_libraries(shared_memory_region_test PRIVATE ipc)
 add_test(NAME shared_memory_region_test COMMAND shared_memory_region_test)

@@ -31,7 +31,10 @@ int main() {
                     ("cockpit_recording_test_" + std::to_string(getpid()));
   std::filesystem::remove_all(root);
 
-  cockpit::recording::RecordingSession session(root, "test_vehicle");
+  cockpit::recording::RecordingMetadata metadata;
+  metadata.config_path = "configs/test.yaml";
+  metadata.sources = {"vehicle_state", "camera_frame_meta", "voice_response"};
+  cockpit::recording::RecordingSession session(root, "test_vehicle", metadata);
   std::string error;
   if (!Check(session.Start("unit_test", &error), "start recording session failed")) {
     std::cerr << error << '\n';
@@ -81,6 +84,12 @@ int main() {
             "recording manifest state mismatch") &&
       Check(manifest.find("\"messages_written\": 3") != std::string::npos,
             "recording manifest message count mismatch") &&
+      Check(manifest.find("\"project\": \"cockpit-system\"") != std::string::npos,
+            "recording manifest project metadata missing") &&
+      Check(manifest.find("\"config_path\": \"configs/test.yaml\"") != std::string::npos,
+            "recording manifest config path missing") &&
+      Check(manifest.find("\"camera_frame_meta\"") != std::string::npos,
+            "recording manifest source metadata missing") &&
       Check(states.find("\"timestamp_ms\":1000") != std::string::npos,
             "first vehicle state missing") &&
       Check(states.find("\"timestamp_ms\":1020") != std::string::npos,

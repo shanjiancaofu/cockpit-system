@@ -6,6 +6,8 @@
 #include <cctype>
 #include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace cockpit {
 namespace config {
@@ -75,6 +77,56 @@ void ValidateAddress(const std::string& value, const std::string& path) {
 
 bool IsOneOf(const std::string& value, const std::string& first, const std::string& second) {
   return value == first || value == second;
+}
+
+std::vector<std::string> ReadStringList(const YAML::Node& parent, const std::string& key,
+                                        const std::vector<std::string>& default_value,
+                                        const std::string& path) {
+  const YAML::Node value = parent[key];
+  if (!value) {
+    return default_value;
+  }
+  if (!value.IsSequence()) {
+    throw std::runtime_error(path + " must be a list");
+  }
+  std::vector<std::string> result;
+  for (std::size_t i = 0; i < value.size(); ++i) {
+    if (!value[i].IsScalar()) {
+      throw std::runtime_error(path + " items must be scalars");
+    }
+    result.push_back(value[i].as<std::string>());
+  }
+  return result;
+}
+
+std::vector<ServiceDependencyConfig> ReadServiceDependencies(
+    const YAML::Node& parent, const std::vector<ServiceDependencyConfig>& default_value,
+    const std::string& path) {
+  const YAML::Node value = parent["dependencies"];
+  if (!value) {
+    return default_value;
+  }
+  if (!value.IsSequence()) {
+    throw std::runtime_error(path + ".dependencies must be a list");
+  }
+  std::vector<ServiceDependencyConfig> result;
+  for (std::size_t i = 0; i < value.size(); ++i) {
+    const YAML::Node item = value[i];
+    if (!item.IsMap()) {
+      throw std::runtime_error(path + ".dependencies items must be maps");
+    }
+    ServiceDependencyConfig dependency;
+    dependency.service = Read(item, "service", dependency.service,
+                              path + ".dependencies[" + std::to_string(i) + "].service");
+    dependency.required =
+        ReadStringList(item, "required", dependency.required,
+                       path + ".dependencies[" + std::to_string(i) + "].required");
+    dependency.optional =
+        ReadStringList(item, "optional", dependency.optional,
+                       path + ".dependencies[" + std::to_string(i) + "].optional");
+    result.push_back(std::move(dependency));
+  }
+  return result;
 }
 
 }  // namespace
@@ -319,6 +371,10 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(topic, "backend", config.tools_.topic.backend, "tools.topic.backend");
   config.tools_.topic.dir = Read(topic, "dir", config.tools_.topic.dir, "tools.topic.dir");
 
+  const YAML::Node runtime = ChildMap(root, "runtime", "runtime");
+  config.runtime_.dependencies =
+      ReadServiceDependencies(runtime, config.runtime_.dependencies, "runtime");
+
   config.Validate();
   return config;
 }
@@ -466,6 +522,24 @@ void SystemConfig::Validate() const {
     throw std::runtime_error("tools.topic.backend must be file or grpc");
   }
   RequireNotEmpty(tools_.topic.dir, "tools.topic.dir");
+
+  for (std::size_t i = 0; i < runtime_.dependencies.size(); ++i) {
+    const auto& dependency = runtime_.dependencies[i];
+    const std::string prefix = "runtime.dependencies[" + std::to_string(i) + "]";
+    RequireNotEmpty(dependency.service, prefix + ".service");
+    for (const auto& required : dependency.required) {
+      RequireNotEmpty(required, prefix + ".required");
+      if (required == dependency.service) {
+        throw std::runtime_error(prefix + ".required must not depend on itself");
+      }
+    }
+    for (const auto& optional : dependency.optional) {
+      RequireNotEmpty(optional, prefix + ".optional");
+      if (optional == dependency.service) {
+        throw std::runtime_error(prefix + ".optional must not depend on itself");
+      }
+    }
+  }
 }
 
 }  // namespace config

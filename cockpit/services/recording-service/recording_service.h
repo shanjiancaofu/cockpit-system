@@ -14,7 +14,7 @@ namespace recording {
 class RecordingService {
  public:
   RecordingService(std::filesystem::path root_directory, std::string vehicle_id,
-                   RecordingRetentionPolicy retention_policy);
+                   RecordingRetentionPolicy retention_policy, RecordingMetadata metadata = {});
 
   bool Initialize(std::string* error);
   bool Start(const std::string& trigger, std::string* error);

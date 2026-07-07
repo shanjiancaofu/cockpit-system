@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "audio.grpc.pb.h"
 #include "camera.grpc.pb.h"
@@ -48,6 +49,7 @@ void PrintUsage() {
             << "  cockpit-ctl status [--config configs/config.yaml]\n"
             << "  cockpit-ctl status --watch [--interval SEC] [--config configs/config.yaml]\n"
             << "  cockpit-ctl health [--config configs/config.yaml]\n"
+            << "  cockpit-ctl dependencies [--config configs/config.yaml]\n"
             << "\nOptions:\n"
             << "  --config PATH    config file path (default: configs/config.yaml)\n"
             << "  --watch          watch mode, refresh status periodically\n"
@@ -323,6 +325,10 @@ void PrintCameraStatus(const std::string& address) {
             << " source_skipped=" << camera.source_frames_skipped() << "\n"
             << "  frame_health: " << CameraFrameHealth(camera, now_ms) << " age_ms=" << frame_age_ms
             << " sequence=" << camera.last_frame_sequence() << "\n";
+  std::cout << "  continuity: consecutive_drops=" << camera.consecutive_frame_drops()
+            << " max_drops=" << camera.max_consecutive_frame_drops()
+            << " consecutive_gaps=" << camera.consecutive_source_gaps()
+            << " max_gaps=" << camera.max_consecutive_source_gaps() << "\n";
   PrintHealth(camera.health());
   PrintModules(camera.modules());
   if (!camera.last_error().empty()) {
@@ -491,6 +497,33 @@ int RunHealth(const config::SystemConfig& config) {
   return healthy ? 0 : 2;
 }
 
+void PrintStringList(const std::vector<std::string>& values) {
+  if (values.empty()) {
+    std::cout << "[]";
+    return;
+  }
+  std::cout << '[';
+  for (std::size_t i = 0; i < values.size(); ++i) {
+    if (i > 0) {
+      std::cout << ", ";
+    }
+    std::cout << values[i];
+  }
+  std::cout << ']';
+}
+
+int RunDependencies(const config::SystemConfig& config) {
+  std::cout << "cockpit-system dependencies\n";
+  for (const auto& dependency : config.runtime().dependencies) {
+    std::cout << dependency.service << "\n  required: ";
+    PrintStringList(dependency.required);
+    std::cout << "\n  optional: ";
+    PrintStringList(dependency.optional);
+    std::cout << "\n";
+  }
+  return 0;
+}
+
 int WatchStatus(const config::SystemConfig& config, int interval_sec) {
   SetupSignalHandler();
   while (!g_stop.load()) {
@@ -519,7 +552,7 @@ int main(int argc, char** argv) {
     cockpit::ctl::PrintUsage();
     return command.empty() ? 1 : 0;
   }
-  if (command != "status" && command != "health") {
+  if (command != "status" && command != "health" && command != "dependencies") {
     std::cerr << "unknown command: " << command << "\n";
     cockpit::ctl::PrintUsage();
     return 1;
@@ -530,6 +563,9 @@ int main(int argc, char** argv) {
 
   if (command == "health") {
     return cockpit::ctl::RunHealth(config);
+  }
+  if (command == "dependencies") {
+    return cockpit::ctl::RunDependencies(config);
   }
 
   if (args.HasFlag("watch")) {

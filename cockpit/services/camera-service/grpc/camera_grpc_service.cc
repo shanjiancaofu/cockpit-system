@@ -213,6 +213,11 @@ void CameraGrpcService::FillStatus(const CameraServiceStatus& status,
   response->set_last_frame_sequence(status.last_frame_sequence);
   response->set_last_frame_timestamp_ms(status.last_frame_timestamp_ms);
   response->set_last_frame_received_at_ms(status.last_frame_received_at_ms);
+  response->set_preview_started_at_ms(status.preview_started_at_ms);
+  response->set_consecutive_frame_drops(status.consecutive_frame_drops);
+  response->set_max_consecutive_frame_drops(status.max_consecutive_frame_drops);
+  response->set_consecutive_source_gaps(status.consecutive_source_gaps);
+  response->set_max_consecutive_source_gaps(status.max_consecutive_source_gaps);
   response->set_last_error(status.last_error);
   FillHealth(status, response->mutable_health());
   for (const auto& module : status.modules) {

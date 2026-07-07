@@ -6,6 +6,8 @@
 #include <utility>
 #include <vector>
 
+#include "cockpit/core/event/message_bus.h"
+
 namespace {
 
 cockpit::camera::VideoDeviceInfo CaptureDevice(const std::string& path) {
@@ -99,13 +101,16 @@ int main() {
   int list_calls = 0;
   auto preview_source = std::make_unique<FakePreviewSource>();
   auto* preview_source_ptr = preview_source.get();
+  auto message_bus = std::make_shared<cockpit::event::MessageBus>();
+  auto camera_status_events = message_bus->Subscribe("/camera/status");
+  auto camera_frame_events = message_bus->Subscribe("/camera/frame_meta");
   cockpit::camera::CameraService service(
       [&list_calls](std::string*) {
         ++list_calls;
         return std::vector<cockpit::camera::VideoDeviceInfo>{CaptureDevice("/dev/video0"),
                                                              MetadataDevice("/dev/video1")};
       },
-      std::move(preview_source));
+      std::move(preview_source), nullptr, message_bus);
 
   std::string error;
   const auto devices = service.ListDevices(&error);
@@ -135,6 +140,7 @@ int main() {
       !Check(status.last_frame_timestamp_ms == 1000, "camera preview timestamp metric mismatch") ||
       !Check(status.last_frame_received_at_ms > 0,
              "camera preview receive time was not recorded") ||
+      !Check(status.preview_started_at_ms > 0, "camera preview start time was not recorded") ||
       !Check(preview_source_ptr->start_count() == 1, "camera preview source was not started") ||
       !Check(preview_source_ptr->config().device == "/dev/video0",
              "camera preview source device mismatch") ||
@@ -145,10 +151,21 @@ int main() {
     return 1;
   }
 
+  const auto first_status_event = camera_status_events->TryPop();
+  const auto first_frame_event = camera_frame_events->TryPop();
+  if (!Check(first_status_event.has_value(), "camera status event was not published") ||
+      !Check(first_frame_event.has_value(), "camera frame metadata event was not published") ||
+      !Check(first_frame_event->payload_json.find("\"sequence\":1") != std::string::npos,
+             "camera frame event payload mismatch")) {
+    return 1;
+  }
+
   preview_source_ptr->EmitFrame(4, 1100);
   status = service.status();
   if (!Check(status.frames_received == 2, "second camera preview frame was not counted") ||
       !Check(status.source_frames_skipped == 2, "camera source frame gap metric mismatch") ||
+      !Check(status.consecutive_source_gaps == 1, "camera source gap streak mismatch") ||
+      !Check(status.max_consecutive_source_gaps == 1, "camera max source gap mismatch") ||
       !Check(status.last_frame_sequence == 4, "latest camera frame sequence mismatch") ||
       !Check(status.last_frame_timestamp_ms == 1100, "latest camera frame timestamp mismatch")) {
     return 1;

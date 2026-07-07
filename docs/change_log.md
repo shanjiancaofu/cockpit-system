@@ -2,6 +2,30 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-07-07 - Runtime 依赖图、camera MessageBus 接入与录包元数据
+
+### 变更内容
+
+- `core/runtime` 新增 `DependencyGraph`，支持 required/optional 服务依赖和 required 环检测。
+- `configs/config.yaml` 新增 `runtime.dependencies`，`cockpit-ctl dependencies` 可打印当前服务依赖图。
+- camera-service 接入进程内 `MessageBus`，发布 `/camera/status` 和 `/camera/frame_meta`。
+- camera-service 增加 recording bridge，采样转发 frame metadata 和状态事件到 recording-service。
+- camera status 增加 preview 启动时间、连续 drop、最大连续 drop、连续 source gap 等可用性指标。
+- recording manifest 增加 project、schema_version、config_path 和 sources 元数据。
+
+### 设计决定
+
+- `runtime.dependencies` 只表达依赖关系，不负责启动进程；进程生命周期仍由 systemd/脚本管理。
+- camera 帧像素继续走 shared memory，MessageBus 和 recording 只承载轻量元数据。
+- frame metadata 转发给 recording-service 做采样，避免按帧率打满 gRPC 控制面。
+
+### 验证结果
+
+- x86_64 Debug 构建通过，CTest 29/29。
+- 完整 `scripts/run_smoke.sh` 通过；第一次运行遇到一次 audio status RPC 超时，重跑通过，服务日志无 fault。
+- `cockpit-ctl dependencies --config configs/config.yaml` 输出 required/optional 依赖图正常。
+- `pre-commit run --all-files` 通过；`git diff --check` 无空白错误。
+
 ## 2026-07-07 - Runtime MessageBus、统一健康模型与多源录包事件
 
 ### 变更内容

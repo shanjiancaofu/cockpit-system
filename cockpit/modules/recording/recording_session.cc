@@ -57,8 +57,11 @@ std::string MakeSessionId() {
 
 }  // namespace
 
-RecordingSession::RecordingSession(std::filesystem::path root_directory, std::string vehicle_id)
-    : root_directory_(std::move(root_directory)), vehicle_id_(std::move(vehicle_id)) {
+RecordingSession::RecordingSession(std::filesystem::path root_directory, std::string vehicle_id,
+                                   RecordingMetadata metadata)
+    : root_directory_(std::move(root_directory)),
+      vehicle_id_(std::move(vehicle_id)),
+      metadata_(std::move(metadata)) {
 }
 
 RecordingSession::~RecordingSession() {
@@ -246,8 +249,19 @@ bool RecordingSession::WriteManifest(const std::filesystem::path& directory,
   }
   manifest << "{\n"
            << "  \"version\": 1,\n"
+           << "  \"project\": \"" << EscapeJson(metadata_.project) << "\",\n"
+           << "  \"schema_version\": \"" << EscapeJson(metadata_.schema_version) << "\",\n"
            << "  \"session_id\": \"" << EscapeJson(status_.session_id) << "\",\n"
            << "  \"vehicle_id\": \"" << EscapeJson(vehicle_id_) << "\",\n"
+           << "  \"config_path\": \"" << EscapeJson(metadata_.config_path) << "\",\n"
+           << "  \"sources\": [";
+  for (std::size_t i = 0; i < metadata_.sources.size(); ++i) {
+    if (i > 0) {
+      manifest << ", ";
+    }
+    manifest << "\"" << EscapeJson(metadata_.sources[i]) << "\"";
+  }
+  manifest << "],\n"
            << "  \"state\": \"" << EscapeJson(state) << "\",\n"
            << "  \"trigger\": \"" << EscapeJson(status_.trigger) << "\",\n"
            << "  \"started_at_ms\": " << status_.started_at_ms << ",\n"

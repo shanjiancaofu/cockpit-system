@@ -105,3 +105,18 @@ tools:
   topic:
     backend: file
     dir: logs/topics
+
+runtime:
+  dependencies:
+    - service: cockpit-gateway-service
+      required: [vehicle-data-service]
+    - service: voice-interaction-service
+      required: [audio-service, cockpit-gateway-service]
+      optional: [recording-service]
+    - service: camera-service
+      optional: [recording-service]
+    - service: recording-service
+      required: [vehicle-data-service]
+    - service: cockpit-ui
+      required: [cockpit-gateway-service, camera-service]
+      optional: [audio-service, voice-interaction-service, recording-service]

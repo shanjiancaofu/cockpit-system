@@ -8,8 +8,9 @@ namespace cockpit {
 namespace recording {
 
 RecordingService::RecordingService(std::filesystem::path root_directory, std::string vehicle_id,
-                                   RecordingRetentionPolicy retention_policy)
-    : session_(root_directory, std::move(vehicle_id)),
+                                   RecordingRetentionPolicy retention_policy,
+                                   RecordingMetadata metadata)
+    : session_(root_directory, std::move(vehicle_id), std::move(metadata)),
       catalog_(std::move(root_directory)),
       retention_policy_(retention_policy) {
 }

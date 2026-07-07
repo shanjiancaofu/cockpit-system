@@ -125,6 +125,8 @@ services:
 - 相对 `photo_directory` 以 `paths.data_dir` 为基准，默认保存到 `data/photos`。
 - `photo_jpeg_quality` 范围为 1-100。
 - 拍照只接受不超过 `photo_max_frame_age_ms` 的最新帧，避免保存卡住的旧画面。
+- camera-service 内部通过 MessageBus 发布 `/camera/status` 和 `/camera/frame_meta`，录包桥只转发
+  轻量元数据，不传输帧像素。
 
 ## 研发录包
 
@@ -145,13 +147,29 @@ services:
 - 相对 `directory` 以 `paths.data_dir` 为基准，默认写入 `data/recordings/sessions`。
 - `auto_start` 适合固定诊断任务；日常开发建议通过 `recording-ctl` 显式控制。
 - 完成会话包含 `manifest.json`、`vehicle_state.jsonl`、`events.jsonl` 和 `COMPLETE`。
+- `manifest.json` 记录 project、schema_version、vehicle_id、config_path 和 sources，便于研发复盘。
 - `events.jsonl` 只保存轻量研发事件元数据；相机图片、视频和音频数据应保存为独立文件，事件中只记录路径、句柄和时间戳。
 - 异常退出遗留的 `.recording_*` 会在下次启动时改名为 `interrupted_*` 并写入
   `INTERRUPTED` 标记。
 - 当前已记录 VehicleState，并通过 `AppendEvent` 接收通用事件；camera 拍照结果和 voice response
-  可写入 `events.jsonl`。相机、音频大块数据源尚未接入。
+  可写入 `events.jsonl`；camera status/frame metadata 通过 camera-service 内部 MessageBus 桥接到
+  recording-service。相机、音频大块数据源尚未接入。
 - `max_sessions` 和 `max_total_bytes` 同时生效；完成会话后自动从最旧数据开始清理。
 - `recording-ctl --prune` 按同一策略立即执行清理，不会删除当前活动会话。
+
+## Runtime 依赖
+
+```yaml
+runtime:
+  dependencies:
+    - service: voice-interaction-service
+      required: [audio-service, cockpit-gateway-service]
+      optional: [recording-service]
+```
+
+- `required`：核心依赖，部署时应保证先启动或可用。
+- `optional`：弱依赖，不可用时服务主流程继续运行，但会降级或只记录 warning。
+- 查看当前依赖图：`cockpit-ctl dependencies --config configs/config.yaml`。
 
 ## 语音和 AI
 

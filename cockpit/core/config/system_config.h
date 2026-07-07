@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace cockpit {
 namespace config {
@@ -166,6 +167,26 @@ struct ToolsConfig {
   TopicToolConfig topic;
 };
 
+struct ServiceDependencyConfig {
+  std::string service;
+  std::vector<std::string> required;
+  std::vector<std::string> optional;
+};
+
+struct RuntimeConfig {
+  std::vector<ServiceDependencyConfig> dependencies = {
+      {"cockpit-gateway-service", {"vehicle-data-service"}, {}},
+      {"voice-interaction-service",
+       {"audio-service", "cockpit-gateway-service"},
+       {"recording-service"}},
+      {"camera-service", {}, {"recording-service"}},
+      {"recording-service", {"vehicle-data-service"}, {}},
+      {"cockpit-ui",
+       {"cockpit-gateway-service", "camera-service"},
+       {"audio-service", "voice-interaction-service", "recording-service"}},
+  };
+};
+
 class SystemConfig {
  public:
   static SystemConfig LoadFromFile(const std::string& path);
@@ -191,6 +212,9 @@ class SystemConfig {
   const ToolsConfig& tools() const {
     return tools_;
   }
+  const RuntimeConfig& runtime() const {
+    return runtime_;
+  }
 
  private:
   void Validate() const;
@@ -202,6 +226,7 @@ class SystemConfig {
   HardwareConfig hardware_;
   FeaturesConfig features_;
   ToolsConfig tools_;
+  RuntimeConfig runtime_;
 };
 
 }  // namespace config

@@ -17,7 +17,9 @@ int main() {
       config.hardware().can.interface != "vcan0" ||
       config.features().voice.asr_provider != "mock" ||
       config.features().voice.asr_language != "zh" || config.features().voice.asr_threads != 4 ||
-      config.tools().topic.backend != "file") {
+      config.tools().topic.backend != "file" || config.runtime().dependencies.size() != 5 ||
+      config.runtime().dependencies[1].required.size() != 2 ||
+      config.runtime().dependencies[1].optional.size() != 1) {
     std::cerr << "typed config fields do not match config.yaml" << std::endl;
     return 1;
   }

@@ -5,6 +5,7 @@
 #include <fstream>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include "cockpit/modules/recording/recording_event.h"
 #include "cockpit/modules/vehicle/VehicleState.h"
@@ -33,9 +34,17 @@ struct RecordingStatus {
   std::string last_error;
 };
 
+struct RecordingMetadata {
+  std::string project = "cockpit-system";
+  std::string schema_version = "1";
+  std::string config_path;
+  std::vector<std::string> sources = {"vehicle_state", "events"};
+};
+
 class RecordingSession {
  public:
-  RecordingSession(std::filesystem::path root_directory, std::string vehicle_id);
+  RecordingSession(std::filesystem::path root_directory, std::string vehicle_id,
+                   RecordingMetadata metadata = {});
   ~RecordingSession();
 
   RecordingSession(const RecordingSession&) = delete;
@@ -57,6 +66,7 @@ class RecordingSession {
 
   const std::filesystem::path root_directory_;
   const std::string vehicle_id_;
+  const RecordingMetadata metadata_;
   mutable std::mutex mutex_;
   RecordingStatus status_;
   std::filesystem::path temporary_directory_;

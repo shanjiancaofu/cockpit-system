@@ -70,6 +70,10 @@ Module producer
 通配订阅、固定容量队列、drop 计数和 metrics。它适合模块间低频事件，不适合相机帧、音频 PCM
 或未来模型张量。
 
+当前已接入的真实用法：camera-service 在进程内发布 `/camera/status` 和 `/camera/frame_meta`，
+本进程 recording bridge 订阅后把轻量元数据转发给 recording-service。相机像素仍走 shared memory，
+不会进入 MessageBus 或 gRPC。
+
 ### 车辆状态
 
 VehicleState 体积小、频率低，当前使用 gRPC streaming。未来只有在频率和消费者数量明显增长时，
@@ -86,6 +90,9 @@ VehicleState 体积小、频率低，当前使用 gRPC streaming。未来只有�
 探测 gateway、audio、voice、camera 和 recording，全部健康返回 0，任一不可达或 faulted 返回非 0。
 各业务 status proto 内统一携带 `common.ServiceHealth`，包含 service name、ok/degraded/faulted、
 message、last_error 和检查时间。
+
+服务依赖关系由 `runtime.dependencies` 配置描述，并可通过 `cockpit-ctl dependencies` 查看。该配置只
+表达 required/optional 关系，不替代 systemd，也不负责拉起进程。
 
 当前不引入通用 Actor、DDS、共享内存 ring 或动态插件系统。`MessageBus` 只作为进程内小消息总线；
 只有出现跨进程小消息路由、统一调度或回放需求后，才继续抽象 Scheduler、Recorder 或 Monitor。

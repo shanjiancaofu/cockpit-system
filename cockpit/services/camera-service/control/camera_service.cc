@@ -1,6 +1,8 @@
 #include "camera_service.h"
 
+#include <algorithm>
 #include <memory>
+#include <sstream>
 #include <utility>
 
 #include "cockpit/core/utils/Time.h"
@@ -46,12 +48,30 @@ CameraService::CameraService(std::shared_ptr<CameraFrameSink> frame_sink)
           CreateDefaultPreviewSource(), std::move(frame_sink)) {
 }
 
+CameraService::CameraService(std::shared_ptr<CameraFrameSink> frame_sink,
+                             std::shared_ptr<event::MessageBus> message_bus)
+    : CameraService(
+          [](std::string* error) {
+            return V4l2Camera::ListDevices(error);
+          },
+          CreateDefaultPreviewSource(), std::move(frame_sink), std::move(message_bus)) {
+}
+
 CameraService::CameraService(DeviceLister device_lister,
                              std::unique_ptr<CameraPreviewSource> preview_source,
                              std::shared_ptr<CameraFrameSink> frame_sink)
+    : CameraService(std::move(device_lister), std::move(preview_source), std::move(frame_sink),
+                    nullptr) {
+}
+
+CameraService::CameraService(DeviceLister device_lister,
+                             std::unique_ptr<CameraPreviewSource> preview_source,
+                             std::shared_ptr<CameraFrameSink> frame_sink,
+                             std::shared_ptr<event::MessageBus> message_bus)
     : device_lister_(std::move(device_lister)),
       frame_sink_(frame_sink == nullptr ? std::make_shared<LatestFrameBuffer>()
-                                        : std::move(frame_sink)) {
+                                        : std::move(frame_sink)),
+      message_bus_(std::move(message_bus)) {
   auto preview_module = std::make_unique<CameraPreviewModule>(std::move(preview_source));
   preview_module_ = preview_module.get();
   module_manager_.Add(std::move(preview_module));
@@ -107,6 +127,11 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     status_.last_frame_sequence = 0;
     status_.last_frame_timestamp_ms = 0;
     status_.last_frame_received_at_ms = 0;
+    status_.preview_started_at_ms = 0;
+    status_.consecutive_frame_drops = 0;
+    status_.max_consecutive_frame_drops = 0;
+    status_.consecutive_source_gaps = 0;
+    status_.max_consecutive_source_gaps = 0;
     status_.last_error.clear();
   }
 
@@ -126,6 +151,8 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
   {
     std::lock_guard<std::mutex> lock(mutex_);
     status_.state = CameraPreviewState::kRunning;
+    status_.preview_started_at_ms = static_cast<std::uint64_t>(utils::NowMs());
+    PublishStatusEvent(status_);
   }
   return true;
 }
@@ -135,6 +162,7 @@ void CameraService::StopPreview() {
   module_manager_.StopAll();
   std::lock_guard<std::mutex> lock(mutex_);
   status_.state = CameraPreviewState::kStopped;
+  PublishStatusEvent(status_);
 }
 
 CameraServiceStatus CameraService::status() const {
@@ -168,31 +196,82 @@ void CameraService::HandleFrame(CameraFrame frame) {
   if (!frame.IsValid()) {
     std::lock_guard<std::mutex> lock(mutex_);
     ++status_.frames_dropped;
+    ++status_.consecutive_frame_drops;
+    status_.max_consecutive_frame_drops =
+        std::max(status_.max_consecutive_frame_drops, status_.consecutive_frame_drops);
+    PublishStatusEvent(status_);
     return;
   }
 
   const std::uint64_t sequence = frame.sequence;
   const std::uint64_t timestamp_ms = frame.timestamp_ms;
+  const std::uint64_t received_at_ms = static_cast<std::uint64_t>(utils::NowMs());
+  PublishFrameEvent(frame, received_at_ms);
   if (frame_sink_ == nullptr || !frame_sink_->Publish(std::move(frame))) {
     std::lock_guard<std::mutex> lock(mutex_);
     ++status_.frames_dropped;
+    ++status_.consecutive_frame_drops;
+    status_.max_consecutive_frame_drops =
+        std::max(status_.max_consecutive_frame_drops, status_.consecutive_frame_drops);
+    PublishStatusEvent(status_);
     return;
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
   if (status_.frames_received > 0 && sequence > status_.last_frame_sequence + 1U) {
     status_.source_frames_skipped += sequence - status_.last_frame_sequence - 1U;
+    ++status_.consecutive_source_gaps;
+    status_.max_consecutive_source_gaps =
+        std::max(status_.max_consecutive_source_gaps, status_.consecutive_source_gaps);
+  } else {
+    status_.consecutive_source_gaps = 0;
   }
   ++status_.frames_received;
+  status_.consecutive_frame_drops = 0;
   status_.last_frame_sequence = sequence;
   status_.last_frame_timestamp_ms = timestamp_ms;
-  status_.last_frame_received_at_ms = static_cast<std::uint64_t>(utils::NowMs());
+  status_.last_frame_received_at_ms = received_at_ms;
 }
 
 void CameraService::SetError(std::string error) {
   std::lock_guard<std::mutex> lock(mutex_);
   status_.state = CameraPreviewState::kFaulted;
   status_.last_error = std::move(error);
+  PublishStatusEvent(status_);
+}
+
+void CameraService::PublishStatusEvent(const CameraServiceStatus& status) const {
+  if (message_bus_ == nullptr) {
+    return;
+  }
+  std::ostringstream payload;
+  payload << "{"
+          << "\"state\":" << static_cast<int>(status.state) << ',' << "\"device\":\""
+          << status.device << "\","
+          << "\"width\":" << status.width << ',' << "\"height\":" << status.height << ','
+          << "\"fps\":" << status.fps << ',' << "\"frames_received\":" << status.frames_received
+          << ',' << "\"frames_dropped\":" << status.frames_dropped << ','
+          << "\"source_frames_skipped\":" << status.source_frames_skipped << ','
+          << "\"last_frame_sequence\":" << status.last_frame_sequence << '}';
+  message_bus_->Publish(event::EventMessage{"/camera/status", "camera.status", "camera-service",
+                                            payload.str(), utils::NowMs(), 0});
+}
+
+void CameraService::PublishFrameEvent(const CameraFrame& frame,
+                                      std::uint64_t received_at_ms) const {
+  if (message_bus_ == nullptr) {
+    return;
+  }
+  std::ostringstream payload;
+  payload << "{"
+          << "\"sequence\":" << frame.sequence << ','
+          << "\"frame_timestamp_ms\":" << frame.timestamp_ms << ','
+          << "\"received_at_ms\":" << received_at_ms << ',' << "\"width\":" << frame.width << ','
+          << "\"height\":" << frame.height << ',' << "\"stride_bytes\":" << frame.stride_bytes
+          << ',' << "\"size_bytes\":" << frame.data.size() << '}';
+  message_bus_->Publish(event::EventMessage{"/camera/frame_meta", "camera.frame_meta",
+                                            "camera-service", payload.str(),
+                                            static_cast<std::int64_t>(received_at_ms), 0});
 }
 
 }  // namespace camera

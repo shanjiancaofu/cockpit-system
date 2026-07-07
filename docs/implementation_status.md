@@ -13,7 +13,9 @@ Qt UI 链路，云端前后端暂缓。
 - `cockpit/core/config` 类型化 YAML 配置、启动校验和不可变配置模型。
 - 日志、参数解析、信号退出、时间工具。
 - Runtime module 生命周期：顺序启动、逆序停止、失败回滚和状态查询。
-- 进程内 `MessageBus`：topic 订阅、通配订阅、固定队列、drop 统计和 metrics。
+- 进程内 `MessageBus`：topic 订阅、通配订阅、固定队列、drop 统计和 metrics；camera-service 已发布
+  `/camera/status` 和 `/camera/frame_meta`。
+- `runtime.dependencies` 配置和 `DependencyGraph`，区分 required/optional 服务依赖。
 - POSIX shared memory 通用映射封装。
 - protobuf/gRPC 自动生成及 `contracts` target。
 - pre-commit、clang-format、clang-tidy、CTest 和 smoke test。
@@ -49,6 +51,7 @@ Qt UI 链路，云端前后端暂缓。
 - camera-service gRPC list/start/stop/status 控制面。
 - 相机帧 POSIX shared memory 双缓冲。
 - 源端跳帧、最后帧时间、卡帧和 writer 退出检测。
+- 连续 drop/source gap 指标，以及基于 MessageBus 的相机状态和帧元数据事件。
 - Qt UI 共享内存 reader、自动重连和 Camera 页面。
 - GStreamer JPEG 拍照、受控文件名/目录、陈旧帧拒绝，以及 camera-ctl/Qt UI 控制。
 - `run_camera_ui.sh` 在 UI 启动前强制验证真实设备和首帧。
@@ -60,6 +63,7 @@ Qt UI 链路，云端前后端暂缓。
 - 相机 waiting/live/stalled/last-frame/disconnected 状态。
 - `cockpit-ctl status --watch` 聚合 gateway、audio、voice、camera、recording 状态。
 - `cockpit-ctl health` 和 `scripts/check_health.sh` 提供脚本化健康检查。
+- `cockpit-ctl dependencies` 可查看配置化服务依赖图。
 - `audio-probe`、`camera-probe`、`camera-preview-probe`、`camera-ctl`、`voice-ctl`。
 
 ### 研发录包与持久化
@@ -69,6 +73,8 @@ Qt UI 链路，云端前后端暂缓。
 - 新增 `events.jsonl` 通用轻量事件流，用于接入 camera/voice/audio 元数据；大块音视频数据不直接进入事件 JSONL。
 - recording gRPC 支持 `AppendEvent`；camera 拍照结果、voice response 和 `recording-ctl --event-topic`
   可写入录包事件。
+- 录包 manifest 记录 project、schema_version、config_path 和 sources；camera status/frame metadata 通过
+  camera-service 内部 MessageBus 桥接进入录包轻量事件流。
 - 临时目录、原子完成目录、`COMPLETE` 标记和异常中断恢复。
 - 启动扫描目录索引、历史列表、空间统计、删除和损坏 manifest 隔离。
 - 最大会话数/总空间保留策略，完成后自动清理并支持手动 prune。
@@ -113,7 +119,7 @@ bash scripts/run_smoke.sh
 ```
 
 - 默认 Debug 构建通过。
-- CTest 28/28 通过。
+- CTest 29/29 通过。
 - Qt、GStreamer、whisper.cpp 完整构建通过。
 - VehicleState、recording、topic、audio、voice、camera 和 cloud placeholder smoke 链路通过。
 - `vcan0` SocketCAN 收发已验证。
