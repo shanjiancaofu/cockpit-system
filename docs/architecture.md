@@ -115,12 +115,16 @@ vehicle-data-service
     → VehicleState gRPC stream
     → recording-service
     → sessions/.recording_<id>/vehicle_state.jsonl
+camera/voice/audio metadata
+    → recording-service event writer
+    → sessions/.recording_<id>/events.jsonl
     → sessions/<id>/manifest.json + COMPLETE
 ```
 
 `recording-ctl` 通过 gRPC 启动、停止、查询、删除和清理会话。原始数据以文件为权威来源；
 进程异常退出后，下次启动将未完成目录标记为 `interrupted_*`。目录索引从 manifest 重建，
-并按最大会话数和总字节数清理最旧数据。该服务属于研发诊断边界，不接收用户语音动作。
+并按最大会话数和总字节数清理最旧数据。`events.jsonl` 只保存轻量研发事件元数据，大块图片、
+音频和视频仍应以独立文件保存，再在事件中记录路径或句柄。该服务属于研发诊断边界，不接收用户语音动作。
 
 ## 当前边界
 

@@ -48,8 +48,14 @@ int main() {
   second.timestamp_ms = 1020;
   second.speed_kph = 13.0;
 
+  cockpit::recording::RecordingEvent event;
+  event.timestamp_ms = 1030;
+  event.topic = "/camera/frame_meta";
+  event.payload_json = "{\"sequence\":7,\"width\":640,\"height\":480}";
+
   if (!Check(session.Append(first, &error), "append first state failed") ||
       !Check(session.Append(second, &error), "append second state failed") ||
+      !Check(session.AppendEvent(event, &error), "append camera event failed") ||
       !Check(session.Stop(&error), "stop recording session failed")) {
     std::cerr << error << '\n';
     return 1;
@@ -59,6 +65,7 @@ int main() {
   const std::filesystem::path directory(status.directory);
   const std::string manifest = ReadFile(directory / "manifest.json");
   const std::string states = ReadFile(directory / "vehicle_state.jsonl");
+  const std::string events = ReadFile(directory / "events.jsonl");
   const auto interrupted_source = root / "sessions" / ".recording_stale";
   std::filesystem::create_directories(interrupted_source);
   std::ofstream(interrupted_source / "vehicle_state.jsonl") << "partial\n";
@@ -68,16 +75,19 @@ int main() {
   const bool result =
       Check(status.state == cockpit::recording::RecordingState::kIdle,
             "recording session did not return to idle") &&
-      Check(status.messages_written == 2, "recording message count mismatch") &&
+      Check(status.messages_written == 3, "recording message count mismatch") &&
       Check(std::filesystem::exists(directory / "COMPLETE"), "recording COMPLETE marker missing") &&
       Check(manifest.find("\"state\": \"complete\"") != std::string::npos,
             "recording manifest state mismatch") &&
-      Check(manifest.find("\"messages_written\": 2") != std::string::npos,
+      Check(manifest.find("\"messages_written\": 3") != std::string::npos,
             "recording manifest message count mismatch") &&
       Check(states.find("\"timestamp_ms\":1000") != std::string::npos,
             "first vehicle state missing") &&
       Check(states.find("\"timestamp_ms\":1020") != std::string::npos,
             "second vehicle state missing") &&
+      Check(events.find("\"topic\":\"/camera/frame_meta\"") != std::string::npos,
+            "camera event topic missing") &&
+      Check(events.find("\"sequence\":7") != std::string::npos, "camera event payload missing") &&
       Check(recovered == 1, "interrupted recording recovery count mismatch") &&
       Check(std::filesystem::exists(interrupted_directory / "INTERRUPTED"),
             "interrupted recording marker missing");

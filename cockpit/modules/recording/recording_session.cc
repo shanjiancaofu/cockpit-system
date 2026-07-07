@@ -95,8 +95,13 @@ bool RecordingSession::Start(const std::string& trigger, std::string* error) {
     if (!vehicle_state_file_.is_open()) {
       throw std::runtime_error("open vehicle_state.jsonl failed");
     }
+    event_file_.open(temporary_directory_ / "events.jsonl", std::ios::out | std::ios::app);
+    if (!event_file_.is_open()) {
+      throw std::runtime_error("open events.jsonl failed");
+    }
     if (!WriteManifest(temporary_directory_, "recording", error)) {
       vehicle_state_file_.close();
+      event_file_.close();
       status_.state = RecordingState::kFaulted;
       return false;
     }
@@ -131,6 +136,33 @@ bool RecordingSession::Append(const vehicle::VehicleState& state, std::string* e
   return true;
 }
 
+bool RecordingSession::AppendEvent(const RecordingEvent& event, std::string* error) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (status_.state != RecordingState::kRecording || !event_file_.is_open()) {
+    AssignError(error, "recording session is not active");
+    return false;
+  }
+  if (!event.IsValid()) {
+    AssignError(error, "recording event is invalid");
+    return false;
+  }
+  event_file_ << event.ToJson() << '\n';
+  if (!event_file_) {
+    SetError("write events.jsonl failed");
+    AssignError(error, status_.last_error);
+    return false;
+  }
+  ++status_.messages_written;
+  if (status_.first_message_timestamp_ms == 0) {
+    status_.first_message_timestamp_ms = event.timestamp_ms;
+  }
+  status_.last_message_timestamp_ms = event.timestamp_ms;
+  if (status_.messages_written % kFlushInterval == 0) {
+    event_file_.flush();
+  }
+  return true;
+}
+
 bool RecordingSession::Stop(std::string* error) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (status_.state == RecordingState::kIdle) {
@@ -141,6 +173,10 @@ bool RecordingSession::Stop(std::string* error) {
       vehicle_state_file_.flush();
       vehicle_state_file_.close();
     }
+    if (event_file_.is_open()) {
+      event_file_.flush();
+      event_file_.close();
+    }
     AssignError(error, status_.last_error);
     return false;
   }
@@ -148,6 +184,8 @@ bool RecordingSession::Stop(std::string* error) {
   try {
     vehicle_state_file_.flush();
     vehicle_state_file_.close();
+    event_file_.flush();
+    event_file_.close();
     status_.stopped_at_ms = utils::NowMs();
     if (!WriteManifest(temporary_directory_, "complete", error)) {
       status_.state = RecordingState::kFaulted;

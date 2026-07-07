@@ -2,6 +2,24 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-07-07 - 录包通用事件流
+
+### 变更内容
+
+- `recording` 模块新增 `RecordingEvent`，支持把轻量研发事件写入 `events.jsonl`。
+- `RecordingSession` 在每个会话中同时创建 `vehicle_state.jsonl` 和 `events.jsonl`。
+- `RecordingService` 新增 `HandleEvent()`，为后续 camera/voice/audio 元数据进入录包预留统一入口。
+- `recording_session_test` 覆盖车况数据和相机帧元数据事件共同写入。
+
+### 设计决定
+
+- `events.jsonl` 只保存元数据和小 payload，不保存大图像、音频或视频二进制。
+- 大块数据后续通过独立文件或共享内存句柄保存，事件流只记录路径、句柄、时间戳和索引信息。
+
+### 验证结果
+
+- `recording_session_test` 覆盖通用事件写入和 manifest 消息计数。
+
 ## 2026-07-07 - 相机拍照、真实 UI 联调与 tidy 修复
 
 ### 变更内容

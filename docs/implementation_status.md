@@ -64,6 +64,7 @@ Qt UI 链路，云端前后端暂缓。
 
 - 独立 `recording-service`，不与用户语音交互职责混合。
 - 订阅 VehicleState gRPC stream，按会话写入 JSONL 和 manifest。
+- 新增 `events.jsonl` 通用轻量事件流，用于后续接入 camera/voice/audio 元数据；大块音视频数据不直接进入事件 JSONL。
 - 临时目录、原子完成目录、`COMPLETE` 标记和异常中断恢复。
 - 启动扫描目录索引、历史列表、空间统计、删除和损坏 manifest 隔离。
 - 最大会话数/总空间保留策略，完成后自动清理并支持手动 prune。

@@ -51,6 +51,16 @@ bool RecordingService::Prune(RecordingPruneResult* result, std::string* error) {
   return catalog_.Prune(retention_policy_, result, error);
 }
 
+void RecordingService::HandleEvent(const RecordingEvent& event) {
+  if (session_.status().state != RecordingState::kRecording) {
+    return;
+  }
+  std::string error;
+  if (!session_.AppendEvent(event, &error)) {
+    LOG_ERROR("record generic event failed: " + error);
+  }
+}
+
 void RecordingService::HandleVehicleState(const proto::vehicle::VehicleState& state) {
   if (session_.status().state != RecordingState::kRecording) {
     return;

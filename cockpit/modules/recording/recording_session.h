@@ -6,6 +6,7 @@
 #include <mutex>
 #include <string>
 
+#include "cockpit/modules/recording/recording_event.h"
 #include "cockpit/modules/vehicle/VehicleState.h"
 
 namespace cockpit {
@@ -42,6 +43,7 @@ class RecordingSession {
 
   bool Start(const std::string& trigger, std::string* error);
   bool Append(const vehicle::VehicleState& state, std::string* error);
+  bool AppendEvent(const RecordingEvent& event, std::string* error);
   bool Stop(std::string* error);
   RecordingStatus status() const;
 
@@ -60,6 +62,7 @@ class RecordingSession {
   std::filesystem::path temporary_directory_;
   std::filesystem::path final_directory_;
   std::ofstream vehicle_state_file_;
+  std::ofstream event_file_;
 };
 
 }  // namespace recording

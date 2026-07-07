@@ -22,6 +22,7 @@ class RecordingService {
   std::vector<RecordingSessionInfo> List(std::size_t limit) const;
   bool Delete(const std::string& session_id, std::string* error);
   bool Prune(RecordingPruneResult* result, std::string* error);
+  void HandleEvent(const RecordingEvent& event);
   void HandleVehicleState(const proto::vehicle::VehicleState& state);
   RecordingStatus status() const;
 
