@@ -68,6 +68,9 @@ struct CameraServiceConfig {
   std::string frame_transport = "shared_memory";
   std::string shared_memory_name = "/cockpit_camera_preview";
   int max_frame_bytes = 8 * 1024 * 1024;
+  std::string photo_directory = "photos";
+  int photo_jpeg_quality = 90;
+  int photo_max_frame_age_ms = 2000;
 };
 
 struct VoiceInteractionServiceConfig {

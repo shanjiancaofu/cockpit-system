@@ -114,10 +114,17 @@ services:
     frame_transport: shared_memory
     shared_memory_name: /cockpit_camera_preview
     max_frame_bytes: 8388608
+    photo_directory: photos
+    photo_jpeg_quality: 90
+    photo_max_frame_age_ms: 2000
 ```
 
 帧像素通过 POSIX shared memory 传输，gRPC 只负责控制和状态。`max_frame_bytes` 必须覆盖目标
 分辨率和像素格式的单帧大小。
+
+- 相对 `photo_directory` 以 `paths.data_dir` 为基准，默认保存到 `data/photos`。
+- `photo_jpeg_quality` 范围为 1-100。
+- 拍照只接受不超过 `photo_max_frame_age_ms` 的最新帧，避免保存卡住的旧画面。
 
 ## 研发录包
 

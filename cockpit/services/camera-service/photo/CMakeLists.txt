@@ -1,0 +1,2 @@
+add_cockpit_library(camera_photo_service camera_photo_service.cc)
+target_link_libraries(camera_photo_service PUBLIC camera_photo camera_shm utils)

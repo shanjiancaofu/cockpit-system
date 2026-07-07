@@ -244,7 +244,8 @@ bool SharedFrameReader::ReadLatest(CameraFrame* frame, std::uint64_t* generation
   }
   const std::uint32_t active = header->active_slot.load(std::memory_order_acquire);
   const auto* slot = Slot(region_->data(), slot_capacity_, active);
-  auto* mutable_slot = const_cast<SharedSlot*>(slot);
+  // The process-shared lock is synchronization metadata, not frame payload.
+  auto* mutable_slot = const_cast<SharedSlot*>(slot);  // NOLINT
   if (pthread_rwlock_rdlock(&mutable_slot->lock) != 0) {
     AssignError(error, "lock shared camera frame for reading failed");
     return false;

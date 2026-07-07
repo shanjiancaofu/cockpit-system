@@ -182,6 +182,15 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.camera.max_frame_bytes =
       Read(camera_service, "max_frame_bytes", config.services_.camera.max_frame_bytes,
            "services.camera.max_frame_bytes");
+  config.services_.camera.photo_directory =
+      Read(camera_service, "photo_directory", config.services_.camera.photo_directory,
+           "services.camera.photo_directory");
+  config.services_.camera.photo_jpeg_quality =
+      Read(camera_service, "photo_jpeg_quality", config.services_.camera.photo_jpeg_quality,
+           "services.camera.photo_jpeg_quality");
+  config.services_.camera.photo_max_frame_age_ms =
+      Read(camera_service, "photo_max_frame_age_ms", config.services_.camera.photo_max_frame_age_ms,
+           "services.camera.photo_max_frame_age_ms");
 
   const YAML::Node voice_interaction =
       ChildMap(services, "voice_interaction", "services.voice_interaction");
@@ -373,6 +382,12 @@ void SystemConfig::Validate() const {
     throw std::runtime_error("services.camera.shared_memory_name must begin with '/'");
   }
   RequirePositive(services_.camera.max_frame_bytes, "services.camera.max_frame_bytes");
+  RequireNotEmpty(services_.camera.photo_directory, "services.camera.photo_directory");
+  if (services_.camera.photo_jpeg_quality < 1 || services_.camera.photo_jpeg_quality > 100) {
+    throw std::runtime_error("services.camera.photo_jpeg_quality must be between 1 and 100");
+  }
+  RequirePositive(services_.camera.photo_max_frame_age_ms,
+                  "services.camera.photo_max_frame_age_ms");
   ValidateAddress(services_.voice_interaction.audio_address,
                   "services.voice_interaction.audio_address");
   ValidateAddress(services_.voice_interaction.gateway_address,

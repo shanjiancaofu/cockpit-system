@@ -49,10 +49,24 @@ message CameraStatus {
   uint64 last_frame_received_at_ms = 13;
 }
 
+message TakePhotoRequest {
+  string filename = 1;
+}
+
+message TakePhotoResponse {
+  string path = 1;
+  uint64 frame_sequence = 2;
+  uint64 frame_timestamp_ms = 3;
+  uint32 width = 4;
+  uint32 height = 5;
+  uint64 size_bytes = 6;
+}
+
 service CameraControl {
   rpc ListDevices(cockpit.proto.common.Empty)
       returns (ListCameraDevicesResponse);
   rpc StartPreview(StartPreviewRequest) returns (CameraStatus);
   rpc StopPreview(cockpit.proto.common.Empty) returns (CameraStatus);
   rpc GetStatus(cockpit.proto.common.Empty) returns (CameraStatus);
+  rpc TakePhoto(TakePhotoRequest) returns (TakePhotoResponse);
 }

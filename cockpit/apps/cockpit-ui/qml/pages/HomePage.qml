@@ -316,6 +316,13 @@ Item {
                             }
 
                             Button {
+                                text: "PHOTO"
+                                enabled: !cameraControl.busy && cameraControl.running
+                                         && cameraFrame.hasFrame && cameraFrame.fresh
+                                onClicked: cameraControl.takePhoto()
+                            }
+
+                            Button {
                                 text: "REFRESH"
                                 enabled: !cameraControl.busy && !cameraControl.running
                                 onClicked: cameraControl.refreshDevices()
@@ -325,8 +332,8 @@ Item {
                                 Layout.fillWidth: true
                             }
 
-                            Label {
-                                text: cameraControl.busy ? "WORKING"
+                                Label {
+                                    text: cameraControl.busy ? "WORKING"
                                                          : (cameraControl.running ? "RUNNING" : "STOPPED")
                                 color: cameraControl.running ? root.green : root.secondaryText
                                 font.pixelSize: 12
@@ -393,6 +400,15 @@ Item {
                                            ? root.green : root.amber
                                     font.pixelSize: 12
                                     font.bold: true
+                                }
+
+                                Label {
+                                    visible: cameraControl.lastPhotoPath.length > 0
+                                    text: cameraControl.lastPhotoPath
+                                    color: root.secondaryText
+                                    font.pixelSize: 11
+                                    elide: Text.ElideMiddle
+                                    Layout.maximumWidth: 360
                                 }
 
                                 Item {

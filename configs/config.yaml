@@ -44,6 +44,9 @@ services:
     frame_transport: shared_memory
     shared_memory_name: /cockpit_camera_preview
     max_frame_bytes: 8388608
+    photo_directory: photos
+    photo_jpeg_quality: 90
+    photo_max_frame_age_ms: 2000
     grpc:
       listen_address: 127.0.0.1:50054
   voice_interaction:

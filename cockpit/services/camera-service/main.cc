@@ -1,4 +1,5 @@
 #include <chrono>
+#include <filesystem>
 #include <thread>
 
 #include "cockpit/core/logging/Logger.h"
@@ -6,6 +7,7 @@
 #include "cockpit/modules/camera/shared_memory/shared_frame_buffer.h"
 #include "cockpit/services/camera-service/control/camera_service.h"
 #include "cockpit/services/camera-service/grpc/camera_grpc_service.h"
+#include "cockpit/services/camera-service/photo/camera_photo_service.h"
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "camera-service");
@@ -22,7 +24,14 @@ int main(int argc, char** argv) {
   }
   std::shared_ptr<cockpit::camera::CameraFrameSink> frame_sink(std::move(frame_writer));
   cockpit::camera::CameraService camera_service(std::move(frame_sink));
-  cockpit::camera::CameraGrpcService grpc_service(camera_service);
+  std::filesystem::path photo_directory(service_config.photo_directory);
+  if (photo_directory.is_relative()) {
+    photo_directory = std::filesystem::path(runtime.config().paths().data_dir) / photo_directory;
+  }
+  cockpit::camera::CameraPhotoService photo_service(
+      service_config.shared_memory_name, photo_directory, service_config.photo_jpeg_quality,
+      service_config.photo_max_frame_age_ms);
+  cockpit::camera::CameraGrpcService grpc_service(camera_service, photo_service);
 
   if (!grpc_service.Start(service_config.grpc.listen_address)) {
     runtime.MarkStopped();

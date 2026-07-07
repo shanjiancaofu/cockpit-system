@@ -38,8 +38,9 @@ proto::common::RuntimeModuleState ToProtoModuleState(runtime::ModuleState state)
 
 }  // namespace
 
-CameraGrpcService::CameraGrpcService(CameraService& camera_service)
-    : camera_service_(camera_service) {
+CameraGrpcService::CameraGrpcService(CameraService& camera_service,
+                                     CameraPhotoService& photo_service)
+    : camera_service_(camera_service), photo_service_(photo_service) {
 }
 
 CameraGrpcService::~CameraGrpcService() {
@@ -107,6 +108,23 @@ grpc::Status CameraGrpcService::StopPreview(grpc::ServerContext*, const proto::c
 grpc::Status CameraGrpcService::GetStatus(grpc::ServerContext*, const proto::common::Empty*,
                                           proto::camera::CameraStatus* response) {
   FillStatus(camera_service_.status(), response);
+  return grpc::Status::OK;
+}
+
+grpc::Status CameraGrpcService::TakePhoto(grpc::ServerContext*,
+                                          const proto::camera::TakePhotoRequest* request,
+                                          proto::camera::TakePhotoResponse* response) {
+  CameraPhotoResult result;
+  std::string error;
+  if (!photo_service_.TakePhoto(request->filename(), &result, &error)) {
+    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error);
+  }
+  response->set_path(result.path);
+  response->set_frame_sequence(result.frame_sequence);
+  response->set_frame_timestamp_ms(result.frame_timestamp_ms);
+  response->set_width(result.width);
+  response->set_height(result.height);
+  response->set_size_bytes(result.size_bytes);
   return grpc::Status::OK;
 }
 

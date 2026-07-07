@@ -49,6 +49,8 @@ Qt UI 链路，云端前后端暂缓。
 - 相机帧 POSIX shared memory 双缓冲。
 - 源端跳帧、最后帧时间、卡帧和 writer 退出检测。
 - Qt UI 共享内存 reader、自动重连和 Camera 页面。
+- GStreamer JPEG 拍照、受控文件名/目录、陈旧帧拒绝，以及 camera-ctl/Qt UI 控制。
+- `run_camera_ui.sh` 在 UI 启动前强制验证真实设备和首帧。
 
 ### UI 与诊断
 
@@ -86,7 +88,7 @@ Qt UI 链路，云端前后端暂缓。
 ### 相机与视觉
 
 - CSI 摄像头和 Jetson GStreamer pipeline 验证。
-- 拍照、相机录像，以及音频/相机/事件多源研发录包。
+- 相机录像，以及音频/相机/事件多源研发录包。
 - 目标检测、驾驶员监控等视觉 AI。
 
 ### 存储与外部系统
@@ -106,7 +108,7 @@ bash scripts/run_smoke.sh
 ```
 
 - 默认 Debug 构建通过。
-- CTest 24/24 通过。
+- CTest 25/25 通过。
 - Qt、GStreamer、whisper.cpp 完整构建通过。
 - VehicleState、recording、topic、audio、voice、camera 和 cloud placeholder smoke 链路通过。
 - `vcan0` SocketCAN 收发已验证。

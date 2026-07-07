@@ -73,6 +73,12 @@ void CameraControlModel::stopPreview() {
   Enqueue(std::move(command));
 }
 
+void CameraControlModel::takePhoto() {
+  Command command;
+  command.type = CommandType::kTakePhoto;
+  Enqueue(std::move(command));
+}
+
 void CameraControlModel::Enqueue(Command command) {
   if (!worker_running_.load()) {
     return;
@@ -135,6 +141,16 @@ void CameraControlModel::Run() {
       continue;
     }
 
+    if (command.type == CommandType::kTakePhoto) {
+      proto::camera::TakePhotoRequest request;
+      proto::camera::TakePhotoResponse response;
+      grpc::ClientContext context;
+      SetDeadline(&context);
+      const grpc::Status status = stub->TakePhoto(&context, request, &response);
+      PostPhoto(QString::fromStdString(response.path()), RpcError(status));
+      continue;
+    }
+
     proto::camera::CameraStatus response;
     grpc::ClientContext context;
     SetDeadline(&context);
@@ -153,6 +169,18 @@ void CameraControlModel::Run() {
     const bool running = response.state() == proto::camera::CAMERA_PREVIEW_STATE_RUNNING;
     PostStatus(running, QString::fromStdString(response.device()), RpcError(status));
   }
+}
+
+void CameraControlModel::PostPhoto(QString path, QString error) {
+  QMetaObject::invokeMethod(
+      this,
+      [this, path = std::move(path), error = std::move(error)]() mutable {
+        last_photo_path_ = std::move(path);
+        last_error_ = std::move(error);
+        busy_ = false;
+        emit statusChanged();
+      },
+      Qt::QueuedConnection);
 }
 
 void CameraControlModel::PostDevices(QStringList devices, QString error) {

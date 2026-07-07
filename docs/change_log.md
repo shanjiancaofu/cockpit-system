@@ -2,6 +2,29 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-07-07 - 相机拍照、真实 UI 联调与 tidy 修复
+
+### 变更内容
+
+- `run_tidy.sh` 改为按当前编译数据库选择实际启用目标，排除生成代码和未启用的可选 source。
+- 新增 GStreamer JPEG encoder 和 camera-service photo 子模块，从共享内存最新帧保存照片。
+- camera proto、camera-ctl 和 Qt Camera 页面新增拍照接口、结果路径与错误状态。
+- 新增 `run_camera_ui.sh`，要求真实设备存在且 camera-service 收到首帧后才启动 UI。
+- 配置增加照片目录、JPEG 质量和最大帧龄；文件名限制防止越权路径写入。
+
+### 设计决定
+
+- 拍照复用 preview 共享内存，不重新打开摄像头，也不通过 gRPC 传像素。
+- 编码器接口位于 camera module；GStreamer 缺失时明确报告 unavailable，保持可构建降级。
+- AI 与视觉推理等待 Jetson/真实硬件阶段，不在 WSL 阶段提前接入。
+
+### 验证结果
+
+- x86_64 Debug 构建通过，CTest 25/25；合成 BGRx 帧已真实编码为 JPEG。
+- Qt 6 cockpit-ui 编译链接及 offscreen QML 加载通过。
+- 当前 WSL 会话未暴露 `/dev/video*`，真实 USB 首帧联调需重新挂载设备后执行
+  `bash scripts/run_camera_ui.sh`。
+
 ## 2026-07-06 - 录包会话管理与保留策略收口
 
 ### 变更内容

@@ -21,6 +21,7 @@ class CameraControlModel final : public QObject {
   Q_PROPERTY(bool running READ running NOTIFY statusChanged)
   Q_PROPERTY(QString activeDevice READ activeDevice NOTIFY statusChanged)
   Q_PROPERTY(QString lastError READ lastError NOTIFY statusChanged)
+  Q_PROPERTY(QString lastPhotoPath READ lastPhotoPath NOTIFY statusChanged)
 
  public:
   explicit CameraControlModel(std::string address, QObject* parent = nullptr);
@@ -44,6 +45,9 @@ class CameraControlModel final : public QObject {
   const QString& lastError() const {
     return last_error_;
   }
+  const QString& lastPhotoPath() const {
+    return last_photo_path_;
+  }
 
   void Start();
   void Stop();
@@ -52,6 +56,7 @@ class CameraControlModel final : public QObject {
   Q_INVOKABLE void startPreview(const QString& device, int width = 640, int height = 480,
                                 int fps = 30);
   Q_INVOKABLE void stopPreview();
+  Q_INVOKABLE void takePhoto();
 
  signals:
   void devicesChanged();
@@ -62,6 +67,7 @@ class CameraControlModel final : public QObject {
     kRefreshDevices,
     kStartPreview,
     kStopPreview,
+    kTakePhoto,
   };
 
   struct Command {
@@ -76,6 +82,7 @@ class CameraControlModel final : public QObject {
   void Run();
   void PostDevices(QStringList devices, QString error);
   void PostStatus(bool running, QString active_device, QString error);
+  void PostPhoto(QString path, QString error);
 
   std::string address_;
   std::atomic_bool worker_running_{false};
@@ -89,6 +96,7 @@ class CameraControlModel final : public QObject {
   bool running_ = false;
   QString active_device_;
   QString last_error_;
+  QString last_photo_path_;
 };
 
 }  // namespace ui

@@ -1,3 +1,4 @@
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -30,6 +31,7 @@ class TestModule : public cockpit::runtime::BasicModule {
 
 bool Expect(bool condition, const char* message) {
   if (!condition) {
+    std::cerr << message << '\n';
     return false;
   }
   return true;

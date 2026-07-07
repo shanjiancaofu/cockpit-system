@@ -19,6 +19,8 @@ class CameraControlClient {
                     proto::camera::CameraStatus* status, std::string* error);
   bool StopPreview(proto::camera::CameraStatus* status, std::string* error);
   bool GetStatus(proto::camera::CameraStatus* status, std::string* error);
+  bool TakePhoto(const std::string& filename, proto::camera::TakePhotoResponse* response,
+                 std::string* error);
 
  private:
   static void SetDeadline(grpc::ClientContext* context);

@@ -18,6 +18,7 @@ config_path="${CONFIG_PATH:-configs/config.yaml}"
 vehicle_source="${VEHICLE_SOURCE:-mock}"
 camera_device="${CAMERA_DEVICE:-/dev/video0}"
 camera_auto_start="${CAMERA_AUTO_START:-true}"
+camera_required="${CAMERA_REQUIRED:-false}"
 vehicle_log="${build_dir}/ui-vehicle-data.log"
 gateway_log="${build_dir}/ui-gateway.log"
 camera_log="${build_dir}/ui-camera.log"
@@ -99,10 +100,30 @@ if [[ "${camera_ready}" != true ]]; then
   exit 1
 fi
 
+if [[ "${camera_required}" == true && ! -e "${camera_device}" ]]; then
+  echo "required camera device not found: ${camera_device}" >&2
+  exit 1
+fi
+
 if [[ "${camera_auto_start}" == true && -e "${camera_device}" ]]; then
   if ! "${bin_dir}/camera-ctl" --start --device "${camera_device}" \
       --config "${config_path}" >/dev/null; then
     echo "camera preview did not start; see ${camera_log}" >&2
+    exit 1
+  fi
+  camera_live=false
+  for _ in $(seq 1 50); do
+    camera_status="$("${bin_dir}/camera-ctl" --status --config "${config_path}" 2>/dev/null || true)"
+    if [[ "${camera_status}" == *"state: running"* &&
+          "${camera_status}" != *"frames received: 0"* ]]; then
+      camera_live=true
+      break
+    fi
+    sleep 0.1
+  done
+  if [[ "${camera_live}" != true ]]; then
+    echo "camera preview started but no live frame arrived; see ${camera_log}" >&2
+    exit 1
   fi
 fi
 

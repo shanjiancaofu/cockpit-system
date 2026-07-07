@@ -105,6 +105,8 @@ USB Camera
 ```
 
 UI 能区分等待首帧、实时画面、卡帧、最后一帧和共享内存断开，并在 writer 重启后自动重连。
+拍照请求通过 gRPC 到 camera-service，服务读取共享内存最新帧并用 GStreamer 编码 JPEG；
+camera-ctl 和 Qt UI 都不直接访问摄像头设备。
 
 ## 研发录包链路
 

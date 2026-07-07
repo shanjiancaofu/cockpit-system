@@ -14,6 +14,7 @@
 - 语音意图、动作分发、车辆状态查询和 HMI handoff。
 - V4L2/GStreamer USB 摄像头预览。
 - 相机帧 POSIX shared memory 双缓冲。
+- 基于最新共享帧的 JPEG 拍照，支持 camera-ctl 和 Qt UI。
 - VehicleState 研发录包、会话清单和异常中断恢复。
 - Qt 6/QML 车辆和相机界面。
 - `cockpit-ctl` 聚合状态和各类 probe/ctl 工具。
@@ -96,6 +97,7 @@ build/x86_64-debug/bin/cockpit-ctl status --config configs/config.yaml
 
 ```bash
 bash scripts/run_cockpit_ui.sh
+bash scripts/run_camera_ui.sh
 ```
 
 ## USB 摄像头权限

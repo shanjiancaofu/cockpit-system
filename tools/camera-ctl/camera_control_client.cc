@@ -54,6 +54,16 @@ bool CameraControlClient::GetStatus(proto::camera::CameraStatus* status, std::st
   return FinishRpc(stub_->GetStatus(&context, request, status), error);
 }
 
+bool CameraControlClient::TakePhoto(const std::string& filename,
+                                    proto::camera::TakePhotoResponse* response,
+                                    std::string* error) {
+  proto::camera::TakePhotoRequest request;
+  request.set_filename(filename);
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->TakePhoto(&context, request, response), error);
+}
+
 void CameraControlClient::SetDeadline(grpc::ClientContext* context) {
   context->set_wait_for_ready(true);
   context->set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(2));

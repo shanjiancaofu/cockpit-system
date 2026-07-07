@@ -7,13 +7,14 @@
 
 #include "camera.grpc.pb.h"
 #include "cockpit/services/camera-service/control/camera_service.h"
+#include "cockpit/services/camera-service/photo/camera_photo_service.h"
 
 namespace cockpit {
 namespace camera {
 
 class CameraGrpcService final : public proto::camera::CameraControl::Service {
  public:
-  explicit CameraGrpcService(CameraService& camera_service);
+  CameraGrpcService(CameraService& camera_service, CameraPhotoService& photo_service);
   ~CameraGrpcService() override;
 
   CameraGrpcService(const CameraGrpcService&) = delete;
@@ -32,11 +33,15 @@ class CameraGrpcService final : public proto::camera::CameraControl::Service {
                            proto::camera::CameraStatus* response) override;
   grpc::Status GetStatus(grpc::ServerContext* context, const proto::common::Empty* request,
                          proto::camera::CameraStatus* response) override;
+  grpc::Status TakePhoto(grpc::ServerContext* context,
+                         const proto::camera::TakePhotoRequest* request,
+                         proto::camera::TakePhotoResponse* response) override;
 
   static void FillDevice(const VideoDeviceInfo& device, proto::camera::CameraDevice* response);
   static void FillStatus(const CameraServiceStatus& status, proto::camera::CameraStatus* response);
 
   CameraService& camera_service_;
+  CameraPhotoService& photo_service_;
   std::unique_ptr<grpc::Server> server_;
 };
 

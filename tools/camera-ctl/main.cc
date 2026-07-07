@@ -13,8 +13,9 @@ int Finish(const cockpit::runtime::ServiceRuntime& runtime, int result) {
 }
 
 void PrintUsage() {
-  std::cout << "camera-ctl [--list|--status|--start|--stop] "
+  std::cout << "camera-ctl [--list|--status|--start|--stop|--photo] "
                "[--device /dev/video0] [--width 640] [--height 480] [--fps 30] "
+               "[--filename snapshot.jpg] "
                "[--config configs/config.yaml]\n";
 }
 
@@ -114,6 +115,19 @@ int main(int argc, char** argv) {
       return PrintError(runtime, error);
     }
     PrintStatus(status);
+    return Finish(runtime, 0);
+  }
+
+  if (runtime.args().HasFlag("photo")) {
+    cockpit::proto::camera::TakePhotoResponse response;
+    if (!client.TakePhoto(runtime.args().GetString("filename", ""), &response, &error)) {
+      return PrintError(runtime, error);
+    }
+    std::cout << "photo: " << response.path() << '\n'
+              << "frame sequence: " << response.frame_sequence() << '\n'
+              << "frame timestamp ms: " << response.frame_timestamp_ms() << '\n'
+              << "size: " << response.width() << 'x' << response.height() << '\n'
+              << "bytes: " << response.size_bytes() << '\n';
     return Finish(runtime, 0);
   }
 

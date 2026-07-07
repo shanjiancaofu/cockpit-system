@@ -34,8 +34,8 @@ void SignalHandler(int /*signum*/) {
 }
 
 void SetupSignalHandler() {
-  std::signal(SIGINT, SignalHandler);
-  std::signal(SIGTERM, SignalHandler);
+  static_cast<void>(std::signal(SIGINT, SignalHandler));
+  static_cast<void>(std::signal(SIGTERM, SignalHandler));
 }
 
 void ClearScreen() {
@@ -309,7 +309,9 @@ int WatchStatus(const config::SystemConfig& config, int interval_sec) {
   while (!g_stop.load()) {
     ClearScreen();
     const int rc = RunStatus(config);
-    if (rc != 0) return rc;
+    if (rc != 0) {
+      return rc;
+    }
     // 等待 interval 秒，每秒检查一次停止信号
     for (int i = 0; i < interval_sec && !g_stop.load(); ++i) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
