@@ -8,6 +8,7 @@ add_cockpit_library(runtime
 
 target_link_libraries(runtime
     PUBLIC
+        base
         config
         logging
 )

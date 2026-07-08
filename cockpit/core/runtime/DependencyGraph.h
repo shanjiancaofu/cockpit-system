@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include "cockpit/core/base/macros.h"
+
 namespace cockpit {
 namespace runtime {
 
@@ -20,6 +22,8 @@ struct ServiceDependency {
 class DependencyGraph {
  public:
   DependencyGraph() = default;
+
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(DependencyGraph);
 
   void AddRequired(std::string service, std::string depends_on);
   void AddOptional(std::string service, std::string depends_on);

@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/core/runtime/Module.h"
 
 namespace cockpit {
@@ -19,8 +20,7 @@ class ModuleManager {
   ModuleManager() = default;
   ~ModuleManager();
 
-  ModuleManager(const ModuleManager&) = delete;
-  ModuleManager& operator=(const ModuleManager&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(ModuleManager);
 
   void Add(std::unique_ptr<Module> module);
   bool StartAll();

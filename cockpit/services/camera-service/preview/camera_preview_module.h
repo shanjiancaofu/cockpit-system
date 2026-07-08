@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/core/runtime/Module.h"
 #include "cockpit/modules/camera/capture/camera_preview_source.h"
 #include "cockpit/modules/camera/frames/camera_frame.h"
@@ -18,8 +19,7 @@ class CameraPreviewModule : public runtime::BasicModule {
   explicit CameraPreviewModule(std::unique_ptr<CameraPreviewSource> preview_source);
   ~CameraPreviewModule() override = default;
 
-  CameraPreviewModule(const CameraPreviewModule&) = delete;
-  CameraPreviewModule& operator=(const CameraPreviewModule&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(CameraPreviewModule);
 
   bool available() const;
   bool is_running() const;

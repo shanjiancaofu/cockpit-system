@@ -22,9 +22,11 @@
    - 已完成、未完成和验证状态。
 7. [configuration.md](configuration.md)
    - 参考 zcarcloud 后确定的 YAML 分区、类型化与校验规则。
-8. [runtime_communication_strategy.md](runtime_communication_strategy.md)
+8. [code_style.md](code_style.md)
+   - 参考 zelos、znavigator 和 zcarcloud 的 C++ 代码风格约定。
+9. [runtime_communication_strategy.md](runtime_communication_strategy.md)
    - 车端 runtime 通信分层：函数调用、队列/Actor、共享内存、gRPC/外部通信。
-9. [change_log.md](change_log.md)
+10. [change_log.md](change_log.md)
    - 每批改动的中文记录。
 
 ## 参考与专项

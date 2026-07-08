@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/recording/recording_event.h"
 #include "cockpit/modules/vehicle/VehicleState.h"
 
@@ -47,8 +48,7 @@ class RecordingSession {
                    RecordingMetadata metadata = {});
   ~RecordingSession();
 
-  RecordingSession(const RecordingSession&) = delete;
-  RecordingSession& operator=(const RecordingSession&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(RecordingSession);
 
   bool Start(const std::string& trigger, std::string* error);
   bool Append(const vehicle::VehicleState& state, std::string* error);

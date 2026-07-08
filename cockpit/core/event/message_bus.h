@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/core/event/event_queue.h"
 
 namespace cockpit {
@@ -50,8 +51,7 @@ class MessageBus {
  public:
   explicit MessageBus(std::size_t default_queue_capacity = 128);
 
-  MessageBus(const MessageBus&) = delete;
-  MessageBus& operator=(const MessageBus&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(MessageBus);
 
   std::shared_ptr<MessageSubscription> Subscribe(const std::string& topic);
   std::shared_ptr<MessageSubscription> Subscribe(const std::string& topic,

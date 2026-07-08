@@ -2,6 +2,27 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-07-08 - 参考 zelos 收口代码风格
+
+### 变更内容
+
+- 新增 `CPPLINT.cfg`，核心规则参考 zelos/znavigator/zcarcloud：100 列、`#pragma once`、不过度要求
+  include what you use。
+- 新增 `docs/code_style.md`，明确当前项目参考 zelos 的 C++ 风格边界。
+- 新增 `cockpit/core/base/macros.h`，提供 `COCKPIT_DISALLOW_COPY_AND_ASSIGN`，统一不可拷贝类写法。
+- core event/runtime、recording session、camera service 等近期活跃代码改用统一禁拷贝宏。
+
+### 设计决定
+
+- 不照搬 zelos 内部版权头、私有 pre-commit 源、zlog/zutil 依赖和历史 Bazel 配置。
+- 当前环境未默认安装 cpplint，因此先保留配置文件，不加入普通 commit 强制门禁。
+- 不做全仓文件名和类名大重命名，避免风格整理影响功能开发节奏。
+
+### 验证结果
+
+- x86_64 Debug 构建通过，CTest 29/29。
+- `pre-commit run --all-files` 通过。
+
 ## 2026-07-07 - Runtime 依赖图、camera MessageBus 接入与录包元数据
 
 ### 变更内容

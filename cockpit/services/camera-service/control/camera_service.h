@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/core/event/message_bus.h"
 #include "cockpit/core/runtime/ModuleManager.h"
 #include "cockpit/drivers/v4l2/v4l2_camera.h"
@@ -66,8 +67,7 @@ class CameraService {
                 std::shared_ptr<event::MessageBus> message_bus);
   ~CameraService();
 
-  CameraService(const CameraService&) = delete;
-  CameraService& operator=(const CameraService&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(CameraService);
 
   std::vector<VideoDeviceInfo> ListDevices(std::string* error) const;
   bool StartPreview(const CameraStartPreviewRequest& request, std::string* error);

@@ -9,6 +9,8 @@
 #include <optional>
 #include <utility>
 
+#include "cockpit/core/base/macros.h"
+
 namespace cockpit {
 namespace event {
 
@@ -24,8 +26,7 @@ class EventQueue {
   explicit EventQueue(std::size_t capacity) : capacity_(capacity) {
   }
 
-  EventQueue(const EventQueue&) = delete;
-  EventQueue& operator=(const EventQueue&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(EventQueue);
 
   EventQueuePushResult Push(const T& event) {
     return Emplace(event);
