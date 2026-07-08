@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/can/can_frame.h"
 
 namespace cockpit {
@@ -19,8 +20,7 @@ class SocketCan {
   SocketCan() = default;
   ~SocketCan();
 
-  SocketCan(const SocketCan&) = delete;
-  SocketCan& operator=(const SocketCan&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(SocketCan);
 
   SocketCan(SocketCan&& other) noexcept;
   SocketCan& operator=(SocketCan&& other) noexcept;

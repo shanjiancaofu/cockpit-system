@@ -7,6 +7,8 @@
 #include <string>
 #include <thread>
 
+#include "cockpit/core/base/macros.h"
+
 namespace cockpit {
 namespace ui {
 
@@ -17,8 +19,7 @@ class GatewayClient {
   GatewayClient(std::string address, VehicleStateModel* model);
   ~GatewayClient();
 
-  GatewayClient(const GatewayClient&) = delete;
-  GatewayClient& operator=(const GatewayClient&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(GatewayClient);
 
   void Start();
   void Stop();

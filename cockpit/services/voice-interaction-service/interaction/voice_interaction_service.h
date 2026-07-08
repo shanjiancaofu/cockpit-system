@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/core/event/event_queue.h"
 #include "cockpit/modules/voice/actions/action_dispatcher.h"
 #include "cockpit/modules/voice/assistant/speech_transcript.h"
@@ -70,8 +71,7 @@ class VoiceInteractionService {
                           ResponseObserver response_observer = nullptr);
   ~VoiceInteractionService();
 
-  VoiceInteractionService(const VoiceInteractionService&) = delete;
-  VoiceInteractionService& operator=(const VoiceInteractionService&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(VoiceInteractionService);
 
   bool Start();
   void Stop();

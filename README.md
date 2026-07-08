@@ -55,9 +55,9 @@ cockpit-system/
 详细说明见：
 
 - `docs/architecture_refined_v0.4.md`
-- `docs/implementation_status.md`
-- `docs/runtime_communication_strategy.md`
-- `docs/modularization_strategy.md`
+- `docs/实现状态.md`
+- `docs/运行时通信策略.md`
+- `docs/模块化策略.md`
 
 ## 环境准备
 
@@ -135,4 +135,4 @@ bash scripts/build.sh -- \
 [docs]: update ...
 ```
 
-每批代码变更同步记录到 `docs/change_log.md`。
+每批代码变更同步记录到 `docs/变更记录.md`。

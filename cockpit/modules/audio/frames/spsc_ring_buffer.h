@@ -7,6 +7,8 @@
 #include <optional>
 #include <utility>
 
+#include "cockpit/core/base/macros.h"
+
 namespace cockpit {
 namespace audio {
 
@@ -23,8 +25,7 @@ class SpscRingBuffer {
  public:
   SpscRingBuffer() = default;
 
-  SpscRingBuffer(const SpscRingBuffer&) = delete;
-  SpscRingBuffer& operator=(const SpscRingBuffer&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(SpscRingBuffer);
 
   bool TryPush(const T& value) {
     return Emplace(value);

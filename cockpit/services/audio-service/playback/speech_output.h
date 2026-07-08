@@ -9,6 +9,7 @@
 #include <string>
 #include <thread>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/audio/playback/audio_player.h"
 #include "cockpit/modules/voice/responses/voice_response_sink.h"
 #include "cockpit/modules/voice/tts/speech_synthesizer.h"
@@ -22,8 +23,7 @@ class SpeechOutput final : public voice::VoiceResponseSink {
                std::unique_ptr<AudioPlayer> player);
   ~SpeechOutput() override;
 
-  SpeechOutput(const SpeechOutput&) = delete;
-  SpeechOutput& operator=(const SpeechOutput&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(SpeechOutput);
 
   bool Start(std::string* error = nullptr);
   void Stop() override;

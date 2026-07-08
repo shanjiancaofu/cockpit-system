@@ -4,6 +4,7 @@
 #include <mutex>
 #include <optional>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/camera/frames/camera_frame_sink.h"
 
 namespace cockpit {
@@ -20,8 +21,7 @@ class LatestFrameBuffer final : public CameraFrameSink {
  public:
   LatestFrameBuffer() = default;
 
-  LatestFrameBuffer(const LatestFrameBuffer&) = delete;
-  LatestFrameBuffer& operator=(const LatestFrameBuffer&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(LatestFrameBuffer);
 
   bool Publish(CameraFrame frame) override;
   bool ReadLatest(CameraFrame* frame, std::uint64_t* generation = nullptr) const;

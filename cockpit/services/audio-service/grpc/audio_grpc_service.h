@@ -6,6 +6,7 @@
 #include <string>
 
 #include "audio.grpc.pb.h"
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/voice/responses/voice_response_sink.h"
 #include "cockpit/services/audio-service/processing/audio_service.h"
 
@@ -17,8 +18,7 @@ class AudioGrpcService final : public proto::audio::AudioControl::Service {
   AudioGrpcService(AudioService& audio_service, voice::VoiceResponseSink& speech_output);
   ~AudioGrpcService() override;
 
-  AudioGrpcService(const AudioGrpcService&) = delete;
-  AudioGrpcService& operator=(const AudioGrpcService&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(AudioGrpcService);
 
   bool Start(const std::string& address);
   void Shutdown();

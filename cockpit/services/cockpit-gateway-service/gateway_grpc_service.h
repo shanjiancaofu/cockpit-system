@@ -9,6 +9,7 @@
 #include <mutex>
 #include <string>
 
+#include "cockpit/core/base/macros.h"
 #include "gateway.grpc.pb.h"
 
 namespace cockpit {
@@ -19,8 +20,7 @@ class GatewayGrpcService final : public proto::gateway::CockpitGateway::Service 
   GatewayGrpcService() = default;
   ~GatewayGrpcService() override;
 
-  GatewayGrpcService(const GatewayGrpcService&) = delete;
-  GatewayGrpcService& operator=(const GatewayGrpcService&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(GatewayGrpcService);
 
   bool Start(const std::string& address);
   void PublishVehicleState(const proto::vehicle::VehicleState& state);

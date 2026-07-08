@@ -13,6 +13,7 @@
 #include <thread>
 #include <vector>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/core/config/system_config.h"
 #include "cockpit/core/runtime/ModuleManager.h"
 #include "cockpit/modules/audio/capture/audio_capture_source.h"
@@ -77,8 +78,7 @@ class AudioService {
                std::unique_ptr<voice::SpeechRecognizer> recognizer);
   ~AudioService();
 
-  AudioService(const AudioService&) = delete;
-  AudioService& operator=(const AudioService&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(AudioService);
 
   bool StartCapture(const std::string& input_device, std::string* error = nullptr);
   void StopCapture();

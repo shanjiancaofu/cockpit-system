@@ -11,6 +11,8 @@
 #include <string>
 #include <thread>
 
+#include "cockpit/core/base/macros.h"
+
 namespace cockpit {
 namespace ui {
 
@@ -27,8 +29,7 @@ class CameraControlModel final : public QObject {
   explicit CameraControlModel(std::string address, QObject* parent = nullptr);
   ~CameraControlModel() override;
 
-  CameraControlModel(const CameraControlModel&) = delete;
-  CameraControlModel& operator=(const CameraControlModel&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(CameraControlModel);
 
   const QStringList& devices() const {
     return devices_;

@@ -5,6 +5,8 @@
 #include <string>
 #include <thread>
 
+#include "cockpit/core/base/macros.h"
+
 namespace cockpit {
 namespace camera {
 struct CameraFrame;
@@ -18,8 +20,7 @@ class CameraFrameClient {
   CameraFrameClient(std::string shared_memory_name, CameraFrameModel* model);
   ~CameraFrameClient();
 
-  CameraFrameClient(const CameraFrameClient&) = delete;
-  CameraFrameClient& operator=(const CameraFrameClient&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(CameraFrameClient);
 
   void Start();
   void Stop();

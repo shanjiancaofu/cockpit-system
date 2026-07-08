@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/audio/capture/audio_capture_source.h"
 #include "cockpit/modules/audio/frames/pcm_format.h"
 
@@ -36,8 +37,7 @@ class AlsaPcm {
   AlsaPcm() = default;
   ~AlsaPcm();
 
-  AlsaPcm(const AlsaPcm&) = delete;
-  AlsaPcm& operator=(const AlsaPcm&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(AlsaPcm);
   AlsaPcm(AlsaPcm&& other) noexcept;
   AlsaPcm& operator=(AlsaPcm&& other) noexcept;
 

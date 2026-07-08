@@ -4,6 +4,8 @@
 #include <memory>
 #include <string>
 
+#include "cockpit/core/base/macros.h"
+
 namespace cockpit {
 namespace ipc {
 
@@ -14,8 +16,7 @@ class SharedMemoryRegion {
   static std::unique_ptr<SharedMemoryRegion> Open(const std::string& name, std::string* error);
   ~SharedMemoryRegion();
 
-  SharedMemoryRegion(const SharedMemoryRegion&) = delete;
-  SharedMemoryRegion& operator=(const SharedMemoryRegion&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(SharedMemoryRegion);
 
   void* data() {
     return mapping_;

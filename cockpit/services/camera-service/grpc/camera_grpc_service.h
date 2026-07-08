@@ -6,6 +6,7 @@
 #include <string>
 
 #include "camera.grpc.pb.h"
+#include "cockpit/core/base/macros.h"
 #include "cockpit/services/camera-service/control/camera_service.h"
 #include "cockpit/services/camera-service/photo/camera_photo_service.h"
 #include "cockpit/services/recording-service/client/recording_event_publisher.h"
@@ -19,8 +20,7 @@ class CameraGrpcService final : public proto::camera::CameraControl::Service {
                     const recording::RecordingEventPublisher* recording_events = nullptr);
   ~CameraGrpcService() override;
 
-  CameraGrpcService(const CameraGrpcService&) = delete;
-  CameraGrpcService& operator=(const CameraGrpcService&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(CameraGrpcService);
 
   bool Start(const std::string& address);
   void Shutdown();

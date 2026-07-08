@@ -10,6 +10,7 @@
 #include <string>
 #include <thread>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/voice/responses/voice_response_sink.h"
 
 namespace cockpit {
@@ -21,8 +22,7 @@ class AsyncVoiceResponseSink final : public VoiceResponseSink {
                                   std::size_t capacity = 8U);
   ~AsyncVoiceResponseSink() override;
 
-  AsyncVoiceResponseSink(const AsyncVoiceResponseSink&) = delete;
-  AsyncVoiceResponseSink& operator=(const AsyncVoiceResponseSink&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(AsyncVoiceResponseSink);
 
   bool Submit(std::string text) override;
   VoiceOutputMetrics metrics() const override;

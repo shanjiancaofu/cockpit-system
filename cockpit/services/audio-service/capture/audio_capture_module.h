@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/core/runtime/Module.h"
 #include "cockpit/modules/audio/capture/audio_capture_stream.h"
 #include "cockpit/modules/audio/frames/audio_frame.h"
@@ -16,8 +17,7 @@ class AudioCaptureModule : public runtime::BasicModule {
   AudioCaptureModule();
   ~AudioCaptureModule() override = default;
 
-  AudioCaptureModule(const AudioCaptureModule&) = delete;
-  AudioCaptureModule& operator=(const AudioCaptureModule&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(AudioCaptureModule);
 
   void Configure(std::unique_ptr<AudioCaptureStream> capture_stream);
 

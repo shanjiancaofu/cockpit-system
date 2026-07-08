@@ -8,6 +8,7 @@
 #include <mutex>
 #include <string>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/vehicle/VehicleState.h"
 #include "vehicle_state.grpc.pb.h"
 
@@ -19,8 +20,7 @@ class VehicleGrpcService final : public proto::vehicle::VehicleDataService::Serv
   VehicleGrpcService() = default;
   ~VehicleGrpcService() override;
 
-  VehicleGrpcService(const VehicleGrpcService&) = delete;
-  VehicleGrpcService& operator=(const VehicleGrpcService&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(VehicleGrpcService);
 
   bool Start(const std::string& address);
   void Publish(const VehicleState& state);

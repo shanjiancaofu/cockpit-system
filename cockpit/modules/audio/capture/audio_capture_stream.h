@@ -8,6 +8,7 @@
 #include <string>
 #include <thread>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/audio/capture/audio_capture_source.h"
 #include "cockpit/modules/audio/frames/audio_frame.h"
 #include "cockpit/modules/audio/frames/spsc_ring_buffer.h"
@@ -39,8 +40,7 @@ class AudioCaptureStream {
   explicit AudioCaptureStream(std::unique_ptr<AudioCaptureSource> source);
   ~AudioCaptureStream();
 
-  AudioCaptureStream(const AudioCaptureStream&) = delete;
-  AudioCaptureStream& operator=(const AudioCaptureStream&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(AudioCaptureStream);
 
   bool Start(std::string* error = nullptr);
   void Stop();

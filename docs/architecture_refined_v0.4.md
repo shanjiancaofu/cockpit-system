@@ -11,7 +11,9 @@
 
 ## 1. 文档定位
 
-本文档是 `cockpit-system` 当前架构基线和后续演进约束，不是一次性实现所有车载能力的愿望清单。
+本文档是 `cockpit-system` 的长期架构蓝图和后续演进约束，不是当前实现状态表，也不是一次性实现所有车载能力的愿望清单。
+当前代码事实以 [architecture.md](architecture.md) 为准，模块完成度以 [实现状态.md](实现状态.md) 为准，日常推进看板以
+[项目进度总览.md](项目进度总览.md) 为准。
 
 项目当前定位：
 
@@ -24,10 +26,11 @@
 文档优先级：
 
 1. 本文档规定总体边界和长期方向。
-2. `docs/architecture.md` 记录简化的当前架构快照。
-3. `docs/implementation_status.md` 记录实际完成度。
-4. `docs/change_log.md` 记录每批代码变更和验证结果。
-5. 代码、CMake target 和自动化测试是最终事实来源。
+2. `docs/architecture.md` 记录当前代码架构快照。
+3. `docs/实现状态.md` 记录实际完成度。
+4. `docs/项目进度总览.md` 记录日常推进顺序。
+5. `docs/变更记录.md` 记录每批代码变更和验证结果。
+6. 代码、CMake target 和自动化测试是最终事实来源。
 
 ---
 
@@ -597,7 +600,7 @@ Audio capture
 5. 是否有 mock/null/fake 路径？
 6. 是否避免 UI 直接访问硬件？
 7. 是否避免把 PCM、图像或点云放进 gRPC？
-8. 是否更新 `docs/change_log.md`？
+8. 是否更新 `docs/变更记录.md`？
 9. 是否增加与风险相称的测试？
 10. 是否通过 build、CTest、pre-commit、clang-tidy 和相关 smoke？
 

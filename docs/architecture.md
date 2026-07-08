@@ -1,6 +1,7 @@
 # 当前架构概览
 
-详细架构基线见 `docs/architecture_refined_v0.4.md`。
+本文只描述当前代码已经形成的真实运行架构。长期目标和未落地设计见
+[architecture_refined_v0.4.md](architecture_refined_v0.4.md)，模块完成度见 [实现状态.md](实现状态.md)。
 
 ## 项目定位
 

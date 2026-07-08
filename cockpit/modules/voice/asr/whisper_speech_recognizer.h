@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/voice/asr/speech_recognizer.h"
 
 struct whisper_context;
@@ -20,8 +21,7 @@ class WhisperSpeechRecognizer final : public SpeechRecognizer {
   explicit WhisperSpeechRecognizer(WhisperRecognizerConfig config);
   ~WhisperSpeechRecognizer() override;
 
-  WhisperSpeechRecognizer(const WhisperSpeechRecognizer&) = delete;
-  WhisperSpeechRecognizer& operator=(const WhisperSpeechRecognizer&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(WhisperSpeechRecognizer);
 
   bool IsReady() const;
   const std::string& initialization_error() const;

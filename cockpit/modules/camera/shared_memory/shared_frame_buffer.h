@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/camera/frames/camera_frame_sink.h"
 
 namespace cockpit {
@@ -34,8 +35,7 @@ class SharedFrameWriter final : public CameraFrameSink {
                                                    std::string* error);
   ~SharedFrameWriter() override;
 
-  SharedFrameWriter(const SharedFrameWriter&) = delete;
-  SharedFrameWriter& operator=(const SharedFrameWriter&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(SharedFrameWriter);
 
   bool Publish(CameraFrame frame) override;
   SharedFrameBufferStatus status() const;
@@ -54,8 +54,7 @@ class SharedFrameReader {
   static std::unique_ptr<SharedFrameReader> Open(const std::string& name, std::string* error);
   ~SharedFrameReader();
 
-  SharedFrameReader(const SharedFrameReader&) = delete;
-  SharedFrameReader& operator=(const SharedFrameReader&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(SharedFrameReader);
 
   bool IsAvailable() const;
   bool ReadLatest(CameraFrame* frame, std::uint64_t* generation, std::string* error) const;

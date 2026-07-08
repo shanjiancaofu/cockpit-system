@@ -7,6 +7,7 @@
 #include <mutex>
 #include <string>
 
+#include "cockpit/core/base/macros.h"
 #include "cockpit/modules/camera/capture/camera_preview_source.h"
 
 namespace cockpit {
@@ -17,8 +18,7 @@ class GstreamerPreviewPipeline : public CameraPreviewSource {
   GstreamerPreviewPipeline();
   ~GstreamerPreviewPipeline() override;
 
-  GstreamerPreviewPipeline(const GstreamerPreviewPipeline&) = delete;
-  GstreamerPreviewPipeline& operator=(const GstreamerPreviewPipeline&) = delete;
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(GstreamerPreviewPipeline);
 
   bool Start(const CameraPreviewConfig& config, FrameCallback callback,
              std::string* error) override;
