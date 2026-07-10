@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "cockpit/core/event/message_bus.h"
+#include "cockpit/services/camera-service/recording_bridge.h"
 
 namespace {
 
@@ -98,6 +99,31 @@ class FakePreviewSource : public cockpit::camera::CameraPreviewSource {
 }  // namespace
 
 int main() {
+  cockpit::camera::CameraRecordingBridgeFilter bridge_filter;
+  cockpit::event::EventMessage status_message{
+      "/camera/status", "camera.status", "camera-service", "{}", 100, 0};
+  cockpit::event::EventMessage frame_message{
+      "/camera/frame_meta", "camera.frame_meta", "camera-service", "{}", 100, 0};
+  cockpit::event::EventMessage vehicle_message{
+      "/vehicle/state", "vehicle.state", "vehicle-data-service", "{}", 100, 0};
+  if (!Check(bridge_filter.ShouldForward(status_message), "camera bridge did not forward status") ||
+      !Check(!bridge_filter.ShouldForward(vehicle_message),
+             "camera bridge forwarded non-camera event") ||
+      !Check(bridge_filter.ShouldForward(frame_message),
+             "camera bridge did not forward first frame meta")) {
+    return 1;
+  }
+  for (int i = 0; i < 29; ++i) {
+    if (!Check(!bridge_filter.ShouldForward(frame_message),
+               "camera bridge frame meta sampling mismatch")) {
+      return 1;
+    }
+  }
+  if (!Check(bridge_filter.ShouldForward(frame_message),
+             "camera bridge did not forward sampled frame meta")) {
+    return 1;
+  }
+
   int list_calls = 0;
   auto preview_source = std::make_unique<FakePreviewSource>();
   auto* preview_source_ptr = preview_source.get();
@@ -171,6 +197,18 @@ int main() {
     return 1;
   }
 
+  if (!Check(service.StartPreview(request, &error), "camera preview restart failed")) {
+    std::cerr << error << '\n';
+    return 1;
+  }
+  status = service.status();
+  if (!Check(status.state == cockpit::camera::CameraPreviewState::kRunning,
+             "camera preview did not run after restart") ||
+      !Check(status.restart_count == 1, "camera restart count mismatch") ||
+      !Check(preview_source_ptr->start_count() == 2, "camera preview source was not restarted")) {
+    return 1;
+  }
+
   request.device = "/dev/video1";
   if (!Check(!service.StartPreview(request, &error), "metadata-only camera start was accepted") ||
       !Check(error.find("not available") != std::string::npos,
@@ -179,7 +217,24 @@ int main() {
   }
   status = service.status();
   if (!Check(status.state == cockpit::camera::CameraPreviewState::kFaulted,
-             "camera service did not enter faulted state after invalid start")) {
+             "camera service did not enter faulted state after invalid start") ||
+      !Check(status.last_error_kind == "device_unavailable",
+             "camera service did not classify device error")) {
+    return 1;
+  }
+
+  request.device = "/dev/video0";
+  if (!Check(service.StartPreview(request, &error), "camera preview recovery failed")) {
+    std::cerr << error << '\n';
+    return 1;
+  }
+  status = service.status();
+  if (!Check(status.state == cockpit::camera::CameraPreviewState::kRunning,
+             "camera preview did not run after recovery") ||
+      !Check(status.recover_count == 1, "camera recover count mismatch") ||
+      !Check(status.last_recover_at_ms > 0, "camera recover timestamp missing") ||
+      !Check(status.last_error_kind.empty(), "camera recovery kept stale error kind") ||
+      !Check(status.last_error.empty(), "camera recovery kept stale error")) {
     return 1;
   }
 

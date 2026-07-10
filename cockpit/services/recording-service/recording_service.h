@@ -20,9 +20,12 @@ class RecordingService {
   bool Start(const std::string& trigger, std::string* error);
   bool Stop(std::string* error);
   std::vector<RecordingSessionInfo> List(std::size_t limit) const;
+  bool GetDetail(const std::string& session_id, RecordingSessionDetail* detail,
+                 std::string* error) const;
   bool Delete(const std::string& session_id, std::string* error);
   bool Prune(RecordingPruneResult* result, std::string* error);
   bool HandleEvent(const RecordingEvent& event, std::string* error);
+  bool HandleDataFile(const RecordingDataFile& file, std::string* error);
   void HandleVehicleState(const proto::vehicle::VehicleState& state);
   RecordingStatus status() const;
 

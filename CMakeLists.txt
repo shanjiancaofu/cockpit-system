@@ -6,6 +6,39 @@ project(cockpit-system
     LANGUAGES CXX
 )
 
+find_package(Git QUIET)
+set(COCKPIT_GIT_COMMIT "unknown")
+set(COCKPIT_GIT_DIRTY "unknown")
+if(Git_FOUND)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse HEAD
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        OUTPUT_VARIABLE cockpit_git_commit
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(cockpit_git_commit)
+        set(COCKPIT_GIT_COMMIT "${cockpit_git_commit}")
+    endif()
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" diff --quiet
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        RESULT_VARIABLE cockpit_git_dirty_result
+        ERROR_QUIET
+    )
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" diff --cached --quiet
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        RESULT_VARIABLE cockpit_git_cached_dirty_result
+        ERROR_QUIET
+    )
+    if(cockpit_git_dirty_result EQUAL 0 AND cockpit_git_cached_dirty_result EQUAL 0)
+        set(COCKPIT_GIT_DIRTY "false")
+    else()
+        set(COCKPIT_GIT_DIRTY "true")
+    endif()
+endif()
+
 string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" cockpit_system_processor)
 if(cockpit_system_processor MATCHES "^(aarch64|arm64)$")
     set(cockpit_target_arch "arm64")

@@ -1,12 +1,37 @@
+#include <cstdint>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 #include <string>
 
+#include "cockpit/core/build/build_info.h"
 #include "cockpit/core/logging/Logger.h"
 #include "cockpit/core/runtime/ServiceRuntime.h"
 #include "cockpit/modules/recording/recording_session.h"
 #include "cockpit/services/recording-service/recording_grpc_service.h"
 #include "cockpit/services/recording-service/recording_service.h"
 #include "cockpit/services/recording-service/vehicle_state_subscriber.h"
+
+namespace {
+
+std::string ConfigChecksum(const std::string& path) {
+  std::ifstream input(path, std::ios::binary);
+  if (!input.is_open()) {
+    return "unavailable";
+  }
+  std::uint64_t hash = 1469598103934665603ULL;
+  char character = 0;
+  while (input.get(character)) {
+    hash ^= static_cast<unsigned char>(character);
+    hash *= 1099511628211ULL;
+  }
+  std::ostringstream output;
+  output << "fnv1a64:" << std::hex << std::setw(16) << std::setfill('0') << hash;
+  return output.str();
+}
+
+}  // namespace
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "recording-service");
@@ -28,8 +53,14 @@ int main(int argc, char** argv) {
   }
 
   cockpit::recording::RecordingMetadata metadata;
+  const auto build_info = cockpit::build::GetBuildInfo();
   metadata.config_path = runtime.config_path();
-  metadata.sources = {"vehicle_state",     "generic_events", "camera_status",
+  metadata.config_checksum = ConfigChecksum(runtime.config_path());
+  metadata.git_commit = build_info.git_commit;
+  metadata.git_dirty = build_info.git_dirty;
+  metadata.build_type = build_info.build_type.empty() ? "unknown" : build_info.build_type;
+  metadata.binary_version = build_info.version;
+  metadata.sources = {"vehicle_state",     "generic_events", "data_files",    "camera_status",
                       "camera_frame_meta", "camera_photo",   "voice_response"};
   cockpit::recording::RecordingService recording_service(
       recording_directory, runtime.config().system().vehicle_id,

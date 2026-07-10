@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "cockpit/core/base/macros.h"
+#include "cockpit/modules/recording/recording_data_file.h"
 #include "cockpit/modules/recording/recording_event.h"
 #include "cockpit/modules/vehicle/VehicleState.h"
 
@@ -32,6 +33,7 @@ struct RecordingStatus {
   std::int64_t last_message_timestamp_ms = 0;
   std::uint64_t stored_sessions = 0;
   std::uint64_t stored_bytes = 0;
+  std::uint64_t data_files_indexed = 0;
   std::string last_error;
 };
 
@@ -39,6 +41,11 @@ struct RecordingMetadata {
   std::string project = "cockpit-system";
   std::string schema_version = "1";
   std::string config_path;
+  std::string config_checksum;
+  std::string git_commit;
+  bool git_dirty = false;
+  std::string build_type;
+  std::string binary_version;
   std::vector<std::string> sources = {"vehicle_state", "events"};
 };
 
@@ -53,6 +60,7 @@ class RecordingSession {
   bool Start(const std::string& trigger, std::string* error);
   bool Append(const vehicle::VehicleState& state, std::string* error);
   bool AppendEvent(const RecordingEvent& event, std::string* error);
+  bool AppendDataFile(const RecordingDataFile& file, std::string* error);
   bool Stop(std::string* error);
   RecordingStatus status() const;
 
@@ -73,6 +81,7 @@ class RecordingSession {
   std::filesystem::path final_directory_;
   std::ofstream vehicle_state_file_;
   std::ofstream event_file_;
+  std::ofstream data_file_index_;
 };
 
 }  // namespace recording

@@ -4,10 +4,13 @@
 #include <chrono>
 
 #include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/utils/Time.h"
 
 namespace cockpit {
 namespace gateway {
 namespace {
+
+constexpr auto kVehicleStateFreshTimeout = std::chrono::seconds(2);
 
 proto::gateway::TopicMetadata VehicleStateMetadata() {
   proto::gateway::TopicMetadata metadata;
@@ -45,6 +48,7 @@ void GatewayGrpcService::PublishVehicleState(const proto::vehicle::VehicleState&
     *latest_event_.mutable_vehicle_state() = state;
     latest_vehicle_update_ = std::chrono::steady_clock::now();
     ++version_;
+    ++events_published_;
   }
   event_changed_.notify_all();
 }
@@ -64,6 +68,33 @@ void GatewayGrpcService::Shutdown() {
   }
 }
 
+grpc::Status GatewayGrpcService::GetStatus(grpc::ServerContext*, const proto::common::Empty*,
+                                           proto::gateway::GatewayStatus* response) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  const bool has_vehicle_state = latest_event_.has_vehicle_state();
+  const auto now = std::chrono::steady_clock::now();
+  const auto age = has_vehicle_state ? now - latest_vehicle_update_ : std::chrono::seconds(0);
+  const bool fresh = has_vehicle_state && age <= kVehicleStateFreshTimeout;
+  auto* health = response->mutable_health();
+  health->set_service_name("cockpit-gateway-service");
+  health->set_checked_at_ms(utils::NowMs());
+  if (!has_vehicle_state) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
+    health->set_message("vehicle state is not available yet");
+  } else if (!fresh) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
+    health->set_message("vehicle state is stale");
+  } else {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_OK);
+    health->set_message("gateway online");
+  }
+  response->set_vehicle_state_available(fresh);
+  response->set_last_vehicle_state_age_ms(
+      has_vehicle_state ? std::chrono::duration_cast<std::chrono::milliseconds>(age).count() : -1);
+  response->set_events_published(events_published_);
+  return grpc::Status::OK;
+}
+
 grpc::Status GatewayGrpcService::GetLatestVehicleState(grpc::ServerContext*,
                                                        const proto::common::Empty*,
                                                        proto::vehicle::VehicleState* response) {
@@ -71,7 +102,7 @@ grpc::Status GatewayGrpcService::GetLatestVehicleState(grpc::ServerContext*,
   if (!latest_event_.has_vehicle_state()) {
     return grpc::Status(grpc::StatusCode::UNAVAILABLE, "vehicle state is not available yet");
   }
-  if (std::chrono::steady_clock::now() - latest_vehicle_update_ > std::chrono::seconds(2)) {
+  if (std::chrono::steady_clock::now() - latest_vehicle_update_ > kVehicleStateFreshTimeout) {
     return grpc::Status(grpc::StatusCode::UNAVAILABLE, "vehicle state is stale");
   }
   *response = latest_event_.vehicle_state();

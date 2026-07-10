@@ -54,6 +54,14 @@ bool RecordingControlClient::AppendEvent(std::int64_t timestamp_ms, const std::s
   return FinishRpc(stub_->AppendEvent(&context, request, status), error);
 }
 
+bool RecordingControlClient::AppendDataFile(
+    const proto::recording::AppendRecordingDataFileRequest& request,
+    proto::recording::RecordingStatus* status, std::string* error) {
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->AppendDataFile(&context, request, status), error);
+}
+
 bool RecordingControlClient::GetStatus(proto::recording::RecordingStatus* status,
                                        std::string* error) {
   proto::common::Empty request;
@@ -70,6 +78,16 @@ bool RecordingControlClient::List(std::uint32_t limit,
   grpc::ClientContext context;
   SetDeadline(&context);
   return FinishRpc(stub_->List(&context, request, response), error);
+}
+
+bool RecordingControlClient::GetDetail(const std::string& session_id,
+                                       proto::recording::RecordingSessionDetail* response,
+                                       std::string* error) {
+  proto::recording::GetRecordingDetailRequest request;
+  request.set_session_id(session_id);
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->GetDetail(&context, request, response), error);
 }
 
 bool RecordingControlClient::Delete(const std::string& session_id, std::string* error) {

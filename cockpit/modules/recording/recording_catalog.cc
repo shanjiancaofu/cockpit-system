@@ -6,6 +6,7 @@
 #include <exception>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 namespace cockpit {
 namespace recording {
@@ -20,6 +21,18 @@ void AssignError(std::string* error, const std::string& message) {
 bool IsManagedSession(const std::filesystem::path& directory) {
   return std::filesystem::exists(directory / "COMPLETE") ||
          std::filesystem::exists(directory / "INTERRUPTED");
+}
+
+std::vector<std::string> ReadSources(const YAML::Node& manifest) {
+  std::vector<std::string> sources;
+  const YAML::Node value = manifest["sources"];
+  if (!value || !value.IsSequence()) {
+    return sources;
+  }
+  for (const auto& item : value) {
+    sources.push_back(item.as<std::string>());
+  }
+  return sources;
 }
 
 }  // namespace
@@ -39,6 +52,27 @@ std::vector<RecordingSessionInfo> RecordingCatalog::List(std::size_t limit) cons
     return sessions_;
   }
   return {sessions_.begin(), sessions_.begin() + static_cast<std::ptrdiff_t>(limit)};
+}
+
+bool RecordingCatalog::GetDetail(const std::string& session_id, RecordingSessionDetail* detail,
+                                 std::string* error) const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  const auto entry = std::find_if(sessions_.begin(), sessions_.end(),
+                                  [&session_id](const RecordingSessionInfo& info) {
+                                    return info.session_id == session_id;
+                                  });
+  if (entry == sessions_.end()) {
+    AssignError(error, "recording session not found: " + session_id);
+    return false;
+  }
+  RecordingSessionDetail local_detail;
+  if (!ReadSessionDetail(entry->directory, &local_detail, error)) {
+    return false;
+  }
+  if (detail != nullptr) {
+    *detail = std::move(local_detail);
+  }
+  return true;
 }
 
 bool RecordingCatalog::Delete(const std::string& session_id, std::string* error) {
@@ -110,9 +144,40 @@ bool RecordingCatalog::ReadSession(const std::filesystem::path& directory,
     info->trigger = manifest["trigger"].as<std::string>("unknown");
     info->directory = directory.string();
     info->messages_written = manifest["messages_written"].as<std::uint64_t>(0);
+    info->data_files_indexed = manifest["data_files_indexed"].as<std::uint64_t>(0);
     info->started_at_ms = manifest["started_at_ms"].as<std::int64_t>(0);
     info->stopped_at_ms = manifest["stopped_at_ms"].as<std::int64_t>(0);
     info->size_bytes = DirectorySize(directory);
+    return true;
+  } catch (const std::exception& exception) {
+    AssignError(error,
+                "read recording manifest failed: " + directory.string() + ": " + exception.what());
+    return false;
+  }
+}
+
+bool RecordingCatalog::ReadSessionDetail(const std::filesystem::path& directory,
+                                         RecordingSessionDetail* detail, std::string* error) {
+  RecordingSessionInfo info;
+  if (!ReadSession(directory, &info, error)) {
+    return false;
+  }
+  try {
+    const YAML::Node manifest = YAML::LoadFile((directory / "manifest.json").string());
+    detail->info = std::move(info);
+    detail->project = manifest["project"].as<std::string>("");
+    detail->schema_version = manifest["schema_version"].as<std::string>("");
+    detail->vehicle_id = manifest["vehicle_id"].as<std::string>("");
+    detail->config_path = manifest["config_path"].as<std::string>("");
+    detail->config_checksum = manifest["config_checksum"].as<std::string>("");
+    detail->git_commit = manifest["git_commit"].as<std::string>("");
+    detail->git_dirty = manifest["git_dirty"].as<bool>(false);
+    detail->build_type = manifest["build_type"].as<std::string>("");
+    detail->binary_version = manifest["binary_version"].as<std::string>("");
+    detail->sources = ReadSources(manifest);
+    detail->data_files_indexed = manifest["data_files_indexed"].as<std::uint64_t>(0);
+    detail->first_message_timestamp_ms = manifest["first_message_timestamp_ms"].as<std::int64_t>(0);
+    detail->last_message_timestamp_ms = manifest["last_message_timestamp_ms"].as<std::int64_t>(0);
     return true;
   } catch (const std::exception& exception) {
     AssignError(error,

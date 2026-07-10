@@ -37,6 +37,11 @@ std::vector<RecordingSessionInfo> RecordingService::List(std::size_t limit) cons
   return catalog_.List(limit);
 }
 
+bool RecordingService::GetDetail(const std::string& session_id, RecordingSessionDetail* detail,
+                                 std::string* error) const {
+  return catalog_.GetDetail(session_id, detail, error);
+}
+
 bool RecordingService::Delete(const std::string& session_id, std::string* error) {
   const RecordingStatus current = session_.status();
   if (current.state == RecordingState::kRecording && current.session_id == session_id) {
@@ -58,6 +63,17 @@ bool RecordingService::HandleEvent(const RecordingEvent& event, std::string* err
   }
   if (!session_.AppendEvent(event, error)) {
     LOG_ERROR("record generic event failed: " + (error == nullptr ? std::string() : *error));
+    return false;
+  }
+  return true;
+}
+
+bool RecordingService::HandleDataFile(const RecordingDataFile& file, std::string* error) {
+  if (session_.status().state != RecordingState::kRecording) {
+    return true;
+  }
+  if (!session_.AppendDataFile(file, error)) {
+    LOG_ERROR("record data file index failed: " + (error == nullptr ? std::string() : *error));
     return false;
   }
   return true;

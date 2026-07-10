@@ -108,6 +108,8 @@ const char* CameraStateName(proto::camera::CameraPreviewState state) {
       return "stopped";
     case proto::camera::CAMERA_PREVIEW_STATE_RUNNING:
       return "running";
+    case proto::camera::CAMERA_PREVIEW_STATE_RECOVERING:
+      return "recovering";
     case proto::camera::CAMERA_PREVIEW_STATE_FAULTED:
       return "faulted";
     case proto::camera::CAMERA_PREVIEW_STATE_UNSPECIFIED:
@@ -229,17 +231,20 @@ void PrintGatewayStatus(const std::string& address) {
   auto stub = proto::gateway::CockpitGateway::NewStub(
       grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
   proto::common::Empty request;
-  proto::vehicle::VehicleState state;
+  proto::gateway::GatewayStatus gateway;
   grpc::ClientContext context;
   SetContext(&context);
-  const grpc::Status status = stub->GetLatestVehicleState(&context, request, &state);
+  const grpc::Status status = stub->GetStatus(&context, request, &gateway);
   if (!status.ok()) {
     PrintUnavailable(status);
     return;
   }
   std::cout << "  available: yes\n"
-            << "  vehicle: speed=" << state.speed_kph() << " kph gear=" << state.gear()
-            << " soc=" << state.soc_percent() << "% source=" << state.source() << "\n";
+            << "  vehicle_state: "
+            << (gateway.vehicle_state_available() ? "available" : "unavailable")
+            << " age_ms=" << gateway.last_vehicle_state_age_ms() << "\n"
+            << "  events_published: " << gateway.events_published() << "\n";
+  PrintHealth(gateway.health());
 }
 
 void PrintAudioStatus(const std::string& address) {
@@ -329,8 +334,14 @@ void PrintCameraStatus(const std::string& address) {
             << " max_drops=" << camera.max_consecutive_frame_drops()
             << " consecutive_gaps=" << camera.consecutive_source_gaps()
             << " max_gaps=" << camera.max_consecutive_source_gaps() << "\n";
+  std::cout << "  recovery: restarts=" << camera.restart_count()
+            << " recovers=" << camera.recover_count()
+            << " last_recover_at_ms=" << camera.last_recover_at_ms() << "\n";
   PrintHealth(camera.health());
   PrintModules(camera.modules());
+  if (!camera.last_error_kind().empty()) {
+    std::cout << "  last_error_kind: " << camera.last_error_kind() << "\n";
+  }
   if (!camera.last_error().empty()) {
     std::cout << "  last_error: " << camera.last_error() << "\n";
   }
@@ -365,12 +376,16 @@ bool CheckGateway(const std::string& address, std::string* error) {
   auto stub = proto::gateway::CockpitGateway::NewStub(
       grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
   proto::common::Empty request;
-  proto::vehicle::VehicleState state;
+  proto::gateway::GatewayStatus gateway;
   grpc::ClientContext context;
   SetContext(&context);
-  const grpc::Status status = stub->GetLatestVehicleState(&context, request, &state);
+  const grpc::Status status = stub->GetStatus(&context, request, &gateway);
   if (!status.ok()) {
     *error = RpcError(status);
+    return false;
+  }
+  if (gateway.health().state() == proto::common::SERVICE_HEALTH_STATE_FAULTED) {
+    *error = gateway.health().message().empty() ? "gateway faulted" : gateway.health().message();
     return false;
   }
   return true;

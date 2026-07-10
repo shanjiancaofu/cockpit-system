@@ -20,9 +20,13 @@ class RecordingControlClient {
   bool AppendEvent(std::int64_t timestamp_ms, const std::string& topic,
                    const std::string& payload_json, proto::recording::RecordingStatus* status,
                    std::string* error);
+  bool AppendDataFile(const proto::recording::AppendRecordingDataFileRequest& request,
+                      proto::recording::RecordingStatus* status, std::string* error);
   bool GetStatus(proto::recording::RecordingStatus* status, std::string* error);
   bool List(std::uint32_t limit, proto::recording::ListRecordingsResponse* response,
             std::string* error);
+  bool GetDetail(const std::string& session_id, proto::recording::RecordingSessionDetail* response,
+                 std::string* error);
   bool Delete(const std::string& session_id, std::string* error);
   bool Prune(proto::recording::PruneRecordingsResponse* response, std::string* error);
 

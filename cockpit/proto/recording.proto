@@ -21,6 +21,15 @@ message AppendRecordingEventRequest {
   string payload_json = 3;
 }
 
+message AppendRecordingDataFileRequest {
+  int64 timestamp_ms = 1;
+  string source = 2;
+  string kind = 3;
+  string path = 4;
+  uint64 size_bytes = 5;
+  string checksum = 6;
+}
+
 message RecordingStatus {
   RecordingState state = 1;
   string session_id = 2;
@@ -34,6 +43,7 @@ message RecordingStatus {
   string last_error = 10;
   uint64 stored_sessions = 11;
   uint64 stored_bytes = 12;
+  uint64 data_files_indexed = 13;
   cockpit.proto.common.ServiceHealth health = 100;
 }
 
@@ -46,6 +56,24 @@ message RecordingSessionInfo {
   uint64 size_bytes = 6;
   int64 started_at_ms = 7;
   int64 stopped_at_ms = 8;
+  uint64 data_files_indexed = 9;
+}
+
+message RecordingSessionDetail {
+  RecordingSessionInfo info = 1;
+  string project = 2;
+  string schema_version = 3;
+  string vehicle_id = 4;
+  string config_path = 5;
+  string config_checksum = 6;
+  string git_commit = 7;
+  bool git_dirty = 8;
+  string build_type = 9;
+  string binary_version = 10;
+  repeated string sources = 11;
+  int64 first_message_timestamp_ms = 12;
+  int64 last_message_timestamp_ms = 13;
+  uint64 data_files_indexed = 14;
 }
 
 message ListRecordingsRequest {
@@ -62,6 +90,10 @@ message DeleteRecordingRequest {
   string session_id = 1;
 }
 
+message GetRecordingDetailRequest {
+  string session_id = 1;
+}
+
 message PruneRecordingsResponse {
   uint64 sessions_deleted = 1;
   uint64 bytes_deleted = 2;
@@ -73,8 +105,10 @@ service RecordingControl {
   rpc Start(StartRecordingRequest) returns (RecordingStatus);
   rpc Stop(cockpit.proto.common.Empty) returns (RecordingStatus);
   rpc AppendEvent(AppendRecordingEventRequest) returns (RecordingStatus);
+  rpc AppendDataFile(AppendRecordingDataFileRequest) returns (RecordingStatus);
   rpc GetStatus(cockpit.proto.common.Empty) returns (RecordingStatus);
   rpc List(ListRecordingsRequest) returns (ListRecordingsResponse);
+  rpc GetDetail(GetRecordingDetailRequest) returns (RecordingSessionDetail);
   rpc Delete(DeleteRecordingRequest) returns (cockpit.proto.common.Empty);
   rpc Prune(cockpit.proto.common.Empty) returns (PruneRecordingsResponse);
 }

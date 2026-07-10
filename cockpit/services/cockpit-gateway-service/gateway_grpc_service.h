@@ -27,6 +27,8 @@ class GatewayGrpcService final : public proto::gateway::CockpitGateway::Service 
   void Shutdown();
 
  private:
+  grpc::Status GetStatus(grpc::ServerContext* context, const proto::common::Empty* request,
+                         proto::gateway::GatewayStatus* response) override;
   grpc::Status GetLatestVehicleState(grpc::ServerContext* context,
                                      const proto::common::Empty* request,
                                      proto::vehicle::VehicleState* response) override;
@@ -45,6 +47,7 @@ class GatewayGrpcService final : public proto::gateway::CockpitGateway::Service 
   proto::gateway::CockpitEvent latest_event_;
   std::chrono::steady_clock::time_point latest_vehicle_update_;
   std::uint64_t version_ = 0;
+  std::uint64_t events_published_ = 0;
   bool stopping_ = false;
   std::unique_ptr<grpc::Server> server_;
 };

@@ -9,6 +9,7 @@ add_executable(recording-service
     vehicle_state_subscriber.cc
 )
 target_link_libraries(recording-service PRIVATE
+    build_info
     contracts
     logging
     recording_service

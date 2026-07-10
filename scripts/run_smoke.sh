@@ -115,6 +115,8 @@ fi
 "${bin_dir}/recording-ctl" --start --trigger smoke --config "${config_path}"
 "${bin_dir}/recording-ctl" --event-topic /dev/smoke-event \
   --event-payload '{"ok":true,"source":"run_smoke"}' --config "${config_path}"
+"${bin_dir}/recording-ctl" --file-path photos/smoke.jpg --file-source camera \
+  --file-kind jpeg --file-size-bytes 128 --file-checksum sha256:smoke --config "${config_path}"
 sleep 0.5
 "${bin_dir}/recording-ctl" --config "${config_path}"
 "${bin_dir}/recording-ctl" --stop --config "${config_path}"
@@ -143,6 +145,16 @@ fi
 recording_session_id="$(printf '%s\n' "${recording_list}" | awk '/state=complete/{print $1; exit}')"
 if [[ -z "${recording_session_id}" ]]; then
   echo "recording smoke could not resolve the completed session id" >&2
+  exit 1
+fi
+recording_detail="$(${bin_dir}/recording-ctl --detail "${recording_session_id}" \
+  --config "${config_path}")"
+echo "${recording_detail}"
+if [[ "${recording_detail}" != *"data files indexed: 1"* || \
+      "${recording_detail}" != *"config checksum: fnv1a64:"* || \
+      "${recording_detail}" != *"git commit: "* || \
+      "${recording_detail}" != *"binary version: 0.1.0"* ]]; then
+  echo "recording smoke did not expose replay metadata" >&2
   exit 1
 fi
 "${bin_dir}/recording-ctl" --delete "${recording_session_id}" --config "${config_path}"

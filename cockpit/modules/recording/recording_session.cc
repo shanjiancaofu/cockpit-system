@@ -102,9 +102,14 @@ bool RecordingSession::Start(const std::string& trigger, std::string* error) {
     if (!event_file_.is_open()) {
       throw std::runtime_error("open events.jsonl failed");
     }
+    data_file_index_.open(temporary_directory_ / "data_files.jsonl", std::ios::out | std::ios::app);
+    if (!data_file_index_.is_open()) {
+      throw std::runtime_error("open data_files.jsonl failed");
+    }
     if (!WriteManifest(temporary_directory_, "recording", error)) {
       vehicle_state_file_.close();
       event_file_.close();
+      data_file_index_.close();
       status_.state = RecordingState::kFaulted;
       return false;
     }
@@ -166,6 +171,34 @@ bool RecordingSession::AppendEvent(const RecordingEvent& event, std::string* err
   return true;
 }
 
+bool RecordingSession::AppendDataFile(const RecordingDataFile& file, std::string* error) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (status_.state != RecordingState::kRecording || !data_file_index_.is_open()) {
+    AssignError(error, "recording session is not active");
+    return false;
+  }
+  if (!file.IsValid()) {
+    AssignError(error, "recording data file index is invalid");
+    return false;
+  }
+  data_file_index_ << file.ToJson() << '\n';
+  if (!data_file_index_) {
+    SetError("write data_files.jsonl failed");
+    AssignError(error, status_.last_error);
+    return false;
+  }
+  ++status_.messages_written;
+  ++status_.data_files_indexed;
+  if (status_.first_message_timestamp_ms == 0) {
+    status_.first_message_timestamp_ms = file.timestamp_ms;
+  }
+  status_.last_message_timestamp_ms = file.timestamp_ms;
+  if (status_.messages_written % kFlushInterval == 0) {
+    data_file_index_.flush();
+  }
+  return true;
+}
+
 bool RecordingSession::Stop(std::string* error) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (status_.state == RecordingState::kIdle) {
@@ -180,6 +213,10 @@ bool RecordingSession::Stop(std::string* error) {
       event_file_.flush();
       event_file_.close();
     }
+    if (data_file_index_.is_open()) {
+      data_file_index_.flush();
+      data_file_index_.close();
+    }
     AssignError(error, status_.last_error);
     return false;
   }
@@ -189,6 +226,8 @@ bool RecordingSession::Stop(std::string* error) {
     vehicle_state_file_.close();
     event_file_.flush();
     event_file_.close();
+    data_file_index_.flush();
+    data_file_index_.close();
     status_.stopped_at_ms = utils::NowMs();
     if (!WriteManifest(temporary_directory_, "complete", error)) {
       status_.state = RecordingState::kFaulted;
@@ -254,6 +293,11 @@ bool RecordingSession::WriteManifest(const std::filesystem::path& directory,
            << "  \"session_id\": \"" << EscapeJson(status_.session_id) << "\",\n"
            << "  \"vehicle_id\": \"" << EscapeJson(vehicle_id_) << "\",\n"
            << "  \"config_path\": \"" << EscapeJson(metadata_.config_path) << "\",\n"
+           << "  \"config_checksum\": \"" << EscapeJson(metadata_.config_checksum) << "\",\n"
+           << "  \"git_commit\": \"" << EscapeJson(metadata_.git_commit) << "\",\n"
+           << "  \"git_dirty\": " << (metadata_.git_dirty ? "true" : "false") << ",\n"
+           << "  \"build_type\": \"" << EscapeJson(metadata_.build_type) << "\",\n"
+           << "  \"binary_version\": \"" << EscapeJson(metadata_.binary_version) << "\",\n"
            << "  \"sources\": [";
   for (std::size_t i = 0; i < metadata_.sources.size(); ++i) {
     if (i > 0) {
@@ -267,6 +311,7 @@ bool RecordingSession::WriteManifest(const std::filesystem::path& directory,
            << "  \"started_at_ms\": " << status_.started_at_ms << ",\n"
            << "  \"stopped_at_ms\": " << status_.stopped_at_ms << ",\n"
            << "  \"messages_written\": " << status_.messages_written << ",\n"
+           << "  \"data_files_indexed\": " << status_.data_files_indexed << ",\n"
            << "  \"first_message_timestamp_ms\": " << status_.first_message_timestamp_ms << ",\n"
            << "  \"last_message_timestamp_ms\": " << status_.last_message_timestamp_ms << "\n"
            << "}\n";

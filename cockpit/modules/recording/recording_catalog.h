@@ -16,9 +16,27 @@ struct RecordingSessionInfo {
   std::string trigger;
   std::string directory;
   std::uint64_t messages_written = 0;
+  std::uint64_t data_files_indexed = 0;
   std::uint64_t size_bytes = 0;
   std::int64_t started_at_ms = 0;
   std::int64_t stopped_at_ms = 0;
+};
+
+struct RecordingSessionDetail {
+  RecordingSessionInfo info;
+  std::string project;
+  std::string schema_version;
+  std::string vehicle_id;
+  std::string config_path;
+  std::string config_checksum;
+  std::string git_commit;
+  bool git_dirty = false;
+  std::string build_type;
+  std::string binary_version;
+  std::vector<std::string> sources;
+  std::uint64_t data_files_indexed = 0;
+  std::int64_t first_message_timestamp_ms = 0;
+  std::int64_t last_message_timestamp_ms = 0;
 };
 
 struct RecordingRetentionPolicy {
@@ -37,6 +55,8 @@ class RecordingCatalog {
 
   bool Refresh(std::string* error);
   std::vector<RecordingSessionInfo> List(std::size_t limit = 0) const;
+  bool GetDetail(const std::string& session_id, RecordingSessionDetail* detail,
+                 std::string* error) const;
   bool Delete(const std::string& session_id, std::string* error);
   bool Prune(const RecordingRetentionPolicy& policy, RecordingPruneResult* result,
              std::string* error);
@@ -45,6 +65,8 @@ class RecordingCatalog {
  private:
   static bool ReadSession(const std::filesystem::path& directory, RecordingSessionInfo* info,
                           std::string* error);
+  static bool ReadSessionDetail(const std::filesystem::path& directory,
+                                RecordingSessionDetail* detail, std::string* error);
   static std::uint64_t DirectorySize(const std::filesystem::path& directory);
   bool RefreshLocked(std::string* error);
 

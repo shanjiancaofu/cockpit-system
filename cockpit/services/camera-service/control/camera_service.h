@@ -21,6 +21,7 @@ namespace camera {
 enum class CameraPreviewState {
   kStopped,
   kRunning,
+  kRecovering,
   kFaulted,
 };
 
@@ -41,6 +42,10 @@ struct CameraServiceStatus {
   std::uint64_t max_consecutive_frame_drops = 0;
   std::uint64_t consecutive_source_gaps = 0;
   std::uint64_t max_consecutive_source_gaps = 0;
+  std::string last_error_kind;
+  std::uint64_t restart_count = 0;
+  std::uint64_t recover_count = 0;
+  std::uint64_t last_recover_at_ms = 0;
   std::vector<runtime::ModuleStatus> modules;
   std::string last_error;
 };
@@ -78,7 +83,7 @@ class CameraService {
   static bool IsUsableCaptureDevice(const VideoDeviceInfo& device);
   bool DeviceExists(const std::string& device, std::string* error) const;
   void HandleFrame(CameraFrame frame);
-  void SetError(std::string error);
+  void SetError(std::string kind, std::string error);
   void PublishStatusEvent(const CameraServiceStatus& status) const;
   void PublishFrameEvent(const CameraFrame& frame, std::uint64_t received_at_ms) const;
 

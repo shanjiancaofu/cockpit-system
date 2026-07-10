@@ -169,81 +169,168 @@ Item {
                     Layout.fillHeight: true
                     spacing: 18
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    radius: 8
-                    color: root.surface
-                    border.color: root.borderColor
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        radius: 8
+                        color: root.surface
+                        border.color: root.borderColor
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 24
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 22
+                            spacing: 14
 
-                        Label {
-                            text: "GEAR"
-                            color: root.secondaryText
-                            font.pixelSize: 14
-                            font.bold: true
-                        }
-
-                        Label {
-                            Layout.alignment: Qt.AlignHCenter
-                            Layout.fillHeight: true
-                            verticalAlignment: Text.AlignVCenter
-                            text: vehicleState.gear.toString()
-                            color: root.primaryText
-                            font.pixelSize: 76
-                            font.bold: true
-                        }
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    radius: 8
-                    color: root.surface
-                    border.color: root.borderColor
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 24
-                        spacing: 12
-
-                        RowLayout {
-                            Layout.fillWidth: true
-
-                            Label {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                text: "BATTERY"
-                                color: root.secondaryText
-                                font.pixelSize: 14
-                                font.bold: true
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+
+                                    Label {
+                                        text: "SERVICE HEALTH"
+                                        color: root.secondaryText
+                                        font.pixelSize: 14
+                                        font.bold: true
+                                    }
+
+                                    Label {
+                                        text: serviceHealth.summaryText
+                                        color: root.secondaryText
+                                        font.pixelSize: 11
+                                        elide: Text.ElideRight
+                                        Layout.fillWidth: true
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.preferredWidth: 12
+                                    Layout.preferredHeight: 12
+                                    radius: 6
+                                    color: serviceHealth.worstState === "OK" ? root.green
+                                           : (serviceHealth.worstState === "DEGRADED" ? root.amber
+                                              : (serviceHealth.worstState === "FAULTED" ? root.red
+                                                 : root.secondaryText))
+                                }
                             }
 
-                            Label {
-                                text: vehicleState.socPercent + "%"
-                                color: vehicleState.socPercent > 20 ? root.green : root.amber
-                                font.pixelSize: 30
-                                font.bold: true
-                            }
-                        }
+                            ListView {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+                                interactive: false
+                                spacing: 8
+                                model: serviceHealth
 
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 18
-                            radius: 5
-                            color: root.surfaceRaised
+                                delegate: Rectangle {
+                                    width: ListView.view.width
+                                    height: 58
+                                    radius: 6
+                                    color: root.surfaceRaised
+                                    border.color: healthState === "FAULTED" ? root.red
+                                                  : (healthState === "DEGRADED" ? root.amber
+                                                     : root.borderColor)
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 12
+                                        anchors.rightMargin: 12
+                                        spacing: 10
+
+                                        Rectangle {
+                                            Layout.preferredWidth: 9
+                                            Layout.preferredHeight: 9
+                                            radius: 5
+                                            color: healthState === "OK" ? root.green
+                                                   : (healthState === "DEGRADED" ? root.amber
+                                                      : (healthState === "FAULTED" ? root.red
+                                                         : root.secondaryText))
+                                        }
+
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 8
+
+                                                Label {
+                                                    Layout.fillWidth: true
+                                                    text: displayName
+                                                    color: root.primaryText
+                                                    font.pixelSize: 13
+                                                    font.bold: true
+                                                    elide: Text.ElideRight
+                                                }
+
+                                                Label {
+                                                    text: healthState
+                                                    color: healthState === "OK" ? root.green
+                                                           : (healthState === "DEGRADED" ? root.amber
+                                                              : (healthState === "FAULTED" ? root.red
+                                                                 : root.secondaryText))
+                                                    font.pixelSize: 11
+                                                    font.bold: true
+                                                }
+                                            }
+
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: lastError.length > 0 ? lastError : message
+                                                color: lastError.length > 0 ? root.amber : root.secondaryText
+                                                font.pixelSize: 11
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
                             Rectangle {
-                                width: parent.width * Math.max(0, Math.min(vehicleState.socPercent / 100.0, 1.0))
-                                height: parent.height
-                                radius: 5
-                                color: vehicleState.socPercent > 20 ? root.green : root.amber
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 1
+                                color: root.borderColor
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 12
+
+                                Label {
+                                    text: "GEAR"
+                                    color: root.secondaryText
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                }
+
+                                Label {
+                                    text: vehicleState.gear.toString()
+                                    color: root.primaryText
+                                    font.pixelSize: 26
+                                    font.bold: true
+                                }
+
+                                Item {
+                                    Layout.fillWidth: true
+                                }
+
+                                Label {
+                                    text: "BATTERY"
+                                    color: root.secondaryText
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                }
+
+                                Label {
+                                    text: vehicleState.socPercent + "%"
+                                    color: vehicleState.socPercent > 20 ? root.green : root.amber
+                                    font.pixelSize: 24
+                                    font.bold: true
+                                }
                             }
                         }
-                    }
                     }
                 }
             }

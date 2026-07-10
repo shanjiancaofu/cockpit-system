@@ -39,7 +39,15 @@ message GetTopicInfoRequest {
   string topic = 2;
 }
 
+message GatewayStatus {
+  cockpit.proto.common.ServiceHealth health = 1;
+  bool vehicle_state_available = 2;
+  int64 last_vehicle_state_age_ms = 3;
+  uint64 events_published = 4;
+}
+
 service CockpitGateway {
+  rpc GetStatus(cockpit.proto.common.Empty) returns (GatewayStatus);
   rpc GetLatestVehicleState(cockpit.proto.common.Empty)
       returns (cockpit.proto.vehicle.VehicleState);
   rpc ListTopics(ListTopicsRequest) returns (ListTopicsResponse);

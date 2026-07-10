@@ -87,24 +87,37 @@ std::vector<VideoDeviceInfo> CameraService::ListDevices(std::string* error) cons
 
 bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::string* error) {
   std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+  CameraPreviewState previous_state = CameraPreviewState::kStopped;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    previous_state = status_.state;
+    if (status_.state == CameraPreviewState::kRunning ||
+        status_.state == CameraPreviewState::kFaulted) {
+      status_.state = CameraPreviewState::kRecovering;
+      if (previous_state == CameraPreviewState::kRunning) {
+        ++status_.restart_count;
+      }
+      PublishStatusEvent(status_);
+    }
+  }
   module_manager_.StopAll();
   if (request.device.empty()) {
     AssignError(error, "camera device must not be empty");
-    SetError("camera device must not be empty");
+    SetError("invalid_argument", "camera device must not be empty");
     return false;
   }
   if (request.width == 0 || request.height == 0 || request.fps == 0) {
     AssignError(error, "camera preview width, height, and fps must be positive");
-    SetError("camera preview width, height, and fps must be positive");
+    SetError("invalid_argument", "camera preview width, height, and fps must be positive");
     return false;
   }
   if (!DeviceExists(request.device, error)) {
-    SetError(error == nullptr ? "camera device is not available" : *error);
+    SetError("device_unavailable", error == nullptr ? "camera device is not available" : *error);
     return false;
   }
   if (preview_module_ == nullptr || !preview_module_->available()) {
     AssignError(error, "camera preview backend is not available");
-    SetError("camera preview backend is not available");
+    SetError("backend_unavailable", "camera preview backend is not available");
     return false;
   }
 
@@ -116,7 +129,10 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
 
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    status_.state = CameraPreviewState::kStopped;
+    status_.state = previous_state == CameraPreviewState::kRunning ||
+                            previous_state == CameraPreviewState::kFaulted
+                        ? CameraPreviewState::kRecovering
+                        : CameraPreviewState::kStopped;
     status_.device = request.device;
     status_.width = request.width;
     status_.height = request.height;
@@ -132,7 +148,6 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     status_.max_consecutive_frame_drops = 0;
     status_.consecutive_source_gaps = 0;
     status_.max_consecutive_source_gaps = 0;
-    status_.last_error.clear();
   }
 
   preview_module_->Configure(config, [this](CameraFrame frame) {
@@ -144,7 +159,7 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
       start_error = "start camera preview backend failed";
     }
     AssignError(error, start_error);
-    SetError(start_error);
+    SetError("start_failed", start_error);
     return false;
   }
 
@@ -152,6 +167,12 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     std::lock_guard<std::mutex> lock(mutex_);
     status_.state = CameraPreviewState::kRunning;
     status_.preview_started_at_ms = static_cast<std::uint64_t>(utils::NowMs());
+    if (previous_state == CameraPreviewState::kFaulted) {
+      ++status_.recover_count;
+      status_.last_recover_at_ms = status_.preview_started_at_ms;
+    }
+    status_.last_error.clear();
+    status_.last_error_kind.clear();
     PublishStatusEvent(status_);
   }
   return true;
@@ -233,9 +254,10 @@ void CameraService::HandleFrame(CameraFrame frame) {
   status_.last_frame_received_at_ms = received_at_ms;
 }
 
-void CameraService::SetError(std::string error) {
+void CameraService::SetError(std::string kind, std::string error) {
   std::lock_guard<std::mutex> lock(mutex_);
   status_.state = CameraPreviewState::kFaulted;
+  status_.last_error_kind = std::move(kind);
   status_.last_error = std::move(error);
   PublishStatusEvent(status_);
 }
@@ -252,7 +274,10 @@ void CameraService::PublishStatusEvent(const CameraServiceStatus& status) const 
           << "\"fps\":" << status.fps << ',' << "\"frames_received\":" << status.frames_received
           << ',' << "\"frames_dropped\":" << status.frames_dropped << ','
           << "\"source_frames_skipped\":" << status.source_frames_skipped << ','
-          << "\"last_frame_sequence\":" << status.last_frame_sequence << '}';
+          << "\"last_frame_sequence\":" << status.last_frame_sequence << ','
+          << "\"last_error_kind\":\"" << status.last_error_kind << "\","
+          << "\"restart_count\":" << status.restart_count << ','
+          << "\"recover_count\":" << status.recover_count << '}';
   message_bus_->Publish(event::EventMessage{"/camera/status", "camera.status", "camera-service",
                                             payload.str(), utils::NowMs(), 0});
 }

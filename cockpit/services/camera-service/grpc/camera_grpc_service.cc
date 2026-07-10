@@ -15,6 +15,8 @@ proto::camera::CameraPreviewState ToProtoState(CameraPreviewState state) {
       return proto::camera::CAMERA_PREVIEW_STATE_STOPPED;
     case CameraPreviewState::kRunning:
       return proto::camera::CAMERA_PREVIEW_STATE_RUNNING;
+    case CameraPreviewState::kRecovering:
+      return proto::camera::CAMERA_PREVIEW_STATE_RECOVERING;
     case CameraPreviewState::kFaulted:
       return proto::camera::CAMERA_PREVIEW_STATE_FAULTED;
   }
@@ -46,6 +48,11 @@ void FillHealth(const CameraServiceStatus& status, proto::common::ServiceHealth*
   if (status.state == CameraPreviewState::kFaulted) {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);
     health->set_message(status.last_error.empty() ? "camera preview faulted" : status.last_error);
+    return;
+  }
+  if (status.state == CameraPreviewState::kRecovering) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
+    health->set_message("camera preview recovering");
     return;
   }
   if (status.state == CameraPreviewState::kStopped) {
@@ -218,6 +225,10 @@ void CameraGrpcService::FillStatus(const CameraServiceStatus& status,
   response->set_max_consecutive_frame_drops(status.max_consecutive_frame_drops);
   response->set_consecutive_source_gaps(status.consecutive_source_gaps);
   response->set_max_consecutive_source_gaps(status.max_consecutive_source_gaps);
+  response->set_last_error_kind(status.last_error_kind);
+  response->set_restart_count(status.restart_count);
+  response->set_recover_count(status.recover_count);
+  response->set_last_recover_at_ms(status.last_recover_at_ms);
   response->set_last_error(status.last_error);
   FillHealth(status, response->mutable_health());
   for (const auto& module : status.modules) {

@@ -11,6 +11,7 @@
 #include "cockpit/services/camera-service/control/camera_service.h"
 #include "cockpit/services/camera-service/grpc/camera_grpc_service.h"
 #include "cockpit/services/camera-service/photo/camera_photo_service.h"
+#include "cockpit/services/camera-service/recording_bridge.h"
 #include "cockpit/services/recording-service/client/recording_event_publisher.h"
 
 int main(int argc, char** argv) {
@@ -41,17 +42,14 @@ int main(int argc, char** argv) {
   auto camera_events = message_bus->Subscribe("*");
   std::atomic<bool> bridge_running{true};
   std::thread recording_bridge([&]() {
-    std::uint64_t frame_meta_seen = 0;
+    cockpit::camera::CameraRecordingBridgeFilter bridge_filter;
     while (bridge_running.load()) {
       auto message = camera_events->WaitPopFor(std::chrono::milliseconds(100));
       if (!message.has_value()) {
         continue;
       }
-      if (message->topic == "/camera/frame_meta") {
-        ++frame_meta_seen;
-        if (frame_meta_seen % 30U != 1U) {
-          continue;
-        }
+      if (!bridge_filter.ShouldForward(*message)) {
+        continue;
       }
       recording_events.Publish(message->timestamp_ms, message->topic, message->payload_json);
     }

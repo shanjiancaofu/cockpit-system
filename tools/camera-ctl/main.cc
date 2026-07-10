@@ -25,6 +25,8 @@ const char* StateName(cockpit::proto::camera::CameraPreviewState state) {
       return "stopped";
     case cockpit::proto::camera::CAMERA_PREVIEW_STATE_RUNNING:
       return "running";
+    case cockpit::proto::camera::CAMERA_PREVIEW_STATE_RECOVERING:
+      return "recovering";
     case cockpit::proto::camera::CAMERA_PREVIEW_STATE_FAULTED:
       return "faulted";
     case cockpit::proto::camera::CAMERA_PREVIEW_STATE_UNSPECIFIED:
@@ -56,7 +58,13 @@ void PrintStatus(const cockpit::proto::camera::CameraStatus& status) {
             << "source frames skipped: " << status.source_frames_skipped() << '\n'
             << "last frame sequence: " << status.last_frame_sequence() << '\n'
             << "last frame timestamp ms: " << status.last_frame_timestamp_ms() << '\n'
-            << "last frame received at ms: " << status.last_frame_received_at_ms() << '\n';
+            << "last frame received at ms: " << status.last_frame_received_at_ms() << '\n'
+            << "restart count: " << status.restart_count() << '\n'
+            << "recover count: " << status.recover_count() << '\n'
+            << "last recover at ms: " << status.last_recover_at_ms() << '\n';
+  if (!status.last_error_kind().empty()) {
+    std::cout << "last error kind: " << status.last_error_kind() << '\n';
+  }
   if (!status.last_error().empty()) {
     std::cout << "last error: " << status.last_error() << '\n';
   }

@@ -18,14 +18,27 @@ bool Check(bool condition, const char* message) {
 }
 
 bool CreateSession(const std::filesystem::path& root, std::int64_t timestamp, std::string* error) {
-  cockpit::recording::RecordingSession session(root, "catalog_test_vehicle");
+  cockpit::recording::RecordingMetadata metadata;
+  metadata.config_path = "configs/catalog.yaml";
+  metadata.config_checksum = "fnv1a64:catalog";
+  metadata.git_commit = "catalog_commit";
+  metadata.build_type = "Debug";
+  metadata.binary_version = "0.1.0";
+  metadata.sources = {"vehicle_state", "events"};
+  cockpit::recording::RecordingSession session(root, "catalog_test_vehicle", metadata);
   if (!session.Start("catalog_test", error)) {
     return false;
   }
   cockpit::vehicle::VehicleState state;
   state.timestamp_ms = timestamp;
   state.source = "test";
-  return session.Append(state, error) && session.Stop(error);
+  cockpit::recording::RecordingDataFile data_file;
+  data_file.timestamp_ms = timestamp + 1;
+  data_file.source = "camera";
+  data_file.kind = "jpeg";
+  data_file.path = "photos/test.jpg";
+  return session.Append(state, error) && session.AppendDataFile(data_file, error) &&
+         session.Stop(error);
 }
 
 }  // namespace
@@ -47,6 +60,25 @@ int main() {
     return 1;
   }
   const auto initial = catalog.List();
+  cockpit::recording::RecordingSessionDetail detail;
+  const bool detail_ok =
+      Check(catalog.GetDetail(initial.front().session_id, &detail, &error),
+            "recording catalog detail failed") &&
+      Check(detail.info.session_id == initial.front().session_id,
+            "recording catalog detail session mismatch") &&
+      Check(detail.vehicle_id == "catalog_test_vehicle",
+            "recording catalog detail vehicle id missing") &&
+      Check(detail.config_checksum == "fnv1a64:catalog",
+            "recording catalog detail config checksum missing") &&
+      Check(detail.git_commit == "catalog_commit", "recording catalog detail git commit missing") &&
+      Check(detail.build_type == "Debug", "recording catalog detail build type missing") &&
+      Check(detail.binary_version == "0.1.0", "recording catalog detail binary version missing") &&
+      Check(detail.sources.size() == 2, "recording catalog detail sources missing") &&
+      Check(detail.data_files_indexed == 1, "recording catalog detail data file count missing");
+  if (!detail_ok) {
+    std::cerr << error << '\n';
+    return 1;
+  }
   cockpit::recording::RecordingPruneResult prune_result;
   const bool initial_ok =
       Check(initial.size() == 2, "recording catalog session count mismatch") &&

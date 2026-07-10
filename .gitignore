@@ -1,7 +1,7 @@
-build/
-out/
-bin/
-logs/
+/build/
+/out/
+/bin/
+/logs/
 *.user
 *.log
 *.log.1
@@ -49,11 +49,11 @@ compile_commands.json
 *.app
 
 # Build directories
-build/
-Build/
-build-*/
-stage/
-dist/
+/build/
+/Build/
+/build-*/
+/stage/
+/dist/
 toolchains/jetson-sysroot/
 
 # CMake generated files

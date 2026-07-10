@@ -9,6 +9,7 @@ enum CameraPreviewState {
   CAMERA_PREVIEW_STATE_STOPPED = 1;
   CAMERA_PREVIEW_STATE_RUNNING = 2;
   CAMERA_PREVIEW_STATE_FAULTED = 3;
+  CAMERA_PREVIEW_STATE_RECOVERING = 4;
 }
 
 message CameraDevice {
@@ -52,6 +53,10 @@ message CameraStatus {
   uint64 max_consecutive_frame_drops = 16;
   uint64 consecutive_source_gaps = 17;
   uint64 max_consecutive_source_gaps = 18;
+  string last_error_kind = 19;
+  uint64 restart_count = 20;
+  uint64 recover_count = 21;
+  uint64 last_recover_at_ms = 22;
   cockpit.proto.common.ServiceHealth health = 100;
 }
 
