@@ -8,6 +8,7 @@ add_executable(voice-interaction-service main.cc)
 target_link_libraries(voice-interaction-service
     PRIVATE
         contracts
+        json_util
         logging
         recording_event_client
         runtime

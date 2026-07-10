@@ -41,7 +41,7 @@ class SpeechOutput final : public voice::VoiceResponseSink {
   std::condition_variable changed_;
   std::deque<std::string> queue_;
   bool running_ = false;
-  bool stop_requested_ = false;
+  std::atomic_bool stop_requested_{false};
   std::thread worker_;
   std::atomic<std::uint64_t> queued_{0};
   std::atomic<std::uint64_t> played_{0};

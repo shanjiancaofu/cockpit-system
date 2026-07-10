@@ -4,10 +4,12 @@
 
 #include <atomic>
 #include <exception>
-#include <iomanip>
+#include <limits>
 #include <sstream>
+#include <system_error>
 #include <utility>
 
+#include "cockpit/core/json/json.h"
 #include "cockpit/core/utils/Time.h"
 
 namespace cockpit {
@@ -21,33 +23,6 @@ void AssignError(std::string* error, const std::string& message) {
   if (error != nullptr) {
     *error = message;
   }
-}
-
-std::string EscapeJson(const std::string& input) {
-  std::ostringstream output;
-  for (const char character : input) {
-    switch (character) {
-      case '\\':
-        output << "\\\\";
-        break;
-      case '"':
-        output << "\\\"";
-        break;
-      case '\n':
-        output << "\\n";
-        break;
-      case '\r':
-        output << "\\r";
-        break;
-      case '\t':
-        output << "\\t";
-        break;
-      default:
-        output << character;
-        break;
-    }
-  }
-  return output.str();
 }
 
 std::string MakeSessionId() {
@@ -181,7 +156,11 @@ bool RecordingSession::AppendDataFile(const RecordingDataFile& file, std::string
     AssignError(error, "recording data file index is invalid");
     return false;
   }
-  data_file_index_ << file.ToJson() << '\n';
+  RecordingDataFile recorded_file = file;
+  if (recorded_file.copy_into_session && !CopyDataFile(&recorded_file, error)) {
+    return false;
+  }
+  data_file_index_ << recorded_file.ToJson() << '\n';
   if (!data_file_index_) {
     SetError("write data_files.jsonl failed");
     AssignError(error, status_.last_error);
@@ -190,9 +169,9 @@ bool RecordingSession::AppendDataFile(const RecordingDataFile& file, std::string
   ++status_.messages_written;
   ++status_.data_files_indexed;
   if (status_.first_message_timestamp_ms == 0) {
-    status_.first_message_timestamp_ms = file.timestamp_ms;
+    status_.first_message_timestamp_ms = recorded_file.timestamp_ms;
   }
-  status_.last_message_timestamp_ms = file.timestamp_ms;
+  status_.last_message_timestamp_ms = recorded_file.timestamp_ms;
   if (status_.messages_written % kFlushInterval == 0) {
     data_file_index_.flush();
   }
@@ -205,38 +184,42 @@ bool RecordingSession::Stop(std::string* error) {
     return true;
   }
   if (status_.state == RecordingState::kFaulted) {
-    if (vehicle_state_file_.is_open()) {
-      vehicle_state_file_.flush();
-      vehicle_state_file_.close();
-    }
-    if (event_file_.is_open()) {
-      event_file_.flush();
-      event_file_.close();
-    }
-    if (data_file_index_.is_open()) {
-      data_file_index_.flush();
-      data_file_index_.close();
-    }
+    std::string ignored_error;
+    CloseOutput(&vehicle_state_file_, "vehicle_state.jsonl", &ignored_error);
+    CloseOutput(&event_file_, "events.jsonl", &ignored_error);
+    CloseOutput(&data_file_index_, "data_files.jsonl", &ignored_error);
     AssignError(error, status_.last_error);
     return false;
   }
 
   try {
-    vehicle_state_file_.flush();
-    vehicle_state_file_.close();
-    event_file_.flush();
-    event_file_.close();
-    data_file_index_.flush();
-    data_file_index_.close();
+    std::string close_error;
+    bool outputs_closed = CloseOutput(&vehicle_state_file_, "vehicle_state.jsonl", &close_error);
+    std::string current_error;
+    if (!CloseOutput(&event_file_, "events.jsonl", &current_error) && outputs_closed) {
+      outputs_closed = false;
+      close_error = current_error;
+    }
+    current_error.clear();
+    if (!CloseOutput(&data_file_index_, "data_files.jsonl", &current_error) && outputs_closed) {
+      outputs_closed = false;
+      close_error = current_error;
+    }
+    if (!outputs_closed) {
+      SetError(close_error);
+      AssignError(error, status_.last_error);
+      return false;
+    }
     status_.stopped_at_ms = utils::NowMs();
     if (!WriteManifest(temporary_directory_, "complete", error)) {
-      status_.state = RecordingState::kFaulted;
+      SetError(error == nullptr ? "write recording manifest failed" : *error);
+      return false;
+    }
+    if (!WriteMarker(temporary_directory_ / "COMPLETE", status_.stopped_at_ms, error)) {
+      SetError(error == nullptr ? "write COMPLETE marker failed" : *error);
       return false;
     }
     std::filesystem::rename(temporary_directory_, final_directory_);
-    std::ofstream complete_file(final_directory_ / "COMPLETE");
-    complete_file << status_.stopped_at_ms << '\n';
-    complete_file.close();
     status_.state = RecordingState::kIdle;
     status_.directory = final_directory_.string();
     return true;
@@ -255,11 +238,11 @@ RecordingStatus RecordingSession::status() const {
 std::size_t RecordingSession::RecoverInterrupted(const std::filesystem::path& root_directory,
                                                  std::string* error) {
   const std::filesystem::path sessions_directory = root_directory / "sessions";
-  if (!std::filesystem::exists(sessions_directory)) {
-    return 0;
-  }
   std::size_t recovered = 0;
   try {
+    if (!std::filesystem::exists(sessions_directory)) {
+      return 0;
+    }
     for (const auto& entry : std::filesystem::directory_iterator(sessions_directory)) {
       const std::string name = entry.path().filename().string();
       if (!entry.is_directory() || name.rfind(".recording_", 0) != 0) {
@@ -267,9 +250,12 @@ std::size_t RecordingSession::RecoverInterrupted(const std::filesystem::path& ro
       }
       const std::filesystem::path destination =
           sessions_directory / ("interrupted_" + name.substr(std::string(".recording_").size()));
+      std::string marker_error;
+      if (!WriteMarker(entry.path() / "INTERRUPTED", utils::NowMs(), &marker_error)) {
+        AssignError(error, marker_error);
+        return recovered;
+      }
       std::filesystem::rename(entry.path(), destination);
-      std::ofstream marker(destination / "INTERRUPTED");
-      marker << utils::NowMs() << '\n';
       ++recovered;
     }
     return recovered;
@@ -277,6 +263,93 @@ std::size_t RecordingSession::RecoverInterrupted(const std::filesystem::path& ro
     AssignError(error, exception.what());
     return recovered;
   }
+}
+
+bool RecordingSession::CopyDataFile(RecordingDataFile* file, std::string* error) {
+  const std::filesystem::path source(file->path);
+  std::error_code filesystem_error;
+  if (!std::filesystem::is_regular_file(source, filesystem_error) || filesystem_error) {
+    AssignError(error, "recording data file is not a readable regular file: " + file->path);
+    return false;
+  }
+  const std::string filename = source.filename().string();
+  if (filename.empty() || filename == "." || filename == "..") {
+    AssignError(error, "recording data file has an invalid filename: " + file->path);
+    return false;
+  }
+
+  const std::filesystem::path artifact_directory = temporary_directory_ / "artifacts";
+  std::filesystem::create_directories(artifact_directory, filesystem_error);
+  if (filesystem_error) {
+    AssignError(error, "create recording artifact directory failed: " + filesystem_error.message());
+    return false;
+  }
+  const std::filesystem::path relative_path =
+      std::filesystem::path("artifacts") /
+      (std::to_string(status_.data_files_indexed + 1U) + "_" + filename);
+  const std::filesystem::path destination = temporary_directory_ / relative_path;
+  const bool copied = std::filesystem::copy_file(
+      source, destination, std::filesystem::copy_options::none, filesystem_error);
+  if (!copied || filesystem_error) {
+    AssignError(error,
+                filesystem_error
+                    ? "copy recording data file failed: " + filesystem_error.message()
+                    : "recording artifact destination already exists: " + destination.string());
+    return false;
+  }
+  const std::uintmax_t size = std::filesystem::file_size(destination, filesystem_error);
+  if (filesystem_error || size > std::numeric_limits<std::uint64_t>::max()) {
+    std::error_code remove_error;
+    std::filesystem::remove(destination, remove_error);
+    AssignError(error, filesystem_error ? "read copied recording data file size failed: " +
+                                              filesystem_error.message()
+                                        : "copied recording data file is too large");
+    return false;
+  }
+  file->path = relative_path.generic_string();
+  file->size_bytes = static_cast<std::uint64_t>(size);
+  return true;
+}
+
+bool RecordingSession::CloseOutput(std::ofstream* output, const char* filename,
+                                   std::string* error) {
+  if (!output->is_open()) {
+    return true;
+  }
+  output->flush();
+  if (!*output) {
+    output->close();
+    AssignError(error, std::string("flush ") + filename + " failed");
+    return false;
+  }
+  output->close();
+  if (output->fail()) {
+    AssignError(error, std::string("close ") + filename + " failed");
+    return false;
+  }
+  return true;
+}
+
+bool RecordingSession::WriteMarker(const std::filesystem::path& path, std::int64_t timestamp_ms,
+                                   std::string* error) {
+  std::ofstream marker(path, std::ios::out | std::ios::trunc);
+  if (!marker.is_open()) {
+    AssignError(error, "open recording marker failed: " + path.string());
+    return false;
+  }
+  marker << timestamp_ms << '\n';
+  marker.flush();
+  if (!marker) {
+    marker.close();
+    AssignError(error, "write recording marker failed: " + path.string());
+    return false;
+  }
+  marker.close();
+  if (marker.fail()) {
+    AssignError(error, "close recording marker failed: " + path.string());
+    return false;
+  }
+  return true;
 }
 
 bool RecordingSession::WriteManifest(const std::filesystem::path& directory,
@@ -288,26 +361,27 @@ bool RecordingSession::WriteManifest(const std::filesystem::path& directory,
   }
   manifest << "{\n"
            << "  \"version\": 1,\n"
-           << "  \"project\": \"" << EscapeJson(metadata_.project) << "\",\n"
-           << "  \"schema_version\": \"" << EscapeJson(metadata_.schema_version) << "\",\n"
-           << "  \"session_id\": \"" << EscapeJson(status_.session_id) << "\",\n"
-           << "  \"vehicle_id\": \"" << EscapeJson(vehicle_id_) << "\",\n"
-           << "  \"config_path\": \"" << EscapeJson(metadata_.config_path) << "\",\n"
-           << "  \"config_checksum\": \"" << EscapeJson(metadata_.config_checksum) << "\",\n"
-           << "  \"git_commit\": \"" << EscapeJson(metadata_.git_commit) << "\",\n"
+           << "  \"project\": \"" << json::EscapeString(metadata_.project) << "\",\n"
+           << "  \"schema_version\": \"" << json::EscapeString(metadata_.schema_version) << "\",\n"
+           << "  \"session_id\": \"" << json::EscapeString(status_.session_id) << "\",\n"
+           << "  \"vehicle_id\": \"" << json::EscapeString(vehicle_id_) << "\",\n"
+           << "  \"config_path\": \"" << json::EscapeString(metadata_.config_path) << "\",\n"
+           << "  \"config_checksum\": \"" << json::EscapeString(metadata_.config_checksum)
+           << "\",\n"
+           << "  \"git_commit\": \"" << json::EscapeString(metadata_.git_commit) << "\",\n"
            << "  \"git_dirty\": " << (metadata_.git_dirty ? "true" : "false") << ",\n"
-           << "  \"build_type\": \"" << EscapeJson(metadata_.build_type) << "\",\n"
-           << "  \"binary_version\": \"" << EscapeJson(metadata_.binary_version) << "\",\n"
+           << "  \"build_type\": \"" << json::EscapeString(metadata_.build_type) << "\",\n"
+           << "  \"binary_version\": \"" << json::EscapeString(metadata_.binary_version) << "\",\n"
            << "  \"sources\": [";
   for (std::size_t i = 0; i < metadata_.sources.size(); ++i) {
     if (i > 0) {
       manifest << ", ";
     }
-    manifest << "\"" << EscapeJson(metadata_.sources[i]) << "\"";
+    manifest << "\"" << json::EscapeString(metadata_.sources[i]) << "\"";
   }
   manifest << "],\n"
-           << "  \"state\": \"" << EscapeJson(state) << "\",\n"
-           << "  \"trigger\": \"" << EscapeJson(status_.trigger) << "\",\n"
+           << "  \"state\": \"" << json::EscapeString(state) << "\",\n"
+           << "  \"trigger\": \"" << json::EscapeString(status_.trigger) << "\",\n"
            << "  \"started_at_ms\": " << status_.started_at_ms << ",\n"
            << "  \"stopped_at_ms\": " << status_.stopped_at_ms << ",\n"
            << "  \"messages_written\": " << status_.messages_written << ",\n"
@@ -317,6 +391,16 @@ bool RecordingSession::WriteManifest(const std::filesystem::path& directory,
            << "}\n";
   if (!manifest) {
     AssignError(error, "write manifest.json failed");
+    return false;
+  }
+  manifest.flush();
+  if (!manifest) {
+    AssignError(error, "flush manifest.json failed");
+    return false;
+  }
+  manifest.close();
+  if (manifest.fail()) {
+    AssignError(error, "close manifest.json failed");
     return false;
   }
   return true;

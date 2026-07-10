@@ -346,8 +346,8 @@ flowchart LR
 边界：
 
 - 用户语音交互不负责研发录包。
-- 研发录包、雷达采集和诊断数据属于 recording/diagnostics；当前已实现 VehicleState
-  文件录包，相机、音频和事件数据源后续接入。
+- 研发录包、雷达采集和诊断数据属于 recording/diagnostics；当前已实现 VehicleState、轻量事件
+  和相机拍照 artifact，音频及连续视频数据源后续接入。
 - Android 音乐应用由未来 HMI bridge 控制，不在 C++ 中重造播放器。
 - TensorRT、WebRTC VAD 和 LLM provider 尚未实现；whisper.cpp adapter 已完成 WSL CPU
   样例验证，但尚未完成中文麦克风和 Jetson CUDA 验证。
@@ -387,7 +387,7 @@ flowchart LR
 共享内存分层：
 
 - `cockpit/core/ipc/SharedMemoryRegion`：通用 POSIX mapping RAII。
-- `cockpit/modules/camera/shared_memory`：相机 metadata、双槽和进程共享读写锁。
+- `cockpit/modules/camera/shared_memory`：相机 metadata、双槽和 robust process-shared mutex。
 - camera-service：writer owner。
 - cockpit-ui：reader。
 
@@ -395,11 +395,12 @@ flowchart LR
 
 - writer 写非活动槽，完成后切换 active slot。
 - generation 与槽内帧对应。
-- reader 复制完整帧后释放读锁。
+- reader 复制并校验完整帧后释放槽 mutex。
 - owner 正常退出时 unlink shared memory。
+- owner 异常退出后，新 writer 回收遗留 mapping；robust mutex 修复中断写入状态。
 - gRPC 不传视频 payload。
 
-后续：Jetson CSI/NVMM/DMABUF、多 camera channel、robust lock recovery 和 WebRTC。
+后续：Jetson CSI/NVMM/DMABUF、多 camera channel 和 WebRTC。
 
 ---
 

@@ -1,0 +1,3 @@
+hardware:
+  audio:
+    sample_rate_hz: 48000

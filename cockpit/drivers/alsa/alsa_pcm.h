@@ -48,8 +48,8 @@ class AlsaPcm {
   CaptureResult PollReadFrames(std::int16_t* samples, std::size_t frame_capacity, int timeout_ms,
                                const std::atomic_bool& stop_requested);
   bool WriteFrames(const std::int16_t* samples, std::size_t frame_count,
-                   std::string* error = nullptr);
-  bool Drain(std::string* error = nullptr);
+                   std::string* error = nullptr, const std::atomic_bool* stop_requested = nullptr);
+  bool Drain(std::string* error = nullptr, const std::atomic_bool* stop_requested = nullptr);
   void Close();
 
   bool IsOpen() const {

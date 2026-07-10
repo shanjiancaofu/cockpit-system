@@ -62,6 +62,19 @@ int main() {
   }
 
   try {
+    cockpit::config::SystemConfig::LoadFromFile(INVALID_AUDIO_FORMAT_CONFIG_PATH);
+    std::cerr << "unsupported audio format was accepted" << std::endl;
+    return 1;
+  } catch (const std::runtime_error& error) {
+    const std::string message = error.what();
+    if (message.find("hardware.audio.sample_rate_hz") == std::string::npos) {
+      std::cerr << "invalid audio format error did not identify config path: " << message
+                << std::endl;
+      return 1;
+    }
+  }
+
+  try {
     cockpit::config::SystemConfig::LoadFromFile(INVALID_VOICE_CONFIG_PATH);
     std::cerr << "invalid voice config was accepted" << std::endl;
     return 1;

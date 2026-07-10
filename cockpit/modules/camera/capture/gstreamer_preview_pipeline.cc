@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <sstream>
 #include <utility>
 
@@ -251,15 +252,33 @@ int GstreamerPreviewPipeline::HandleNewSample(GstSample* sample) {
   frame.stride_bytes = static_cast<std::uint32_t>(GST_VIDEO_INFO_PLANE_STRIDE(&video_info, 0));
   frame.format = config.output_format;
 
-  const std::uint32_t min_stride = frame.width * BytesPerPixel(frame.format);
-  const std::uint32_t copied_stride = frame.stride_bytes == 0 ? min_stride : frame.stride_bytes;
-  const std::size_t expected_size = static_cast<std::size_t>(copied_stride) * frame.height;
-  const std::size_t copy_size = std::min(expected_size, static_cast<std::size_t>(map.size));
-  frame.data.resize(copy_size);
-  std::memcpy(frame.data.data(), map.data, copy_size);
+  const std::size_t bytes_per_pixel = BytesPerPixel(frame.format);
+  const bool stride_overflow =
+      frame.width != 0 && bytes_per_pixel > std::numeric_limits<std::size_t>::max() / frame.width;
+  const bool payload_overflow =
+      frame.height != 0 && static_cast<std::size_t>(frame.stride_bytes) >
+                               std::numeric_limits<std::size_t>::max() / frame.height;
+  if (stride_overflow || payload_overflow) {
+    gst_buffer_unmap(buffer, &map);
+    return GST_FLOW_OK;
+  }
+  const std::size_t minimum_stride = static_cast<std::size_t>(frame.width) * bytes_per_pixel;
+  if (frame.stride_bytes < minimum_stride) {
+    gst_buffer_unmap(buffer, &map);
+    return GST_FLOW_OK;
+  }
+  const std::size_t expected_size = static_cast<std::size_t>(frame.stride_bytes) * frame.height;
+  if (map.size < expected_size) {
+    gst_buffer_unmap(buffer, &map);
+    return GST_FLOW_OK;
+  }
+  frame.data.resize(expected_size);
+  std::memcpy(frame.data.data(), map.data, expected_size);
 
   gst_buffer_unmap(buffer, &map);
-  callback(std::move(frame));
+  if (frame.IsValid()) {
+    callback(std::move(frame));
+  }
   return GST_FLOW_OK;
 }
 

@@ -65,6 +65,14 @@ class EventQueue {
     cv_.notify_all();
   }
 
+  std::size_t DiscardPending() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const std::size_t discarded = queue_.size();
+    queue_.clear();
+    drop_count_ += static_cast<std::uint64_t>(discarded);
+    return discarded;
+  }
+
   void Reset() {
     std::lock_guard<std::mutex> lock(mutex_);
     queue_.clear();

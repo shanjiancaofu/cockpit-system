@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <sstream>
 
+#include "cockpit/core/json/json.h"
 #include "cockpit/core/utils/Time.h"
 
 namespace cockpit {
@@ -15,7 +16,7 @@ std::string VehicleState::ToJson() const {
       << "\"timestamp_ms\":" << timestamp_ms << ',' << "\"speed_kph\":" << speed_kph << ','
       << "\"gear\":" << gear << ',' << "\"soc_percent\":" << soc_percent << ','
       << "\"cloud_enabled\":" << (cloud_enabled ? "true" : "false") << ',' << "\"source\":\""
-      << source << "\""
+      << json::EscapeString(source) << "\""
       << "}";
   return out.str();
 }

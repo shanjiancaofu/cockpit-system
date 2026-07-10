@@ -483,6 +483,15 @@ void SystemConfig::Validate() const {
   RequirePositive(hardware_.audio.sample_rate_hz, "hardware.audio.sample_rate_hz");
   RequirePositive(hardware_.audio.channels, "hardware.audio.channels");
   RequirePositive(hardware_.audio.frame_ms, "hardware.audio.frame_ms");
+  if (hardware_.audio.sample_rate_hz != 16000) {
+    throw std::runtime_error("hardware.audio.sample_rate_hz currently supports only 16000");
+  }
+  if (hardware_.audio.channels != 1) {
+    throw std::runtime_error("hardware.audio.channels currently supports only mono (1)");
+  }
+  if (hardware_.audio.frame_ms != 20) {
+    throw std::runtime_error("hardware.audio.frame_ms currently supports only 20");
+  }
   if (services_.audio.speech_segment.pre_roll_ms % hardware_.audio.frame_ms != 0) {
     throw std::runtime_error(
         "services.audio.speech_segment.pre_roll_ms must align with hardware.audio.frame_ms");

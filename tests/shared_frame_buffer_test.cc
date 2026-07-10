@@ -1,5 +1,6 @@
 #include "cockpit/modules/camera/shared_memory/shared_frame_buffer.h"
 
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <iostream>
@@ -74,7 +75,52 @@ int main() {
     return 1;
   }
 
+  auto undersized = MakeFrame(4, 0x44);
+  undersized.data.resize(15);
+  if (!Check(!writer->Publish(std::move(undersized)), "undersized shared frame was accepted")) {
+    return 1;
+  }
+
   writer.reset();
-  return Check(!reader->IsAvailable(), "shared frame reader did not detect writer shutdown") ? 0
-                                                                                             : 1;
+  if (!Check(!reader->IsAvailable(), "shared frame reader did not detect writer shutdown")) {
+    return 1;
+  }
+
+  cockpit::camera::SharedFrameBufferConfig stale_config;
+  stale_config.name = "/cockpit_camera_stale_test_" + std::to_string(getpid());
+  stale_config.max_frame_bytes = 64;
+  const pid_t child = fork();
+  if (child < 0) {
+    std::cerr << "fork stale shared memory writer failed\n";
+    return 1;
+  }
+  if (child == 0) {
+    std::string child_error;
+    auto stale_writer = cockpit::camera::SharedFrameWriter::Create(stale_config, &child_error);
+    if (stale_writer == nullptr || !stale_writer->Publish(MakeFrame(1, 0x55))) {
+      _exit(1);
+    }
+    _exit(0);
+  }
+  int child_status = 0;
+  if (waitpid(child, &child_status, 0) != child || !WIFEXITED(child_status) ||
+      WEXITSTATUS(child_status) != 0) {
+    std::cerr << "stale shared memory writer child failed\n";
+    return 1;
+  }
+
+  auto stale_reader = cockpit::camera::SharedFrameReader::Open(stale_config.name, &error);
+  if (!Check(stale_reader != nullptr && stale_reader->IsAvailable(),
+             "stale shared frame mapping was not available before recovery")) {
+    return 1;
+  }
+  auto recovered_writer = cockpit::camera::SharedFrameWriter::Create(stale_config, &error);
+  if (!Check(recovered_writer != nullptr, "stale shared frame mapping was not recovered")) {
+    std::cerr << error << '\n';
+    return 1;
+  }
+  return Check(!stale_reader->IsAvailable(),
+               "stale shared frame reader was not invalidated during recovery")
+             ? 0
+             : 1;
 }

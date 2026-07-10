@@ -25,6 +25,8 @@ class ActionDispatcher {
   virtual ~ActionDispatcher() = default;
 
   virtual ActionExecutionResult Execute(VoiceAction action) = 0;
+  virtual void Cancel() {
+  }
 };
 
 const char* ToString(ActionExecutionStatus status);

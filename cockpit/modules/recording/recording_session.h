@@ -68,6 +68,10 @@ class RecordingSession {
                                         std::string* error);
 
  private:
+  bool CopyDataFile(RecordingDataFile* file, std::string* error);
+  static bool CloseOutput(std::ofstream* output, const char* filename, std::string* error);
+  static bool WriteMarker(const std::filesystem::path& path, std::int64_t timestamp_ms,
+                          std::string* error);
   bool WriteManifest(const std::filesystem::path& directory, const std::string& state,
                      std::string* error) const;
   void SetError(const std::string& error);

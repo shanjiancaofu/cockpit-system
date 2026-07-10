@@ -2,6 +2,7 @@
 
 #include <sstream>
 
+#include "cockpit/core/json/json.h"
 #include "cockpit/core/logging/Logger.h"
 #include "cockpit/core/utils/Time.h"
 
@@ -64,31 +65,10 @@ void FillHealth(const CameraServiceStatus& status, proto::common::ServiceHealth*
   health->set_message("camera service online");
 }
 
-std::string EscapeJson(const std::string& input) {
-  std::ostringstream output;
-  for (const char character : input) {
-    switch (character) {
-      case '\\':
-        output << "\\\\";
-        break;
-      case '"':
-        output << "\\\"";
-        break;
-      case '\n':
-        output << "\\n";
-        break;
-      default:
-        output << character;
-        break;
-    }
-  }
-  return output.str();
-}
-
 std::string PhotoEventPayload(const CameraPhotoResult& result) {
   std::ostringstream output;
   output << "{"
-         << "\"path\":\"" << EscapeJson(result.path) << "\","
+         << "\"path\":\"" << json::EscapeString(result.path) << "\","
          << "\"frame_sequence\":" << result.frame_sequence << ','
          << "\"frame_timestamp_ms\":" << result.frame_timestamp_ms << ','
          << "\"width\":" << result.width << ',' << "\"height\":" << result.height << ','
@@ -100,7 +80,7 @@ std::string PhotoEventPayload(const CameraPhotoResult& result) {
 
 CameraGrpcService::CameraGrpcService(CameraService& camera_service,
                                      CameraPhotoService& photo_service,
-                                     const recording::RecordingEventPublisher* recording_events)
+                                     recording::RecordingEventPublisher* recording_events)
     : camera_service_(camera_service),
       photo_service_(photo_service),
       recording_events_(recording_events) {
@@ -189,8 +169,16 @@ grpc::Status CameraGrpcService::TakePhoto(grpc::ServerContext*,
   response->set_height(result.height);
   response->set_size_bytes(result.size_bytes);
   if (recording_events_ != nullptr) {
-    recording_events_->Publish(static_cast<std::int64_t>(utils::NowMs()), "/camera/photo",
-                               PhotoEventPayload(result));
+    const auto timestamp_ms = static_cast<std::int64_t>(utils::NowMs());
+    proto::recording::AppendRecordingDataFileRequest data_file;
+    data_file.set_timestamp_ms(timestamp_ms);
+    data_file.set_source("camera");
+    data_file.set_kind("jpeg");
+    data_file.set_path(result.path);
+    data_file.set_size_bytes(result.size_bytes);
+    data_file.set_copy_into_session(true);
+    recording_events_->PublishDataFile(std::move(data_file));
+    recording_events_->Publish(timestamp_ms, "/camera/photo", PhotoEventPayload(result));
   }
   return grpc::Status::OK;
 }

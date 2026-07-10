@@ -19,6 +19,8 @@ class VehicleStatusProvider {
   virtual ~VehicleStatusProvider() = default;
 
   virtual bool GetLatest(VehicleStatusSnapshot* status, std::string* error) = 0;
+  virtual void Cancel() {
+  }
 };
 
 }  // namespace voice

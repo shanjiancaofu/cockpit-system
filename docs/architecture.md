@@ -106,6 +106,8 @@ USB Camera
 ```
 
 UI 能区分等待首帧、实时画面、卡帧、最后一帧和共享内存断开，并在 writer 重启后自动重连。
+共享帧槽使用 robust process-shared mutex；writer 异常退出后，新实例会回收遗留的 POSIX shared
+memory，reader 会拒绝布局、stride 或 payload 长度不一致的帧。
 拍照请求通过 gRPC 到 camera-service，服务读取共享内存最新帧并用 GStreamer 编码 JPEG；
 camera-ctl 和 Qt UI 都不直接访问摄像头设备。
 
@@ -117,15 +119,18 @@ vehicle-data-service
     → recording-service
     → sessions/.recording_<id>/vehicle_state.jsonl
 camera/voice/audio metadata
-    → recording-service event writer
-    → sessions/.recording_<id>/events.jsonl
+    → asynchronous recording publisher
+    → recording-service event/data-file writer
+    → sessions/.recording_<id>/events.jsonl + data_files.jsonl + artifacts/
     → sessions/<id>/manifest.json + COMPLETE
 ```
 
 `recording-ctl` 通过 gRPC 启动、停止、查询、删除和清理会话。原始数据以文件为权威来源；
 进程异常退出后，下次启动将未完成目录标记为 `interrupted_*`。目录索引从 manifest 重建，
 并按最大会话数和总字节数清理最旧数据。`events.jsonl` 只保存轻量研发事件元数据，大块图片、
-音频和视频仍应以独立文件保存，再在事件中记录路径或句柄。该服务属于研发诊断边界，不接收用户语音动作。
+音频和视频仍以独立文件保存；需要纳入会话保留策略的文件会复制到 `artifacts/`，再写入相对路径
+索引。camera 和 voice 使用有界后台队列投递录包数据，录包服务不可用不会阻塞用户主流程。该服务
+属于研发诊断边界，不接收用户语音动作。
 
 ## 当前边界
 

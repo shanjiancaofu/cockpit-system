@@ -42,6 +42,13 @@ bool VoiceInteractionService::Start() {
 void VoiceInteractionService::Stop() {
   const bool was_running = worker_running_.exchange(false);
   transcript_events_.Close();
+  transcript_events_.DiscardPending();
+  if (dispatcher_ != nullptr) {
+    dispatcher_->Cancel();
+  }
+  if (output_ != nullptr) {
+    output_->Stop();
+  }
   if (worker_ != nullptr && worker_->joinable()) {
     worker_->join();
   }
@@ -198,14 +205,6 @@ void VoiceInteractionService::ProcessLoop() {
     auto transcript = transcript_events_.WaitPopFor(std::chrono::milliseconds(100));
     if (!transcript.has_value()) {
       continue;
-    }
-    HandleTranscript(*transcript);
-  }
-
-  while (true) {
-    auto transcript = transcript_events_.TryPop();
-    if (!transcript.has_value()) {
-      break;
     }
     HandleTranscript(*transcript);
   }

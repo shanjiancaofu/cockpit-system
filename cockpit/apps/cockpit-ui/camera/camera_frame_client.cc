@@ -3,6 +3,7 @@
 #include <QImage>
 #include <QMetaObject>
 #include <chrono>
+#include <limits>
 #include <utility>
 
 #include "camera_frame_model.h"
@@ -77,6 +78,12 @@ void CameraFrameClient::PostConnected(bool connected) {
 }
 
 bool CameraFrameClient::PostFrame(const camera::CameraFrame& frame, std::uint64_t generation) {
+  if (!frame.IsValid() ||
+      frame.width > static_cast<std::uint32_t>(std::numeric_limits<int>::max()) ||
+      frame.height > static_cast<std::uint32_t>(std::numeric_limits<int>::max()) ||
+      frame.stride_bytes > static_cast<std::uint32_t>(std::numeric_limits<int>::max())) {
+    return false;
+  }
   QImage image;
   if (frame.format == camera::CameraPixelFormat::kBgrx) {
     image = QImage(frame.data.data(), static_cast<int>(frame.width), static_cast<int>(frame.height),

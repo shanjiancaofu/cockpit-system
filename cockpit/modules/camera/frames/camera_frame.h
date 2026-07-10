@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -25,6 +26,8 @@ struct CameraFrame {
   CameraPixelFormat format = CameraPixelFormat::kUnknown;
   std::vector<std::uint8_t> data;
 
+  bool HasValidLayout() const;
+  bool HasValidPayloadSize(std::size_t payload_size) const;
   bool IsValid() const;
 };
 

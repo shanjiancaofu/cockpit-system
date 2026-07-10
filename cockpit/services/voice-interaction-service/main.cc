@@ -3,6 +3,7 @@
 #include <sstream>
 #include <thread>
 
+#include "cockpit/core/json/json.h"
 #include "cockpit/core/runtime/ServiceRuntime.h"
 #include "cockpit/modules/voice/actions/cockpit_action_dispatcher.h"
 #include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
@@ -17,36 +18,16 @@
 
 namespace {
 
-std::string EscapeJson(const std::string& input) {
-  std::ostringstream output;
-  for (const char character : input) {
-    switch (character) {
-      case '\\':
-        output << "\\\\";
-        break;
-      case '"':
-        output << "\\\"";
-        break;
-      case '\n':
-        output << "\\n";
-        break;
-      default:
-        output << character;
-        break;
-    }
-  }
-  return output.str();
-}
-
 std::string VoiceResponsePayload(const cockpit::voice::VoiceResponse& response) {
   std::ostringstream output;
   output << "{"
          << "\"id\":" << response.id << ',' << "\"transcript_id\":" << response.transcript_id << ','
-         << "\"transcript_text\":\"" << EscapeJson(response.transcript_text) << "\","
+         << "\"transcript_text\":\"" << cockpit::json::EscapeString(response.transcript_text)
+         << "\","
          << "\"intent\":\"" << cockpit::voice::ToString(response.intent) << "\","
          << "\"action\":\"" << cockpit::voice::ToString(response.action) << "\","
          << "\"action_status\":\"" << cockpit::voice::ToString(response.action_status) << "\","
-         << "\"response_text\":\"" << EscapeJson(response.response_text) << "\"}";
+         << "\"response_text\":\"" << cockpit::json::EscapeString(response.response_text) << "\"}";
   return output.str();
 }
 

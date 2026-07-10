@@ -10,8 +10,7 @@
 #include <thread>
 #include <utility>
 
-#include "topic_text.h"
-
+#include "cockpit/core/json/json.h"
 #include "gateway.grpc.pb.h"
 
 namespace cockpit {
@@ -24,7 +23,7 @@ std::string VehicleStateJson(const proto::vehicle::VehicleState& state) {
       << ",\"speed_kph\":" << state.speed_kph() << ",\"gear\":" << state.gear()
       << ",\"soc_percent\":" << state.soc_percent()
       << ",\"cloud_enabled\":" << (state.cloud_enabled() ? "true" : "false") << ",\"source\":\""
-      << EscapeJson(state.source()) << "\"}";
+      << json::EscapeString(state.source()) << "\"}";
   return out.str();
 }
 

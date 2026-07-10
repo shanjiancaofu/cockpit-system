@@ -10,6 +10,7 @@
 #include "topic_store.h"
 #include "topic_text.h"
 
+#include "cockpit/core/json/json.h"
 #include "cockpit/core/utils/Time.h"
 
 namespace cockpit {
@@ -40,12 +41,12 @@ int RunPubCommand(const cockpit::config::SystemConfig& config, const CommandLine
   for (int i = 0; i < repeat; ++i) {
     const auto timestamp = cockpit::utils::NowMs();
     std::ofstream output(path, std::ios::app);
-    output << "{\"timestamp_ms\":" << timestamp << ",\"topic\":\"" << EscapeJson(topic)
+    output << "{\"timestamp_ms\":" << timestamp << ",\"topic\":\"" << json::EscapeString(topic)
            << "\",\"payload\":";
-    if (LooksLikeJsonValue(payload)) {
+    if (json::IsValidValue(payload)) {
       output << payload;
     } else {
-      output << '"' << EscapeJson(payload) << '"';
+      output << '"' << json::EscapeString(payload) << '"';
     }
     output << "}\n";
     output.close();

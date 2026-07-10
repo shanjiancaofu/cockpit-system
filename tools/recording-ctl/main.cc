@@ -149,6 +149,7 @@ int main(int argc, char** argv) {
     request.set_path(file_path);
     request.set_size_bytes(ParseUint64(runtime.args().GetString("file-size-bytes", "0")));
     request.set_checksum(runtime.args().GetString("file-checksum", ""));
+    request.set_copy_into_session(runtime.args().HasFlag("copy-into-session"));
     ok = client.AppendDataFile(request, &status, &error);
   } else {
     ok = client.GetStatus(&status, &error);

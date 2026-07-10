@@ -1,7 +1,7 @@
 add_subdirectory(client)
 
 add_cockpit_library(recording_service recording_service.cc)
-target_link_libraries(recording_service PUBLIC contracts recording)
+target_link_libraries(recording_service PUBLIC contracts logging recording)
 
 add_executable(recording-service
     main.cc

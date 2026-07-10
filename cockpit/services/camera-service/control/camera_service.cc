@@ -5,6 +5,7 @@
 #include <sstream>
 #include <utility>
 
+#include "cockpit/core/json/json.h"
 #include "cockpit/core/utils/Time.h"
 #include "cockpit/modules/camera/frames/latest_frame_buffer.h"
 
@@ -269,13 +270,13 @@ void CameraService::PublishStatusEvent(const CameraServiceStatus& status) const 
   std::ostringstream payload;
   payload << "{"
           << "\"state\":" << static_cast<int>(status.state) << ',' << "\"device\":\""
-          << status.device << "\","
+          << json::EscapeString(status.device) << "\","
           << "\"width\":" << status.width << ',' << "\"height\":" << status.height << ','
           << "\"fps\":" << status.fps << ',' << "\"frames_received\":" << status.frames_received
           << ',' << "\"frames_dropped\":" << status.frames_dropped << ','
           << "\"source_frames_skipped\":" << status.source_frames_skipped << ','
           << "\"last_frame_sequence\":" << status.last_frame_sequence << ','
-          << "\"last_error_kind\":\"" << status.last_error_kind << "\","
+          << "\"last_error_kind\":\"" << json::EscapeString(status.last_error_kind) << "\","
           << "\"restart_count\":" << status.restart_count << ','
           << "\"recover_count\":" << status.recover_count << '}';
   message_bus_->Publish(event::EventMessage{"/camera/status", "camera.status", "camera-service",

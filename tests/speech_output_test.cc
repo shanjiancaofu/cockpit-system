@@ -6,6 +6,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 
 #include "cockpit/modules/audio/playback/audio_player.h"
 #include "cockpit/modules/voice/tts/mock_speech_synthesizer.h"
@@ -15,7 +16,7 @@ namespace {
 class FakeAudioPlayer final : public cockpit::audio::AudioPlayer {
  public:
   bool Play(const std::string& device, const cockpit::audio::PcmBuffer& buffer,
-            std::string* error) override {
+            const std::atomic_bool&, std::string* error) override {
     std::lock_guard<std::mutex> lock(mutex_);
     if (device != "test-output" || buffer.samples.empty() ||
         buffer.format.sample_rate_hz != 16000 || buffer.format.channels != 1) {
@@ -40,6 +41,34 @@ class FakeAudioPlayer final : public cockpit::audio::AudioPlayer {
   std::mutex mutex_;
   std::condition_variable played_;
   int play_count_ = 0;
+};
+
+class BlockingAudioPlayer final : public cockpit::audio::AudioPlayer {
+ public:
+  bool Play(const std::string&, const cockpit::audio::PcmBuffer&,
+            const std::atomic_bool& stop_requested, std::string*) override {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      entered_ = true;
+    }
+    entered_changed_.notify_all();
+    while (!stop_requested.load()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    return false;
+  }
+
+  bool WaitUntilEntered() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return entered_changed_.wait_for(lock, std::chrono::seconds(1), [this] {
+      return entered_;
+    });
+  }
+
+ private:
+  std::mutex mutex_;
+  std::condition_variable entered_changed_;
+  bool entered_ = false;
 };
 
 }  // namespace
@@ -75,6 +104,24 @@ int main() {
   cockpit::audio::SpeechOutput invalid("test-output", nullptr, nullptr);
   if (invalid.Start(&error)) {
     std::cerr << "invalid speech output dependencies were accepted\n";
+    return 1;
+  }
+
+  auto blocking_player = std::make_unique<BlockingAudioPlayer>();
+  auto* blocking_observer = blocking_player.get();
+  cockpit::audio::SpeechOutput cancellable(
+      "test-output", std::make_unique<cockpit::voice::MockSpeechSynthesizer>(),
+      std::move(blocking_player));
+  if (!cancellable.Start(&error) || !cancellable.Submit("cancel playback") ||
+      !blocking_observer->WaitUntilEntered()) {
+    std::cerr << "cancellable speech output did not enter playback\n";
+    return 1;
+  }
+  const auto stop_started = std::chrono::steady_clock::now();
+  cancellable.Stop();
+  if (std::chrono::steady_clock::now() - stop_started > std::chrono::milliseconds(300) ||
+      cancellable.metrics().dropped != 1) {
+    std::cerr << "speech output cancellation was not bounded\n";
     return 1;
   }
   std::cout << "speech output tests passed\n";

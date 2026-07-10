@@ -1,8 +1,10 @@
 #include "cockpit/services/voice-interaction-service/interaction/voice_interaction_service.h"
 
 #include <chrono>
+#include <condition_variable>
 #include <iostream>
 #include <memory>
+#include <mutex>
 
 #include "cockpit/modules/voice/actions/mock_action_dispatcher.h"
 #include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
@@ -24,6 +26,40 @@ class CountingResponseSink final : public cockpit::voice::VoiceResponseSink {
 
  private:
   std::uint64_t submitted_ = 0;
+};
+
+class BlockingActionDispatcher final : public cockpit::voice::ActionDispatcher {
+ public:
+  cockpit::voice::ActionExecutionResult Execute(cockpit::voice::VoiceAction) override {
+    std::unique_lock<std::mutex> lock(mutex_);
+    entered_ = true;
+    changed_.notify_all();
+    changed_.wait(lock, [this] {
+      return cancelled_;
+    });
+    return {cockpit::voice::ActionExecutionStatus::kFailed, "cancelled"};
+  }
+
+  void Cancel() override {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      cancelled_ = true;
+    }
+    changed_.notify_all();
+  }
+
+  bool WaitUntilEntered() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return changed_.wait_for(lock, std::chrono::seconds(1), [this] {
+      return entered_;
+    });
+  }
+
+ private:
+  std::mutex mutex_;
+  std::condition_variable changed_;
+  bool entered_ = false;
+  bool cancelled_ = false;
 };
 
 }  // namespace
@@ -115,6 +151,36 @@ int main() {
   if (async_service.SubmitTranscript(async_transcript) !=
       cockpit::event::EventQueuePushResult::kClosed) {
     std::cerr << "stopped async voice service accepted transcript\n";
+    return 1;
+  }
+
+  auto blocking_dispatcher = std::make_unique<BlockingActionDispatcher>();
+  auto* blocking_observer = blocking_dispatcher.get();
+  cockpit::voice::VoiceInteractionService cancellable_service(
+      true, std::make_unique<cockpit::voice::MockVoiceAssistant>(), std::move(blocking_dispatcher));
+  if (!cancellable_service.Start()) {
+    std::cerr << "cancellable voice service did not start\n";
+    return 1;
+  }
+  cockpit::voice::SpeechTranscript blocking_transcript;
+  blocking_transcript.id = 200;
+  blocking_transcript.text = "show vehicle status";
+  if (cancellable_service.SubmitTranscript(blocking_transcript) !=
+          cockpit::event::EventQueuePushResult::kAccepted ||
+      !blocking_observer->WaitUntilEntered()) {
+    std::cerr << "blocking action did not start\n";
+    return 1;
+  }
+  blocking_transcript.id = 201;
+  cancellable_service.SubmitTranscript(blocking_transcript);
+  blocking_transcript.id = 202;
+  cancellable_service.SubmitTranscript(blocking_transcript);
+  const auto stop_started = std::chrono::steady_clock::now();
+  cancellable_service.Stop();
+  const auto stop_elapsed = std::chrono::steady_clock::now() - stop_started;
+  if (stop_elapsed > std::chrono::milliseconds(300) ||
+      cancellable_service.status().metrics.transcript_events_dropped < 2) {
+    std::cerr << "voice stop did not cancel active work and discard queued transcripts\n";
     return 1;
   }
   std::cout << "voice interaction service tests passed\n";

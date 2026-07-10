@@ -8,7 +8,8 @@
 namespace cockpit {
 namespace audio {
 
-bool AlsaAudioPlayer::Play(const std::string& device, const PcmBuffer& buffer, std::string* error) {
+bool AlsaAudioPlayer::Play(const std::string& device, const PcmBuffer& buffer,
+                           const std::atomic_bool& stop_requested, std::string* error) {
   if (buffer.samples.empty() || buffer.FrameCount() == 0U) {
     if (error != nullptr) {
       *error = "playback PCM buffer is empty";
@@ -21,16 +22,22 @@ bool AlsaAudioPlayer::Play(const std::string& device, const PcmBuffer& buffer, s
   }
   std::size_t offset = 0;
   while (offset < buffer.FrameCount()) {
+    if (stop_requested.load()) {
+      if (error != nullptr) {
+        *error = "playback stopped";
+      }
+      return false;
+    }
     const std::size_t frames =
         std::min(buffer.format.FramesPerPeriod(), buffer.FrameCount() - offset);
     const auto* samples =
         buffer.samples.data() + offset * static_cast<std::size_t>(buffer.format.channels);
-    if (!pcm.WriteFrames(samples, frames, error)) {
+    if (!pcm.WriteFrames(samples, frames, error, &stop_requested)) {
       return false;
     }
     offset += frames;
   }
-  return pcm.Drain(error);
+  return pcm.Drain(error, &stop_requested);
 }
 
 }  // namespace audio

@@ -112,6 +112,7 @@ grpc::Status RecordingGrpcService::AppendDataFile(
   file.path = request->path();
   file.size_bytes = request->size_bytes();
   file.checksum = request->checksum();
+  file.copy_into_session = request->copy_into_session();
   std::string error;
   if (!recording_service_.HandleDataFile(file, &error)) {
     FillStatus(recording_service_.status(), response);

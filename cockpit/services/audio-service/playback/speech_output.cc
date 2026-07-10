@@ -29,7 +29,7 @@ bool SpeechOutput::Start(std::string* error) {
     }
     return false;
   }
-  stop_requested_ = false;
+  stop_requested_.store(false);
   try {
     worker_ = std::thread(&SpeechOutput::Run, this);
   } catch (const std::exception& exception) {
@@ -48,7 +48,7 @@ void SpeechOutput::Stop() {
     if (!running_) {
       return;
     }
-    stop_requested_ = true;
+    stop_requested_.store(true);
     dropped_.fetch_add(static_cast<std::uint64_t>(queue_.size()));
     queue_.clear();
   }
@@ -62,7 +62,7 @@ void SpeechOutput::Stop() {
 
 bool SpeechOutput::Submit(std::string text) {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (!running_ || stop_requested_ || text.empty() || queue_.size() >= kQueueCapacity) {
+  if (!running_ || stop_requested_.load() || text.empty() || queue_.size() >= kQueueCapacity) {
     dropped_.fetch_add(1U);
     return false;
   }
@@ -80,7 +80,7 @@ voice::VoiceOutputMetrics SpeechOutput::metrics() const {
   result.dropped = dropped_.load();
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    result.available = running_ && !stop_requested_;
+    result.available = running_ && !stop_requested_.load();
   }
   return result;
 }
@@ -91,9 +91,9 @@ void SpeechOutput::Run() {
     {
       std::unique_lock<std::mutex> lock(mutex_);
       changed_.wait(lock, [this] {
-        return stop_requested_ || !queue_.empty();
+        return stop_requested_.load() || !queue_.empty();
       });
-      if (queue_.empty() && stop_requested_) {
+      if (queue_.empty() && stop_requested_.load()) {
         break;
       }
       text = std::move(queue_.front());
@@ -101,8 +101,16 @@ void SpeechOutput::Run() {
     }
     try {
       const voice::SpeechSynthesisResult synthesis = synthesizer_->Synthesize(text);
+      if (stop_requested_.load()) {
+        dropped_.fetch_add(1U);
+        break;
+      }
       std::string error;
-      if (!synthesis.success || !player_->Play(device_, synthesis.audio, &error)) {
+      if (!synthesis.success || !player_->Play(device_, synthesis.audio, stop_requested_, &error)) {
+        if (stop_requested_.load()) {
+          dropped_.fetch_add(1U);
+          break;
+        }
         failed_.fetch_add(1U);
         LOG_WARN("speech output failed error=" + (synthesis.success ? error : synthesis.error));
         continue;

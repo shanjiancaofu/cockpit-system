@@ -1,5 +1,6 @@
 add_cockpit_library(camera_control camera_service.cc)
 target_link_libraries(camera_control PUBLIC base camera_frames camera_preview event runtime v4l2_camera)
+target_link_libraries(camera_control PRIVATE json_util)
 if(TARGET gstreamer_camera)
     target_compile_definitions(camera_control PRIVATE COCKPIT_HAS_GSTREAMER_CAMERA=1)
     target_link_libraries(camera_control PRIVATE gstreamer_camera)

@@ -14,6 +14,7 @@ class SharedMemoryRegion {
   static std::unique_ptr<SharedMemoryRegion> Create(const std::string& name, std::size_t size,
                                                     std::string* error);
   static std::unique_ptr<SharedMemoryRegion> Open(const std::string& name, std::string* error);
+  static bool Unlink(const std::string& name, std::string* error);
   ~SharedMemoryRegion();
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(SharedMemoryRegion);
@@ -30,6 +31,7 @@ class SharedMemoryRegion {
   const std::string& name() const {
     return name_;
   }
+  bool TryLockExclusive(std::string* error) const;
 
  private:
   SharedMemoryRegion(std::string name, int fd, void* mapping, std::size_t size, bool owner);

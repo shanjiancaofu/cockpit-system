@@ -59,7 +59,10 @@ bool RecordingService::Prune(RecordingPruneResult* result, std::string* error) {
 
 bool RecordingService::HandleEvent(const RecordingEvent& event, std::string* error) {
   if (session_.status().state != RecordingState::kRecording) {
-    return true;
+    if (error != nullptr) {
+      *error = "recording session is not active";
+    }
+    return false;
   }
   if (!session_.AppendEvent(event, error)) {
     LOG_ERROR("record generic event failed: " + (error == nullptr ? std::string() : *error));
@@ -70,7 +73,10 @@ bool RecordingService::HandleEvent(const RecordingEvent& event, std::string* err
 
 bool RecordingService::HandleDataFile(const RecordingDataFile& file, std::string* error) {
   if (session_.status().state != RecordingState::kRecording) {
-    return true;
+    if (error != nullptr) {
+      *error = "recording session is not active";
+    }
+    return false;
   }
   if (!session_.AppendDataFile(file, error)) {
     LOG_ERROR("record data file index failed: " + (error == nullptr ? std::string() : *error));

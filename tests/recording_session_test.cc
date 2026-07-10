@@ -60,6 +60,8 @@ int main() {
   event.timestamp_ms = 1030;
   event.topic = "/camera/frame_meta";
   event.payload_json = "{\"sequence\":7,\"width\":640,\"height\":480}";
+  cockpit::recording::RecordingEvent invalid_event = event;
+  invalid_event.payload_json = "{bad}";
   cockpit::recording::RecordingDataFile data_file;
   data_file.timestamp_ms = 1040;
   data_file.source = "camera";
@@ -67,11 +69,22 @@ int main() {
   data_file.path = "photos/frame_7.jpg";
   data_file.size_bytes = 4096;
   data_file.checksum = "sha256:test";
+  const auto source_artifact = root / "captured_photo.jpg";
+  std::ofstream(source_artifact, std::ios::binary) << "jpeg-test-data";
+  cockpit::recording::RecordingDataFile copied_data_file;
+  copied_data_file.timestamp_ms = 1050;
+  copied_data_file.source = "camera";
+  copied_data_file.kind = "jpeg";
+  copied_data_file.path = source_artifact.string();
+  copied_data_file.copy_into_session = true;
 
-  if (!Check(session.Append(first, &error), "append first state failed") ||
+  if (!Check(!session.AppendEvent(invalid_event, &error), "invalid JSON event was accepted") ||
+      !Check(session.Append(first, &error), "append first state failed") ||
       !Check(session.Append(second, &error), "append second state failed") ||
       !Check(session.AppendEvent(event, &error), "append camera event failed") ||
       !Check(session.AppendDataFile(data_file, &error), "append camera data file failed") ||
+      !Check(session.AppendDataFile(copied_data_file, &error),
+             "copy camera data file into session failed") ||
       !Check(session.Stop(&error), "stop recording session failed")) {
     std::cerr << error << '\n';
     return 1;
@@ -83,6 +96,7 @@ int main() {
   const std::string states = ReadFile(directory / "vehicle_state.jsonl");
   const std::string events = ReadFile(directory / "events.jsonl");
   const std::string data_files = ReadFile(directory / "data_files.jsonl");
+  const auto copied_artifact = directory / "artifacts" / "2_captured_photo.jpg";
   const auto interrupted_source = root / "sessions" / ".recording_stale";
   std::filesystem::create_directories(interrupted_source);
   std::ofstream(interrupted_source / "vehicle_state.jsonl") << "partial\n";
@@ -92,14 +106,14 @@ int main() {
   const bool result =
       Check(status.state == cockpit::recording::RecordingState::kIdle,
             "recording session did not return to idle") &&
-      Check(status.messages_written == 4, "recording message count mismatch") &&
-      Check(status.data_files_indexed == 1, "recording data file index count mismatch") &&
+      Check(status.messages_written == 5, "recording message count mismatch") &&
+      Check(status.data_files_indexed == 2, "recording data file index count mismatch") &&
       Check(std::filesystem::exists(directory / "COMPLETE"), "recording COMPLETE marker missing") &&
       Check(manifest.find("\"state\": \"complete\"") != std::string::npos,
             "recording manifest state mismatch") &&
-      Check(manifest.find("\"messages_written\": 4") != std::string::npos,
+      Check(manifest.find("\"messages_written\": 5") != std::string::npos,
             "recording manifest message count mismatch") &&
-      Check(manifest.find("\"data_files_indexed\": 1") != std::string::npos,
+      Check(manifest.find("\"data_files_indexed\": 2") != std::string::npos,
             "recording manifest data file count missing") &&
       Check(manifest.find("\"project\": \"cockpit-system\"") != std::string::npos,
             "recording manifest project metadata missing") &&
@@ -128,6 +142,12 @@ int main() {
             "camera data file path missing") &&
       Check(data_files.find("\"checksum\":\"sha256:test\"") != std::string::npos,
             "camera data file checksum missing") &&
+      Check(data_files.find("\"path\":\"artifacts/2_captured_photo.jpg\"") != std::string::npos,
+            "copied camera data file path missing") &&
+      Check(data_files.find("\"copied_into_session\":true") != std::string::npos,
+            "copied camera data file flag missing") &&
+      Check(std::filesystem::exists(copied_artifact), "copied camera artifact missing") &&
+      Check(ReadFile(copied_artifact) == "jpeg-test-data", "copied camera artifact mismatch") &&
       Check(recovered == 1, "interrupted recording recovery count mismatch") &&
       Check(std::filesystem::exists(interrupted_directory / "INTERRUPTED"),
             "interrupted recording marker missing");

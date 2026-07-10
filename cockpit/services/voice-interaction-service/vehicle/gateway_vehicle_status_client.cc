@@ -4,7 +4,6 @@
 
 #include <chrono>
 #include <string>
-#include <thread>
 
 #include "common.pb.h"
 
@@ -28,6 +27,7 @@ GatewayVehicleStatusClient::GatewayVehicleStatusClient(const std::string& addres
 }
 
 bool GatewayVehicleStatusClient::GetLatest(VehicleStatusSnapshot* status, std::string* error) {
+  const std::uint64_t generation = cancellation_generation_.load();
   std::string last_error;
   for (int attempt = 1; attempt <= kMaxAttempts; ++attempt) {
     proto::common::Empty request;
@@ -35,7 +35,29 @@ bool GatewayVehicleStatusClient::GetLatest(VehicleStatusSnapshot* status, std::s
     grpc::ClientContext context;
     context.set_wait_for_ready(true);
     context.set_deadline(std::chrono::system_clock::now() + kRpcDeadline);
+    {
+      std::lock_guard<std::mutex> lock(cancellation_mutex_);
+      if (cancellation_generation_.load() != generation) {
+        if (error != nullptr) {
+          *error = "Vehicle status request cancelled.";
+        }
+        return false;
+      }
+      active_context_ = &context;
+    }
     const grpc::Status rpc_status = stub_->GetLatestVehicleState(&context, request, &response);
+    {
+      std::lock_guard<std::mutex> lock(cancellation_mutex_);
+      if (active_context_ == &context) {
+        active_context_ = nullptr;
+      }
+    }
+    if (cancellation_generation_.load() != generation) {
+      if (error != nullptr) {
+        *error = "Vehicle status request cancelled.";
+      }
+      return false;
+    }
     if (rpc_status.ok()) {
       if (status != nullptr) {
         status->timestamp_ms = response.timestamp_ms();
@@ -48,8 +70,11 @@ bool GatewayVehicleStatusClient::GetLatest(VehicleStatusSnapshot* status, std::s
     }
 
     last_error = rpc_status.error_message();
-    if (attempt < kMaxAttempts) {
-      std::this_thread::sleep_for(kRetryDelay);
+    if (attempt < kMaxAttempts && !WaitForRetry(generation)) {
+      if (error != nullptr) {
+        *error = "Vehicle status request cancelled.";
+      }
+      return false;
     }
   }
 
@@ -57,6 +82,24 @@ bool GatewayVehicleStatusClient::GetLatest(VehicleStatusSnapshot* status, std::s
     *error = "Vehicle status unavailable: " + last_error;
   }
   return false;
+}
+
+void GatewayVehicleStatusClient::Cancel() {
+  cancellation_generation_.fetch_add(1U);
+  {
+    std::lock_guard<std::mutex> lock(cancellation_mutex_);
+    if (active_context_ != nullptr) {
+      active_context_->TryCancel();
+    }
+  }
+  cancellation_changed_.notify_all();
+}
+
+bool GatewayVehicleStatusClient::WaitForRetry(std::uint64_t generation) {
+  std::unique_lock<std::mutex> lock(cancellation_mutex_);
+  return !cancellation_changed_.wait_for(lock, kRetryDelay, [this, generation] {
+    return cancellation_generation_.load() != generation;
+  });
 }
 
 }  // namespace voice

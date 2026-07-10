@@ -28,6 +28,7 @@ message AppendRecordingDataFileRequest {
   string path = 4;
   uint64 size_bytes = 5;
   string checksum = 6;
+  bool copy_into_session = 7;
 }
 
 message RecordingStatus {

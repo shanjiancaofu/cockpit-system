@@ -16,6 +16,7 @@ class CockpitActionDispatcher final : public ActionDispatcher {
                           std::unique_ptr<HmiCommandProvider> hmi_commands);
 
   ActionExecutionResult Execute(VoiceAction action) override;
+  void Cancel() override;
 
  private:
   ActionExecutionResult QueryVehicleStatus();

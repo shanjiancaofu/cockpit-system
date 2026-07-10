@@ -36,7 +36,7 @@ int main() {
   cyclic.AddRequired("c", "a");
   std::string cycle;
   if (!Check(cyclic.HasCycle(&cycle), "cycle was not detected") ||
-      !Check(cycle.find("a") != std::string::npos, "cycle path did not include service name")) {
+      !Check(cycle.find('a') != std::string::npos, "cycle path did not include service name")) {
     return 1;
   }
 

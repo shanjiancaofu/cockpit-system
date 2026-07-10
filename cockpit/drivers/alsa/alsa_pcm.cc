@@ -4,8 +4,10 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <thread>
 #include <utility>
 
 namespace cockpit {
@@ -106,7 +108,7 @@ bool AlsaPcm::Open(const std::string& device, PcmDirection direction, const PcmF
 
   const snd_pcm_stream_t stream =
       direction == PcmDirection::kCapture ? SND_PCM_STREAM_CAPTURE : SND_PCM_STREAM_PLAYBACK;
-  const int open_mode = direction == PcmDirection::kCapture ? SND_PCM_NONBLOCK : 0;
+  const int open_mode = SND_PCM_NONBLOCK;
   int result = snd_pcm_open(&handle_, device.c_str(), stream, open_mode);
   if (result < 0) {
     handle_ = nullptr;
@@ -230,8 +232,8 @@ CaptureResult AlsaPcm::PollReadFrames(std::int16_t* samples, std::size_t frame_c
           AlsaError("ALSA capture failed", static_cast<int>(frames))};
 }
 
-bool AlsaPcm::WriteFrames(const std::int16_t* samples, std::size_t frame_count,
-                          std::string* error) {
+bool AlsaPcm::WriteFrames(const std::int16_t* samples, std::size_t frame_count, std::string* error,
+                          const std::atomic_bool* stop_requested) {
   if (handle_ == nullptr || direction_ != PcmDirection::kPlayback) {
     return Fail("ALSA playback device is not open", error);
   }
@@ -241,29 +243,46 @@ bool AlsaPcm::WriteFrames(const std::int16_t* samples, std::size_t frame_count,
 
   std::size_t completed = 0;
   while (completed < frame_count) {
+    if (stop_requested != nullptr && stop_requested->load()) {
+      return Fail("ALSA playback stopped", error);
+    }
     const snd_pcm_sframes_t result =
         snd_pcm_writei(handle_, samples + completed * static_cast<std::size_t>(format_.channels),
                        static_cast<snd_pcm_uframes_t>(frame_count - completed));
     if (result < 0) {
+      if (result == -EAGAIN) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        continue;
+      }
       if (!Recover(static_cast<int>(result), "ALSA playback failed", error)) {
         return false;
       }
       continue;
     }
     if (result == 0) {
-      return Fail("ALSA playback made no progress", error);
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      continue;
     }
     completed += static_cast<std::size_t>(result);
   }
   return true;
 }
 
-bool AlsaPcm::Drain(std::string* error) {
+bool AlsaPcm::Drain(std::string* error, const std::atomic_bool* stop_requested) {
   if (handle_ == nullptr || direction_ != PcmDirection::kPlayback) {
     return Fail("ALSA playback device is not open", error);
   }
-  const int result = snd_pcm_drain(handle_);
-  return result < 0 ? Fail(AlsaError("failed to drain ALSA playback", result), error) : true;
+  while (true) {
+    if (stop_requested != nullptr && stop_requested->load()) {
+      return Fail("ALSA playback stopped", error);
+    }
+    const int result = snd_pcm_drain(handle_);
+    if (result == -EAGAIN) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      continue;
+    }
+    return result < 0 ? Fail(AlsaError("failed to drain ALSA playback", result), error) : true;
+  }
 }
 
 void AlsaPcm::Close() {

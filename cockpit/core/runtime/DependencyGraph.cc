@@ -12,6 +12,8 @@ bool Contains(const std::vector<std::string>& values, const std::string& value) 
   return std::find(values.begin(), values.end(), value) != values.end();
 }
 
+// The graph depth is bounded by the number of configured services.
+// NOLINTNEXTLINE(misc-no-recursion)
 bool VisitRequired(const std::string& service, const std::vector<ServiceDependency>& dependencies,
                    std::vector<std::string>* visiting, std::set<std::string>* visited,
                    std::string* cycle) {

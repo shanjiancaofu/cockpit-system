@@ -13,6 +13,7 @@ struct RecordingDataFile {
   std::string path;
   std::uint64_t size_bytes = 0;
   std::string checksum;
+  bool copy_into_session = false;
 
   bool IsValid() const;
   std::string ToJson() const;

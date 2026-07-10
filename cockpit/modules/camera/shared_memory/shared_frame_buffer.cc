@@ -1,8 +1,11 @@
 #include "cockpit/modules/camera/shared_memory/shared_frame_buffer.h"
 
 #include <pthread.h>
+#include <unistd.h>
 
 #include <atomic>
+#include <cerrno>
+#include <csignal>
 #include <cstring>
 #include <limits>
 #include <new>
@@ -15,7 +18,7 @@ namespace camera {
 namespace {
 
 constexpr std::uint32_t kMagic = 0x43414D46U;
-constexpr std::uint32_t kVersion = 1;
+constexpr std::uint32_t kVersion = 2;
 constexpr std::size_t kSlotCount = 2;
 constexpr std::size_t kAlignment = 64;
 
@@ -27,10 +30,11 @@ struct alignas(kAlignment) SharedHeader {
   std::atomic<std::uint32_t> initialized{0};
   std::atomic<std::uint32_t> active_slot{0};
   std::atomic<std::uint64_t> generation{0};
+  std::uint64_t writer_pid = 0;
 };
 
 struct alignas(kAlignment) SharedSlot {
-  pthread_rwlock_t lock{};
+  pthread_mutex_t lock{};
   std::uint64_t generation = 0;
   std::uint64_t sequence = 0;
   std::uint64_t timestamp_ms = 0;
@@ -45,12 +49,36 @@ std::size_t AlignUp(std::size_t value) {
   return (value + kAlignment - 1U) & ~(kAlignment - 1U);
 }
 
-std::size_t SlotStride(std::size_t capacity) {
-  return AlignUp(sizeof(SharedSlot)) + AlignUp(capacity);
+bool AlignUp(std::size_t value, std::size_t* result) {
+  if (value > std::numeric_limits<std::size_t>::max() - (kAlignment - 1U)) {
+    return false;
+  }
+  *result = AlignUp(value);
+  return true;
 }
 
-std::size_t MappingSize(std::size_t capacity) {
-  return AlignUp(sizeof(SharedHeader)) + kSlotCount * SlotStride(capacity);
+bool SlotStride(std::size_t capacity, std::size_t* result) {
+  std::size_t payload_size = 0;
+  if (!AlignUp(capacity, &payload_size)) {
+    return false;
+  }
+  const std::size_t header_size = AlignUp(sizeof(SharedSlot));
+  if (payload_size > std::numeric_limits<std::size_t>::max() - header_size) {
+    return false;
+  }
+  *result = header_size + payload_size;
+  return true;
+}
+
+bool MappingSize(std::size_t capacity, std::size_t* result) {
+  std::size_t slot_stride = 0;
+  if (!SlotStride(capacity, &slot_stride) ||
+      slot_stride >
+          (std::numeric_limits<std::size_t>::max() - AlignUp(sizeof(SharedHeader))) / kSlotCount) {
+    return false;
+  }
+  *result = AlignUp(sizeof(SharedHeader)) + kSlotCount * slot_stride;
+  return true;
 }
 
 SharedHeader* Header(void* mapping) {
@@ -62,9 +90,10 @@ const SharedHeader* Header(const void* mapping) {
 }
 
 SharedSlot* Slot(void* mapping, std::size_t capacity, std::uint32_t index) {
+  std::size_t slot_stride = 0;
+  static_cast<void>(SlotStride(capacity, &slot_stride));
   auto* bytes = static_cast<std::uint8_t*>(mapping);
-  return reinterpret_cast<SharedSlot*>(bytes + AlignUp(sizeof(SharedHeader)) +
-                                       index * SlotStride(capacity));
+  return reinterpret_cast<SharedSlot*>(bytes + AlignUp(sizeof(SharedHeader)) + index * slot_stride);
 }
 
 std::uint8_t* Payload(SharedSlot* slot) {
@@ -81,22 +110,88 @@ void AssignError(std::string* error, const std::string& message) {
   }
 }
 
+void ClearSlot(SharedSlot* slot) {
+  slot->generation = 0;
+  slot->sequence = 0;
+  slot->timestamp_ms = 0;
+  slot->payload_size = 0;
+  slot->width = 0;
+  slot->height = 0;
+  slot->stride_bytes = 0;
+  slot->format = static_cast<std::uint32_t>(CameraPixelFormat::kUnknown);
+}
+
 bool InitializeSlot(SharedSlot* slot, std::string* error) {
   new (slot) SharedSlot();
-  pthread_rwlockattr_t attributes{};
-  if (pthread_rwlockattr_init(&attributes) != 0) {
+  pthread_mutexattr_t attributes{};
+  if (pthread_mutexattr_init(&attributes) != 0) {
     AssignError(error, "initialize shared frame lock attributes failed");
     return false;
   }
-  const int shared_result = pthread_rwlockattr_setpshared(&attributes, PTHREAD_PROCESS_SHARED);
+  const int shared_result = pthread_mutexattr_setpshared(&attributes, PTHREAD_PROCESS_SHARED);
+  const int robust_result = shared_result == 0
+                                ? pthread_mutexattr_setrobust(&attributes, PTHREAD_MUTEX_ROBUST)
+                                : shared_result;
   const int lock_result =
-      shared_result == 0 ? pthread_rwlock_init(&slot->lock, &attributes) : shared_result;
-  pthread_rwlockattr_destroy(&attributes);
+      robust_result == 0 ? pthread_mutex_init(&slot->lock, &attributes) : robust_result;
+  pthread_mutexattr_destroy(&attributes);
   if (lock_result != 0) {
-    AssignError(error, "initialize process-shared frame lock failed");
+    AssignError(error, "initialize robust process-shared frame lock failed");
     return false;
   }
+  ClearSlot(slot);
   return true;
+}
+
+bool LockSlot(SharedSlot* slot, bool* owner_dead, std::string* error) {
+  *owner_dead = false;
+  const int result = pthread_mutex_lock(&slot->lock);
+  if (result == 0) {
+    return true;
+  }
+  if (result == EOWNERDEAD) {
+    ClearSlot(slot);
+    if (pthread_mutex_consistent(&slot->lock) != 0) {
+      pthread_mutex_unlock(&slot->lock);
+      AssignError(error, "recover interrupted shared camera frame write failed");
+      return false;
+    }
+    *owner_dead = true;
+    return true;
+  }
+  AssignError(error, "lock shared camera frame failed");
+  return false;
+}
+
+bool ProcessIsAlive(std::uint64_t process_id) {
+  if (process_id == 0 ||
+      process_id > static_cast<std::uint64_t>(std::numeric_limits<pid_t>::max())) {
+    return false;
+  }
+  if (kill(static_cast<pid_t>(process_id), 0) == 0) {
+    return true;
+  }
+  return errno == EPERM;
+}
+
+bool HasLiveWriter(const ipc::SharedMemoryRegion& region) {
+  if (region.size() < AlignUp(sizeof(SharedHeader))) {
+    return false;
+  }
+  const auto* header = Header(region.data());
+  return header->magic == kMagic && header->version == kVersion &&
+         header->initialized.load(std::memory_order_acquire) == 1U &&
+         ProcessIsAlive(header->writer_pid);
+}
+
+void InvalidateStaleMapping(ipc::SharedMemoryRegion* region) {
+  if (region == nullptr || region->size() < AlignUp(sizeof(SharedHeader))) {
+    return;
+  }
+  auto* header = Header(region->data());
+  if (header->magic == kMagic) {
+    header->initialized.store(0U, std::memory_order_release);
+  }
 }
 
 bool ValidateMapping(const void* mapping, std::size_t mapping_size, std::size_t* capacity,
@@ -111,9 +206,11 @@ bool ValidateMapping(const void* mapping, std::size_t mapping_size, std::size_t*
     AssignError(error, "shared frame mapping is not initialized or has an unsupported version");
     return false;
   }
+  std::size_t expected_mapping_size = 0;
   if (header->mapping_size != mapping_size || header->slot_capacity == 0 ||
       header->slot_capacity > std::numeric_limits<std::size_t>::max() ||
-      MappingSize(static_cast<std::size_t>(header->slot_capacity)) != mapping_size) {
+      !MappingSize(static_cast<std::size_t>(header->slot_capacity), &expected_mapping_size) ||
+      expected_mapping_size != mapping_size) {
     AssignError(error, "shared frame mapping layout is invalid");
     return false;
   }
@@ -130,9 +227,42 @@ std::unique_ptr<SharedFrameWriter> SharedFrameWriter::Create(const SharedFrameBu
     return nullptr;
   }
 
-  const std::size_t mapping_size = MappingSize(config.max_frame_bytes);
+  std::size_t mapping_size = 0;
+  if (!MappingSize(config.max_frame_bytes, &mapping_size)) {
+    AssignError(error, "shared frame capacity is too large");
+    return nullptr;
+  }
   auto region = ipc::SharedMemoryRegion::Create(config.name, mapping_size, error);
   if (region == nullptr) {
+    std::string create_error = error == nullptr ? std::string() : *error;
+    std::string recovery_error;
+    auto stale_region = ipc::SharedMemoryRegion::Open(config.name, &recovery_error);
+    if (stale_region == nullptr) {
+      AssignError(error, create_error);
+      return nullptr;
+    }
+    if (!stale_region->TryLockExclusive(&recovery_error)) {
+      AssignError(error, "shared camera frame writer is already active: " + recovery_error);
+      return nullptr;
+    }
+    if (HasLiveWriter(*stale_region)) {
+      AssignError(error, "shared camera frame writer pid=" +
+                             std::to_string(Header(stale_region->data())->writer_pid) +
+                             " is still alive");
+      return nullptr;
+    }
+    InvalidateStaleMapping(stale_region.get());
+    if (!ipc::SharedMemoryRegion::Unlink(config.name, &recovery_error)) {
+      AssignError(error, recovery_error);
+      return nullptr;
+    }
+    stale_region.reset();
+    region = ipc::SharedMemoryRegion::Create(config.name, mapping_size, error);
+    if (region == nullptr) {
+      return nullptr;
+    }
+  }
+  if (!region->TryLockExclusive(error)) {
     return nullptr;
   }
   void* mapping = region->data();
@@ -141,6 +271,7 @@ std::unique_ptr<SharedFrameWriter> SharedFrameWriter::Create(const SharedFrameBu
   auto* header = new (mapping) SharedHeader();
   header->mapping_size = mapping_size;
   header->slot_capacity = config.max_frame_bytes;
+  header->writer_pid = static_cast<std::uint64_t>(getpid());
   for (std::uint32_t index = 0; index < kSlotCount; ++index) {
     if (!InitializeSlot(Slot(mapping, config.max_frame_bytes, index), error)) {
       return nullptr;
@@ -158,7 +289,9 @@ SharedFrameWriter::SharedFrameWriter(std::unique_ptr<ipc::SharedMemoryRegion> re
 
 SharedFrameWriter::~SharedFrameWriter() {
   if (region_ != nullptr) {
-    Header(region_->data())->initialized.store(0U, std::memory_order_release);
+    auto* header = Header(region_->data());
+    header->initialized.store(0U, std::memory_order_release);
+    header->writer_pid = 0;
   }
 }
 
@@ -172,7 +305,8 @@ bool SharedFrameWriter::Publish(CameraFrame frame) {
   const std::uint32_t active = header->active_slot.load(std::memory_order_acquire);
   const std::uint32_t target = (active + 1U) % kSlotCount;
   auto* slot = Slot(region_->data(), slot_capacity_, target);
-  if (pthread_rwlock_wrlock(&slot->lock) != 0) {
+  bool owner_dead = false;
+  if (!LockSlot(slot, &owner_dead, nullptr)) {
     frames_rejected_.fetch_add(1U, std::memory_order_relaxed);
     return false;
   }
@@ -186,7 +320,7 @@ bool SharedFrameWriter::Publish(CameraFrame frame) {
   slot->stride_bytes = frame.stride_bytes;
   slot->format = static_cast<std::uint32_t>(frame.format);
   std::memcpy(Payload(slot), frame.data.data(), frame.data.size());
-  pthread_rwlock_unlock(&slot->lock);
+  pthread_mutex_unlock(&slot->lock);
 
   header->active_slot.store(target, std::memory_order_release);
   header->generation.store(next_generation, std::memory_order_release);
@@ -244,14 +378,18 @@ bool SharedFrameReader::ReadLatest(CameraFrame* frame, std::uint64_t* generation
   }
   const std::uint32_t active = header->active_slot.load(std::memory_order_acquire);
   const auto* slot = Slot(region_->data(), slot_capacity_, active);
-  // The process-shared lock is synchronization metadata, not frame payload.
   auto* mutable_slot = const_cast<SharedSlot*>(slot);  // NOLINT
-  if (pthread_rwlock_rdlock(&mutable_slot->lock) != 0) {
-    AssignError(error, "lock shared camera frame for reading failed");
+  bool owner_dead = false;
+  if (!LockSlot(mutable_slot, &owner_dead, error)) {
+    return false;
+  }
+  if (owner_dead) {
+    pthread_mutex_unlock(&mutable_slot->lock);
+    AssignError(error, "recovered interrupted shared camera frame write");
     return false;
   }
   if (slot->payload_size > slot_capacity_) {
-    pthread_rwlock_unlock(&mutable_slot->lock);
+    pthread_mutex_unlock(&mutable_slot->lock);
     AssignError(error, "shared camera frame payload exceeds slot capacity");
     return false;
   }
@@ -263,11 +401,15 @@ bool SharedFrameReader::ReadLatest(CameraFrame* frame, std::uint64_t* generation
   frame->format = static_cast<CameraPixelFormat>(slot->format);
   frame->data.assign(Payload(slot), Payload(slot) + slot->payload_size);
   const std::uint64_t frame_generation = slot->generation;
-  pthread_rwlock_unlock(&mutable_slot->lock);
+  pthread_mutex_unlock(&mutable_slot->lock);
   if (generation != nullptr) {
     *generation = frame_generation;
   }
-  return frame->IsValid();
+  if (!frame->IsValid()) {
+    AssignError(error, "shared camera frame layout or payload is invalid");
+    return false;
+  }
+  return true;
 }
 
 }  // namespace camera

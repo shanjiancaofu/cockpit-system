@@ -94,9 +94,21 @@ bool TestReset() {
          Check(queue.Push(3) == EventQueuePushResult::kAccepted, "reset queue rejected event");
 }
 
+bool TestDiscardPending() {
+  EventQueue<int> queue(3);
+  queue.Push(1);
+  queue.Push(2);
+  queue.Close();
+  return Check(queue.DiscardPending() == 2, "discarded event count mismatch") &&
+         Check(queue.Size() == 0, "discard did not clear queue") &&
+         Check(queue.DropCount() == 2, "discard did not update drop count");
+}
+
 }  // namespace
 
 int main() {
-  return TestOrderAndOverflow() && TestMoveOnlyEvent() && TestWaitPopAndClose() && TestReset() ? 0
-                                                                                               : 1;
+  return TestOrderAndOverflow() && TestMoveOnlyEvent() && TestWaitPopAndClose() && TestReset() &&
+                 TestDiscardPending()
+             ? 0
+             : 1;
 }

@@ -1,6 +1,7 @@
 #include "cockpit/core/ipc/shared_memory_region.h"
 
 #include <fcntl.h>
+#include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -95,6 +96,18 @@ std::unique_ptr<SharedMemoryRegion> SharedMemoryRegion::Open(const std::string& 
       new SharedMemoryRegion(name, fd, mapping, size, false));
 }
 
+bool SharedMemoryRegion::Unlink(const std::string& name, std::string* error) {
+  if (!ValidName(name)) {
+    AssignError(error, "shared memory name must be a single POSIX name beginning with '/'");
+    return false;
+  }
+  if (shm_unlink(name.c_str()) != 0 && errno != ENOENT) {
+    AssignError(error, SystemError("unlink shared memory"));
+    return false;
+  }
+  return true;
+}
+
 SharedMemoryRegion::SharedMemoryRegion(std::string name, int fd, void* mapping, std::size_t size,
                                        bool owner)
     : name_(std::move(name)), fd_(fd), mapping_(mapping), size_(size), owner_(owner) {
@@ -110,6 +123,18 @@ SharedMemoryRegion::~SharedMemoryRegion() {
   if (owner_ && !name_.empty()) {
     shm_unlink(name_.c_str());
   }
+}
+
+bool SharedMemoryRegion::TryLockExclusive(std::string* error) const {
+  if (fd_ < 0) {
+    AssignError(error, "shared memory region is not open");
+    return false;
+  }
+  if (flock(fd_, LOCK_EX | LOCK_NB) != 0) {
+    AssignError(error, SystemError("lock shared memory writer"));
+    return false;
+  }
+  return true;
 }
 
 }  // namespace ipc

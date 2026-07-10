@@ -33,6 +33,12 @@ ActionExecutionResult CockpitActionDispatcher::Execute(VoiceAction action) {
   return {ActionExecutionStatus::kRejected, "Action is not allowlisted."};
 }
 
+void CockpitActionDispatcher::Cancel() {
+  if (vehicle_status_ != nullptr) {
+    vehicle_status_->Cancel();
+  }
+}
+
 ActionExecutionResult CockpitActionDispatcher::QueryVehicleStatus() {
   if (vehicle_status_ == nullptr) {
     return {ActionExecutionStatus::kNotImplemented, "Vehicle status provider is not configured."};

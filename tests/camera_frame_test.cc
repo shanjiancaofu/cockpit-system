@@ -28,12 +28,29 @@ int main() {
   frame.format = cockpit::camera::CameraPixelFormat::kBgrx;
   frame.data.resize(16, 0xff);
 
-  return Check(frame.IsValid(), "valid camera frame was rejected") &&
-                 Check(cockpit::camera::ToString(frame.format) == "bgrx",
-                       "unexpected camera format string") &&
-                 Check(
-                     cockpit::camera::ToString(cockpit::camera::CameraPixelFormat::kNv12) == "nv12",
-                     "unexpected NV12 format string")
-             ? 0
-             : 1;
+  if (!Check(frame.IsValid(), "valid camera frame was rejected") ||
+      !Check(cockpit::camera::ToString(frame.format) == "bgrx",
+             "unexpected camera format string") ||
+      !Check(cockpit::camera::ToString(cockpit::camera::CameraPixelFormat::kNv12) == "nv12",
+             "unexpected NV12 format string")) {
+    return 1;
+  }
+
+  frame.data.resize(15);
+  if (!Check(!frame.IsValid(), "undersized BGRx frame was accepted")) {
+    return 1;
+  }
+  frame.data.resize(16);
+  frame.stride_bytes = 7;
+  if (!Check(!frame.IsValid(), "BGRx frame with a short stride was accepted")) {
+    return 1;
+  }
+
+  cockpit::camera::CameraFrame nv12;
+  nv12.width = 4;
+  nv12.height = 2;
+  nv12.stride_bytes = 4;
+  nv12.format = cockpit::camera::CameraPixelFormat::kNv12;
+  nv12.data.resize(12);
+  return Check(nv12.IsValid(), "valid NV12 frame was rejected") ? 0 : 1;
 }

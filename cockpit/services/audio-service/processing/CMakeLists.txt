@@ -4,5 +4,6 @@ target_link_libraries(audio_processing PUBLIC
     audio_capture_module
     audio_vad
     config
-    voice
+    voice_asr
+    voice_assistant
 )

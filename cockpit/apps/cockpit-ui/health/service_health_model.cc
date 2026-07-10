@@ -44,9 +44,9 @@ QString StateName(proto::common::ServiceHealthState state) {
     case proto::common::SERVICE_HEALTH_STATE_FAULTED:
       return QStringLiteral("FAULTED");
     case proto::common::SERVICE_HEALTH_STATE_UNSPECIFIED:
-      break;
+    default:
+      return QStringLiteral("UNKNOWN");
   }
-  return QStringLiteral("UNKNOWN");
 }
 
 ServiceHealthModel::HealthSample FromHealth(const proto::common::ServiceHealth& health) {

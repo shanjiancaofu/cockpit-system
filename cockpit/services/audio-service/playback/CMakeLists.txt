@@ -1,3 +1,3 @@
 add_cockpit_library(speech_output speech_output.cc)
-target_link_libraries(speech_output PUBLIC audio_playback voice)
+target_link_libraries(speech_output PUBLIC audio_playback voice_responses voice_tts)
 target_link_libraries(speech_output PRIVATE logging)
