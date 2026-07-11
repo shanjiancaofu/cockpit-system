@@ -157,6 +157,15 @@ if [[ "${recording_detail}" != *"data files indexed: 1"* || \
   echo "recording smoke did not expose replay metadata" >&2
   exit 1
 fi
+recording_timeline="$(${bin_dir}/recording-ctl --timeline "${recording_session_id}" \
+  --limit 20 --config "${config_path}")"
+echo "${recording_timeline}"
+if [[ "${recording_timeline}" != *"kind=event"* || \
+      "${recording_timeline}" != *"kind=data_file"* || \
+      "${recording_timeline}" != *"kind=vehicle_state"* ]]; then
+  echo "recording smoke did not expose the merged timeline" >&2
+  exit 1
+fi
 "${bin_dir}/recording-ctl" --delete "${recording_session_id}" --config "${config_path}"
 recording_list_after_delete="$(${bin_dir}/recording-ctl --list --config "${config_path}")"
 echo "${recording_list_after_delete}"

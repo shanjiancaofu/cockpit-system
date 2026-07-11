@@ -27,6 +27,8 @@ class RecordingControlClient {
             std::string* error);
   bool GetDetail(const std::string& session_id, proto::recording::RecordingSessionDetail* response,
                  std::string* error);
+  bool GetTimeline(const proto::recording::GetRecordingTimelineRequest& request,
+                   proto::recording::GetRecordingTimelineResponse* response, std::string* error);
   bool Delete(const std::string& session_id, std::string* error);
   bool Prune(proto::recording::PruneRecordingsResponse* response, std::string* error);
 

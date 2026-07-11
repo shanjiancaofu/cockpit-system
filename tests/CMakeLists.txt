@@ -43,6 +43,10 @@ add_executable(recording_catalog_test recording_catalog_test.cc)
 target_link_libraries(recording_catalog_test PRIVATE recording)
 add_test(NAME recording_catalog_test COMMAND recording_catalog_test)
 
+add_executable(recording_timeline_test recording_timeline_test.cc)
+target_link_libraries(recording_timeline_test PRIVATE recording)
+add_test(NAME recording_timeline_test COMMAND recording_timeline_test)
+
 add_executable(recording_service_test recording_service_test.cc)
 target_link_libraries(recording_service_test PRIVATE recording_service)
 add_test(NAME recording_service_test COMMAND recording_service_test)

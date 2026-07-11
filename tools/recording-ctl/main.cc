@@ -69,6 +69,35 @@ void PrintDetail(const cockpit::proto::recording::RecordingSessionDetail& detail
   std::cout << '\n';
 }
 
+const char* TimelineKindName(cockpit::proto::recording::RecordingTimelineEntryKind kind) {
+  switch (kind) {
+    case cockpit::proto::recording::RECORDING_TIMELINE_ENTRY_KIND_VEHICLE_STATE:
+      return "vehicle_state";
+    case cockpit::proto::recording::RECORDING_TIMELINE_ENTRY_KIND_EVENT:
+      return "event";
+    case cockpit::proto::recording::RECORDING_TIMELINE_ENTRY_KIND_DATA_FILE:
+      return "data_file";
+    case cockpit::proto::recording::RECORDING_TIMELINE_ENTRY_KIND_UNSPECIFIED:
+    default:
+      return "unspecified";
+  }
+}
+
+void PrintTimeline(const cockpit::proto::recording::GetRecordingTimelineResponse& response) {
+  std::cout << "total entries: " << response.total_entries() << '\n'
+            << "returned entries: " << response.entries_size() << '\n'
+            << "corrupted lines: " << response.corrupted_lines() << '\n'
+            << "truncated: " << (response.truncated() ? "true" : "false") << '\n';
+  for (const auto& entry : response.entries()) {
+    std::cout << entry.timestamp_ms() << " kind=" << TimelineKindName(entry.kind())
+              << " source=" << entry.source() << " label=" << entry.label();
+    if (!entry.path().empty()) {
+      std::cout << " path=" << entry.path();
+    }
+    std::cout << '\n';
+  }
+}
+
 int Finish(const cockpit::runtime::ServiceRuntime& runtime, int result) {
   runtime.MarkStopped();
   return result;
@@ -85,6 +114,17 @@ std::uint64_t ParseUint64(const std::string& value) {
   }
 }
 
+std::int64_t ParseInt64(const std::string& value) {
+  if (value.empty()) {
+    return 0;
+  }
+  try {
+    return std::stoll(value);
+  } catch (const std::exception&) {
+    return -1;
+  }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -96,6 +136,7 @@ int main(int argc, char** argv) {
   bool ok = false;
   const std::string delete_session_id = runtime.args().GetString("delete", "");
   const std::string detail_session_id = runtime.args().GetString("detail", "");
+  const std::string timeline_session_id = runtime.args().GetString("timeline", "");
   const std::string event_topic = runtime.args().GetString("event-topic", "");
   const std::string file_path = runtime.args().GetString("file-path", "");
   if (runtime.args().HasFlag("list")) {
@@ -119,6 +160,22 @@ int main(int argc, char** argv) {
     ok = client.GetDetail(detail_session_id, &detail, &error);
     if (ok) {
       PrintDetail(detail);
+    }
+  } else if (!timeline_session_id.empty()) {
+    cockpit::proto::recording::GetRecordingTimelineRequest request;
+    request.set_session_id(timeline_session_id);
+    request.set_from_timestamp_ms(ParseInt64(runtime.args().GetString("from-ms", "0")));
+    request.set_to_timestamp_ms(ParseInt64(runtime.args().GetString("to-ms", "0")));
+    const int limit = runtime.args().GetInt("limit", 100);
+    if (limit < 0) {
+      std::cerr << "timeline limit must not be negative\n";
+      return Finish(runtime, 1);
+    }
+    request.set_limit(static_cast<std::uint32_t>(limit));
+    cockpit::proto::recording::GetRecordingTimelineResponse response;
+    ok = client.GetTimeline(request, &response, &error);
+    if (ok) {
+      PrintTimeline(response);
     }
   } else if (!delete_session_id.empty()) {
     ok = client.Delete(delete_session_id, &error);
@@ -159,7 +216,7 @@ int main(int argc, char** argv) {
     return Finish(runtime, 1);
   }
   if (!runtime.args().HasFlag("list") && detail_session_id.empty() && delete_session_id.empty() &&
-      !runtime.args().HasFlag("prune")) {
+      timeline_session_id.empty() && !runtime.args().HasFlag("prune")) {
     PrintStatus(status);
   }
   return Finish(runtime, 0);

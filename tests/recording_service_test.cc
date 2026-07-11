@@ -54,7 +54,20 @@ int main() {
     return 1;
   }
 
-  const bool result = Check(service.List(0).size() == 1, "completed recording was not cataloged");
+  const auto sessions = service.List(0);
+  cockpit::recording::RecordingTimelineQuery query;
+  query.limit = 10;
+  cockpit::recording::RecordingTimelineResult timeline;
+  const bool result =
+      Check(sessions.size() == 1, "completed recording was not cataloged") &&
+      Check(service.GetTimeline(sessions.front().session_id, query, &timeline, &error),
+            "recording timeline query failed") &&
+      Check(timeline.total_entries == 2, "recording timeline total mismatch") &&
+      Check(timeline.entries.size() == 2, "recording timeline entry count mismatch") &&
+      Check(timeline.entries[0].kind == cockpit::recording::RecordingTimelineEntryKind::kEvent,
+            "recording event timeline entry mismatch") &&
+      Check(timeline.entries[1].kind == cockpit::recording::RecordingTimelineEntryKind::kDataFile,
+            "recording data file timeline entry mismatch");
   std::filesystem::remove_all(root);
   return result ? 0 : 1;
 }

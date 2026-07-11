@@ -132,6 +132,18 @@ camera/voice/audio metadata
 索引。camera 和 voice 使用有界后台队列投递录包数据，录包服务不可用不会阻塞用户主流程。该服务
 属于研发诊断边界，不接收用户语音动作。
 
+### 录包时间语义
+
+recording-service 已提供多源时间线查询：读取 `vehicle_state.jsonl`、`events.jsonl` 和
+`data_files.jsonl`，按主机侧 `timestamp_ms` 稳定排序，并支持时间范围和条数限制。损坏的 JSONL
+行会被跳过并计数，单行损坏不会阻断整段研发复盘。它不负责同步或校准 ECU、相机、音频设备等
+独立时钟，也不估算时钟偏移和漂移。
+
+当前单机原型默认各服务使用同一 Jetson/WSL 主机时钟，时间线条目保留 `timestamp_ms`、`source`、
+`kind`、label、原始 JSON 和可选 path。真实硬件提供 ECU timestamp、camera PTS 或 audio sample clock
+后，再按需要增加 `source_timestamp`、`host_timestamp`、`monotonic_timestamp`、`clock_domain`、
+`offset` 和 `uncertainty`，单独实现时间戳归一化；当前不提前引入 PTP 或漂移估计。
+
 ## 当前边界
 
 已具备可运行的 WSL/Jetson 车机原型架构，但尚缺正式 DBC、真实 TTS、麦克风/扬声器标定、

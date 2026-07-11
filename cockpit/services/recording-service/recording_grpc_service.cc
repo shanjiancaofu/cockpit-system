@@ -19,6 +19,18 @@ proto::recording::RecordingState ToProtoState(RecordingState state) {
   return proto::recording::RECORDING_STATE_UNSPECIFIED;
 }
 
+proto::recording::RecordingTimelineEntryKind ToProtoTimelineKind(RecordingTimelineEntryKind kind) {
+  switch (kind) {
+    case RecordingTimelineEntryKind::kVehicleState:
+      return proto::recording::RECORDING_TIMELINE_ENTRY_KIND_VEHICLE_STATE;
+    case RecordingTimelineEntryKind::kEvent:
+      return proto::recording::RECORDING_TIMELINE_ENTRY_KIND_EVENT;
+    case RecordingTimelineEntryKind::kDataFile:
+      return proto::recording::RECORDING_TIMELINE_ENTRY_KIND_DATA_FILE;
+  }
+  return proto::recording::RECORDING_TIMELINE_ENTRY_KIND_UNSPECIFIED;
+}
+
 void FillHealth(const RecordingStatus& status, proto::common::ServiceHealth* health) {
   health->set_service_name("recording-service");
   health->set_checked_at_ms(utils::NowMs());
@@ -153,6 +165,51 @@ grpc::Status RecordingGrpcService::GetDetail(
     return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
   }
   FillDetail(detail, response);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::GetTimeline(
+    grpc::ServerContext*, const proto::recording::GetRecordingTimelineRequest* request,
+    proto::recording::GetRecordingTimelineResponse* response) {
+  if (request->session_id().empty()) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "session_id is required");
+  }
+  if (request->from_timestamp_ms() < 0 || request->to_timestamp_ms() < 0 ||
+      (request->to_timestamp_ms() > 0 &&
+       request->from_timestamp_ms() > request->to_timestamp_ms())) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "timestamp range is invalid");
+  }
+  const std::size_t limit = request->limit() == 0 ? RecordingTimelineReader::kDefaultLimit
+                                                  : static_cast<std::size_t>(request->limit());
+  if (limit > RecordingTimelineReader::kMaximumLimit) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "timeline limit is too large");
+  }
+
+  RecordingSessionDetail detail;
+  std::string error;
+  if (!recording_service_.GetDetail(request->session_id(), &detail, &error)) {
+    return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
+  }
+  RecordingTimelineQuery query;
+  query.from_timestamp_ms = request->from_timestamp_ms();
+  query.to_timestamp_ms = request->to_timestamp_ms();
+  query.limit = limit;
+  RecordingTimelineResult result;
+  if (!recording_service_.GetTimeline(request->session_id(), query, &result, &error)) {
+    return grpc::Status(grpc::StatusCode::INTERNAL, error);
+  }
+  for (const auto& entry : result.entries) {
+    auto* timeline_entry = response->add_entries();
+    timeline_entry->set_timestamp_ms(entry.timestamp_ms);
+    timeline_entry->set_kind(ToProtoTimelineKind(entry.kind));
+    timeline_entry->set_source(entry.source);
+    timeline_entry->set_label(entry.label);
+    timeline_entry->set_path(entry.path);
+    timeline_entry->set_record_json(entry.record_json);
+  }
+  response->set_total_entries(result.total_entries);
+  response->set_corrupted_lines(result.corrupted_lines);
+  response->set_truncated(result.truncated);
   return grpc::Status::OK;
 }
 

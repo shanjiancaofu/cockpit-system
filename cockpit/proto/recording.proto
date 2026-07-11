@@ -95,6 +95,36 @@ message GetRecordingDetailRequest {
   string session_id = 1;
 }
 
+enum RecordingTimelineEntryKind {
+  RECORDING_TIMELINE_ENTRY_KIND_UNSPECIFIED = 0;
+  RECORDING_TIMELINE_ENTRY_KIND_VEHICLE_STATE = 1;
+  RECORDING_TIMELINE_ENTRY_KIND_EVENT = 2;
+  RECORDING_TIMELINE_ENTRY_KIND_DATA_FILE = 3;
+}
+
+message GetRecordingTimelineRequest {
+  string session_id = 1;
+  int64 from_timestamp_ms = 2;
+  int64 to_timestamp_ms = 3;
+  uint32 limit = 4;
+}
+
+message RecordingTimelineEntry {
+  int64 timestamp_ms = 1;
+  RecordingTimelineEntryKind kind = 2;
+  string source = 3;
+  string label = 4;
+  string path = 5;
+  string record_json = 6;
+}
+
+message GetRecordingTimelineResponse {
+  repeated RecordingTimelineEntry entries = 1;
+  uint64 total_entries = 2;
+  uint64 corrupted_lines = 3;
+  bool truncated = 4;
+}
+
 message PruneRecordingsResponse {
   uint64 sessions_deleted = 1;
   uint64 bytes_deleted = 2;
@@ -110,6 +140,7 @@ service RecordingControl {
   rpc GetStatus(cockpit.proto.common.Empty) returns (RecordingStatus);
   rpc List(ListRecordingsRequest) returns (ListRecordingsResponse);
   rpc GetDetail(GetRecordingDetailRequest) returns (RecordingSessionDetail);
+  rpc GetTimeline(GetRecordingTimelineRequest) returns (GetRecordingTimelineResponse);
   rpc Delete(DeleteRecordingRequest) returns (cockpit.proto.common.Empty);
   rpc Prune(cockpit.proto.common.Empty) returns (PruneRecordingsResponse);
 }
