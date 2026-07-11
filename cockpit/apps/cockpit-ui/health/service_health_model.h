@@ -2,7 +2,9 @@
 
 #include <QAbstractListModel>
 #include <QString>
+#include <QVariantList>
 #include <atomic>
+#include <deque>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -28,6 +30,7 @@ class ServiceHealthModel final : public QAbstractListModel {
   Q_PROPERTY(int unknownCount READ unknownCount NOTIFY summaryChanged)
   Q_PROPERTY(QString summaryText READ summaryText NOTIFY summaryChanged)
   Q_PROPERTY(QString worstState READ worstState NOTIFY summaryChanged)
+  Q_PROPERTY(QVariantList recentTransitions READ recentTransitions NOTIFY historyChanged)
 
  public:
   enum Role {
@@ -37,6 +40,9 @@ class ServiceHealthModel final : public QAbstractListModel {
     MessageRole,
     LastErrorRole,
     CheckedAtRole,
+    LastProblemStateRole,
+    LastProblemReasonRole,
+    LastProblemAtRole,
   };
 
   struct HealthSample {
@@ -63,14 +69,18 @@ class ServiceHealthModel final : public QAbstractListModel {
   int unknownCount() const;
   QString summaryText() const;
   QString worstState() const;
+  QVariantList recentTransitions() const;
 
   void Start();
   void Stop();
 
  signals:
   void summaryChanged();
+  void historyChanged();
 
  private:
+  friend class ServiceHealthModelTest;
+
   struct Item {
     QString display_name;
     std::string service_name;
@@ -79,6 +89,18 @@ class ServiceHealthModel final : public QAbstractListModel {
     QString message = QStringLiteral("Waiting for health check");
     QString last_error;
     qint64 checked_at_ms = 0;
+    bool seen = false;
+    QString last_problem_state;
+    QString last_problem_reason;
+    qint64 last_problem_at_ms = 0;
+  };
+
+  struct HealthTransition {
+    QString display_name;
+    QString from_state;
+    QString to_state;
+    QString reason;
+    qint64 changed_at_ms = 0;
   };
 
   void Run();
@@ -88,6 +110,7 @@ class ServiceHealthModel final : public QAbstractListModel {
 
   mutable std::mutex mutex_;
   std::vector<Item> items_;
+  std::deque<HealthTransition> history_;
   std::atomic_bool running_{false};
   std::thread worker_;
   mutable bool counts_dirty_ = true;

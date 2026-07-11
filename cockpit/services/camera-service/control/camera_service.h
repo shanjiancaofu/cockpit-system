@@ -88,7 +88,6 @@ class CameraService {
   CameraServiceStatus status() const;
 
  private:
-  static bool IsUsableCaptureDevice(const VideoDeviceInfo& device);
   bool DeviceExists(const std::string& device, std::string* error) const;
   void HandleFrame(CameraFrame frame);
   void SetError(std::string kind, std::string error);

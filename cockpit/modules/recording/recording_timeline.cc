@@ -20,11 +20,6 @@ void AssignError(std::string* error, const std::string& message) {
   }
 }
 
-bool InRange(std::int64_t timestamp_ms, const RecordingTimelineQuery& query) {
-  return timestamp_ms >= query.from_timestamp_ms &&
-         (query.to_timestamp_ms == 0 || timestamp_ms <= query.to_timestamp_ms);
-}
-
 bool ParseEntry(const std::string& line, RecordingTimelineEntryKind kind,
                 RecordingTimelineEntry* entry) {
   if (line.size() > kMaximumLineBytes || !json::IsValidValue(line)) {
@@ -93,7 +88,8 @@ bool ReadFile(const std::filesystem::path& path, RecordingTimelineEntryKind kind
       ++result->corrupted_lines;
       continue;
     }
-    if (InRange(entry.timestamp_ms, query)) {
+    if (entry.timestamp_ms >= query.from_timestamp_ms &&
+        (query.to_timestamp_ms == 0 || entry.timestamp_ms <= query.to_timestamp_ms)) {
       result->entries.push_back(std::move(entry));
     }
   }

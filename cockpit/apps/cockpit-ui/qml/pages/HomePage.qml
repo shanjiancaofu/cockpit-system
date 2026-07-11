@@ -90,6 +90,10 @@ Item {
             TabButton {
                 text: "CAMERA"
             }
+
+            TabButton {
+                text: "DIAGNOSTICS"
+            }
         }
 
         StackLayout {
@@ -225,7 +229,7 @@ Item {
 
                                 delegate: Rectangle {
                                     width: ListView.view.width
-                                    height: 58
+                                    height: 74
                                     radius: 6
                                     color: root.surfaceRaised
                                     border.color: healthState === "FAULTED" ? root.red
@@ -281,6 +285,17 @@ Item {
                                                 text: lastError.length > 0 ? lastError : message
                                                 color: lastError.length > 0 ? root.amber : root.secondaryText
                                                 font.pixelSize: 11
+                                                elide: Text.ElideRight
+                                            }
+
+                                            Label {
+                                                Layout.fillWidth: true
+                                                visible: lastProblemAtMs > 0
+                                                text: "Last " + lastProblemState + " "
+                                                      + Qt.formatDateTime(new Date(lastProblemAtMs), "HH:mm:ss")
+                                                      + " | " + lastProblemReason
+                                                color: root.amber
+                                                font.pixelSize: 10
                                                 elide: Text.ElideRight
                                             }
                                         }
@@ -509,6 +524,113 @@ Item {
                                     font.pixelSize: 12
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                radius: 8
+                color: root.surface
+                border.color: root.borderColor
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 22
+                    spacing: 14
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: "HEALTH TRANSITIONS"
+                            color: root.primaryText
+                            font.pixelSize: 16
+                            font.bold: true
+                        }
+
+                        Label {
+                            text: serviceHealth.recentTransitions.length + " / 32"
+                            color: root.secondaryText
+                            font.pixelSize: 12
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 1
+                        color: root.borderColor
+                    }
+
+                    ListView {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        spacing: 6
+                        model: serviceHealth.recentTransitions
+
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: ListView.view.width
+                            height: 58
+                            radius: 6
+                            color: root.surfaceRaised
+                            border.color: modelData.toState === "FAULTED" ? root.red
+                                          : (modelData.toState === "DEGRADED" ? root.amber
+                                                                             : root.borderColor)
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 14
+                                anchors.rightMargin: 14
+                                spacing: 14
+
+                                Label {
+                                    Layout.preferredWidth: 110
+                                    text: modelData.displayName
+                                    color: root.primaryText
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                    elide: Text.ElideRight
+                                }
+
+                                Label {
+                                    Layout.preferredWidth: 190
+                                    text: modelData.fromState + "  ->  " + modelData.toState
+                                    color: modelData.toState === "FAULTED" ? root.red
+                                           : (modelData.toState === "DEGRADED" ? root.amber
+                                                                               : root.green)
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                }
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.reason
+                                    color: root.secondaryText
+                                    font.pixelSize: 12
+                                    elide: Text.ElideRight
+                                }
+
+                                Label {
+                                    Layout.preferredWidth: 72
+                                    text: Qt.formatDateTime(new Date(modelData.changedAtMs), "HH:mm:ss")
+                                    color: root.secondaryText
+                                    font.pixelSize: 11
+                                }
+                            }
+                        }
+
+                        Label {
+                            anchors.centerIn: parent
+                            visible: serviceHealth.recentTransitions.length === 0
+                            text: "NO STATE CHANGES"
+                            color: root.secondaryText
+                            font.pixelSize: 14
+                            font.bold: true
                         }
                     }
                 }

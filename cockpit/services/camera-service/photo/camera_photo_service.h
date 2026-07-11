@@ -25,7 +25,6 @@ class CameraPhotoService {
 
  private:
   static bool IsSafeFilename(const std::string& filename);
-  static std::string DefaultFilename();
 
   const std::string shared_memory_name_;
   const std::filesystem::path output_directory_;

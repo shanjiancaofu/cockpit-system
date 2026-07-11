@@ -131,6 +131,10 @@ start/recover 状态机，因此合成测试与真实 GStreamer pipeline 共享�
 `OK`、`DISABLED` 和 `DEGRADED`，对 `UNKNOWN`、`FAULTED` 返回失败；状态页仍逐项展示全部状态，
 避免把主动关闭、能力下降和不可达混为一类。
 
+cockpit-ui 在进程内保留最近 32 条状态切换，初次采样只建立基线，不生成虚假事件。每个服务记录
+最近一次 degraded/faulted 的状态、时间和原因，恢复为 OK 后仍可在 Dashboard 和 Diagnostics 页面
+追溯。历史不写数据库，UI 重启后清空；长期运行证据后续由 WSL 长稳报告负责。
+
 ## 诊断 CLI 输出
 
 控制面诊断工具共用 `tools/diagnostics`，支持 `--output text|json`。JSON 状态直接由 protobuf 官方

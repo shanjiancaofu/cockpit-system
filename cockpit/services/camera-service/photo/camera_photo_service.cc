@@ -36,7 +36,8 @@ bool CameraPhotoService::TakePhoto(const std::string& filename, CameraPhotoResul
     AssignError(error, "camera photo result must not be null");
     return false;
   }
-  const std::string resolved_filename = filename.empty() ? DefaultFilename() : filename;
+  const std::string resolved_filename =
+      filename.empty() ? "photo_" + std::to_string(utils::NowMs()) + ".jpg" : filename;
   if (!IsSafeFilename(resolved_filename)) {
     AssignError(error,
                 "photo filename must contain only letters, digits, '-', '_' and end in .jpg");
@@ -88,10 +89,6 @@ bool CameraPhotoService::IsSafeFilename(const std::string& filename) {
   return std::all_of(filename.begin(), filename.end() - 4, [](unsigned char character) {
     return std::isalnum(character) != 0 || character == '-' || character == '_';
   });
-}
-
-std::string CameraPhotoService::DefaultFilename() {
-  return "photo_" + std::to_string(utils::NowMs()) + ".jpg";
 }
 
 }  // namespace camera

@@ -24,6 +24,7 @@ namespace {
 
 constexpr int kPollIntervalMs = 1000;
 constexpr int kRpcDeadlineMs = 350;
+constexpr std::size_t kHistoryLimit = 32;
 
 std::int64_t NowMs() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -114,6 +115,12 @@ QVariant ServiceHealthModel::data(const QModelIndex& index, int role) const {
       return item.last_error;
     case CheckedAtRole:
       return item.checked_at_ms;
+    case LastProblemStateRole:
+      return item.last_problem_state;
+    case LastProblemReasonRole:
+      return item.last_problem_reason;
+    case LastProblemAtRole:
+      return item.last_problem_at_ms;
     default:
       break;
   }
@@ -122,9 +129,15 @@ QVariant ServiceHealthModel::data(const QModelIndex& index, int role) const {
 
 QHash<int, QByteArray> ServiceHealthModel::roleNames() const {
   return {
-      {DisplayNameRole, "displayName"}, {ServiceNameRole, "serviceName"},
-      {StateRole, "healthState"},       {MessageRole, "message"},
-      {LastErrorRole, "lastError"},     {CheckedAtRole, "checkedAtMs"},
+      {DisplayNameRole, "displayName"},
+      {ServiceNameRole, "serviceName"},
+      {StateRole, "healthState"},
+      {MessageRole, "message"},
+      {LastErrorRole, "lastError"},
+      {CheckedAtRole, "checkedAtMs"},
+      {LastProblemStateRole, "lastProblemState"},
+      {LastProblemReasonRole, "lastProblemReason"},
+      {LastProblemAtRole, "lastProblemAtMs"},
   };
 }
 
@@ -185,6 +198,20 @@ QString ServiceHealthModel::worstState() const {
     return QStringLiteral("DISABLED");
   }
   return QStringLiteral("OK");
+}
+
+QVariantList ServiceHealthModel::recentTransitions() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  QVariantList transitions;
+  transitions.reserve(static_cast<qsizetype>(history_.size()));
+  for (const auto& transition : history_) {
+    transitions.push_back(QVariantMap{{QStringLiteral("displayName"), transition.display_name},
+                                      {QStringLiteral("fromState"), transition.from_state},
+                                      {QStringLiteral("toState"), transition.to_state},
+                                      {QStringLiteral("reason"), transition.reason},
+                                      {QStringLiteral("changedAtMs"), transition.changed_at_ms}});
+  }
+  return transitions;
 }
 
 void ServiceHealthModel::Start() {
@@ -291,17 +318,38 @@ void ServiceHealthModel::PostSamples(std::vector<HealthSample> samples) {
       this,
       [this, samples = std::move(samples)]() mutable {
         const int changed_rows = static_cast<int>(std::min(samples.size(), items_.size()));
+        bool history_changed = false;
         {
           std::lock_guard<std::mutex> lock(mutex_);
           for (int i = 0; i < changed_rows; ++i) {
             Item& item = items_[static_cast<std::size_t>(i)];
             HealthSample& sample = samples[static_cast<std::size_t>(i)];
+            const QString reason = sample.last_error.isEmpty() ? sample.message : sample.last_error;
+            if ((!item.seen || item.state != sample.state) &&
+                (sample.state == QStringLiteral("DEGRADED") ||
+                 sample.state == QStringLiteral("FAULTED"))) {
+              item.last_problem_state = sample.state;
+              item.last_problem_reason = reason;
+              item.last_problem_at_ms = sample.checked_at_ms;
+            }
+            if (item.seen && item.state != sample.state) {
+              history_.push_front(
+                  {item.display_name, item.state, sample.state, reason, sample.checked_at_ms});
+              if (history_.size() > kHistoryLimit) {
+                history_.pop_back();
+              }
+              history_changed = true;
+            }
+            item.seen = true;
             item.state = std::move(sample.state);
             item.message = std::move(sample.message);
             item.last_error = std::move(sample.last_error);
             item.checked_at_ms = sample.checked_at_ms;
           }
           counts_dirty_ = true;
+        }
+        if (history_changed) {
+          emit historyChanged();
         }
         if (changed_rows > 0) {
           emit dataChanged(index(0), index(changed_rows - 1));

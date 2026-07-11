@@ -240,15 +240,11 @@ CameraServiceStatus CameraService::status() const {
   return result;
 }
 
-bool CameraService::IsUsableCaptureDevice(const VideoDeviceInfo& device) {
-  return device.query_ok && device.supports_capture && device.supports_streaming;
-}
-
 bool CameraService::DeviceExists(const std::string& device, std::string* error) const {
   std::string list_error;
   const auto devices = ListDevices(&list_error);
   for (const auto& info : devices) {
-    if (info.path == device && IsUsableCaptureDevice(info)) {
+    if (info.path == device && info.query_ok && info.supports_capture && info.supports_streaming) {
       return true;
     }
   }
