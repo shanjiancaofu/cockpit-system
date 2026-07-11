@@ -10,7 +10,7 @@
 
 #include "cockpit/core/base/macros.h"
 #include "cockpit/core/event/message_bus.h"
-#include "cockpit/core/runtime/ModuleManager.h"
+#include "cockpit/core/runtime/module_manager.h"
 #include "cockpit/drivers/v4l2/v4l2_camera.h"
 #include "cockpit/modules/camera/capture/camera_preview_source.h"
 #include "cockpit/modules/camera/frames/camera_frame_sink.h"

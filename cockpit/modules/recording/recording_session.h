@@ -10,7 +10,7 @@
 #include "cockpit/core/base/macros.h"
 #include "cockpit/modules/recording/recording_data_file.h"
 #include "cockpit/modules/recording/recording_event.h"
-#include "cockpit/modules/vehicle/VehicleState.h"
+#include "cockpit/modules/vehicle/vehicle_state.h"
 
 namespace cockpit {
 namespace recording {

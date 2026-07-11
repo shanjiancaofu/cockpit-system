@@ -4,8 +4,8 @@
 #include <thread>
 #include <utility>
 
-#include "cockpit/core/logging/Logger.h"
-#include "cockpit/core/runtime/ServiceRuntime.h"
+#include "cockpit/core/logging/logger.h"
+#include "cockpit/core/runtime/service_runtime.h"
 #include "cockpit/drivers/alsa/alsa_audio_player.h"
 #include "cockpit/modules/voice/asr/mock_speech_recognizer.h"
 #include "cockpit/modules/voice/tts/mock_speech_synthesizer.h"

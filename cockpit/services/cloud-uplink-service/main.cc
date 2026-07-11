@@ -1,9 +1,9 @@
 #include <iostream>
 #include <string>
 
-#include "cockpit/core/logging/Logger.h"
-#include "cockpit/core/runtime/ServiceRuntime.h"
-#include "cockpit/modules/vehicle/VehicleState.h"
+#include "cockpit/core/logging/logger.h"
+#include "cockpit/core/runtime/service_runtime.h"
+#include "cockpit/modules/vehicle/vehicle_state.h"
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "cloud-uplink-service");

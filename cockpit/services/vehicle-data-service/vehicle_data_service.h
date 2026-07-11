@@ -2,8 +2,8 @@
 
 #include <functional>
 
-#include "cockpit/core/runtime/ServiceRuntime.h"
-#include "cockpit/modules/vehicle/VehicleState.h"
+#include "cockpit/core/runtime/service_runtime.h"
+#include "cockpit/modules/vehicle/vehicle_state.h"
 
 namespace cockpit {
 namespace vehicle {

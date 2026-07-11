@@ -54,7 +54,8 @@ cockpit-system/
 
 详细说明见：
 
-- `docs/architecture_refined_v0.4.md`
+- `docs/architecture.md`
+- `docs/项目进度总览.md`
 - `docs/实现状态.md`
 - `docs/运行时通信策略.md`
 - `docs/模块化策略.md`

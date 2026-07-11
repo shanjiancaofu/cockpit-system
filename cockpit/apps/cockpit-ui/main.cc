@@ -13,7 +13,7 @@
 #include "cockpit/apps/cockpit-ui/health/service_health_model.h"
 #include "cockpit/apps/cockpit-ui/vehicle/gateway_client.h"
 #include "cockpit/apps/cockpit-ui/vehicle/vehicle_state_model.h"
-#include "cockpit/core/runtime/ServiceRuntime.h"
+#include "cockpit/core/runtime/service_runtime.h"
 
 int main(int argc, char** argv) {
   QGuiApplication app(argc, argv);

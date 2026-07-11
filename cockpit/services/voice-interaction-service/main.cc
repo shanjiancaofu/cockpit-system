@@ -4,11 +4,11 @@
 #include <thread>
 
 #include "cockpit/core/json/json.h"
-#include "cockpit/core/runtime/ServiceRuntime.h"
+#include "cockpit/core/runtime/service_runtime.h"
+#include "cockpit/modules/recording/client/recording_event_publisher.h"
 #include "cockpit/modules/voice/actions/cockpit_action_dispatcher.h"
 #include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
 #include "cockpit/modules/voice/responses/async_voice_response_sink.h"
-#include "cockpit/services/recording-service/client/recording_event_publisher.h"
 #include "cockpit/services/voice-interaction-service/audio/audio_speech_client.h"
 #include "cockpit/services/voice-interaction-service/audio/audio_transcript_client.h"
 #include "cockpit/services/voice-interaction-service/grpc/voice_grpc_service.h"

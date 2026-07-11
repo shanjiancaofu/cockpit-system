@@ -15,7 +15,7 @@
 
 #include "cockpit/core/base/macros.h"
 #include "cockpit/core/config/system_config.h"
-#include "cockpit/core/runtime/ModuleManager.h"
+#include "cockpit/core/runtime/module_manager.h"
 #include "cockpit/modules/audio/capture/audio_capture_source.h"
 #include "cockpit/modules/audio/capture/audio_capture_stream.h"
 #include "cockpit/modules/audio/frames/pcm_format.h"

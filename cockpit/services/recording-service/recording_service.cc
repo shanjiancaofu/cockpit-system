@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/logging/logger.h"
 
 namespace cockpit {
 namespace recording {

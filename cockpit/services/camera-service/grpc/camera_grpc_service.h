@@ -7,9 +7,9 @@
 
 #include "camera.grpc.pb.h"
 #include "cockpit/core/base/macros.h"
+#include "cockpit/modules/recording/client/recording_event_publisher.h"
 #include "cockpit/services/camera-service/control/camera_service.h"
 #include "cockpit/services/camera-service/photo/camera_photo_service.h"
-#include "cockpit/services/recording-service/client/recording_event_publisher.h"
 
 namespace cockpit {
 namespace camera {

@@ -6,31 +6,15 @@
 #include <vector>
 
 #include "cockpit/core/event/message_bus.h"
-#include "cockpit/core/logging/Logger.h"
-#include "cockpit/core/runtime/ServiceRuntime.h"
+#include "cockpit/core/logging/logger.h"
+#include "cockpit/core/runtime/service_runtime.h"
 #include "cockpit/modules/camera/capture/synthetic_preview_source.h"
 #include "cockpit/modules/camera/shared_memory/shared_frame_buffer.h"
+#include "cockpit/modules/recording/client/recording_event_publisher.h"
 #include "cockpit/services/camera-service/control/camera_service.h"
 #include "cockpit/services/camera-service/grpc/camera_grpc_service.h"
 #include "cockpit/services/camera-service/photo/camera_photo_service.h"
 #include "cockpit/services/camera-service/recording_bridge.h"
-#include "cockpit/services/recording-service/client/recording_event_publisher.h"
-
-namespace {
-
-cockpit::camera::VideoDeviceInfo SyntheticDevice() {
-  cockpit::camera::VideoDeviceInfo device;
-  device.path = "synthetic://camera0";
-  device.driver = "cockpit-synthetic";
-  device.card = "Cockpit Synthetic Camera";
-  device.bus_info = "in-process";
-  device.query_ok = true;
-  device.supports_capture = true;
-  device.supports_streaming = true;
-  return device;
-}
-
-}  // namespace
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "camera-service");
@@ -59,7 +43,15 @@ int main(int argc, char** argv) {
         static_cast<std::uint64_t>(service_config.synthetic_fault_after_frames);
     camera_service = std::make_unique<cockpit::camera::CameraService>(
         [](std::string*) {
-          return std::vector<cockpit::camera::VideoDeviceInfo>{SyntheticDevice()};
+          cockpit::camera::VideoDeviceInfo device;
+          device.path = "synthetic://camera0";
+          device.driver = "cockpit-synthetic";
+          device.card = "Cockpit Synthetic Camera";
+          device.bus_info = "in-process";
+          device.query_ok = true;
+          device.supports_capture = true;
+          device.supports_streaming = true;
+          return std::vector<cockpit::camera::VideoDeviceInfo>{std::move(device)};
         },
         std::make_unique<cockpit::camera::SyntheticPreviewSource>(synthetic_options),
         std::move(frame_sink), message_bus, camera_options);

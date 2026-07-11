@@ -5,7 +5,7 @@
 #include <exception>
 #include <utility>
 
-#include "cockpit/core/utils/Time.h"
+#include "cockpit/core/utils/time.h"
 #include "cockpit/modules/camera/photo/jpeg_encoder.h"
 #include "cockpit/modules/camera/shared_memory/shared_frame_buffer.h"
 

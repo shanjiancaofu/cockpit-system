@@ -3,8 +3,8 @@
 #include <sstream>
 
 #include "cockpit/core/json/json.h"
-#include "cockpit/core/logging/Logger.h"
-#include "cockpit/core/utils/Time.h"
+#include "cockpit/core/logging/logger.h"
+#include "cockpit/core/utils/time.h"
 
 namespace cockpit {
 namespace camera {

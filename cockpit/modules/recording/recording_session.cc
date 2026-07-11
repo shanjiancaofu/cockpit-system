@@ -10,7 +10,7 @@
 #include <utility>
 
 #include "cockpit/core/json/json.h"
-#include "cockpit/core/utils/Time.h"
+#include "cockpit/core/utils/time.h"
 #include "cockpit/modules/recording/file_checksum.h"
 
 namespace cockpit {

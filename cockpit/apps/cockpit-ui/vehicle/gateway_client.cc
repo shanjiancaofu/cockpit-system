@@ -7,7 +7,7 @@
 
 #include "vehicle_state_model.h"
 
-#include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/logging/logger.h"
 #include "gateway.grpc.pb.h"
 
 namespace cockpit {

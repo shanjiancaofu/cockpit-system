@@ -1,3 +1,0 @@
-add_library(audio_playback INTERFACE)
-target_include_directories(audio_playback INTERFACE ${PROJECT_SOURCE_DIR})
-target_link_libraries(audio_playback INTERFACE audio_wav)

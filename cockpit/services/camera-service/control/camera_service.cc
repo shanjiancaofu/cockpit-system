@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "cockpit/core/json/json.h"
-#include "cockpit/core/utils/Time.h"
+#include "cockpit/core/utils/time.h"
 #include "cockpit/modules/camera/frames/latest_frame_buffer.h"
 
 #if defined(COCKPIT_HAS_GSTREAMER_CAMERA)

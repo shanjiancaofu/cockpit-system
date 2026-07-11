@@ -5,7 +5,7 @@
 #include <cmath>
 #include <limits>
 
-#include "cockpit/core/utils/Time.h"
+#include "cockpit/core/utils/time.h"
 
 namespace cockpit {
 namespace vehicle {

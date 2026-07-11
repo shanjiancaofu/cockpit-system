@@ -5,7 +5,7 @@
 #include <string>
 
 #include "cockpit/core/base/macros.h"
-#include "cockpit/core/runtime/Module.h"
+#include "cockpit/core/runtime/module.h"
 #include "cockpit/modules/camera/capture/camera_preview_source.h"
 #include "cockpit/modules/camera/frames/camera_frame.h"
 

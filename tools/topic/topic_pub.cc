@@ -11,7 +11,7 @@
 #include "topic_text.h"
 
 #include "cockpit/core/json/json.h"
-#include "cockpit/core/utils/Time.h"
+#include "cockpit/core/utils/time.h"
 
 namespace cockpit {
 namespace topic {

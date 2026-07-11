@@ -1,1 +1,0 @@
-add_cockpit_library(camera_frames camera_frame.cc latest_frame_buffer.cc)

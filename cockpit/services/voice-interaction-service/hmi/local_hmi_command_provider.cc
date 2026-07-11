@@ -1,6 +1,6 @@
 #include "local_hmi_command_provider.h"
 
-#include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/logging/logger.h"
 
 namespace cockpit {
 namespace voice {

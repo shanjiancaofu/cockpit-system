@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "cockpit/modules/can/can_frame.h"
-#include "cockpit/modules/vehicle/VehicleState.h"
+#include "cockpit/modules/vehicle/vehicle_state.h"
 
 namespace cockpit {
 namespace vehicle {

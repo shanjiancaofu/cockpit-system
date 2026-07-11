@@ -1,7 +1,7 @@
 # 当前架构概览
 
 本文只描述当前代码已经形成的真实运行架构。长期目标和未落地设计见
-[architecture_refined_v0.4.md](architecture_refined_v0.4.md)，模块完成度见 [实现状态.md](实现状态.md)。
+模块完成度见 [实现状态.md](实现状态.md)，近期推进顺序见 [项目进度总览.md](项目进度总览.md)。
 
 ## 项目定位
 
@@ -192,3 +192,29 @@ recording-service 已提供多源时间线查询：读取 `vehicle_state.jsonl`�
 已具备可运行的 WSL/Jetson 车机原型架构，但尚缺正式 DBC、真实 TTS、麦克风/扬声器标定、
 Jetson CUDA/TensorRT 验证、音视频多源录包、MQTT、WebSocket、视觉 AI 和完整 LLM
 应用层。
+
+## 部署与可靠性边界
+
+systemd 负责进程启动和重启，每个硬件资源只有一个 service owner；UI 崩溃不应关闭设备服务，
+service 重启后 client 应重连，设备权限由部署配置固定。`cloud-uplink-service` 当前仍是可选占位。
+
+当前已经实现 RAII、有界队列和丢弃指标、gRPC deadline/cancellation、signal stop、配置校验、
+mock/null backend，以及 shared memory 的 name/layout/version/capacity 校验。尚未达到量产要求的部分
+包括认证加密、secure boot、ASIL、硬件 watchdog、权限最小化、量产 OTA 和隐私授权。
+
+## AI 安全边界
+
+语音链路保持 `Audio -> VAD -> ASR provider -> Assistant -> typed ActionDispatcher -> TTS`。
+车辆动作必须经过 allowlist 和类型校验；LLM 文本不能直接生成 CAN frame 或 shell command；网络失败
+需要明确的本地 fallback；录音、文本和云端请求必须有隐私策略。mock provider 只用于链路验证。
+
+## 新代码检查
+
+1. 代码属于 core、module、driver、service、app 还是 tool？
+2. 是否真的需要新进程、目录、target 或抽象？
+3. 数据属于控制消息、小消息还是连续大块数据？
+4. 是否复用现有接口，并保持 UI 不直接访问硬件？
+5. 是否为外部边界提供 mock/null/fake 和失败路径？
+6. 是否避免把 PCM、图像和点云放进 gRPC？
+7. 是否增加与风险相称的测试并更新对应职责文档？
+8. 是否通过 build、CTest、pre-commit 和相关 smoke？

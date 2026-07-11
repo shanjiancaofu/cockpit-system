@@ -6,7 +6,7 @@
 #include <thread>
 #include <utility>
 
-#include "cockpit/core/logging/Logger.h"
+#include "cockpit/core/logging/logger.h"
 #include "cockpit/drivers/socketcan/socket_can.h"
 #include "cockpit/modules/vehicle/vehicle_can_codec.h"
 

@@ -1,7 +1,7 @@
 #include "cockpit/services/recording-service/recording_grpc_service.h"
 
-#include "cockpit/core/logging/Logger.h"
-#include "cockpit/core/utils/Time.h"
+#include "cockpit/core/logging/logger.h"
+#include "cockpit/core/utils/time.h"
 
 namespace cockpit {
 namespace recording {

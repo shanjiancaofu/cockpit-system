@@ -1,2 +1,0 @@
-add_cockpit_library(audio_capture_module audio_capture_module.cc)
-target_link_libraries(audio_capture_module PUBLIC audio_capture runtime)

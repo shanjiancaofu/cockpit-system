@@ -3,8 +3,8 @@
 #include "gateway_grpc_service.h"
 #include "vehicle_state_client.h"
 
-#include "cockpit/core/logging/Logger.h"
-#include "cockpit/core/runtime/ServiceRuntime.h"
+#include "cockpit/core/logging/logger.h"
+#include "cockpit/core/runtime/service_runtime.h"
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "cockpit-gateway-service");

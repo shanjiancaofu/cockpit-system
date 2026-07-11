@@ -1,5 +1,5 @@
 add_cockpit_library(vehicle
-    VehicleState.cc
+    vehicle_state.cc
     vehicle_can_codec.cc
 )
 

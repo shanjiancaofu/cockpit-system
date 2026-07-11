@@ -9,7 +9,7 @@
 #include <string>
 
 #include "cockpit/core/base/macros.h"
-#include "cockpit/modules/vehicle/VehicleState.h"
+#include "cockpit/modules/vehicle/vehicle_state.h"
 #include "vehicle_state.grpc.pb.h"
 
 namespace cockpit {

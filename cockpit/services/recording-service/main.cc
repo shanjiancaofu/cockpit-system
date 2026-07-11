@@ -6,8 +6,8 @@
 #include <string>
 
 #include "cockpit/core/build/build_info.h"
-#include "cockpit/core/logging/Logger.h"
-#include "cockpit/core/runtime/ServiceRuntime.h"
+#include "cockpit/core/logging/logger.h"
+#include "cockpit/core/runtime/service_runtime.h"
 #include "cockpit/modules/recording/recording_session.h"
 #include "cockpit/services/recording-service/recording_grpc_service.h"
 #include "cockpit/services/recording-service/recording_service.h"
