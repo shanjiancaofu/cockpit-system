@@ -10,6 +10,7 @@ build/x86_64-debug/bin/recording-ctl --list --limit 20 --config configs/config.y
 build/x86_64-debug/bin/recording-ctl --detail <session-id> --config configs/config.yaml
 build/x86_64-debug/bin/recording-ctl --timeline <session-id> --from-ms 0 --to-ms 0 --limit 100 --config configs/config.yaml
 build/x86_64-debug/bin/recording-ctl --verify <session-id> --config configs/config.yaml
+build/x86_64-debug/bin/recording-ctl --verify-all --from-started-ms 0 --to-started-ms 0 --limit 100 --output json --config configs/config.yaml
 build/x86_64-debug/bin/recording-ctl --delete <session-id> --config configs/config.yaml
 build/x86_64-debug/bin/recording-ctl --prune --config configs/config.yaml
 build/x86_64-debug/bin/recording-ctl --event-topic /dev/event --event-payload '{"ok":true}' --config configs/config.yaml
@@ -24,3 +25,8 @@ build/x86_64-debug/bin/recording-ctl --file-path photos/frame.jpg --file-source 
 
 `--verify` 校验 data file 索引、路径、文件类型、大小和受支持的 checksum。完整性问题会逐项输出并
 返回退出码 2；当前支持 `fnv1a64` checksum，空值和其他算法计入 unavailable，不作为文件损坏。
+
+`--verify-all` 按会话开始时间批量汇总 healthy、damaged 和 unavailable，单个 manifest 不可读不会
+中断整批。`--to-started-ms 0` 表示不限制结束时间，最多检查 1000 个会话；`total_sessions` 是过滤后
+的总数，`sessions` 和各状态计数只覆盖本次 limit 内实际检查的会话。支持 text/JSON 输出，存在
+damaged 或 unavailable 时返回退出码 3，再使用 `--verify <session-id>` 查看损坏明细。

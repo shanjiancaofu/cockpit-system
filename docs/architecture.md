@@ -166,6 +166,11 @@ camera/voice/audio metadata
 artifact 会自动生成 `fnv1a64`，因此可检测内容变化；空 checksum 和暂不支持的算法会明确计入
 unavailable，但不会误报为内容损坏。诊断会汇总全部 issue，CLI 在发现完整性问题时返回退出码 2。
 
+`recording-ctl --verify-all` 按会话开始时间批量执行同一校验，返回 healthy、damaged、unavailable
+计数和每个会话的轻量摘要。单个损坏 manifest 被隔离为 unavailable，不中断其他会话；详细 issue
+仍通过单会话接口查询，避免长稳测试后一次 RPC 返回无界诊断数据。批量查询支持时间范围和 limit，
+原始 JSONL 与 manifest 仍是权威来源，不为汇总结果额外引入数据库。
+
 ### 录包时间语义
 
 recording-service 已提供多源时间线查询：读取 `vehicle_state.jsonl`、`events.jsonl` 和

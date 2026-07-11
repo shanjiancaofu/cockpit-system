@@ -50,6 +50,19 @@ proto::recording::RecordingIntegrityIssueKind ToProtoIntegrityIssueKind(
   return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_UNSPECIFIED;
 }
 
+proto::recording::RecordingSessionIntegrityState ToProtoSessionIntegrityState(
+    RecordingSessionIntegrityState state) {
+  switch (state) {
+    case RecordingSessionIntegrityState::kHealthy:
+      return proto::recording::RECORDING_SESSION_INTEGRITY_STATE_HEALTHY;
+    case RecordingSessionIntegrityState::kDamaged:
+      return proto::recording::RECORDING_SESSION_INTEGRITY_STATE_DAMAGED;
+    case RecordingSessionIntegrityState::kUnavailable:
+      return proto::recording::RECORDING_SESSION_INTEGRITY_STATE_UNAVAILABLE;
+  }
+  return proto::recording::RECORDING_SESSION_INTEGRITY_STATE_UNSPECIFIED;
+}
+
 void FillHealth(const RecordingStatus& status, proto::common::ServiceHealth* health) {
   health->set_service_name("recording-service");
   health->set_checked_at_ms(utils::NowMs());
@@ -263,6 +276,35 @@ grpc::Status RecordingGrpcService::Verify(grpc::ServerContext*,
     proto_issue->set_actual_size_bytes(issue.actual_size_bytes);
     proto_issue->set_expected_checksum(issue.expected_checksum);
     proto_issue->set_actual_checksum(issue.actual_checksum);
+  }
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::VerifyAll(
+    grpc::ServerContext*, const proto::recording::VerifyAllRecordingsRequest* request,
+    proto::recording::VerifyAllRecordingsResponse* response) {
+  RecordingIntegrityBatchQuery query;
+  query.from_started_at_ms = request->from_started_at_ms();
+  query.to_started_at_ms = request->to_started_at_ms();
+  query.limit = request->limit() == 0 ? 100 : static_cast<std::size_t>(request->limit());
+  RecordingIntegrityBatchResult result;
+  std::string error;
+  if (!recording_service_.VerifyAll(query, &result, &error)) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, error);
+  }
+  response->set_total_sessions(result.total_sessions);
+  response->set_healthy_sessions(result.healthy_sessions);
+  response->set_damaged_sessions(result.damaged_sessions);
+  response->set_unavailable_sessions(result.unavailable_sessions);
+  response->set_truncated(result.truncated);
+  for (const auto& session : result.sessions) {
+    auto* proto_session = response->add_sessions();
+    proto_session->set_session_id(session.session_id);
+    proto_session->set_started_at_ms(session.started_at_ms);
+    proto_session->set_state(ToProtoSessionIntegrityState(session.state));
+    proto_session->set_files_checked(session.files_checked);
+    proto_session->set_issues(session.issues);
+    proto_session->set_error(session.error);
   }
   return grpc::Status::OK;
 }

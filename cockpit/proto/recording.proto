@@ -160,6 +160,37 @@ message VerifyRecordingResponse {
   repeated RecordingIntegrityIssue issues = 6;
 }
 
+message VerifyAllRecordingsRequest {
+  int64 from_started_at_ms = 1;
+  int64 to_started_at_ms = 2;
+  uint32 limit = 3;
+}
+
+enum RecordingSessionIntegrityState {
+  RECORDING_SESSION_INTEGRITY_STATE_UNSPECIFIED = 0;
+  RECORDING_SESSION_INTEGRITY_STATE_HEALTHY = 1;
+  RECORDING_SESSION_INTEGRITY_STATE_DAMAGED = 2;
+  RECORDING_SESSION_INTEGRITY_STATE_UNAVAILABLE = 3;
+}
+
+message RecordingSessionIntegritySummary {
+  string session_id = 1;
+  int64 started_at_ms = 2;
+  RecordingSessionIntegrityState state = 3;
+  uint64 files_checked = 4;
+  uint64 issues = 5;
+  string error = 6;
+}
+
+message VerifyAllRecordingsResponse {
+  repeated RecordingSessionIntegritySummary sessions = 1;
+  uint64 total_sessions = 2;
+  uint64 healthy_sessions = 3;
+  uint64 damaged_sessions = 4;
+  uint64 unavailable_sessions = 5;
+  bool truncated = 6;
+}
+
 message PruneRecordingsResponse {
   uint64 sessions_deleted = 1;
   uint64 bytes_deleted = 2;
@@ -177,6 +208,7 @@ service RecordingControl {
   rpc GetDetail(GetRecordingDetailRequest) returns (RecordingSessionDetail);
   rpc GetTimeline(GetRecordingTimelineRequest) returns (GetRecordingTimelineResponse);
   rpc Verify(VerifyRecordingRequest) returns (VerifyRecordingResponse);
+  rpc VerifyAll(VerifyAllRecordingsRequest) returns (VerifyAllRecordingsResponse);
   rpc Delete(DeleteRecordingRequest) returns (cockpit.proto.common.Empty);
   rpc Prune(cockpit.proto.common.Empty) returns (PruneRecordingsResponse);
 }

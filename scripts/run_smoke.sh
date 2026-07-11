@@ -188,6 +188,16 @@ if [[ "${recording_verification}" != *"healthy: true"* || \
   echo "recording smoke integrity verification failed" >&2
   exit 1
 fi
+recording_batch_verification="$(${bin_dir}/recording-ctl --verify-all --limit 10 --output json \
+  --config "${config_path}")"
+echo "${recording_batch_verification}"
+if [[ "${recording_batch_verification}" != *'"total_sessions":"1"'* || \
+      "${recording_batch_verification}" != *'"healthy_sessions":"1"'* || \
+      "${recording_batch_verification}" != *'"damaged_sessions":"0"'* || \
+      "${recording_batch_verification}" != *'"unavailable_sessions":"0"'* ]]; then
+  echo "recording smoke batch integrity verification failed" >&2
+  exit 1
+fi
 "${bin_dir}/recording-ctl" --delete "${recording_session_id}" --config "${config_path}"
 recording_list_after_delete="$(${bin_dir}/recording-ctl --list --config "${config_path}")"
 echo "${recording_list_after_delete}"

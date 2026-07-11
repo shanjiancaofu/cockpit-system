@@ -6,6 +6,7 @@
 
 #include "cockpit/core/runtime/ServiceRuntime.h"
 #include "cockpit/core/utils/Time.h"
+#include "tools/diagnostics/cli_output.h"
 
 namespace {
 
@@ -142,6 +143,40 @@ void PrintVerification(const cockpit::proto::recording::VerifyRecordingResponse&
   }
 }
 
+const char* SessionIntegrityStateName(
+    cockpit::proto::recording::RecordingSessionIntegrityState state) {
+  switch (state) {
+    case cockpit::proto::recording::RECORDING_SESSION_INTEGRITY_STATE_HEALTHY:
+      return "healthy";
+    case cockpit::proto::recording::RECORDING_SESSION_INTEGRITY_STATE_DAMAGED:
+      return "damaged";
+    case cockpit::proto::recording::RECORDING_SESSION_INTEGRITY_STATE_UNAVAILABLE:
+      return "unavailable";
+    case cockpit::proto::recording::RECORDING_SESSION_INTEGRITY_STATE_UNSPECIFIED:
+    default:
+      return "unknown";
+  }
+}
+
+void PrintBatchVerification(
+    const cockpit::proto::recording::VerifyAllRecordingsResponse& response) {
+  std::cout << "total sessions: " << response.total_sessions() << '\n'
+            << "checked sessions: " << response.sessions_size() << '\n'
+            << "healthy sessions: " << response.healthy_sessions() << '\n'
+            << "damaged sessions: " << response.damaged_sessions() << '\n'
+            << "unavailable sessions: " << response.unavailable_sessions() << '\n'
+            << "truncated: " << (response.truncated() ? "true" : "false") << '\n';
+  for (const auto& session : response.sessions()) {
+    std::cout << session.session_id() << " state=" << SessionIntegrityStateName(session.state())
+              << " started_at_ms=" << session.started_at_ms()
+              << " files_checked=" << session.files_checked() << " issues=" << session.issues();
+    if (!session.error().empty()) {
+      std::cout << " error=\"" << session.error() << "\"";
+    }
+    std::cout << '\n';
+  }
+}
+
 int Finish(const cockpit::runtime::ServiceRuntime& runtime, int result) {
   runtime.MarkStopped();
   return result;
@@ -182,6 +217,7 @@ int main(int argc, char** argv) {
   const std::string detail_session_id = runtime.args().GetString("detail", "");
   const std::string timeline_session_id = runtime.args().GetString("timeline", "");
   const std::string verify_session_id = runtime.args().GetString("verify", "");
+  const bool verify_all = runtime.args().HasFlag("verify-all");
   const std::string event_topic = runtime.args().GetString("event-topic", "");
   const std::string file_path = runtime.args().GetString("file-path", "");
   if (runtime.args().HasFlag("list")) {
@@ -231,6 +267,56 @@ int main(int argc, char** argv) {
         return Finish(runtime, 2);
       }
     }
+  } else if (verify_all) {
+    cockpit::diagnostics::OutputFormat output_format;
+    if (!cockpit::diagnostics::ParseOutputFormat(runtime.args().GetString("output", "text"),
+                                                 &output_format, &error)) {
+      std::cerr << error << '\n';
+      return Finish(runtime,
+                    cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments));
+    }
+    const std::int64_t from_ms = ParseInt64(runtime.args().GetString("from-started-ms", "0"));
+    const std::int64_t to_ms = ParseInt64(runtime.args().GetString("to-started-ms", "0"));
+    const int limit = runtime.args().GetInt("limit", 100);
+    if (from_ms < 0 || to_ms < 0 || limit < 1 || limit > 1000 || (to_ms > 0 && from_ms > to_ms)) {
+      constexpr char kMessage[] = "verify-all range or limit is invalid";
+      if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+        cockpit::diagnostics::WriteJsonError("invalid_arguments", kMessage, &std::cerr);
+      } else {
+        std::cerr << kMessage << '\n';
+      }
+      return Finish(runtime,
+                    cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments));
+    }
+    cockpit::proto::recording::VerifyAllRecordingsRequest request;
+    request.set_from_started_at_ms(from_ms);
+    request.set_to_started_at_ms(to_ms);
+    request.set_limit(static_cast<std::uint32_t>(limit));
+    cockpit::proto::recording::VerifyAllRecordingsResponse response;
+    ok = client.VerifyAll(request, &response, &error);
+    if (!ok) {
+      const std::string message = error.empty() ? "recording control request failed" : error;
+      if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+        cockpit::diagnostics::WriteJsonError("operation_failed", message, &std::cerr);
+      } else {
+        std::cerr << message << '\n';
+      }
+      return Finish(runtime,
+                    cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
+    }
+    if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+      if (!cockpit::diagnostics::WriteJson(response, &std::cout, &error)) {
+        cockpit::diagnostics::WriteJsonError("operation_failed", error, &std::cerr);
+        return Finish(
+            runtime, cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
+      }
+    } else {
+      PrintBatchVerification(response);
+    }
+    if (response.damaged_sessions() > 0 || response.unavailable_sessions() > 0) {
+      return Finish(runtime,
+                    cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kUnhealthy));
+    }
   } else if (!delete_session_id.empty()) {
     ok = client.Delete(delete_session_id, &error);
     if (ok) {
@@ -270,7 +356,7 @@ int main(int argc, char** argv) {
     return Finish(runtime, 1);
   }
   if (!runtime.args().HasFlag("list") && detail_session_id.empty() && delete_session_id.empty() &&
-      timeline_session_id.empty() && verify_session_id.empty() &&
+      timeline_session_id.empty() && verify_session_id.empty() && !verify_all &&
       !runtime.args().HasFlag("prune")) {
     PrintStatus(status);
   }

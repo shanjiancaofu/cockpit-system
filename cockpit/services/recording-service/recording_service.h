@@ -28,6 +28,8 @@ class RecordingService {
                    RecordingTimelineResult* result, std::string* error) const;
   bool Verify(const std::string& session_id, RecordingIntegrityResult* result,
               std::string* error) const;
+  bool VerifyAll(const RecordingIntegrityBatchQuery& query, RecordingIntegrityBatchResult* result,
+                 std::string* error) const;
   bool Delete(const std::string& session_id, std::string* error);
   bool Prune(RecordingPruneResult* result, std::string* error);
   bool HandleEvent(const RecordingEvent& event, std::string* error);

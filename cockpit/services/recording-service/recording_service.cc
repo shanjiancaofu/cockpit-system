@@ -61,6 +61,63 @@ bool RecordingService::Verify(const std::string& session_id, RecordingIntegrityR
   return RecordingIntegrityVerifier::Verify(detail.info.directory, result, error);
 }
 
+bool RecordingService::VerifyAll(const RecordingIntegrityBatchQuery& query,
+                                 RecordingIntegrityBatchResult* result, std::string* error) const {
+  constexpr std::size_t kMaximumLimit = 1000;
+  if (result == nullptr) {
+    if (error != nullptr) {
+      *error = "recording integrity batch result must not be null";
+    }
+    return false;
+  }
+  if (query.from_started_at_ms < 0 || query.to_started_at_ms < 0 || query.limit == 0 ||
+      query.limit > kMaximumLimit ||
+      (query.to_started_at_ms > 0 && query.from_started_at_ms > query.to_started_at_ms)) {
+    if (error != nullptr) {
+      *error = "recording integrity batch query is invalid";
+    }
+    return false;
+  }
+
+  std::vector<RecordingSessionInfo> filtered;
+  for (const auto& session : catalog_.List(0)) {
+    if (session.started_at_ms >= query.from_started_at_ms &&
+        (query.to_started_at_ms == 0 || session.started_at_ms <= query.to_started_at_ms)) {
+      filtered.push_back(session);
+    }
+  }
+  RecordingIntegrityBatchResult local_result;
+  local_result.total_sessions = filtered.size();
+  local_result.truncated = filtered.size() > query.limit;
+  if (filtered.size() > query.limit) {
+    filtered.resize(query.limit);
+  }
+  for (const auto& session : filtered) {
+    RecordingSessionIntegritySummary summary;
+    summary.session_id = session.session_id;
+    summary.started_at_ms = session.started_at_ms;
+    RecordingIntegrityResult integrity;
+    std::string verify_error;
+    if (!Verify(session.session_id, &integrity, &verify_error)) {
+      summary.state = RecordingSessionIntegrityState::kUnavailable;
+      summary.error = std::move(verify_error);
+      ++local_result.unavailable_sessions;
+    } else if (!integrity.healthy) {
+      summary.state = RecordingSessionIntegrityState::kDamaged;
+      summary.files_checked = integrity.files_checked;
+      summary.issues = integrity.issues.size();
+      ++local_result.damaged_sessions;
+    } else {
+      summary.state = RecordingSessionIntegrityState::kHealthy;
+      summary.files_checked = integrity.files_checked;
+      ++local_result.healthy_sessions;
+    }
+    local_result.sessions.push_back(std::move(summary));
+  }
+  *result = std::move(local_result);
+  return true;
+}
+
 bool RecordingService::Delete(const std::string& session_id, std::string* error) {
   const RecordingStatus current = session_.status();
   if (current.state == RecordingState::kRecording && current.session_id == session_id) {
