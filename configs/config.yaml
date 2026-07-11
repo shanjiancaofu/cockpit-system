@@ -41,6 +41,10 @@ services:
       pre_roll_ms: 100
       max_segment_ms: 15000
   camera:
+    capture_backend: gstreamer
+    preview_stale_timeout_ms: 2000
+    synthetic_fault: none
+    synthetic_fault_after_frames: 30
     frame_transport: shared_memory
     shared_memory_name: /cockpit_camera_preview
     max_frame_bytes: 8388608

@@ -51,28 +51,36 @@ CameraService::CameraService(std::shared_ptr<CameraFrameSink> frame_sink)
 
 CameraService::CameraService(std::shared_ptr<CameraFrameSink> frame_sink,
                              std::shared_ptr<event::MessageBus> message_bus)
+    : CameraService(std::move(frame_sink), std::move(message_bus), {}) {
+}
+
+CameraService::CameraService(std::shared_ptr<CameraFrameSink> frame_sink,
+                             std::shared_ptr<event::MessageBus> message_bus,
+                             CameraServiceOptions options)
     : CameraService(
           [](std::string* error) {
             return V4l2Camera::ListDevices(error);
           },
-          CreateDefaultPreviewSource(), std::move(frame_sink), std::move(message_bus)) {
+          CreateDefaultPreviewSource(), std::move(frame_sink), std::move(message_bus), options) {
 }
 
 CameraService::CameraService(DeviceLister device_lister,
                              std::unique_ptr<CameraPreviewSource> preview_source,
                              std::shared_ptr<CameraFrameSink> frame_sink)
     : CameraService(std::move(device_lister), std::move(preview_source), std::move(frame_sink),
-                    nullptr) {
+                    nullptr, {}) {
 }
 
 CameraService::CameraService(DeviceLister device_lister,
                              std::unique_ptr<CameraPreviewSource> preview_source,
                              std::shared_ptr<CameraFrameSink> frame_sink,
-                             std::shared_ptr<event::MessageBus> message_bus)
+                             std::shared_ptr<event::MessageBus> message_bus,
+                             CameraServiceOptions options)
     : device_lister_(std::move(device_lister)),
       frame_sink_(frame_sink == nullptr ? std::make_shared<LatestFrameBuffer>()
                                         : std::move(frame_sink)),
-      message_bus_(std::move(message_bus)) {
+      message_bus_(std::move(message_bus)),
+      options_(options) {
   auto preview_module = std::make_unique<CameraPreviewModule>(std::move(preview_source));
   preview_module_ = preview_module.get();
   module_manager_.Add(std::move(preview_module));
@@ -149,6 +157,8 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     status_.max_consecutive_frame_drops = 0;
     status_.consecutive_source_gaps = 0;
     status_.max_consecutive_source_gaps = 0;
+    preview_started_steady_ = {};
+    last_frame_received_steady_ = {};
   }
 
   preview_module_->Configure(config, [this](CameraFrame frame) {
@@ -168,6 +178,7 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     std::lock_guard<std::mutex> lock(mutex_);
     status_.state = CameraPreviewState::kRunning;
     status_.preview_started_at_ms = static_cast<std::uint64_t>(utils::NowMs());
+    preview_started_steady_ = std::chrono::steady_clock::now();
     if (previous_state == CameraPreviewState::kFaulted) {
       ++status_.recover_count;
       status_.last_recover_at_ms = status_.preview_started_at_ms;
@@ -185,6 +196,41 @@ void CameraService::StopPreview() {
   std::lock_guard<std::mutex> lock(mutex_);
   status_.state = CameraPreviewState::kStopped;
   PublishStatusEvent(status_);
+}
+
+void CameraService::CheckPreviewHealth() {
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+  std::string error_kind;
+  std::string error_message;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (status_.state != CameraPreviewState::kRunning) {
+      return;
+    }
+    if (preview_module_ == nullptr || !preview_module_->is_running()) {
+      error_kind = "source_disconnected";
+      error_message = "camera preview source disconnected";
+    } else {
+      const auto reference =
+          status_.frames_received == 0 ? preview_started_steady_ : last_frame_received_steady_;
+      if (reference != std::chrono::steady_clock::time_point{}) {
+        const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                    std::chrono::steady_clock::now() - reference)
+                                    .count();
+        if (elapsed_ms > 0 &&
+            static_cast<std::uint64_t>(elapsed_ms) > options_.preview_stale_timeout_ms) {
+          error_kind = status_.frames_received == 0 ? "no_frames" : "frame_stalled";
+          error_message = status_.frames_received == 0 ? "camera preview produced no frames"
+                                                       : "camera preview frame stream stalled";
+        }
+      }
+    }
+  }
+  if (error_kind.empty()) {
+    return;
+  }
+  module_manager_.StopAll();
+  SetError(std::move(error_kind), std::move(error_message));
 }
 
 CameraServiceStatus CameraService::status() const {
@@ -253,6 +299,7 @@ void CameraService::HandleFrame(CameraFrame frame) {
   status_.last_frame_sequence = sequence;
   status_.last_frame_timestamp_ms = timestamp_ms;
   status_.last_frame_received_at_ms = received_at_ms;
+  last_frame_received_steady_ = std::chrono::steady_clock::now();
 }
 
 void CameraService::SetError(std::string kind, std::string error) {

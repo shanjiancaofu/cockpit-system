@@ -84,6 +84,7 @@ endif()
 include(cmake/AddCockpitLibrary.cmake)
 
 add_subdirectory(cockpit)
+add_subdirectory(tools/diagnostics)
 add_subdirectory(tools/can-simulator)
 add_subdirectory(tools/cockpit-ctl)
 add_subdirectory(tools/recording-ctl)

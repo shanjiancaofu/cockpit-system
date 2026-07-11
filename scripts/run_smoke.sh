@@ -66,6 +66,12 @@ if [[ "${camera_ready}" != "true" ]]; then
   exit 1
 fi
 "${bin_dir}/camera-ctl" --status --config "${config_path}"
+camera_status_json="$(${bin_dir}/camera-ctl --status --output json --config "${config_path}")"
+if [[ "${camera_status_json}" != *'"state":"CAMERA_PREVIEW_STATE_STOPPED"'* || \
+      "${camera_status_json}" != *'"health"'* ]]; then
+  echo "camera JSON status output is invalid" >&2
+  exit 1
+fi
 "${bin_dir}/camera-ctl" --list --config "${config_path}"
 kill "${camera_pid}"
 wait "${camera_pid}" || true
@@ -90,6 +96,12 @@ fi
 "${bin_dir}/audio-probe" --start --device null --config "${config_path}"
 sleep 0.1
 "${bin_dir}/audio-probe" --status --config "${config_path}"
+audio_status_json="$(${bin_dir}/audio-probe --status --output json --config "${config_path}")"
+if [[ "${audio_status_json}" != *'"capture_state":"CAPTURE_STATE_RUNNING"'* || \
+      "${audio_status_json}" != *'"metrics"'* ]]; then
+  echo "audio JSON status output is invalid" >&2
+  exit 1
+fi
 "${bin_dir}/audio-probe" --speak "System ready" --config "${config_path}"
 sleep 0.1
 "${bin_dir}/audio-probe" --status --config "${config_path}"
@@ -246,6 +258,12 @@ if [[ "${camera_response}" != *"HMI command recorded locally"* || \
 fi
 sleep 0.1
 "${bin_dir}/voice-ctl" --status --config "${config_path}"
+voice_status_json="$(${bin_dir}/voice-ctl --status --output json --config "${config_path}")"
+if [[ "${voice_status_json}" != *'"state":"INTERACTION_STATE_LISTENING"'* || \
+      "${voice_status_json}" != *'"metrics"'* ]]; then
+  echo "voice JSON status output is invalid" >&2
+  exit 1
+fi
 "${bin_dir}/audio-probe" --status --config "${config_path}"
 kill "${voice_pid}"
 wait "${voice_pid}" || true

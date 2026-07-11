@@ -12,6 +12,7 @@
 #include "cockpit/core/runtime/ServiceRuntime.h"
 #include "cockpit/drivers/alsa/alsa_pcm.h"
 #include "cockpit/modules/audio/wav/wav_file.h"
+#include "tools/diagnostics/cli_output.h"
 
 namespace {
 
@@ -190,7 +191,7 @@ const char* VoiceActivityStateName(cockpit::proto::audio::VoiceActivityState sta
   }
 }
 
-void PrintStatus(const cockpit::proto::audio::AudioStatus& status) {
+void PrintStatusText(const cockpit::proto::audio::AudioStatus& status) {
   const auto& metrics = status.metrics();
   std::cout << "state: " << CaptureStateName(status.capture_state()) << '\n'
             << "device: " << status.input_device() << '\n'
@@ -225,7 +226,8 @@ void PrintStatus(const cockpit::proto::audio::AudioStatus& status) {
   }
 }
 
-int Control(const cockpit::runtime::ServiceRuntime& runtime, const std::string& command) {
+int Control(const cockpit::runtime::ServiceRuntime& runtime, const std::string& command,
+            cockpit::diagnostics::OutputFormat output_format) {
   const std::string address =
       runtime.args().GetString("address", runtime.config().services().audio.grpc.listen_address);
   cockpit::audio::AudioControlClient client(address);
@@ -240,14 +242,28 @@ int Control(const cockpit::runtime::ServiceRuntime& runtime, const std::string& 
     success = client.GetStatus(&status, &error);
   }
   if (!success) {
-    LOG_ERROR("audio control RPC failed address=" + address + " error=" + error);
-    return Finish(runtime, 1);
+    if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+      cockpit::diagnostics::WriteJsonError("operation_failed", error, &std::cerr);
+    } else {
+      LOG_ERROR("audio control RPC failed address=" + address + " error=" + error);
+    }
+    return Finish(runtime,
+                  cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
   }
-  PrintStatus(status);
+  if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+    if (!cockpit::diagnostics::WriteJson(status, &std::cout, &error)) {
+      cockpit::diagnostics::WriteJsonError("serialization_failed", error, &std::cerr);
+      return Finish(runtime,
+                    cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
+    }
+  } else {
+    PrintStatusText(status);
+  }
   return Finish(runtime, 0);
 }
 
-int Transcripts(const cockpit::runtime::ServiceRuntime& runtime) {
+int Transcripts(const cockpit::runtime::ServiceRuntime& runtime,
+                cockpit::diagnostics::OutputFormat output_format) {
   const std::string address =
       runtime.args().GetString("address", runtime.config().services().audio.grpc.listen_address);
   const int count = std::clamp(runtime.args().GetInt("count", 1), 1, 100);
@@ -256,17 +272,31 @@ int Transcripts(const cockpit::runtime::ServiceRuntime& runtime) {
   std::string error;
   const bool success = client.SubscribeTranscripts(
       static_cast<std::uint32_t>(count), timeout_ms,
-      [](const cockpit::proto::audio::TranscriptEvent& event) {
-        std::cout << "transcript id=" << event.id() << " provider=" << event.provider()
-                  << " confidence=" << event.confidence() << " duration_ms=" << event.duration_ms()
-                  << " truncated=" << (event.truncated() ? "true" : "false")
-                  << " discontinuous=" << (event.discontinuous() ? "true" : "false") << " text=\""
-                  << event.text() << "\"\n";
+      [output_format](const cockpit::proto::audio::TranscriptEvent& event) {
+        if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+          std::string serialization_error;
+          if (!cockpit::diagnostics::WriteJson(event, &std::cout, &serialization_error)) {
+            cockpit::diagnostics::WriteJsonError("serialization_failed", serialization_error,
+                                                 &std::cerr);
+          }
+        } else {
+          std::cout << "transcript id=" << event.id() << " provider=" << event.provider()
+                    << " confidence=" << event.confidence()
+                    << " duration_ms=" << event.duration_ms()
+                    << " truncated=" << (event.truncated() ? "true" : "false")
+                    << " discontinuous=" << (event.discontinuous() ? "true" : "false") << " text=\""
+                    << event.text() << "\"\n";
+        }
       },
       &error);
   if (!success) {
-    LOG_ERROR("transcript stream failed address=" + address + " error=" + error);
-    return Finish(runtime, 1);
+    if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+      cockpit::diagnostics::WriteJsonError("operation_failed", error, &std::cerr);
+    } else {
+      LOG_ERROR("transcript stream failed address=" + address + " error=" + error);
+    }
+    return Finish(runtime,
+                  cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
   }
   return Finish(runtime, 0);
 }
@@ -294,12 +324,21 @@ void PrintUsage() {
             << "  audio-probe --status [--address HOST:PORT]\n"
             << "  audio-probe --speak TEXT [--address HOST:PORT]\n"
             << "  audio-probe --transcripts [--count N] [--timeout-ms N]\n";
+  std::cout << "  control and transcript commands accept [--output text|json]\n";
 }
 
 }  // namespace
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "audio-probe");
+  cockpit::diagnostics::OutputFormat output_format;
+  std::string output_error;
+  if (!cockpit::diagnostics::ParseOutputFormat(runtime.args().GetString("output", "text"),
+                                               &output_format, &output_error)) {
+    std::cerr << output_error << '\n';
+    return Finish(runtime,
+                  cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments));
+  }
   const std::string capture_path = runtime.args().GetString("capture", "");
   const std::string play_path = runtime.args().GetString("play", "");
   const bool start = runtime.args().HasFlag("start");
@@ -318,6 +357,14 @@ int main(int argc, char** argv) {
     PrintUsage();
     return Finish(runtime, 2);
   }
+  if (output_format == cockpit::diagnostics::OutputFormat::kJson &&
+      (list || !capture_path.empty() || !play_path.empty() || !speak_text.empty())) {
+    cockpit::diagnostics::WriteJsonError(
+        "invalid_arguments", "JSON output is supported for control status and transcripts",
+        &std::cerr);
+    return Finish(runtime,
+                  cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments));
+  }
   if (list) {
     return ListDevices(runtime);
   }
@@ -328,10 +375,10 @@ int main(int argc, char** argv) {
     return Play(runtime, play_path);
   }
   if (transcripts) {
-    return Transcripts(runtime);
+    return Transcripts(runtime, output_format);
   }
   if (!speak_text.empty()) {
     return Speak(runtime, speak_text);
   }
-  return Control(runtime, start ? "start" : (stop ? "stop" : "status"));
+  return Control(runtime, start ? "start" : (stop ? "stop" : "status"), output_format);
 }

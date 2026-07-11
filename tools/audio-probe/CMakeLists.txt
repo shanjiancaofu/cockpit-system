@@ -3,5 +3,5 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         audio_control_client.cc
         main.cc
     )
-    target_link_libraries(audio-probe PRIVATE alsa_audio audio contracts logging runtime)
+    target_link_libraries(audio-probe PRIVATE alsa_audio audio contracts diagnostic_cli logging runtime)
 endif()

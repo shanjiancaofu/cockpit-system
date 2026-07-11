@@ -39,6 +39,10 @@ add_executable(service_health_test service_health_test.cc)
 target_link_libraries(service_health_test PRIVATE service_health)
 add_test(NAME service_health_test COMMAND service_health_test)
 
+add_executable(cli_output_test cli_output_test.cc)
+target_link_libraries(cli_output_test PRIVATE diagnostic_cli json_util)
+add_test(NAME cli_output_test COMMAND cli_output_test)
+
 add_executable(recording_session_test recording_session_test.cc)
 target_link_libraries(recording_session_test PRIVATE recording)
 add_test(NAME recording_session_test COMMAND recording_session_test)
@@ -74,6 +78,10 @@ add_test(NAME shared_frame_buffer_test COMMAND shared_frame_buffer_test)
 add_executable(camera_service_test camera_service_test.cc)
 target_link_libraries(camera_service_test PRIVATE camera_service)
 add_test(NAME camera_service_test COMMAND camera_service_test)
+
+add_executable(camera_synthetic_stability_test camera_synthetic_stability_test.cc)
+target_link_libraries(camera_synthetic_stability_test PRIVATE camera_control synthetic_camera)
+add_test(NAME camera_synthetic_stability_test COMMAND camera_synthetic_stability_test)
 
 add_executable(camera_photo_service_test camera_photo_service_test.cc)
 target_link_libraries(camera_photo_service_test PRIVATE camera_photo_service)

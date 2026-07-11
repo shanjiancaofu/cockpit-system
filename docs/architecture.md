@@ -111,6 +111,11 @@ memory，reader 会拒绝布局、stride 或 payload 长度不一致的帧。
 拍照请求通过 gRPC 到 camera-service，服务读取共享内存最新帧并用 GStreamer 编码 JPEG；
 camera-ctl 和 Qt UI 都不直接访问摄像头设备。
 
+camera-service 的运行期看门狗检查 preview source 是否仍在运行以及最后收帧时间，将故障区分为
+`source_disconnected`、`no_frames` 和 `frame_stalled`。WSL 可将 `capture_backend` 切换为
+`synthetic`，通过同一个 `CameraPreviewSource` 边界注入无帧、卡帧和断流；恢复仍使用正式
+start/recover 状态机，因此合成测试与真实 GStreamer pipeline 共享指标和控制逻辑。
+
 ## 服务健康语义
 
 各长运行服务通过 `ServiceHealth` 暴露统一状态，`cockpit-ctl` 和 Qt Dashboard 复用
@@ -125,6 +130,15 @@ camera-ctl 和 Qt UI 都不直接访问摄像头设备。
 严重度顺序为 `OK < DISABLED < DEGRADED < UNKNOWN < FAULTED`。脚本化 health check 接受
 `OK`、`DISABLED` 和 `DEGRADED`，对 `UNKNOWN`、`FAULTED` 返回失败；状态页仍逐项展示全部状态，
 避免把主动关闭、能力下降和不可达混为一类。
+
+## 诊断 CLI 输出
+
+控制面诊断工具共用 `tools/diagnostics`，支持 `--output text|json`。JSON 状态直接由 protobuf 官方
+转换生成，保留 proto 字段名；订阅类命令使用 JSON Lines。统一退出码为：0 成功、1 操作或 RPC
+失败、2 参数错误、3 健康状态不通过。`cockpit-ctl status` 在部分服务离线时仍输出完整聚合文档，
+`cockpit-ctl health` 则通过退出码 3 明确通知部署脚本。
+
+ALSA 设备枚举、WAV 录放等本地硬件操作继续输出文本，它们不是稳定的控制面数据合同。
 
 ## 研发录包链路
 

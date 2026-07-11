@@ -14,10 +14,12 @@
 #include "camera.grpc.pb.h"
 #include "cockpit/core/config/system_config.h"
 #include "cockpit/core/health/service_health.h"
+#include "cockpit/core/json/json.h"
 #include "cockpit/core/runtime/Args.h"
 #include "common.pb.h"
 #include "gateway.grpc.pb.h"
 #include "recording.grpc.pb.h"
+#include "tools/diagnostics/cli_output.h"
 #include "voice.grpc.pb.h"
 
 namespace cockpit {
@@ -54,6 +56,7 @@ void PrintUsage() {
             << "\nOptions:\n"
             << "  --config PATH    config file path (default: configs/config.yaml)\n"
             << "  --watch          watch mode, refresh status periodically\n"
+            << "  --output FORMAT  text or json (default: text)\n"
             << "  --interval SEC   refresh interval in seconds (default: "
             << kDefaultWatchIntervalSec << ")\n";
 }
@@ -479,6 +482,69 @@ int RunStatus(const config::SystemConfig& config) {
   return 0;
 }
 
+template <typename Response, typename Fetch>
+std::string FetchStatusJson(Fetch fetch) {
+  Response response;
+  grpc::ClientContext context;
+  SetContext(&context);
+  const grpc::Status status = fetch(&context, &response);
+  if (!status.ok()) {
+    return "{\"available\":false,\"error\":\"" + json::EscapeString(RpcError(status)) + "\"}";
+  }
+  std::string json_text;
+  std::string error;
+  if (!diagnostics::JsonString(response, &json_text, &error)) {
+    return "{\"available\":true,\"serialization_error\":\"" + json::EscapeString(error) + "\"}";
+  }
+  return json_text;
+}
+
+int RunStatusJson(const config::SystemConfig& config) {
+  auto gateway = proto::gateway::CockpitGateway::NewStub(grpc::CreateChannel(
+      config.services().gateway.grpc.listen_address, grpc::InsecureChannelCredentials()));
+  auto audio = proto::audio::AudioControl::NewStub(grpc::CreateChannel(
+      config.services().audio.grpc.listen_address, grpc::InsecureChannelCredentials()));
+  auto voice = proto::voice::VoiceInteractionControl::NewStub(grpc::CreateChannel(
+      config.services().voice_interaction.grpc.listen_address, grpc::InsecureChannelCredentials()));
+  auto camera = proto::camera::CameraControl::NewStub(grpc::CreateChannel(
+      config.services().camera.grpc.listen_address, grpc::InsecureChannelCredentials()));
+  auto recording = proto::recording::RecordingControl::NewStub(grpc::CreateChannel(
+      config.services().recording.grpc.listen_address, grpc::InsecureChannelCredentials()));
+  const proto::common::Empty request;
+
+  std::cout << "{\"system\":{\"name\":\"" << json::EscapeString(config.system().name)
+            << "\",\"vehicle_id\":\"" << json::EscapeString(config.system().vehicle_id)
+            << "\"},\"services\":{";
+  std::cout << "\"gateway\":"
+            << FetchStatusJson<proto::gateway::GatewayStatus>(
+                   [&](grpc::ClientContext* context, proto::gateway::GatewayStatus* response) {
+                     return gateway->GetStatus(context, request, response);
+                   });
+  std::cout << ",\"audio\":"
+            << FetchStatusJson<proto::audio::AudioStatus>(
+                   [&](grpc::ClientContext* context, proto::audio::AudioStatus* response) {
+                     return audio->GetStatus(context, request, response);
+                   });
+  std::cout << ",\"voice\":"
+            << FetchStatusJson<proto::voice::VoiceInteractionStatus>(
+                   [&](grpc::ClientContext* context,
+                       proto::voice::VoiceInteractionStatus* response) {
+                     return voice->GetStatus(context, request, response);
+                   });
+  std::cout << ",\"camera\":"
+            << FetchStatusJson<proto::camera::CameraStatus>(
+                   [&](grpc::ClientContext* context, proto::camera::CameraStatus* response) {
+                     return camera->GetStatus(context, request, response);
+                   });
+  std::cout << ",\"recording\":"
+            << FetchStatusJson<proto::recording::RecordingStatus>(
+                   [&](grpc::ClientContext* context, proto::recording::RecordingStatus* response) {
+                     return recording->GetStatus(context, request, response);
+                   });
+  std::cout << "}}\n";
+  return diagnostics::ToInt(diagnostics::ExitCode::kSuccess);
+}
+
 int RunHealth(const config::SystemConfig& config) {
   bool healthy = true;
   std::cout << "cockpit-system health\n";
@@ -490,7 +556,45 @@ int RunHealth(const config::SystemConfig& config) {
   healthy &= RunOneHealthCheck("camera", config.services().camera.grpc.listen_address, CheckCamera);
   healthy &= RunOneHealthCheck("recording", config.services().recording.grpc.listen_address,
                                CheckRecording);
-  return healthy ? 0 : 2;
+  return healthy ? diagnostics::ToInt(diagnostics::ExitCode::kSuccess)
+                 : diagnostics::ToInt(diagnostics::ExitCode::kUnhealthy);
+}
+
+int RunHealthJson(const config::SystemConfig& config) {
+  struct Target {
+    const char* name;
+    const std::string* address;
+    HealthCheck check;
+  };
+  const std::vector<Target> targets = {
+      {"gateway", &config.services().gateway.grpc.listen_address, CheckGateway},
+      {"audio", &config.services().audio.grpc.listen_address, CheckAudio},
+      {"voice", &config.services().voice_interaction.grpc.listen_address, CheckVoice},
+      {"camera", &config.services().camera.grpc.listen_address, CheckCamera},
+      {"recording", &config.services().recording.grpc.listen_address, CheckRecording},
+  };
+  bool healthy = true;
+  std::cout << "{\"healthy\":";
+  std::vector<std::string> results;
+  for (const auto& target : targets) {
+    std::string error;
+    const bool current_healthy = target.check(*target.address, &error);
+    healthy &= current_healthy;
+    results.push_back("{\"name\":\"" + std::string(target.name) + "\",\"address\":\"" +
+                      json::EscapeString(*target.address) +
+                      "\",\"healthy\":" + (current_healthy ? "true" : "false") + ",\"error\":\"" +
+                      json::EscapeString(error) + "\"}");
+  }
+  std::cout << (healthy ? "true" : "false") << ",\"services\":[";
+  for (std::size_t index = 0; index < results.size(); ++index) {
+    if (index > 0) {
+      std::cout << ',';
+    }
+    std::cout << results[index];
+  }
+  std::cout << "]}\n";
+  return healthy ? diagnostics::ToInt(diagnostics::ExitCode::kSuccess)
+                 : diagnostics::ToInt(diagnostics::ExitCode::kUnhealthy);
 }
 
 void PrintStringList(const std::vector<std::string>& values) {
@@ -551,26 +655,47 @@ int main(int argc, char** argv) {
   if (command != "status" && command != "health" && command != "dependencies") {
     std::cerr << "unknown command: " << command << "\n";
     cockpit::ctl::PrintUsage();
-    return 1;
+    return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
   }
 
   const std::string config_path = args.GetString("config", "configs/config.yaml");
   const auto config = cockpit::config::SystemConfig::LoadFromFile(config_path);
+  cockpit::diagnostics::OutputFormat output_format;
+  std::string output_error;
+  if (!cockpit::diagnostics::ParseOutputFormat(args.GetString("output", "text"), &output_format,
+                                               &output_error)) {
+    std::cerr << output_error << '\n';
+    return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
+  }
 
   if (command == "health") {
-    return cockpit::ctl::RunHealth(config);
+    return output_format == cockpit::diagnostics::OutputFormat::kJson
+               ? cockpit::ctl::RunHealthJson(config)
+               : cockpit::ctl::RunHealth(config);
   }
   if (command == "dependencies") {
+    if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+      cockpit::diagnostics::WriteJsonError("invalid_arguments",
+                                           "dependencies does not support JSON output", &std::cerr);
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
+    }
     return cockpit::ctl::RunDependencies(config);
   }
 
   if (args.HasFlag("watch")) {
+    if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+      cockpit::diagnostics::WriteJsonError("invalid_arguments",
+                                           "watch does not support JSON output", &std::cerr);
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
+    }
     const int interval_sec = args.GetInt("interval", cockpit::ctl::kDefaultWatchIntervalSec);
     if (interval_sec < 1) {
       std::cerr << "interval must be >= 1 second\n";
-      return 1;
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
     }
     return cockpit::ctl::WatchStatus(config, interval_sec);
   }
-  return cockpit::ctl::RunStatus(config);
+  return output_format == cockpit::diagnostics::OutputFormat::kJson
+             ? cockpit::ctl::RunStatusJson(config)
+             : cockpit::ctl::RunStatus(config);
 }

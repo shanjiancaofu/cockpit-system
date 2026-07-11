@@ -12,6 +12,10 @@ int main() {
       config.services().audio.grpc.listen_address != "127.0.0.1:50052" ||
       config.services().audio.vad.speech_start_frames != 3 ||
       config.services().audio.speech_segment.max_segment_ms != 15000 ||
+      config.services().camera.capture_backend != "gstreamer" ||
+      config.services().camera.preview_stale_timeout_ms != 2000 ||
+      config.services().camera.synthetic_fault != "none" ||
+      config.services().camera.synthetic_fault_after_frames != 30 ||
       config.services().voice_interaction.grpc.listen_address != "127.0.0.1:50053" ||
       config.services().voice_interaction.gateway_address != "127.0.0.1:50051" ||
       config.hardware().can.interface != "vcan0" ||

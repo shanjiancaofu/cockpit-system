@@ -2,6 +2,10 @@ add_library(camera_capture INTERFACE)
 target_include_directories(camera_capture INTERFACE ${PROJECT_SOURCE_DIR})
 target_link_libraries(camera_capture INTERFACE camera_frames)
 
+find_package(Threads REQUIRED)
+add_cockpit_library(synthetic_camera synthetic_preview_source.cc)
+target_link_libraries(synthetic_camera PUBLIC camera_capture utils Threads::Threads)
+
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
     pkg_check_modules(GSTREAMER QUIET

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -57,6 +58,10 @@ struct CameraStartPreviewRequest {
   std::uint32_t fps = 30;
 };
 
+struct CameraServiceOptions {
+  std::uint64_t preview_stale_timeout_ms = 2000;
+};
+
 class CameraService {
  public:
   using DeviceLister = std::function<std::vector<VideoDeviceInfo>(std::string*)>;
@@ -65,11 +70,13 @@ class CameraService {
   explicit CameraService(std::shared_ptr<CameraFrameSink> frame_sink);
   CameraService(std::shared_ptr<CameraFrameSink> frame_sink,
                 std::shared_ptr<event::MessageBus> message_bus);
+  CameraService(std::shared_ptr<CameraFrameSink> frame_sink,
+                std::shared_ptr<event::MessageBus> message_bus, CameraServiceOptions options);
   CameraService(DeviceLister device_lister, std::unique_ptr<CameraPreviewSource> preview_source,
                 std::shared_ptr<CameraFrameSink> frame_sink = nullptr);
   CameraService(DeviceLister device_lister, std::unique_ptr<CameraPreviewSource> preview_source,
                 std::shared_ptr<CameraFrameSink> frame_sink,
-                std::shared_ptr<event::MessageBus> message_bus);
+                std::shared_ptr<event::MessageBus> message_bus, CameraServiceOptions options = {});
   ~CameraService();
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(CameraService);
@@ -77,6 +84,7 @@ class CameraService {
   std::vector<VideoDeviceInfo> ListDevices(std::string* error) const;
   bool StartPreview(const CameraStartPreviewRequest& request, std::string* error);
   void StopPreview();
+  void CheckPreviewHealth();
   CameraServiceStatus status() const;
 
  private:
@@ -92,9 +100,12 @@ class CameraService {
   CameraPreviewModule* preview_module_{nullptr};
   std::shared_ptr<CameraFrameSink> frame_sink_;
   std::shared_ptr<event::MessageBus> message_bus_;
+  const CameraServiceOptions options_;
   mutable std::mutex lifecycle_mutex_;
   mutable std::mutex mutex_;
   CameraServiceStatus status_;
+  std::chrono::steady_clock::time_point preview_started_steady_;
+  std::chrono::steady_clock::time_point last_frame_received_steady_;
 };
 
 }  // namespace camera

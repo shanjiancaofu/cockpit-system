@@ -225,6 +225,19 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.camera.grpc.listen_address =
       Read(camera_grpc, "listen_address", config.services_.camera.grpc.listen_address,
            "services.camera.grpc.listen_address");
+  config.services_.camera.capture_backend =
+      Read(camera_service, "capture_backend", config.services_.camera.capture_backend,
+           "services.camera.capture_backend");
+  config.services_.camera.preview_stale_timeout_ms = Read(
+      camera_service, "preview_stale_timeout_ms", config.services_.camera.preview_stale_timeout_ms,
+      "services.camera.preview_stale_timeout_ms");
+  config.services_.camera.synthetic_fault =
+      Read(camera_service, "synthetic_fault", config.services_.camera.synthetic_fault,
+           "services.camera.synthetic_fault");
+  config.services_.camera.synthetic_fault_after_frames =
+      Read(camera_service, "synthetic_fault_after_frames",
+           config.services_.camera.synthetic_fault_after_frames,
+           "services.camera.synthetic_fault_after_frames");
   config.services_.camera.frame_transport =
       Read(camera_service, "frame_transport", config.services_.camera.frame_transport,
            "services.camera.frame_transport");
@@ -430,6 +443,21 @@ void SystemConfig::Validate() const {
         "services.audio.speech_segment.pre_roll_ms must be less than max_segment_ms");
   }
   ValidateAddress(services_.camera.grpc.listen_address, "services.camera.grpc.listen_address");
+  if (!IsOneOf(services_.camera.capture_backend, "gstreamer", "synthetic")) {
+    throw std::runtime_error("services.camera.capture_backend must be gstreamer or synthetic");
+  }
+  RequirePositive(services_.camera.preview_stale_timeout_ms,
+                  "services.camera.preview_stale_timeout_ms");
+  if (services_.camera.synthetic_fault != "none" &&
+      services_.camera.synthetic_fault != "no_frames" &&
+      services_.camera.synthetic_fault != "stall" &&
+      services_.camera.synthetic_fault != "disconnect") {
+    throw std::runtime_error(
+        "services.camera.synthetic_fault must be none, no_frames, stall, or disconnect");
+  }
+  if (services_.camera.synthetic_fault_after_frames < 0) {
+    throw std::runtime_error("services.camera.synthetic_fault_after_frames must not be negative");
+  }
   if (services_.camera.frame_transport != "shared_memory") {
     throw std::runtime_error("services.camera.frame_transport currently supports shared_memory");
   }

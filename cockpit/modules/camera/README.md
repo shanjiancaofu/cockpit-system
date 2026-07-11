@@ -3,7 +3,7 @@
 ```text
 camera/
 ├── frames/         CameraFrame、sink、latest-frame buffer
-├── capture/        preview source 和可选 GStreamer pipeline
+├── capture/        preview source、可选 GStreamer pipeline 和合成故障源
 └── shared_memory/  跨进程双缓冲
 ```
 
@@ -17,3 +17,6 @@ camera/
 ```bash
 build/bin/camera-preview-probe --device /dev/video0 --frames 30 --config configs/config.yaml
 ```
+
+`SyntheticPreviewSource` 提供不依赖摄像头硬件的 BGRx 帧，并支持 no-frames、stall 和 disconnect
+故障注入；它只用于开发验证和稳定性测试，不替代 Jetson 实机 pipeline 验证。

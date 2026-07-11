@@ -16,6 +16,7 @@ target_link_libraries(camera-service PRIVATE
     camera_photo_service
     camera_recording_bridge
     camera_shm
+    synthetic_camera
     logging
     recording_event_client
     runtime

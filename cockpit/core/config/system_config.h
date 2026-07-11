@@ -66,6 +66,10 @@ struct AudioServiceConfig {
 
 struct CameraServiceConfig {
   GrpcServerConfig grpc{"127.0.0.1:50054"};
+  std::string capture_backend = "gstreamer";
+  int preview_stale_timeout_ms = 2000;
+  std::string synthetic_fault = "none";
+  int synthetic_fault_after_frames = 30;
   std::string frame_transport = "shared_memory";
   std::string shared_memory_name = "/cockpit_camera_preview";
   int max_frame_bytes = 8 * 1024 * 1024;

@@ -127,7 +127,7 @@ bool RecordingControlClient::Prune(proto::recording::PruneRecordingsResponse* re
 
 void RecordingControlClient::SetDeadline(grpc::ClientContext* context) {
   context->set_wait_for_ready(true);
-  context->set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(2));
+  context->set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(5));
 }
 
 }  // namespace recording
