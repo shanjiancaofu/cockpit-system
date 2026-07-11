@@ -52,6 +52,15 @@ bool RecordingService::GetTimeline(const std::string& session_id,
   return RecordingTimelineReader::Read(detail.info.directory, query, result, error);
 }
 
+bool RecordingService::Verify(const std::string& session_id, RecordingIntegrityResult* result,
+                              std::string* error) const {
+  RecordingSessionDetail detail;
+  if (!catalog_.GetDetail(session_id, &detail, error)) {
+    return false;
+  }
+  return RecordingIntegrityVerifier::Verify(detail.info.directory, result, error);
+}
+
 bool RecordingService::Delete(const std::string& session_id, std::string* error) {
   const RecordingStatus current = session_.status();
   if (current.state == RecordingState::kRecording && current.session_id == session_id) {

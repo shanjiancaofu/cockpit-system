@@ -98,6 +98,50 @@ void PrintTimeline(const cockpit::proto::recording::GetRecordingTimelineResponse
   }
 }
 
+const char* IntegrityIssueKindName(cockpit::proto::recording::RecordingIntegrityIssueKind kind) {
+  switch (kind) {
+    case cockpit::proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_INVALID_INDEX:
+      return "invalid_index";
+    case cockpit::proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_UNSAFE_PATH:
+      return "unsafe_path";
+    case cockpit::proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_MISSING_FILE:
+      return "missing_file";
+    case cockpit::proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_NOT_REGULAR_FILE:
+      return "not_regular_file";
+    case cockpit::proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_SIZE_MISMATCH:
+      return "size_mismatch";
+    case cockpit::proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_CHECKSUM_MISMATCH:
+      return "checksum_mismatch";
+    case cockpit::proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_UNSPECIFIED:
+    default:
+      return "unknown";
+  }
+}
+
+void PrintVerification(const cockpit::proto::recording::VerifyRecordingResponse& response) {
+  std::cout << "healthy: " << (response.healthy() ? "true" : "false") << '\n'
+            << "index entries: " << response.index_entries() << '\n'
+            << "files checked: " << response.files_checked() << '\n'
+            << "checksums checked: " << response.checksums_checked() << '\n'
+            << "checksums unavailable: " << response.checksums_unavailable() << '\n'
+            << "issues: " << response.issues_size() << '\n';
+  for (const auto& issue : response.issues()) {
+    std::cout << "line=" << issue.line_number() << " kind=" << IntegrityIssueKindName(issue.kind())
+              << " source=" << issue.source() << " path=" << issue.path() << " message=\""
+              << issue.message() << "\"";
+    if (issue.kind() == cockpit::proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_SIZE_MISMATCH) {
+      std::cout << " expected_size=" << issue.expected_size_bytes()
+                << " actual_size=" << issue.actual_size_bytes();
+    }
+    if (issue.kind() ==
+        cockpit::proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_CHECKSUM_MISMATCH) {
+      std::cout << " expected_checksum=" << issue.expected_checksum()
+                << " actual_checksum=" << issue.actual_checksum();
+    }
+    std::cout << '\n';
+  }
+}
+
 int Finish(const cockpit::runtime::ServiceRuntime& runtime, int result) {
   runtime.MarkStopped();
   return result;
@@ -137,6 +181,7 @@ int main(int argc, char** argv) {
   const std::string delete_session_id = runtime.args().GetString("delete", "");
   const std::string detail_session_id = runtime.args().GetString("detail", "");
   const std::string timeline_session_id = runtime.args().GetString("timeline", "");
+  const std::string verify_session_id = runtime.args().GetString("verify", "");
   const std::string event_topic = runtime.args().GetString("event-topic", "");
   const std::string file_path = runtime.args().GetString("file-path", "");
   if (runtime.args().HasFlag("list")) {
@@ -177,6 +222,15 @@ int main(int argc, char** argv) {
     if (ok) {
       PrintTimeline(response);
     }
+  } else if (!verify_session_id.empty()) {
+    cockpit::proto::recording::VerifyRecordingResponse response;
+    ok = client.Verify(verify_session_id, &response, &error);
+    if (ok) {
+      PrintVerification(response);
+      if (!response.healthy()) {
+        return Finish(runtime, 2);
+      }
+    }
   } else if (!delete_session_id.empty()) {
     ok = client.Delete(delete_session_id, &error);
     if (ok) {
@@ -216,7 +270,8 @@ int main(int argc, char** argv) {
     return Finish(runtime, 1);
   }
   if (!runtime.args().HasFlag("list") && detail_session_id.empty() && delete_session_id.empty() &&
-      timeline_session_id.empty() && !runtime.args().HasFlag("prune")) {
+      timeline_session_id.empty() && verify_session_id.empty() &&
+      !runtime.args().HasFlag("prune")) {
     PrintStatus(status);
   }
   return Finish(runtime, 0);

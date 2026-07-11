@@ -35,6 +35,10 @@ add_executable(json_util_test json_util_test.cc)
 target_link_libraries(json_util_test PRIVATE json_util)
 add_test(NAME json_util_test COMMAND json_util_test)
 
+add_executable(service_health_test service_health_test.cc)
+target_link_libraries(service_health_test PRIVATE service_health)
+add_test(NAME service_health_test COMMAND service_health_test)
+
 add_executable(recording_session_test recording_session_test.cc)
 target_link_libraries(recording_session_test PRIVATE recording)
 add_test(NAME recording_session_test COMMAND recording_session_test)
@@ -46,6 +50,10 @@ add_test(NAME recording_catalog_test COMMAND recording_catalog_test)
 add_executable(recording_timeline_test recording_timeline_test.cc)
 target_link_libraries(recording_timeline_test PRIVATE recording)
 add_test(NAME recording_timeline_test COMMAND recording_timeline_test)
+
+add_executable(recording_integrity_test recording_integrity_test.cc)
+target_link_libraries(recording_integrity_test PRIVATE recording)
+add_test(NAME recording_integrity_test COMMAND recording_integrity_test)
 
 add_executable(recording_service_test recording_service_test.cc)
 target_link_libraries(recording_service_test PRIVATE recording_service)

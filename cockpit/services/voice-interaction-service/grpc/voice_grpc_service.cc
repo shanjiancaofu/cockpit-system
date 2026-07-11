@@ -34,7 +34,7 @@ void FillHealth(const VoiceInteractionStatus& status, proto::common::ServiceHeal
     return;
   }
   if (status.state == InteractionState::kDisabled) {
-    health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_DISABLED);
     health->set_message("voice interaction disabled");
     return;
   }

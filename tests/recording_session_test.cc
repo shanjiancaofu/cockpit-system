@@ -146,6 +146,8 @@ int main() {
             "copied camera data file path missing") &&
       Check(data_files.find("\"copied_into_session\":true") != std::string::npos,
             "copied camera data file flag missing") &&
+      Check(data_files.find("\"checksum\":\"fnv1a64:") != std::string::npos,
+            "copied camera data file checksum missing") &&
       Check(std::filesystem::exists(copied_artifact), "copied camera artifact missing") &&
       Check(ReadFile(copied_artifact) == "jpeg-test-data", "copied camera artifact mismatch") &&
       Check(recovered == 1, "interrupted recording recovery count mismatch") &&

@@ -42,6 +42,9 @@ class RecordingGrpcService final : public proto::recording::RecordingControl::Se
   grpc::Status GetTimeline(grpc::ServerContext* context,
                            const proto::recording::GetRecordingTimelineRequest* request,
                            proto::recording::GetRecordingTimelineResponse* response) override;
+  grpc::Status Verify(grpc::ServerContext* context,
+                      const proto::recording::VerifyRecordingRequest* request,
+                      proto::recording::VerifyRecordingResponse* response) override;
   grpc::Status Delete(grpc::ServerContext* context,
                       const proto::recording::DeleteRecordingRequest* request,
                       proto::common::Empty* response) override;

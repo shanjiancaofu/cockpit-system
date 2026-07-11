@@ -7,4 +7,5 @@ target_link_libraries(cockpit-ctl
         config
         contracts
         runtime
+        service_health
 )

@@ -23,6 +23,7 @@ class ServiceHealthModel final : public QAbstractListModel {
   Q_OBJECT
   Q_PROPERTY(int okCount READ okCount NOTIFY summaryChanged)
   Q_PROPERTY(int degradedCount READ degradedCount NOTIFY summaryChanged)
+  Q_PROPERTY(int disabledCount READ disabledCount NOTIFY summaryChanged)
   Q_PROPERTY(int faultedCount READ faultedCount NOTIFY summaryChanged)
   Q_PROPERTY(int unknownCount READ unknownCount NOTIFY summaryChanged)
   Q_PROPERTY(QString summaryText READ summaryText NOTIFY summaryChanged)
@@ -57,6 +58,7 @@ class ServiceHealthModel final : public QAbstractListModel {
 
   int okCount() const;
   int degradedCount() const;
+  int disabledCount() const;
   int faultedCount() const;
   int unknownCount() const;
   QString summaryText() const;
@@ -91,6 +93,7 @@ class ServiceHealthModel final : public QAbstractListModel {
   mutable bool counts_dirty_ = true;
   mutable int ok_count_ = 0;
   mutable int degraded_count_ = 0;
+  mutable int disabled_count_ = 0;
   mutable int faulted_count_ = 0;
   mutable int unknown_count_ = 0;
 };

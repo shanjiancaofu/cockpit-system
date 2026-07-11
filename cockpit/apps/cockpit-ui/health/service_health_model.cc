@@ -11,6 +11,7 @@
 
 #include "audio.grpc.pb.h"
 #include "camera.grpc.pb.h"
+#include "cockpit/core/health/service_health.h"
 #include "common.pb.h"
 #include "gateway.grpc.pb.h"
 #include "recording.grpc.pb.h"
@@ -36,17 +37,7 @@ void PrepareContext(grpc::ClientContext* context) {
 }
 
 QString StateName(proto::common::ServiceHealthState state) {
-  switch (state) {
-    case proto::common::SERVICE_HEALTH_STATE_OK:
-      return QStringLiteral("OK");
-    case proto::common::SERVICE_HEALTH_STATE_DEGRADED:
-      return QStringLiteral("DEGRADED");
-    case proto::common::SERVICE_HEALTH_STATE_FAULTED:
-      return QStringLiteral("FAULTED");
-    case proto::common::SERVICE_HEALTH_STATE_UNSPECIFIED:
-    default:
-      return QStringLiteral("UNKNOWN");
-  }
+  return QString::fromLatin1(health::StateName(state)).toUpper();
 }
 
 ServiceHealthModel::HealthSample FromHealth(const proto::common::ServiceHealth& health) {
@@ -149,6 +140,12 @@ int ServiceHealthModel::degradedCount() const {
   return degraded_count_;
 }
 
+int ServiceHealthModel::disabledCount() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  RecountLocked();
+  return disabled_count_;
+}
+
 int ServiceHealthModel::faultedCount() const {
   std::lock_guard<std::mutex> lock(mutex_);
   RecountLocked();
@@ -164,11 +161,12 @@ int ServiceHealthModel::unknownCount() const {
 QString ServiceHealthModel::summaryText() const {
   std::lock_guard<std::mutex> lock(mutex_);
   RecountLocked();
-  return QStringLiteral("%1 OK  %2 DEGRADED  %3 FAULTED  %4 UNKNOWN")
+  return QStringLiteral("%1 OK  %2 DISABLED  %3 DEGRADED  %4 UNKNOWN  %5 FAULTED")
       .arg(ok_count_)
+      .arg(disabled_count_)
       .arg(degraded_count_)
-      .arg(faulted_count_)
-      .arg(unknown_count_);
+      .arg(unknown_count_)
+      .arg(faulted_count_);
 }
 
 QString ServiceHealthModel::worstState() const {
@@ -177,11 +175,14 @@ QString ServiceHealthModel::worstState() const {
   if (faulted_count_ > 0) {
     return QStringLiteral("FAULTED");
   }
+  if (unknown_count_ > 0) {
+    return QStringLiteral("UNKNOWN");
+  }
   if (degraded_count_ > 0) {
     return QStringLiteral("DEGRADED");
   }
-  if (unknown_count_ > 0) {
-    return QStringLiteral("UNKNOWN");
+  if (disabled_count_ > 0) {
+    return QStringLiteral("DISABLED");
   }
   return QStringLiteral("OK");
 }
@@ -316,6 +317,7 @@ void ServiceHealthModel::RecountLocked() const {
   }
   ok_count_ = 0;
   degraded_count_ = 0;
+  disabled_count_ = 0;
   faulted_count_ = 0;
   unknown_count_ = 0;
   for (const auto& item : items_) {
@@ -323,6 +325,8 @@ void ServiceHealthModel::RecountLocked() const {
       ++ok_count_;
     } else if (item.state == QStringLiteral("DEGRADED")) {
       ++degraded_count_;
+    } else if (item.state == QStringLiteral("DISABLED")) {
+      ++disabled_count_;
     } else if (item.state == QStringLiteral("FAULTED")) {
       ++faulted_count_;
     } else {

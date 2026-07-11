@@ -31,6 +31,25 @@ proto::recording::RecordingTimelineEntryKind ToProtoTimelineKind(RecordingTimeli
   return proto::recording::RECORDING_TIMELINE_ENTRY_KIND_UNSPECIFIED;
 }
 
+proto::recording::RecordingIntegrityIssueKind ToProtoIntegrityIssueKind(
+    RecordingIntegrityIssueKind kind) {
+  switch (kind) {
+    case RecordingIntegrityIssueKind::kInvalidIndex:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_INVALID_INDEX;
+    case RecordingIntegrityIssueKind::kUnsafePath:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_UNSAFE_PATH;
+    case RecordingIntegrityIssueKind::kMissingFile:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_MISSING_FILE;
+    case RecordingIntegrityIssueKind::kNotRegularFile:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_NOT_REGULAR_FILE;
+    case RecordingIntegrityIssueKind::kSizeMismatch:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_SIZE_MISMATCH;
+    case RecordingIntegrityIssueKind::kChecksumMismatch:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_CHECKSUM_MISMATCH;
+  }
+  return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_UNSPECIFIED;
+}
+
 void FillHealth(const RecordingStatus& status, proto::common::ServiceHealth* health) {
   health->set_service_name("recording-service");
   health->set_checked_at_ms(utils::NowMs());
@@ -210,6 +229,41 @@ grpc::Status RecordingGrpcService::GetTimeline(
   response->set_total_entries(result.total_entries);
   response->set_corrupted_lines(result.corrupted_lines);
   response->set_truncated(result.truncated);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::Verify(grpc::ServerContext*,
+                                          const proto::recording::VerifyRecordingRequest* request,
+                                          proto::recording::VerifyRecordingResponse* response) {
+  if (request->session_id().empty()) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "session_id is required");
+  }
+  RecordingSessionDetail detail;
+  std::string error;
+  if (!recording_service_.GetDetail(request->session_id(), &detail, &error)) {
+    return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
+  }
+  RecordingIntegrityResult result;
+  if (!recording_service_.Verify(request->session_id(), &result, &error)) {
+    return grpc::Status(grpc::StatusCode::INTERNAL, error);
+  }
+  response->set_healthy(result.healthy);
+  response->set_index_entries(result.index_entries);
+  response->set_files_checked(result.files_checked);
+  response->set_checksums_checked(result.checksums_checked);
+  response->set_checksums_unavailable(result.checksums_unavailable);
+  for (const auto& issue : result.issues) {
+    auto* proto_issue = response->add_issues();
+    proto_issue->set_kind(ToProtoIntegrityIssueKind(issue.kind));
+    proto_issue->set_line_number(issue.line_number);
+    proto_issue->set_source(issue.source);
+    proto_issue->set_path(issue.path);
+    proto_issue->set_message(issue.message);
+    proto_issue->set_expected_size_bytes(issue.expected_size_bytes);
+    proto_issue->set_actual_size_bytes(issue.actual_size_bytes);
+    proto_issue->set_expected_checksum(issue.expected_checksum);
+    proto_issue->set_actual_checksum(issue.actual_checksum);
+  }
   return grpc::Status::OK;
 }
 

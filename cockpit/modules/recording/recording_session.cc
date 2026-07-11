@@ -11,6 +11,7 @@
 
 #include "cockpit/core/json/json.h"
 #include "cockpit/core/utils/Time.h"
+#include "cockpit/modules/recording/file_checksum.h"
 
 namespace cockpit {
 namespace recording {
@@ -308,6 +309,11 @@ bool RecordingSession::CopyDataFile(RecordingDataFile* file, std::string* error)
   }
   file->path = relative_path.generic_string();
   file->size_bytes = static_cast<std::uint64_t>(size);
+  if (file->checksum.empty() && !ComputeFnv1a64(destination, &file->checksum, error)) {
+    std::error_code remove_error;
+    std::filesystem::remove(destination, remove_error);
+    return false;
+  }
   return true;
 }
 

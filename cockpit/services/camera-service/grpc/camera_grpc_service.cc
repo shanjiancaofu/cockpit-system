@@ -57,7 +57,7 @@ void FillHealth(const CameraServiceStatus& status, proto::common::ServiceHealth*
     return;
   }
   if (status.state == CameraPreviewState::kStopped) {
-    health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_DISABLED);
     health->set_message("camera preview stopped");
     return;
   }

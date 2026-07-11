@@ -62,7 +62,7 @@ void FillHealth(const AudioServiceStatus& status, proto::common::ServiceHealth* 
     return;
   }
   if (status.capture_state == AudioCaptureState::kStopped) {
-    health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_DISABLED);
     health->set_message("audio capture stopped");
     return;
   }

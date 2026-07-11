@@ -98,6 +98,16 @@ bool RecordingControlClient::GetTimeline(
   return FinishRpc(stub_->GetTimeline(&context, request, response), error);
 }
 
+bool RecordingControlClient::Verify(const std::string& session_id,
+                                    proto::recording::VerifyRecordingResponse* response,
+                                    std::string* error) {
+  proto::recording::VerifyRecordingRequest request;
+  request.set_session_id(session_id);
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->Verify(&context, request, response), error);
+}
+
 bool RecordingControlClient::Delete(const std::string& session_id, std::string* error) {
   proto::recording::DeleteRecordingRequest request;
   request.set_session_id(session_id);

@@ -111,6 +111,21 @@ memory，reader 会拒绝布局、stride 或 payload 长度不一致的帧。
 拍照请求通过 gRPC 到 camera-service，服务读取共享内存最新帧并用 GStreamer 编码 JPEG；
 camera-ctl 和 Qt UI 都不直接访问摄像头设备。
 
+## 服务健康语义
+
+各长运行服务通过 `ServiceHealth` 暴露统一状态，`cockpit-ctl` 和 Qt Dashboard 复用
+`core/health` 的名称、严重度和健康检查规则：
+
+- `OK`：服务及其核心能力正常。
+- `DISABLED`：能力被配置或控制命令主动关闭，服务本身正常，不视为故障。
+- `DEGRADED`：服务仍可用，但核心输入、依赖或能力部分受损。
+- `UNKNOWN`：尚未取得可信状态，包括 gRPC 不可达；协议中的 `UNSPECIFIED` 也按此状态解释。
+- `FAULTED`：服务已确认进入故障状态，需要恢复或人工处理。
+
+严重度顺序为 `OK < DISABLED < DEGRADED < UNKNOWN < FAULTED`。脚本化 health check 接受
+`OK`、`DISABLED` 和 `DEGRADED`，对 `UNKNOWN`、`FAULTED` 返回失败；状态页仍逐项展示全部状态，
+避免把主动关闭、能力下降和不可达混为一类。
+
 ## 研发录包链路
 
 ```text
@@ -131,6 +146,11 @@ camera/voice/audio metadata
 音频和视频仍以独立文件保存；需要纳入会话保留策略的文件会复制到 `artifacts/`，再写入相对路径
 索引。camera 和 voice 使用有界后台队列投递录包数据，录包服务不可用不会阻塞用户主流程。该服务
 属于研发诊断边界，不接收用户语音动作。
+
+`recording-ctl --verify <session-id>` 通过 gRPC 执行会话完整性诊断，检查 `data_files.jsonl`
+格式、会话内路径边界、文件存在性、普通文件类型、大小和受支持的 checksum。复制到会话的
+artifact 会自动生成 `fnv1a64`，因此可检测内容变化；空 checksum 和暂不支持的算法会明确计入
+unavailable，但不会误报为内容损坏。诊断会汇总全部 issue，CLI 在发现完整性问题时返回退出码 2。
 
 ### 录包时间语义
 

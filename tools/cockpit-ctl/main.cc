@@ -13,6 +13,7 @@
 #include "audio.grpc.pb.h"
 #include "camera.grpc.pb.h"
 #include "cockpit/core/config/system_config.h"
+#include "cockpit/core/health/service_health.h"
 #include "cockpit/core/runtime/Args.h"
 #include "common.pb.h"
 #include "gateway.grpc.pb.h"
@@ -174,17 +175,18 @@ const char* RuntimeModuleStateName(proto::common::RuntimeModuleState state) {
 }
 
 const char* ServiceHealthStateName(proto::common::ServiceHealthState state) {
-  switch (state) {
-    case proto::common::SERVICE_HEALTH_STATE_OK:
-      return "ok";
-    case proto::common::SERVICE_HEALTH_STATE_DEGRADED:
-      return "degraded";
-    case proto::common::SERVICE_HEALTH_STATE_FAULTED:
-      return "faulted";
-    case proto::common::SERVICE_HEALTH_STATE_UNSPECIFIED:
-    default:
-      return "unspecified";
+  return health::StateName(state);
+}
+
+bool CheckHealth(const proto::common::ServiceHealth& value, const char* service_name,
+                 std::string* error) {
+  if (health::PassesHealthCheck(value.state())) {
+    return true;
   }
+  *error = value.message().empty()
+               ? std::string(service_name) + " health is " + ServiceHealthStateName(value.state())
+               : value.message();
+  return false;
 }
 
 void PrintHealth(const proto::common::ServiceHealth& health) {
@@ -384,11 +386,7 @@ bool CheckGateway(const std::string& address, std::string* error) {
     *error = RpcError(status);
     return false;
   }
-  if (gateway.health().state() == proto::common::SERVICE_HEALTH_STATE_FAULTED) {
-    *error = gateway.health().message().empty() ? "gateway faulted" : gateway.health().message();
-    return false;
-  }
-  return true;
+  return CheckHealth(gateway.health(), "gateway", error);
 }
 
 bool CheckAudio(const std::string& address, std::string* error) {
@@ -403,11 +401,7 @@ bool CheckAudio(const std::string& address, std::string* error) {
     *error = RpcError(status);
     return false;
   }
-  if (audio.health().state() == proto::common::SERVICE_HEALTH_STATE_FAULTED) {
-    *error = audio.health().message().empty() ? "audio faulted" : audio.health().message();
-    return false;
-  }
-  return true;
+  return CheckHealth(audio.health(), "audio", error);
 }
 
 bool CheckVoice(const std::string& address, std::string* error) {
@@ -422,11 +416,7 @@ bool CheckVoice(const std::string& address, std::string* error) {
     *error = RpcError(status);
     return false;
   }
-  if (voice.health().state() == proto::common::SERVICE_HEALTH_STATE_FAULTED) {
-    *error = voice.health().message().empty() ? "voice faulted" : voice.health().message();
-    return false;
-  }
-  return true;
+  return CheckHealth(voice.health(), "voice", error);
 }
 
 bool CheckCamera(const std::string& address, std::string* error) {
@@ -441,11 +431,7 @@ bool CheckCamera(const std::string& address, std::string* error) {
     *error = RpcError(status);
     return false;
   }
-  if (camera.health().state() == proto::common::SERVICE_HEALTH_STATE_FAULTED) {
-    *error = camera.health().message().empty() ? "camera faulted" : camera.health().message();
-    return false;
-  }
-  return true;
+  return CheckHealth(camera.health(), "camera", error);
 }
 
 bool CheckRecording(const std::string& address, std::string* error) {
@@ -460,12 +446,7 @@ bool CheckRecording(const std::string& address, std::string* error) {
     *error = RpcError(status);
     return false;
   }
-  if (recording.health().state() == proto::common::SERVICE_HEALTH_STATE_FAULTED) {
-    *error =
-        recording.health().message().empty() ? "recording faulted" : recording.health().message();
-    return false;
-  }
-  return true;
+  return CheckHealth(recording.health(), "recording", error);
 }
 
 using HealthCheck = bool (*)(const std::string&, std::string*);

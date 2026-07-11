@@ -58,6 +58,7 @@ int main() {
   cockpit::recording::RecordingTimelineQuery query;
   query.limit = 10;
   cockpit::recording::RecordingTimelineResult timeline;
+  cockpit::recording::RecordingIntegrityResult integrity;
   const bool result =
       Check(sessions.size() == 1, "completed recording was not cataloged") &&
       Check(service.GetTimeline(sessions.front().session_id, query, &timeline, &error),
@@ -67,7 +68,14 @@ int main() {
       Check(timeline.entries[0].kind == cockpit::recording::RecordingTimelineEntryKind::kEvent,
             "recording event timeline entry mismatch") &&
       Check(timeline.entries[1].kind == cockpit::recording::RecordingTimelineEntryKind::kDataFile,
-            "recording data file timeline entry mismatch");
+            "recording data file timeline entry mismatch") &&
+      Check(service.Verify(sessions.front().session_id, &integrity, &error),
+            "recording integrity verification failed") &&
+      Check(!integrity.healthy, "missing external recording file was reported healthy") &&
+      Check(integrity.issues.size() == 1 &&
+                integrity.issues[0].kind ==
+                    cockpit::recording::RecordingIntegrityIssueKind::kMissingFile,
+            "recording integrity missing file issue mismatch");
   std::filesystem::remove_all(root);
   return result ? 0 : 1;
 }

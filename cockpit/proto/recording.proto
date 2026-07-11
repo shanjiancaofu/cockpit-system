@@ -125,6 +125,41 @@ message GetRecordingTimelineResponse {
   bool truncated = 4;
 }
 
+message VerifyRecordingRequest {
+  string session_id = 1;
+}
+
+enum RecordingIntegrityIssueKind {
+  RECORDING_INTEGRITY_ISSUE_KIND_UNSPECIFIED = 0;
+  RECORDING_INTEGRITY_ISSUE_KIND_INVALID_INDEX = 1;
+  RECORDING_INTEGRITY_ISSUE_KIND_UNSAFE_PATH = 2;
+  RECORDING_INTEGRITY_ISSUE_KIND_MISSING_FILE = 3;
+  RECORDING_INTEGRITY_ISSUE_KIND_NOT_REGULAR_FILE = 4;
+  RECORDING_INTEGRITY_ISSUE_KIND_SIZE_MISMATCH = 5;
+  RECORDING_INTEGRITY_ISSUE_KIND_CHECKSUM_MISMATCH = 6;
+}
+
+message RecordingIntegrityIssue {
+  RecordingIntegrityIssueKind kind = 1;
+  uint64 line_number = 2;
+  string source = 3;
+  string path = 4;
+  string message = 5;
+  uint64 expected_size_bytes = 6;
+  uint64 actual_size_bytes = 7;
+  string expected_checksum = 8;
+  string actual_checksum = 9;
+}
+
+message VerifyRecordingResponse {
+  bool healthy = 1;
+  uint64 index_entries = 2;
+  uint64 files_checked = 3;
+  uint64 checksums_checked = 4;
+  uint64 checksums_unavailable = 5;
+  repeated RecordingIntegrityIssue issues = 6;
+}
+
 message PruneRecordingsResponse {
   uint64 sessions_deleted = 1;
   uint64 bytes_deleted = 2;
@@ -141,6 +176,7 @@ service RecordingControl {
   rpc List(ListRecordingsRequest) returns (ListRecordingsResponse);
   rpc GetDetail(GetRecordingDetailRequest) returns (RecordingSessionDetail);
   rpc GetTimeline(GetRecordingTimelineRequest) returns (GetRecordingTimelineResponse);
+  rpc Verify(VerifyRecordingRequest) returns (VerifyRecordingResponse);
   rpc Delete(DeleteRecordingRequest) returns (cockpit.proto.common.Empty);
   rpc Prune(cockpit.proto.common.Empty) returns (PruneRecordingsResponse);
 }

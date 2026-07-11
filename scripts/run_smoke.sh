@@ -112,11 +112,12 @@ if [[ "${recording_ready}" != "true" ]]; then
   echo "recording-service did not become ready" >&2
   exit 1
 fi
+printf 'smoke artifact\n' >"${recording_directory}/smoke.jpg"
 "${bin_dir}/recording-ctl" --start --trigger smoke --config "${config_path}"
 "${bin_dir}/recording-ctl" --event-topic /dev/smoke-event \
   --event-payload '{"ok":true,"source":"run_smoke"}' --config "${config_path}"
-"${bin_dir}/recording-ctl" --file-path photos/smoke.jpg --file-source camera \
-  --file-kind jpeg --file-size-bytes 128 --file-checksum sha256:smoke --config "${config_path}"
+"${bin_dir}/recording-ctl" --file-path "${recording_directory}/smoke.jpg" --file-source camera \
+  --file-kind jpeg --copy-into-session --config "${config_path}"
 sleep 0.5
 "${bin_dir}/recording-ctl" --config "${config_path}"
 "${bin_dir}/recording-ctl" --stop --config "${config_path}"
@@ -164,6 +165,15 @@ if [[ "${recording_timeline}" != *"kind=event"* || \
       "${recording_timeline}" != *"kind=data_file"* || \
       "${recording_timeline}" != *"kind=vehicle_state"* ]]; then
   echo "recording smoke did not expose the merged timeline" >&2
+  exit 1
+fi
+recording_verification="$(${bin_dir}/recording-ctl --verify "${recording_session_id}" \
+  --config "${config_path}")"
+echo "${recording_verification}"
+if [[ "${recording_verification}" != *"healthy: true"* || \
+      "${recording_verification}" != *"files checked: 1"* || \
+      "${recording_verification}" != *"checksums checked: 1"* ]]; then
+  echo "recording smoke integrity verification failed" >&2
   exit 1
 fi
 "${bin_dir}/recording-ctl" --delete "${recording_session_id}" --config "${config_path}"

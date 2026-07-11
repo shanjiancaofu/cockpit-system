@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "cockpit/modules/recording/recording_catalog.h"
+#include "cockpit/modules/recording/recording_integrity.h"
 #include "cockpit/modules/recording/recording_session.h"
 #include "cockpit/modules/recording/recording_timeline.h"
 #include "vehicle_state.pb.h"
@@ -25,6 +26,8 @@ class RecordingService {
                  std::string* error) const;
   bool GetTimeline(const std::string& session_id, const RecordingTimelineQuery& query,
                    RecordingTimelineResult* result, std::string* error) const;
+  bool Verify(const std::string& session_id, RecordingIntegrityResult* result,
+              std::string* error) const;
   bool Delete(const std::string& session_id, std::string* error);
   bool Prune(RecordingPruneResult* result, std::string* error);
   bool HandleEvent(const RecordingEvent& event, std::string* error);
