@@ -1,4 +1,5 @@
 add_executable(cockpit-ctl
+    commands.cc
     main.cc
 )
 
