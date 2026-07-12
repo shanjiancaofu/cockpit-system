@@ -1,7 +1,7 @@
 # 当前架构概览
 
-本文只描述当前代码已经形成的真实运行架构。长期目标和未落地设计见
-模块完成度见 [实现状态.md](实现状态.md)，近期推进顺序见 [项目进度总览.md](项目进度总览.md)。
+本文只描述当前代码已经形成的真实运行架构。模块完成度见 [实现状态.md](实现状态.md)，近期推进
+顺序见 [项目进度总览.md](项目进度总览.md)。
 
 ## 项目定位
 
@@ -16,7 +16,7 @@ target 和职责目录实现内部模块化，不提前拆分云端前端、后�
 ```text
 tools ───────────────┐
                      ↓
-cockpit/apps → cockpit/services    长运行进程、设备所有权、对外控制接口
+cockpit/apps → cockpit/processes   进程入口、设备所有权、对外控制接口
                          ↓
                    cockpit/modules 平台无关领域模型与处理流程
                          ↓
@@ -34,12 +34,17 @@ cockpit/
 ├── drivers/               Linux/硬件适配
 ├── modules/               audio、camera、recording、vehicle、voice
 ├── proto/                 protobuf/gRPC 契约
-└── services/              车端守护进程
+└── processes/             车端进程入口与装配
 tools/                     诊断和模拟工具
 tests/                     单元测试与 smoke test
 ```
 
 ## 进程职责
+
+系统以进程作为部署和故障边界，以 module 作为进程内代码和生命周期边界。systemd target 选择进程
+组合，`ProcessRuntime` 管理单进程参数、配置、日志和退出信号，`ModuleManager` 只编排具有真实
+启动、停止或线程生命周期的模块。systemd 的 `.service` 和 protobuf 的 `Service` 是操作系统与协议
+术语，不代表采用云端微服务架构。
 
 - `vehicle-data-service`：独占 CAN 或 mock 车辆数据源，发布 `VehicleState`。
 - `cockpit-gateway-service`：聚合车辆状态，向 UI、topic 和语音动作提供数据。
@@ -48,6 +53,9 @@ tests/                     单元测试与 smoke test
 - `voice-interaction-service`：订阅识别文本，执行意图、动作和语音回复编排。
 - `recording-service`：面向研发诊断，订阅车辆状态并管理持久化录包会话。
 - `cloud-uplink-service`：当前为 MQTT 上传占位实现。
+
+正式 `cockpit.target` 启动车辆、gateway、音频、相机和语音交互进程；
+`cockpit-development.target` 额外启动 recording；`cockpit-cloud.target` 单独启用云端占位进程。
 
 ## 通信模型
 
@@ -195,8 +203,8 @@ Jetson CUDA/TensorRT 验证、音视频多源录包、MQTT、WebSocket、视觉 
 
 ## 部署与可靠性边界
 
-systemd 负责进程启动和重启，每个硬件资源只有一个 service owner；UI 崩溃不应关闭设备服务，
-service 重启后 client 应重连，设备权限由部署配置固定。`cloud-uplink-service` 当前仍是可选占位。
+systemd 负责进程启动和重启，每个硬件资源只有一个 process owner；UI 崩溃不应关闭设备进程，
+process 重启后 client 应重连，设备权限由部署配置固定。`cloud-uplink-service` 当前仍是可选占位。
 
 当前已经实现 RAII、有界队列和丢弃指标、gRPC deadline/cancellation、signal stop、配置校验、
 mock/null backend，以及 shared memory 的 name/layout/version/capacity 校验。尚未达到量产要求的部分
@@ -210,7 +218,7 @@ mock/null backend，以及 shared memory 的 name/layout/version/capacity 校验
 
 ## 新代码检查
 
-1. 代码属于 core、module、driver、service、app 还是 tool？
+1. 代码属于 core、module、driver、process、app 还是 tool？
 2. 是否真的需要新进程、目录、target 或抽象？
 3. 数据属于控制消息、小消息还是连续大块数据？
 4. 是否复用现有接口，并保持 UI 不直接访问硬件？

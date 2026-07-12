@@ -8,12 +8,12 @@
 #include "voice_control_client.h"
 
 #include "cockpit/core/logging/logger.h"
-#include "cockpit/core/runtime/service_runtime.h"
+#include "cockpit/core/runtime/process_runtime.h"
 #include "tools/diagnostics/cli_output.h"
 
 namespace {
 
-int Finish(const cockpit::runtime::ServiceRuntime& runtime, int result) {
+int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
   runtime.MarkStopped();
   return result;
 }
@@ -94,7 +94,7 @@ bool PrintMessage(const google::protobuf::Message& message,
 }  // namespace
 
 int cockpit::voice_ctl::Run(int argc, char** argv) {
-  auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "voice-ctl");
+  auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "voice-ctl");
   cockpit::diagnostics::OutputFormat output_format;
   std::string error;
   if (!cockpit::diagnostics::ParseOutputFormat(runtime.args().GetString("output", "text"),

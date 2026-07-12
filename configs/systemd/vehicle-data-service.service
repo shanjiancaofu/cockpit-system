@@ -1,5 +1,5 @@
 [Unit]
-Description=cockpit-system Vehicle Data Service
+Description=cockpit-system Vehicle Data Process
 After=network.target
 
 [Service]

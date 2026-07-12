@@ -25,7 +25,7 @@
 ```text
 tools ───────────────┐
                      ↓
-cockpit/apps → cockpit/services
+cockpit/apps → cockpit/processes
                          ↓
                    cockpit/modules
                          ↓
@@ -37,7 +37,7 @@ cockpit/apps → cockpit/services
 - `cockpit/core`：配置、日志、Runtime、事件和 IPC。
 - `cockpit/drivers`：ALSA、SocketCAN、V4L2。
 - `cockpit/modules`：audio、camera、vehicle、voice 等领域能力。
-- `cockpit/services`：设备所有者和长运行进程。
+- `cockpit/processes`：进程入口、设备所有权和依赖装配。
 - `cockpit/apps`：Qt/QML UI。
 - `tools`：模拟器和诊断工具。
 

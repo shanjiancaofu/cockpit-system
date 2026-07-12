@@ -1,0 +1,14 @@
+[Unit]
+Description=cockpit-system Cloud Uplink Process
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/cockpit-system
+ExecStart=/cockpit-system/current/bin/cloud-uplink-service --config /cockpit-system/config/config.yaml
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=cockpit-cloud.target

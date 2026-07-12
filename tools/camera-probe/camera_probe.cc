@@ -4,12 +4,12 @@
 #include <string>
 #include <vector>
 
-#include "cockpit/core/runtime/service_runtime.h"
+#include "cockpit/core/runtime/process_runtime.h"
 #include "cockpit/drivers/v4l2/v4l2_camera.h"
 
 namespace {
 
-int Finish(const cockpit::runtime::ServiceRuntime& runtime, int result) {
+int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
   runtime.MarkStopped();
   return result;
 }
@@ -50,7 +50,7 @@ void PrintFormats(const std::vector<cockpit::camera::PixelFormatInfo>& formats) 
   }
 }
 
-int ListDevices(const cockpit::runtime::ServiceRuntime& runtime) {
+int ListDevices(const cockpit::runtime::ProcessRuntime& runtime) {
   std::string error;
   const auto devices = cockpit::camera::V4l2Camera::ListDevices(&error);
   if (!error.empty() && devices.empty()) {
@@ -67,7 +67,7 @@ int ListDevices(const cockpit::runtime::ServiceRuntime& runtime) {
   return Finish(runtime, 0);
 }
 
-int ListFormats(const cockpit::runtime::ServiceRuntime& runtime) {
+int ListFormats(const cockpit::runtime::ProcessRuntime& runtime) {
   const std::string device = runtime.args().GetString("device", "/dev/video0");
   std::string error;
   const auto formats = cockpit::camera::V4l2Camera::ListFormats(device, &error);
@@ -86,7 +86,7 @@ int ListFormats(const cockpit::runtime::ServiceRuntime& runtime) {
 }  // namespace
 
 int cockpit::camera_probe::Run(int argc, char** argv) {
-  const auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "camera-probe");
+  const auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "camera-probe");
   if (runtime.args().HasFlag("help")) {
     PrintUsage();
     return Finish(runtime, 0);

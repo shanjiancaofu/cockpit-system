@@ -11,7 +11,7 @@
 - 将损坏 manifest 标记为 `corrupted`，避免单个坏会话阻止服务启动。
 
 本模块不订阅 gRPC、不读取摄像头或音频设备；数据订阅和进程生命周期属于
-`cockpit/services/recording-service`。
+`cockpit/processes/recording`。
 
 `vehicle_state.jsonl` 保存强类型车况数据；`events.jsonl` 保存轻量研发事件，例如相机帧元数据、
 拍照结果、语音识别结果等。大图像、音频和视频文件不直接塞进事件流，后续应通过独立文件或共享内存

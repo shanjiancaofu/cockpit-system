@@ -1,8 +1,7 @@
 [Unit]
-Description=cockpit-system Voice Interaction Service
-After=network.target audio-service.service cockpit-gateway-service.service recording-service.service
+Description=cockpit-system Voice Interaction Process
+After=network.target audio-service.service cockpit-gateway-service.service
 Requires=audio-service.service cockpit-gateway-service.service
-Wants=recording-service.service
 
 [Service]
 Type=simple

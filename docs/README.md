@@ -24,13 +24,13 @@ cockpit/             产品源码根目录
   core/              配置、日志、生命周期和 IPC
   modules/           vehicle、can、audio、camera、voice
   drivers/           SocketCAN、ALSA、V4L2
-  services/          设备所有者和长驻进程
+  processes/         进程入口和依赖装配
   apps/              Qt/QML 车机应用
   proto/             服务间接口契约
 tools/               调试工具、仿真器和 probe
 configs/             运行配置和 systemd 示例
 scripts/deploy/       发布包安装、健康检查和回滚脚本
-tests/                按 core/modules/services/apps/tools 分组的测试
+tests/                按 core/modules/processes/apps/tools 分组的测试
 ```
 
 ## 当前仓库策略

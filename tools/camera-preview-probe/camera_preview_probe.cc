@@ -7,12 +7,12 @@
 #include <mutex>
 #include <string>
 
-#include "cockpit/core/runtime/service_runtime.h"
+#include "cockpit/core/runtime/process_runtime.h"
 #include "cockpit/modules/camera/capture/gstreamer_preview_pipeline.h"
 
 namespace {
 
-int Finish(const cockpit::runtime::ServiceRuntime& runtime, int result) {
+int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
   runtime.MarkStopped();
   return result;
 }
@@ -38,7 +38,7 @@ struct ProbeState {
 }  // namespace
 
 int cockpit::camera_preview_probe::Run(int argc, char** argv) {
-  const auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "camera-preview-probe");
+  const auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "camera-preview-probe");
   if (runtime.args().HasFlag("help")) {
     PrintUsage();
     return Finish(runtime, 0);

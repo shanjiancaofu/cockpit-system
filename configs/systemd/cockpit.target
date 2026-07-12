@@ -1,7 +1,7 @@
 [Unit]
-Description=cockpit-system Core Services
+Description=cockpit-system Core Processes
 Wants=vehicle-data-service.service cockpit-gateway-service.service audio-service.service
-Wants=voice-interaction-service.service camera-service.service recording-service.service
+Wants=voice-interaction-service.service camera-service.service
 After=network.target sound.target
 
 [Install]

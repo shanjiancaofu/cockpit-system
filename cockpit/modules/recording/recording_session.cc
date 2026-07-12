@@ -10,7 +10,7 @@
 #include <utility>
 
 #include "cockpit/core/json/json.h"
-#include "cockpit/core/utils/time.h"
+#include "cockpit/core/time/time.h"
 #include "cockpit/modules/recording/file_checksum.h"
 
 namespace cockpit {
@@ -27,7 +27,7 @@ void AssignError(std::string* error, const std::string& message) {
 }
 
 std::string MakeSessionId() {
-  return std::to_string(utils::NowMs()) + "_" + std::to_string(getpid()) + "_" +
+  return std::to_string(time::NowMs()) + "_" + std::to_string(getpid()) + "_" +
          std::to_string(g_session_sequence.fetch_add(1U));
 }
 
@@ -63,7 +63,7 @@ bool RecordingSession::Start(const std::string& trigger, std::string* error) {
     status_.state = RecordingState::kRecording;
     status_.session_id = MakeSessionId();
     status_.trigger = trigger.empty() ? "manual" : trigger;
-    status_.started_at_ms = utils::NowMs();
+    status_.started_at_ms = time::NowMs();
     temporary_directory_ = sessions_directory / (".recording_" + status_.session_id);
     final_directory_ = sessions_directory / status_.session_id;
     std::filesystem::create_directory(temporary_directory_);
@@ -211,7 +211,7 @@ bool RecordingSession::Stop(std::string* error) {
       AssignError(error, status_.last_error);
       return false;
     }
-    status_.stopped_at_ms = utils::NowMs();
+    status_.stopped_at_ms = time::NowMs();
     if (!WriteManifest(temporary_directory_, "complete", error)) {
       SetError(error == nullptr ? "write recording manifest failed" : *error);
       return false;
@@ -252,7 +252,7 @@ std::size_t RecordingSession::RecoverInterrupted(const std::filesystem::path& ro
       const std::filesystem::path destination =
           sessions_directory / ("interrupted_" + name.substr(std::string(".recording_").size()));
       std::string marker_error;
-      if (!WriteMarker(entry.path() / "INTERRUPTED", utils::NowMs(), &marker_error)) {
+      if (!WriteMarker(entry.path() / "INTERRUPTED", time::NowMs(), &marker_error)) {
         AssignError(error, marker_error);
         return recovered;
       }

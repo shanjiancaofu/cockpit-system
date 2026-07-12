@@ -4,7 +4,7 @@
 #include <mutex>
 #include <utility>
 
-#include "cockpit/core/utils/time.h"
+#include "cockpit/core/time/time.h"
 
 namespace cockpit {
 namespace event {
@@ -86,7 +86,7 @@ bool MessageBus::Publish(EventMessage message) {
     return false;
   }
   if (message.timestamp_ms == 0) {
-    message.timestamp_ms = utils::NowMs();
+    message.timestamp_ms = time::NowMs();
   }
 
   std::lock_guard<std::mutex> lock(mutex_);

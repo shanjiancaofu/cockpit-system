@@ -5,12 +5,12 @@
 
 #include "camera_control_client.h"
 
-#include "cockpit/core/runtime/service_runtime.h"
+#include "cockpit/core/runtime/process_runtime.h"
 #include "tools/diagnostics/cli_output.h"
 
 namespace {
 
-int Finish(const cockpit::runtime::ServiceRuntime& runtime, int result) {
+int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
   runtime.MarkStopped();
   return result;
 }
@@ -81,7 +81,7 @@ bool PrintMessage(const google::protobuf::Message& message,
   return true;
 }
 
-int PrintError(const cockpit::runtime::ServiceRuntime& runtime,
+int PrintError(const cockpit::runtime::ProcessRuntime& runtime,
                cockpit::diagnostics::OutputFormat format, const std::string& error) {
   const std::string message = error.empty() ? "camera control request failed" : error;
   if (format == cockpit::diagnostics::OutputFormat::kJson) {
@@ -93,7 +93,7 @@ int PrintError(const cockpit::runtime::ServiceRuntime& runtime,
                 cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
 }
 
-int PrintArgumentError(const cockpit::runtime::ServiceRuntime& runtime,
+int PrintArgumentError(const cockpit::runtime::ProcessRuntime& runtime,
                        cockpit::diagnostics::OutputFormat format, const std::string& message) {
   if (format == cockpit::diagnostics::OutputFormat::kJson) {
     cockpit::diagnostics::WriteJsonError("invalid_arguments", message, &std::cerr);
@@ -107,7 +107,7 @@ int PrintArgumentError(const cockpit::runtime::ServiceRuntime& runtime,
 }  // namespace
 
 int cockpit::camera_ctl::Run(int argc, char** argv) {
-  const auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "camera-ctl");
+  const auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "camera-ctl");
   cockpit::diagnostics::OutputFormat output_format;
   std::string error;
   if (!cockpit::diagnostics::ParseOutputFormat(runtime.args().GetString("output", "text"),

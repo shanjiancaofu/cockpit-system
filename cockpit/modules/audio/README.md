@@ -16,4 +16,4 @@ audio/
 pipeline 是 consumer；队列满时丢帧并记录指标，不阻塞采集。
 
 本模块不直接打开麦克风或扬声器，ALSA 实现在 `cockpit/drivers/alsa`，进程生命周期在
-`cockpit/services/audio-service`。
+`cockpit/processes/audio`。

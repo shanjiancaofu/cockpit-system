@@ -7,6 +7,6 @@
 - `ipc`：POSIX shared memory 映射生命周期。
 - `logging`：统一日志。
 - `runtime`：参数、信号、服务和模块生命周期。
-- `utils`：时间等小型工具。
+- `time`：主机时间戳。
 
 `core` 不存放车辆、音频、相机、语音或硬件业务代码，也不作为大而全的聚合 target。

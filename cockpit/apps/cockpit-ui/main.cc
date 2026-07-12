@@ -13,13 +13,13 @@
 #include "cockpit/apps/cockpit-ui/health/service_health_model.h"
 #include "cockpit/apps/cockpit-ui/vehicle/gateway_client.h"
 #include "cockpit/apps/cockpit-ui/vehicle/vehicle_state_model.h"
-#include "cockpit/core/runtime/service_runtime.h"
+#include "cockpit/core/runtime/process_runtime.h"
 
 int main(int argc, char** argv) {
   QGuiApplication app(argc, argv);
   QGuiApplication::setApplicationName(QStringLiteral("Smart Cockpit System"));
 
-  auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "cockpit-ui");
+  auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "cockpit-ui");
   cockpit::ui::VehicleStateModel vehicle_state;
   cockpit::ui::GatewayClient gateway_client(runtime.config().services().gateway.grpc.listen_address,
                                             &vehicle_state);

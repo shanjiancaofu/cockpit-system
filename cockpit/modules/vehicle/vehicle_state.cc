@@ -4,7 +4,7 @@
 #include <sstream>
 
 #include "cockpit/core/json/json.h"
-#include "cockpit/core/utils/time.h"
+#include "cockpit/core/time/time.h"
 
 namespace cockpit {
 namespace vehicle {
@@ -23,7 +23,7 @@ std::string VehicleState::ToJson() const {
 
 VehicleState MakeMockVehicleState(int sequence) {
   VehicleState state;
-  state.timestamp_ms = cockpit::utils::NowMs();
+  state.timestamp_ms = cockpit::time::NowMs();
   state.speed_kph = 12.0 + (sequence % 9) * 3.5;
   state.gear = sequence % 4;
   state.soc_percent = 88 - (sequence % 8);

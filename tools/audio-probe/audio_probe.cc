@@ -11,19 +11,19 @@
 #include "audio_control_client.h"
 
 #include "cockpit/core/logging/logger.h"
-#include "cockpit/core/runtime/service_runtime.h"
+#include "cockpit/core/runtime/process_runtime.h"
 #include "cockpit/drivers/alsa/alsa_pcm.h"
 #include "cockpit/modules/audio/wav/wav_file.h"
 #include "tools/diagnostics/cli_output.h"
 
 namespace {
 
-int Finish(const cockpit::runtime::ServiceRuntime& runtime, int result) {
+int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
   runtime.MarkStopped();
   return result;
 }
 
-int ListDevices(const cockpit::runtime::ServiceRuntime& runtime) {
+int ListDevices(const cockpit::runtime::ProcessRuntime& runtime) {
   std::string error;
   const auto devices = cockpit::audio::AlsaPcm::ListDevices(&error);
   if (!error.empty()) {
@@ -47,7 +47,7 @@ int ListDevices(const cockpit::runtime::ServiceRuntime& runtime) {
   return Finish(runtime, 0);
 }
 
-int Capture(const cockpit::runtime::ServiceRuntime& runtime, const std::string& output_path) {
+int Capture(const cockpit::runtime::ProcessRuntime& runtime, const std::string& output_path) {
   const auto& audio_config = runtime.config().hardware().audio;
   cockpit::audio::PcmFormat format;
   format.sample_rate_hz = audio_config.sample_rate_hz;
@@ -112,7 +112,7 @@ int Capture(const cockpit::runtime::ServiceRuntime& runtime, const std::string& 
   return Finish(runtime, 0);
 }
 
-int Play(const cockpit::runtime::ServiceRuntime& runtime, const std::string& input_path) {
+int Play(const cockpit::runtime::ProcessRuntime& runtime, const std::string& input_path) {
   cockpit::audio::PcmBuffer buffer;
   std::string error;
   if (!cockpit::audio::ReadPcm16Wav(input_path, &buffer, &error)) {
@@ -220,7 +220,7 @@ void PrintStatusText(const cockpit::proto::audio::AudioStatus& status) {
   }
 }
 
-int Control(const cockpit::runtime::ServiceRuntime& runtime, const std::string& command,
+int Control(const cockpit::runtime::ProcessRuntime& runtime, const std::string& command,
             cockpit::diagnostics::OutputFormat output_format) {
   const std::string address =
       runtime.args().GetString("address", runtime.config().services().audio.grpc.listen_address);
@@ -256,7 +256,7 @@ int Control(const cockpit::runtime::ServiceRuntime& runtime, const std::string& 
   return Finish(runtime, 0);
 }
 
-int Transcripts(const cockpit::runtime::ServiceRuntime& runtime,
+int Transcripts(const cockpit::runtime::ProcessRuntime& runtime,
                 cockpit::diagnostics::OutputFormat output_format) {
   const std::string address =
       runtime.args().GetString("address", runtime.config().services().audio.grpc.listen_address);
@@ -295,7 +295,7 @@ int Transcripts(const cockpit::runtime::ServiceRuntime& runtime,
   return Finish(runtime, 0);
 }
 
-int Speak(const cockpit::runtime::ServiceRuntime& runtime, const std::string& text) {
+int Speak(const cockpit::runtime::ProcessRuntime& runtime, const std::string& text) {
   const std::string address =
       runtime.args().GetString("address", runtime.config().services().audio.grpc.listen_address);
   cockpit::audio::AudioControlClient client(address);
@@ -324,7 +324,7 @@ void PrintUsage() {
 }  // namespace
 
 int cockpit::audio_probe::Run(int argc, char** argv) {
-  auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "audio-probe");
+  auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "audio-probe");
   cockpit::diagnostics::OutputFormat output_format;
   std::string output_error;
   if (!cockpit::diagnostics::ParseOutputFormat(runtime.args().GetString("output", "text"),

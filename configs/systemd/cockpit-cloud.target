@@ -1,0 +1,8 @@
+[Unit]
+Description=cockpit-system Optional Cloud Processes
+Requires=cockpit.target
+Wants=cloud-uplink-service.service
+After=cockpit.target network-online.target
+
+[Install]
+WantedBy=multi-user.target

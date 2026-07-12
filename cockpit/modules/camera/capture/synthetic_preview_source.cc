@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "cockpit/core/utils/time.h"
+#include "cockpit/core/time/time.h"
 
 namespace cockpit {
 namespace camera {
@@ -98,7 +98,7 @@ void SyntheticPreviewSource::Run() {
 
     CameraFrame frame;
     frame.sequence = ++emitted_frames;
-    frame.timestamp_ms = static_cast<std::uint64_t>(utils::NowMs());
+    frame.timestamp_ms = static_cast<std::uint64_t>(time::NowMs());
     frame.width = config.width;
     frame.height = config.height;
     frame.stride_bytes = stride;

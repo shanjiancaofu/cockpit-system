@@ -1,0 +1,8 @@
+[Unit]
+Description=cockpit-system Development Processes
+Requires=cockpit.target
+Wants=recording-service.service
+After=cockpit.target
+
+[Install]
+WantedBy=multi-user.target

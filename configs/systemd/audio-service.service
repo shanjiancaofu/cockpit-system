@@ -1,5 +1,5 @@
 [Unit]
-Description=cockpit-system Audio Service
+Description=cockpit-system Audio Process
 After=sound.target network.target
 
 [Service]

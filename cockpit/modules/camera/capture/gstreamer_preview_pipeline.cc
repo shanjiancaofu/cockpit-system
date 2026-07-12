@@ -10,7 +10,7 @@
 #include <sstream>
 #include <utility>
 
-#include "cockpit/core/utils/time.h"
+#include "cockpit/core/time/time.h"
 
 namespace cockpit {
 namespace camera {
@@ -246,7 +246,7 @@ int GstreamerPreviewPipeline::HandleNewSample(GstSample* sample) {
 
   CameraFrame frame;
   frame.sequence = sequence;
-  frame.timestamp_ms = static_cast<std::uint64_t>(cockpit::utils::NowMs());
+  frame.timestamp_ms = static_cast<std::uint64_t>(cockpit::time::NowMs());
   frame.width = GST_VIDEO_INFO_WIDTH(&video_info);
   frame.height = GST_VIDEO_INFO_HEIGHT(&video_info);
   frame.stride_bytes = static_cast<std::uint32_t>(GST_VIDEO_INFO_PLANE_STRIDE(&video_info, 0));

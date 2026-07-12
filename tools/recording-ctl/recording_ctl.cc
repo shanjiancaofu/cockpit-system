@@ -6,8 +6,8 @@
 
 #include "recording_control_client.h"
 
-#include "cockpit/core/runtime/service_runtime.h"
-#include "cockpit/core/utils/time.h"
+#include "cockpit/core/runtime/process_runtime.h"
+#include "cockpit/core/time/time.h"
 #include "tools/diagnostics/cli_output.h"
 
 namespace {
@@ -179,7 +179,7 @@ void PrintBatchVerification(
   }
 }
 
-int Finish(const cockpit::runtime::ServiceRuntime& runtime, int result) {
+int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
   runtime.MarkStopped();
   return result;
 }
@@ -209,7 +209,7 @@ std::int64_t ParseInt64(const std::string& value) {
 }  // namespace
 
 int cockpit::recording_ctl::Run(int argc, char** argv) {
-  const auto runtime = cockpit::runtime::ServiceRuntime::Create(argc, argv, "recording-ctl");
+  const auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "recording-ctl");
   cockpit::recording::RecordingControlClient client(
       runtime.config().services().recording.grpc.listen_address);
   cockpit::proto::recording::RecordingStatus status;
@@ -339,10 +339,10 @@ int cockpit::recording_ctl::Run(int argc, char** argv) {
     ok = client.Stop(&status, &error);
   } else if (!event_topic.empty()) {
     const std::string payload = runtime.args().GetString("event-payload", "{}");
-    ok = client.AppendEvent(cockpit::utils::NowMs(), event_topic, payload, &status, &error);
+    ok = client.AppendEvent(cockpit::time::NowMs(), event_topic, payload, &status, &error);
   } else if (!file_path.empty()) {
     cockpit::proto::recording::AppendRecordingDataFileRequest request;
-    request.set_timestamp_ms(cockpit::utils::NowMs());
+    request.set_timestamp_ms(cockpit::time::NowMs());
     request.set_source(runtime.args().GetString("file-source", "manual"));
     request.set_kind(runtime.args().GetString("file-kind", "artifact"));
     request.set_path(file_path);
