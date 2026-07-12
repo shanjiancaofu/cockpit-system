@@ -8,21 +8,21 @@
 `cockpit-system` 是运行在 Jetson/Linux 上的智能座舱车端系统。当前保持单仓库，通过 CMake
 target 和职责目录实现内部模块化，不提前拆分云端前端、后端或共享协议仓库。
 
-项目采用 C++17、CMake、Ninja、protobuf 和 gRPC。`znavigator` 主要作为运行时组织、薄入口、
-独立 target 和模块边界的参考，不照搬动态插件、复杂发布规则和历史兼容结构。
+项目采用 C++17、CMake、Ninja、protobuf 和 gRPC。动态运行时参考 `znavigator` 的配置、连接、
+动态加载和父子进程组织，但使用座舱领域命名，不照搬内部代号、全局业务对象和历史兼容结构。
 
 ## 分层结构
 
 ```text
-tools ───────────────┐
-                     ↓
-cockpit/apps → cockpit/processes   进程入口、设备所有权、对外控制接口
-                         ↓
-                   cockpit/modules 平台无关领域模型与处理流程
-                         ↓
-                   cockpit/drivers Linux/硬件适配
-                         ↓
-                     cockpit/core  通用基础设施
+systemd → cockpit/navigator → cockpit/library   统一入口、子进程、动态业务模块
+                                  ↓
+                           cockpit/modules      进程内领域实现
+                                  ↓
+                           cockpit/drivers      Linux/硬件适配
+                                  ↓
+                             cockpit/core       通用基础设施
+
+cockpit/processes 当前作为尚未迁移的生产进程入口，与新运行时暂时并存。
 ```
 
 主要目录：
@@ -32,19 +32,25 @@ cockpit/
 ├── apps/cockpit-ui/       Qt 6/QML 车机界面
 ├── core/                  通用基础设施
 ├── drivers/               Linux/硬件适配
+├── library/               可由 Navigator 加载的进程级业务模块
 ├── modules/               audio、camera、recording、vehicle、voice
+├── navigator/             统一入口、配置、连接、加载和子进程管理
 ├── proto/                 protobuf/gRPC 契约
-└── processes/             车端进程入口与装配
+└── processes/             迁移期间保留的原车端进程入口
 tools/                     诊断和模拟工具
 tests/                     单元测试与 smoke test
 ```
 
 ## 进程职责
 
-系统以进程作为部署和故障边界，以 module 作为进程内代码和生命周期边界。systemd target 选择进程
-组合，`ProcessRuntime` 管理单进程参数、配置、日志和退出信号，`ModuleManager` 只编排具有真实
-启动、停止或线程生命周期的模块。systemd 的 `.service` 和 protobuf 的 `Service` 是操作系统与协议
-术语，不代表采用云端微服务架构。
+新运行时以 `cockpit-navigator` 作为唯一入口。父进程读取 `navigator.yaml`，按 mode 启动同一
+可执行文件的 `--module-child` 子进程；子进程通过版本化 C ABI 和 `dlopen` 加载一个 `library/*`
+动态库。Navigator 负责模式切换、显式启停、状态查询、崩溃重启限制和退出回收，本地 Unix Socket
+控制接口不依赖 transfer 模块。
+
+现有 `ProcessRuntime` 和 `ModuleManager` 仍服务尚未迁移的进程以及进程内真实生命周期对象，不能
+与 Navigator 管理的进程级动态模块混为一层。当前第一批只完成运行框架和可加载骨架，下面的真实
+车辆、音频、相机、语音和录包职责仍由原 `processes/*` 二进制承担。
 
 - `vehicle-data-service`：独占 CAN 或 mock 车辆数据源，发布 `VehicleState`。
 - `cockpit-gateway-service`：聚合车辆状态，向 UI、topic 和语音动作提供数据。
@@ -56,6 +62,8 @@ tests/                     单元测试与 smoke test
 
 正式 `cockpit.target` 启动车辆、gateway、音频、相机和语音交互进程；
 `cockpit-development.target` 额外启动 recording；`cockpit-cloud.target` 单独启用云端占位进程。
+迁移完成前这些 target 不切换到 Navigator；`cockpit-navigator.service` 仅用于新运行时验证，避免
+骨架模块和原业务进程同时占有硬件。
 
 ## 通信模型
 

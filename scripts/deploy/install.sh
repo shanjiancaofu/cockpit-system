@@ -25,6 +25,15 @@ else
   echo "kept config.yaml; new template written to config.yaml.new"
 fi
 
+if [[ ! -f "${install_root}/config/navigator.yaml" ]]; then
+  install -m 0644 "${package_root}/config/navigator.example.yaml" \
+    "${install_root}/config/navigator.yaml"
+else
+  install -m 0644 "${package_root}/config/navigator.example.yaml" \
+    "${install_root}/config/navigator.yaml.new"
+  echo "kept navigator.yaml; new template written to navigator.yaml.new"
+fi
+
 ln -sfn "releases/${version}" "${install_root}/current.new"
 mv -Tf "${install_root}/current.new" "${install_root}/current"
 

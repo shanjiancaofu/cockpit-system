@@ -1,12 +1,33 @@
+find_package(Threads REQUIRED)
+
 add_executable(cockpit_smoke_test integration/smoke_test.cc)
 target_link_libraries(cockpit_smoke_test PRIVATE can vehicle)
 add_test(NAME cockpit_smoke_test COMMAND cockpit_smoke_test)
+
+add_library(navigator_crash_module MODULE runtime/crash_module.cc)
+target_include_directories(navigator_crash_module PRIVATE ${PROJECT_SOURCE_DIR})
+target_link_libraries(navigator_crash_module PRIVATE Threads::Threads)
+
+add_library(navigator_incompatible_module MODULE runtime/incompatible_module.cc)
+target_include_directories(navigator_incompatible_module PRIVATE ${PROJECT_SOURCE_DIR})
+
+add_executable(navigator_test runtime/navigator_test.cc)
+target_link_libraries(navigator_test PRIVATE navigator_core)
+add_test(NAME navigator_test COMMAND navigator_test
+    $<TARGET_FILE:cockpit-navigator>
+    $<TARGET_FILE:cockpit_module_transfer>
+    $<TARGET_FILE:navigator_crash_module>
+    $<TARGET_FILE:navigator_incompatible_module>
+)
+
+add_executable(run_config_test runtime/run_config_test.cc)
+target_link_libraries(run_config_test PRIVATE navigator_core)
+add_test(NAME run_config_test COMMAND run_config_test)
 
 add_executable(audio_wav_test modules/audio/audio_wav_test.cc)
 target_link_libraries(audio_wav_test PRIVATE audio)
 add_test(NAME audio_wav_test COMMAND audio_wav_test)
 
-find_package(Threads REQUIRED)
 add_executable(audio_frame_buffer_test modules/audio/audio_frame_buffer_test.cc)
 target_link_libraries(audio_frame_buffer_test PRIVATE audio Threads::Threads)
 add_test(NAME audio_frame_buffer_test COMMAND audio_frame_buffer_test)

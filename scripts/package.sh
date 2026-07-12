@@ -49,6 +49,8 @@ cmake --install "${build_dir}" --prefix "${package_root}/release" --component Ru
 
 install -m 0644 "${root_dir}/configs/config.yaml" \
   "${package_root}/config/config.example.yaml"
+install -m 0644 "${root_dir}/configs/navigator.yaml" \
+  "${package_root}/config/navigator.example.yaml"
 cp -a "${root_dir}/configs/systemd/." "${package_root}/systemd/"
 install -m 0755 "${root_dir}"/scripts/deploy/*.sh "${package_root}/deploy/"
 install -m 0644 "${root_dir}/scripts/deploy/THIRD_PARTY_NOTICES.md" \

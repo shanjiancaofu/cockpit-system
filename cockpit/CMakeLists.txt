@@ -2,6 +2,8 @@ add_subdirectory(core)
 add_subdirectory(modules)
 add_subdirectory(drivers)
 add_subdirectory(proto)
+add_subdirectory(navigator)
+add_subdirectory(library)
 
 add_subdirectory(processes/vehicle)
 add_subdirectory(processes/gateway)

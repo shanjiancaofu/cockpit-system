@@ -1,6 +1,7 @@
 include(GNUInstallDirs)
 
 set(cockpit_runtime_targets
+    cockpit-navigator
     audio-service
     camera-service
     cloud-uplink-service

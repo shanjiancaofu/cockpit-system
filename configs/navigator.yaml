@@ -1,0 +1,70 @@
+initial_mode: normal
+socket_path: /tmp/cockpit-navigator.sock
+startup_timeout_ms: 3000
+stop_timeout_ms: 3000
+
+restart:
+  max_attempts: 3
+  window_seconds: 30
+
+modules:
+  - name: transfer
+    library: libtransfer.so
+    config: config.yaml
+  - name: vehicle_driver
+    library: libvehicle_driver.so
+    config: config.yaml
+  - name: audio_driver
+    library: libaudio_driver.so
+    config: config.yaml
+  - name: camera_driver
+    library: libcamera_driver.so
+    config: config.yaml
+  - name: agent
+    library: libagent.so
+    config: config.yaml
+  - name: hmi
+    library: libhmi.so
+    config: config.yaml
+  - name: carupload
+    library: libcarupload.so
+    config: config.yaml
+  - name: recording
+    library: librecording.so
+    config: config.yaml
+  - name: upgrader
+    library: libupgrader.so
+    config: config.yaml
+  - name: debugger
+    library: libdebugger.so
+    config: config.yaml
+  - name: calibration
+    library: libcalibration.so
+    config: config.yaml
+  - name: watchdog
+    library: libwatchdog.so
+    config: config.yaml
+
+modes:
+  normal:
+    - transfer
+    - vehicle_driver
+    - audio_driver
+    - camera_driver
+    - agent
+    - hmi
+    - watchdog
+  development:
+    - transfer
+    - vehicle_driver
+    - audio_driver
+    - camera_driver
+    - agent
+    - hmi
+    - recording
+    - debugger
+    - watchdog
+  upgrade:
+    - hmi
+    - upgrader
+    - watchdog
