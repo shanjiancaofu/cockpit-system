@@ -11,10 +11,22 @@ cockpit_native_arch() {
   esac
 }
 
+cockpit_repo_root() {
+  cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd
+}
+
+cockpit_output_dir() {
+  echo "${COCKPIT_OUTPUT_DIR:-$(cockpit_repo_root)/_output}"
+}
+
 cockpit_default_debug_build_dir() {
-  echo "build/$(cockpit_native_arch)-debug"
+  echo "$(cockpit_output_dir)/build/$(cockpit_native_arch)-debug"
 }
 
 cockpit_default_release_build_dir() {
-  echo "build/$(cockpit_native_arch)-release"
+  echo "$(cockpit_output_dir)/build/$(cockpit_native_arch)-release"
+}
+
+cockpit_default_runtime_dir() {
+  echo "$(cockpit_output_dir)/runtime"
 }

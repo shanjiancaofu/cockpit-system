@@ -4,15 +4,17 @@ set -euo pipefail
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/scripts/lib/build_paths.sh"
 
-build_dir="$(realpath -m "${BUILD_DIR:-${root_dir}/$(cockpit_default_debug_build_dir)}")"
+build_dir="$(realpath -m "${BUILD_DIR:-$(cockpit_default_debug_build_dir)}")"
+runtime_dir="${COCKPIT_RUNTIME_DIR:-$(cockpit_default_runtime_dir)}"
 bin_dir="${build_dir}/bin"
 module_dir="${build_dir}/lib/cockpit/modules"
 source_config="$(realpath "${CONFIG_PATH:-${root_dir}/configs/config.yaml}")"
-run_dir="${build_dir}/navigator-smoke-${BASHPID}"
+run_dir="${runtime_dir}/run/smoke-${BASHPID}"
+export COCKPIT_RUNTIME_DIR="${run_dir}"
 config_path="${run_dir}/config.yaml"
 socket_path="${run_dir}/navigator.sock"
 navigator_log="${run_dir}/navigator.log"
-recording_directory="${run_dir}/data/recordings"
+recording_directory="${COCKPIT_RUNTIME_DIR}/data/recordings"
 expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording)
 if [[ -x "${bin_dir}/cockpit-ui" ]]; then
   expected_modules+=(hmi)
@@ -114,6 +116,7 @@ fi
 sleep 0.1
 "${bin_dir}/audio-probe" --stop --config "${config_path}"
 
+mkdir -p "${recording_directory}"
 printf 'smoke artifact\n' >"${recording_directory}/smoke.jpg"
 "${bin_dir}/recording-ctl" --start --trigger smoke --config "${config_path}"
 "${bin_dir}/recording-ctl" --event-topic /dev/smoke-event \

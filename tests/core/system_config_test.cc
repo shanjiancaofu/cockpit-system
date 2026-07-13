@@ -1,5 +1,6 @@
 #include "cockpit/core/config/system_config.h"
 
+#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -25,6 +26,16 @@ int main() {
       config.runtime().dependencies[1].required.size() != 2 ||
       config.runtime().dependencies[1].optional.size() != 1) {
     std::cerr << "typed config fields do not match config.yaml" << std::endl;
+    return 1;
+  }
+
+  setenv("COCKPIT_RUNTIME_DIR", "/tmp/cockpit-runtime", 1);
+  const auto development_config = cockpit::config::SystemConfig::LoadFromFile(VALID_CONFIG_PATH);
+  unsetenv("COCKPIT_RUNTIME_DIR");
+  if (development_config.paths().data_dir != "/tmp/cockpit-runtime/data" ||
+      development_config.paths().log_dir != "/tmp/cockpit-runtime/logs" ||
+      development_config.tools().topic.dir != "/tmp/cockpit-runtime/logs/topics") {
+    std::cerr << "COCKPIT_RUNTIME_DIR did not override development output paths" << std::endl;
     return 1;
   }
 

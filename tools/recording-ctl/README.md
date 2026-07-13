@@ -3,18 +3,19 @@
 recording-service 的本地控制工具。
 
 ```bash
-build/x86_64-debug/bin/recording-ctl --status --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --start --trigger manual --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --stop --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --list --limit 20 --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --detail <session-id> --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --timeline <session-id> --from-ms 0 --to-ms 0 --limit 100 --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --verify <session-id> --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --verify-all --from-started-ms 0 --to-started-ms 0 --limit 100 --output json --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --delete <session-id> --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --prune --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --event-topic /dev/event --event-payload '{"ok":true}' --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --file-path photos/frame.jpg --file-source camera --file-kind jpeg --copy-into-session --config configs/config.yaml
+export COCKPIT_RUNTIME_DIR="$PWD/_output/runtime"
+_output/build/x86_64-debug/bin/recording-ctl --status --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --start --trigger manual --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --stop --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --list --limit 20 --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --detail <session-id> --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --timeline <session-id> --from-ms 0 --to-ms 0 --limit 100 --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --verify <session-id> --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --verify-all --from-started-ms 0 --to-started-ms 0 --limit 100 --output json --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --delete <session-id> --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --prune --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --event-topic /dev/event --event-payload '{"ok":true}' --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --file-path photos/frame.jpg --file-source camera --file-kind jpeg --copy-into-session --config configs/config.yaml
 ```
 
 `--copy-into-session` 将源文件复制到当前会话的 `artifacts/`，使 retention 统计和清理覆盖文件本体；

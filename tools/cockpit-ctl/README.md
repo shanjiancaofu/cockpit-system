@@ -3,11 +3,12 @@
 聚合查看车端服务状态。
 
 ```bash
-build/bin/cockpit-ctl status --config configs/config.yaml
-build/bin/cockpit-ctl status --watch --interval 2 --config configs/config.yaml
-build/bin/cockpit-ctl health --config configs/config.yaml
-build/bin/cockpit-ctl status --output json --config configs/config.yaml
-build/bin/cockpit-ctl health --output json --config configs/config.yaml
+export COCKPIT_RUNTIME_DIR="$PWD/_output/runtime"
+_output/build/x86_64-debug/bin/cockpit-ctl status --config configs/config.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl status --watch --interval 2 --config configs/config.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl health --config configs/config.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl status --output json --config configs/config.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl health --output json --config configs/config.yaml
 ```
 
 当前汇总 gateway、audio、voice、camera 和 recording。部分服务离线时会立即报告 unavailable，

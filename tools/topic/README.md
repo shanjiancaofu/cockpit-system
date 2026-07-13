@@ -19,8 +19,8 @@ topic pub /dev/test '{"ok":true}'
 - `echo`：输出实时消息。
 - `hz`：计算接收频率。
 
-开发 topic 可以使用 file backend，默认目录是 `logs/topics`。file backend 只用于单机调试，
-不是正式 Runtime MessageBus。
+开发 topic 可以使用 file backend。YAML 默认目录是 `logs/topics`；WSL 脚本设置运行目录覆盖后写入
+`_output/runtime/logs/topics`。file backend 只用于单机调试，不是正式 Runtime MessageBus。
 
 ## 文件组织
 

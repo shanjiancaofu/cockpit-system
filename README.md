@@ -45,6 +45,7 @@ systemd → cockpit/navigator → cockpit/library
 
 ```text
 cockpit-system/
+├── _output/   WSL 构建、打包和运行输出（不入库）
 ├── cockpit/   产品源码
 ├── tools/     诊断与模拟器
 ├── tests/     测试
@@ -81,30 +82,34 @@ bash scripts/run_navigator_stability.sh --duration 300 --interval 5 --fault cras
 构建目录：
 
 ```text
-build/x86_64-debug/
-build/x86_64-release/
-build/arm64-debug/
-build/arm64-release/
+_output/build/x86_64-debug/
+_output/build/x86_64-release/
+_output/build/arm64-debug/
+_output/build/arm64-release/
 ```
+
+WSL 生成物统一放在 `_output/{build,install,runtime}`。可通过 `COCKPIT_OUTPUT_DIR` 修改整个输出根目录；
+运行脚本会自动把日志、数据和报告写入 `_output/runtime`。
 
 ## 常用工具
 
 ```bash
-build/x86_64-debug/bin/topic list --config configs/config.yaml
-build/x86_64-debug/bin/audio-probe --list --config configs/config.yaml
-build/x86_64-debug/bin/camera-probe --list --config configs/config.yaml
-build/x86_64-debug/bin/recording-ctl --start --trigger manual --config configs/config.yaml
-build/x86_64-debug/bin/cockpit-ctl status --config configs/config.yaml
-build/x86_64-debug/bin/cockpit-ctl health --config configs/config.yaml
-build/x86_64-debug/bin/cockpit-ctl runtime status --socket /tmp/cockpit-navigator.sock
+export COCKPIT_RUNTIME_DIR="$PWD/_output/runtime"
+_output/build/x86_64-debug/bin/topic list --config configs/config.yaml
+_output/build/x86_64-debug/bin/audio-probe --list --config configs/config.yaml
+_output/build/x86_64-debug/bin/camera-probe --list --config configs/config.yaml
+_output/build/x86_64-debug/bin/recording-ctl --start --trigger manual --config configs/config.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl status --config configs/config.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl health --config configs/config.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl runtime status --socket /tmp/cockpit-navigator.sock
 ```
 
 启动统一运行时：
 
 ```bash
-build/x86_64-debug/bin/cockpit-navigator \
+_output/build/x86_64-debug/bin/cockpit-navigator \
   --config configs/config.yaml \
-  --module-dir build/x86_64-debug/lib/cockpit/modules
+  --module-dir _output/build/x86_64-debug/lib/cockpit/modules
 ```
 
 运行 Qt UI：
@@ -124,7 +129,7 @@ newgrp video
 随后可执行：
 
 ```bash
-build/x86_64-debug/bin/camera-preview-probe \
+_output/build/x86_64-debug/bin/camera-preview-probe \
   --device /dev/video0 --frames 30 --config configs/config.yaml
 ```
 

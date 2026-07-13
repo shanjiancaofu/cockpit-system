@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${root_dir}/scripts/lib/build_paths.sh"
+
 usage() {
   cat <<'EOF'
 Usage: scripts/build.sh [options] [-- CMake options]
@@ -12,7 +15,8 @@ Options:
   -h, --help            Show this help
 
 Environment:
-  BUILD_DIR             Override build/<arch>-<type>
+  COCKPIT_OUTPUT_DIR    Override the WSL output root (default: _output)
+  BUILD_DIR             Override _output/build/<arch>-<type>
   JETSON_SYSROOT        Jetson root filesystem used for x86_64 -> arm64 builds
   TOOLCHAIN_FILE        Override the ARM64 CMake toolchain file
 EOF
@@ -82,7 +86,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 build_type_name="${build_type,,}"
-build_dir="${BUILD_DIR:-build/${target_arch}-${build_type_name}}"
+output_dir="$(cockpit_output_dir)"
+build_dir="${BUILD_DIR:-${output_dir}/build/${target_arch}-${build_type_name}}"
+export COCKPIT_RUNTIME_DIR="${COCKPIT_RUNTIME_DIR:-${output_dir}/runtime}"
 generator="${CMAKE_GENERATOR:-Ninja}"
 machine_arch="$(normalize_arch "$(uname -m)")"
 cross_compiling=false

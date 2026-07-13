@@ -4,8 +4,10 @@ set -euo pipefail
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/scripts/lib/build_paths.sh"
 
-build_dir="${root_dir}/$(cockpit_default_debug_build_dir)"
+build_dir="$(cockpit_default_debug_build_dir)"
 config_path="${root_dir}/configs/config.yaml"
+runtime_dir="${COCKPIT_RUNTIME_DIR:-$(cockpit_default_runtime_dir)}"
+export COCKPIT_RUNTIME_DIR="${runtime_dir}"
 duration_seconds=30
 interval_seconds=2
 mode="development"
@@ -64,7 +66,7 @@ if [[ ! -x "${bin_dir}/cockpit-navigator" || ! -x "${bin_dir}/cockpit-ctl" ||
 fi
 
 if [[ -z "${output_path}" ]]; then
-  output_path="${build_dir}/navigator-stability-report.json"
+  output_path="${runtime_dir}/reports/navigator-stability-report.json"
 fi
 output_path="$(realpath -m "${output_path}")"
 mkdir -p "$(dirname -- "${output_path}")"
@@ -89,7 +91,7 @@ if [[ "${fault}" != "none" && "${module_expected}" != "true" ]]; then
   exit 2
 fi
 
-run_dir="${build_dir}/navigator-stability-${BASHPID}-${RANDOM}"
+run_dir="${runtime_dir}/run/stability-${BASHPID}-${RANDOM}"
 socket_path="${run_dir}/navigator.sock"
 samples_path="${run_dir}/samples.jsonl"
 navigator_log="${run_dir}/navigator.log"

@@ -20,6 +20,7 @@
 ## 目录放置速查
 
 ```text
+_output/             WSL 构建、打包、日志、数据和报告（不入库）
 cockpit/             产品源码根目录
   core/              配置、日志、生命周期和 IPC
   navigator/         统一入口、运行模式和进程管理

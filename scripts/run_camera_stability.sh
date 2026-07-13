@@ -4,6 +4,7 @@ set -euo pipefail
 source "$(dirname -- "${BASH_SOURCE[0]}")/lib/build_paths.sh"
 
 build_dir="${BUILD_DIR:-$(cockpit_default_debug_build_dir)}"
+export COCKPIT_RUNTIME_DIR="${COCKPIT_RUNTIME_DIR:-$(cockpit_default_runtime_dir)}"
 iterations="${1:-20}"
 
 if ! [[ "${iterations}" =~ ^[1-9][0-9]*$ ]]; then

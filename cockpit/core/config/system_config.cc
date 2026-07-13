@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
+#include <filesystem>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -383,6 +385,14 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.tools_.topic.backend =
       Read(topic, "backend", config.tools_.topic.backend, "tools.topic.backend");
   config.tools_.topic.dir = Read(topic, "dir", config.tools_.topic.dir, "tools.topic.dir");
+
+  const char* runtime_dir = std::getenv("COCKPIT_RUNTIME_DIR");
+  if (runtime_dir != nullptr && runtime_dir[0] != '\0') {
+    const std::filesystem::path runtime_path(runtime_dir);
+    config.paths_.data_dir = (runtime_path / "data").string();
+    config.paths_.log_dir = (runtime_path / "logs").string();
+    config.tools_.topic.dir = (runtime_path / "logs/topics").string();
+  }
 
   const YAML::Node runtime = ChildMap(root, "runtime", "runtime");
   config.runtime_.dependencies =

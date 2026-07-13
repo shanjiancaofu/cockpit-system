@@ -4,9 +4,10 @@ set -euo pipefail
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/scripts/lib/build_paths.sh"
 
-build_dir="${BUILD_DIR:-${root_dir}/$(cockpit_default_release_build_dir)}"
-stage_dir="${STAGE_DIR:-${root_dir}/install/stage}"
-dist_dir="${DIST_DIR:-${root_dir}/install/dist}"
+output_dir="$(cockpit_output_dir)"
+build_dir="${BUILD_DIR:-$(cockpit_default_release_build_dir)}"
+stage_dir="${STAGE_DIR:-${output_dir}/install/stage}"
+dist_dir="${DIST_DIR:-${output_dir}/install/dist}"
 
 if [[ ! -f "${build_dir}/CMakeCache.txt" ]]; then
   echo "CMake build directory not found: ${build_dir}" >&2

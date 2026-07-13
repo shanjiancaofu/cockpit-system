@@ -15,7 +15,9 @@ camera/
 安装 GStreamer development package 后会构建 `gstreamer_camera`：
 
 ```bash
-build/bin/camera-preview-probe --device /dev/video0 --frames 30 --config configs/config.yaml
+export COCKPIT_RUNTIME_DIR="$PWD/_output/runtime"
+_output/build/x86_64-debug/bin/camera-preview-probe \
+  --device /dev/video0 --frames 30 --config configs/config.yaml
 ```
 
 `SyntheticPreviewSource` 提供不依赖摄像头硬件的 BGRx 帧，并支持 no-frames、stall 和 disconnect

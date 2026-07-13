@@ -13,7 +13,8 @@ if [[ "$#" -ne 0 ]]; then
   exit 2
 fi
 
-build_dir="$(realpath -m "${BUILD_DIR:-${root_dir}/$(cockpit_default_debug_build_dir)}")"
+build_dir="$(realpath -m "${BUILD_DIR:-$(cockpit_default_debug_build_dir)}")"
+export COCKPIT_RUNTIME_DIR="${COCKPIT_RUNTIME_DIR:-$(cockpit_default_runtime_dir)}"
 bin_dir="${build_dir}/bin"
 module_dir="${build_dir}/lib/cockpit/modules"
 source_config="$(realpath "${CONFIG_PATH:-${root_dir}/configs/config.yaml}")"
@@ -21,7 +22,7 @@ vehicle_source="${VEHICLE_SOURCE:-mock}"
 camera_device="${CAMERA_DEVICE:-/dev/video0}"
 camera_auto_start="${CAMERA_AUTO_START:-true}"
 camera_required="${CAMERA_REQUIRED:-false}"
-run_dir="${build_dir}/navigator-ui-${BASHPID}"
+run_dir="${COCKPIT_RUNTIME_DIR}/run/ui-${BASHPID}"
 config_path="${run_dir}/config.yaml"
 socket_path="${run_dir}/navigator.sock"
 navigator_log="${run_dir}/navigator.log"
