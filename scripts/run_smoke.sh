@@ -180,7 +180,15 @@ fi
 "${bin_dir}/recording-ctl" --delete "${recording_session_id}" --config "${config_path}"
 
 "${bin_dir}/topic" list --backend grpc --config "${config_path}"
-"${bin_dir}/topic" info /vehicle/state --backend grpc --config "${config_path}"
+topic_info="$("${bin_dir}/topic" info /vehicle/state --backend grpc --config "${config_path}")"
+echo "${topic_info}"
+if [[ "${topic_info}" != *"transport: grpc"* ||
+      "${topic_info}" != *"expected update period ms: 100"* ||
+      "${topic_info}" != *"availability: available"* ||
+      "${topic_info}" != *"error reason: none"* ]]; then
+  echo "topic metadata is incomplete" >&2
+  exit 1
+fi
 "${bin_dir}/topic" echo /vehicle/state --backend grpc --count 1 --config "${config_path}"
 vehicle_response="$("${bin_dir}/voice-ctl" --process "show vehicle status" \
   --config "${config_path}")"

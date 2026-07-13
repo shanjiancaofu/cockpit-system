@@ -24,11 +24,6 @@ void ConfigureContext(grpc::ClientContext* context, int timeout_ms) {
   context->set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(timeout_ms));
 }
 
-TopicMetadata FromProto(const proto::gateway::TopicMetadata& metadata) {
-  return {metadata.name(), metadata.message_type(), metadata.source(), metadata.subscribable(),
-          metadata.publishable()};
-}
-
 int ReportError(const std::string& operation, const grpc::Status& status) {
   std::cerr << operation << " failed: code=" << status.error_code()
             << " message=" << status.error_message() << '\n';
@@ -41,7 +36,7 @@ TopicGrpcDiscovery::TopicGrpcDiscovery(std::string address, int timeout_ms)
     : address_(std::move(address)), timeout_ms_(timeout_ms) {
 }
 
-int TopicGrpcDiscovery::List(std::vector<TopicMetadata>* topics) const {
+int TopicGrpcDiscovery::List(std::vector<proto::gateway::TopicMetadata>* topics) const {
   auto stub = proto::gateway::CockpitGateway::NewStub(CreateChannel(address_));
   grpc::ClientContext context;
   ConfigureContext(&context, timeout_ms_);
@@ -56,12 +51,13 @@ int TopicGrpcDiscovery::List(std::vector<TopicMetadata>* topics) const {
   topics->clear();
   topics->reserve(static_cast<std::size_t>(response.topics_size()));
   for (const auto& metadata : response.topics()) {
-    topics->push_back(FromProto(metadata));
+    topics->push_back(metadata);
   }
   return 0;
 }
 
-int TopicGrpcDiscovery::Get(const std::string& topic, TopicMetadata* metadata) const {
+int TopicGrpcDiscovery::Get(const std::string& topic,
+                            proto::gateway::TopicMetadata* metadata) const {
   auto stub = proto::gateway::CockpitGateway::NewStub(CreateChannel(address_));
   grpc::ClientContext context;
   ConfigureContext(&context, timeout_ms_);
@@ -73,7 +69,7 @@ int TopicGrpcDiscovery::Get(const std::string& topic, TopicMetadata* metadata) c
   if (!status.ok()) {
     return ReportError("topic info", status);
   }
-  *metadata = FromProto(response);
+  *metadata = response;
   return 0;
 }
 

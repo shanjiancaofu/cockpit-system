@@ -1,5 +1,6 @@
 #include "cockpit/library/transfer/transfer_runtime.h"
 
+#include <algorithm>
 #include <exception>
 #include <memory>
 #include <string>
@@ -25,7 +26,7 @@ bool TransferRuntime::Start(const std::string& config_path, int samples, int max
     logging::InitLogger("transfer", system_config.paths().log_dir,
                         logging::ParseLevel(system_config.logging().level),
                         system_config.logging().max_bytes, system_config.logging().mirror_stderr);
-    if (!gateway_service_.Start(gateway_config.grpc.listen_address)) {
+    if (!gateway_service_.Start(gateway_config.grpc.listen_address, std::max(1, 1000 / max_hz))) {
       return false;
     }
     vehicle_client_ = std::make_unique<gateway::VehicleStateClient>(

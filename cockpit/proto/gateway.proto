@@ -18,12 +18,24 @@ message SubscribeCockpitEventsRequest {
   int32 max_hz = 2;
 }
 
+enum TopicAvailability {
+  TOPIC_AVAILABILITY_UNSPECIFIED = 0;
+  TOPIC_AVAILABILITY_AVAILABLE = 1;
+  TOPIC_AVAILABILITY_WAITING_FOR_DATA = 2;
+  TOPIC_AVAILABILITY_STALE = 3;
+}
+
 message TopicMetadata {
   string name = 1;
   string message_type = 2;
   string source = 3;
   bool subscribable = 4;
   bool publishable = 5;
+  string transport = 6;
+  int32 expected_update_period_ms = 7;
+  TopicAvailability availability = 8;
+  int64 last_update_age_ms = 9;
+  string error_reason = 10;
 }
 
 message ListTopicsRequest {

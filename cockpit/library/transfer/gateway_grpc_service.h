@@ -22,7 +22,7 @@ class GatewayGrpcService final : public proto::gateway::CockpitGateway::Service 
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(GatewayGrpcService);
 
-  bool Start(const std::string& address);
+  bool Start(const std::string& address, int expected_update_period_ms);
   void PublishVehicleState(const proto::vehicle::VehicleState& state);
   void Shutdown();
 
@@ -41,6 +41,7 @@ class GatewayGrpcService final : public proto::gateway::CockpitGateway::Service 
   grpc::Status SubscribeCockpitEvents(
       grpc::ServerContext* context, const proto::gateway::SubscribeCockpitEventsRequest* request,
       grpc::ServerWriter<proto::gateway::CockpitEvent>* writer) override;
+  proto::gateway::TopicMetadata VehicleStateMetadata();
 
   std::mutex mutex_;
   std::condition_variable event_changed_;
@@ -48,6 +49,7 @@ class GatewayGrpcService final : public proto::gateway::CockpitGateway::Service 
   std::chrono::steady_clock::time_point latest_vehicle_update_;
   std::uint64_t version_ = 0;
   std::uint64_t events_published_ = 0;
+  int expected_update_period_ms_ = 0;
   bool stopping_ = false;
   std::unique_ptr<grpc::Server> server_;
 };

@@ -12,23 +12,18 @@ namespace {
 
 constexpr auto kVehicleStateFreshTimeout = std::chrono::seconds(2);
 
-proto::gateway::TopicMetadata VehicleStateMetadata() {
-  proto::gateway::TopicMetadata metadata;
-  metadata.set_name("/vehicle/state");
-  metadata.set_message_type("cockpit.proto.vehicle.VehicleState");
-  metadata.set_source("vehicle-data-service");
-  metadata.set_subscribable(true);
-  metadata.set_publishable(false);
-  return metadata;
-}
-
 }  // namespace
 
 GatewayGrpcService::~GatewayGrpcService() {
   Shutdown();
 }
 
-bool GatewayGrpcService::Start(const std::string& address) {
+bool GatewayGrpcService::Start(const std::string& address, int expected_update_period_ms) {
+  if (expected_update_period_ms <= 0) {
+    LOG_ERROR("gateway expected update period must be positive");
+    return false;
+  }
+  expected_update_period_ms_ = expected_update_period_ms;
   grpc::ServerBuilder builder;
   builder.AddListeningPort(address, grpc::InsecureServerCredentials());
   builder.RegisterService(this);
@@ -127,6 +122,36 @@ grpc::Status GatewayGrpcService::GetTopicInfo(grpc::ServerContext*,
   LOG_DEBUG("topic info requested client_id=" + request->client_id() +
             " topic=" + request->topic());
   return grpc::Status::OK;
+}
+
+proto::gateway::TopicMetadata GatewayGrpcService::VehicleStateMetadata() {
+  proto::gateway::TopicMetadata metadata;
+  metadata.set_name("/vehicle/state");
+  metadata.set_message_type("cockpit.proto.vehicle.VehicleState");
+  metadata.set_source("vehicle-data-service");
+  metadata.set_subscribable(true);
+  metadata.set_publishable(false);
+  metadata.set_transport("grpc");
+  metadata.set_expected_update_period_ms(expected_update_period_ms_);
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!latest_event_.has_vehicle_state()) {
+    metadata.set_availability(proto::gateway::TOPIC_AVAILABILITY_WAITING_FOR_DATA);
+    metadata.set_last_update_age_ms(-1);
+    metadata.set_error_reason("vehicle state is not available yet");
+    return metadata;
+  }
+
+  const auto age = std::chrono::steady_clock::now() - latest_vehicle_update_;
+  metadata.set_last_update_age_ms(
+      std::chrono::duration_cast<std::chrono::milliseconds>(age).count());
+  if (age > kVehicleStateFreshTimeout) {
+    metadata.set_availability(proto::gateway::TOPIC_AVAILABILITY_STALE);
+    metadata.set_error_reason("vehicle state is stale");
+  } else {
+    metadata.set_availability(proto::gateway::TOPIC_AVAILABILITY_AVAILABLE);
+  }
+  return metadata;
 }
 
 grpc::Status GatewayGrpcService::SubscribeCockpitEvents(
