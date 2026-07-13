@@ -30,6 +30,10 @@ RunConfig RunConfig::Default() {
       {"cloud", {"transfer", "vehicle_driver", "carupload"}},
       {"upgrade", {"upgrader"}},
   };
+#ifdef COCKPIT_HAS_HMI
+  config.modes.at("normal").push_back("hmi");
+  config.modes.at("development").push_back("hmi");
+#endif
   return config;
 }
 

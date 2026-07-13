@@ -31,9 +31,15 @@ int main() {
     success &= Expect(
         std::find(normal->second.begin(), normal->second.end(), "transfer") != normal->second.end(),
         "normal mode does not contain transfer");
+#ifdef COCKPIT_HAS_HMI
+    success &= Expect(
+        std::find(normal->second.begin(), normal->second.end(), "hmi") != normal->second.end(),
+        "normal mode does not contain hmi");
+#else
     success &= Expect(
         std::find(normal->second.begin(), normal->second.end(), "hmi") == normal->second.end(),
-        "normal mode contains unavailable hmi module");
+        "headless normal mode contains hmi");
+#endif
   }
   const auto cloud = config.modes.find("cloud");
   success &= Expect(cloud != config.modes.end(), "cloud mode is missing");

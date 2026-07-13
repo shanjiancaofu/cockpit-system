@@ -61,7 +61,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 
-option(BUILD_COCKPIT_UI "Build Qt cockpit UI" OFF)
+option(BUILD_COCKPIT_UI "Build Qt cockpit UI" ON)
 option(BUILD_WEB_DASHBOARD "Build web dashboard" OFF)
 option(BUILD_TESTS "Build unit tests" ON)
 option(BUILD_WHISPER_CPP_ASR "Build the optional whisper.cpp ASR provider" OFF)

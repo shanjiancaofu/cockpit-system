@@ -13,6 +13,11 @@ config_path="${run_dir}/config.yaml"
 socket_path="${run_dir}/navigator.sock"
 navigator_log="${run_dir}/navigator.log"
 recording_directory="${run_dir}/data/recordings"
+expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording)
+if [[ -x "${bin_dir}/cockpit-ui" ]]; then
+  expected_modules+=(hmi)
+  export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
+fi
 
 for executable in cockpit-navigator cockpit-ctl audio-probe camera-ctl camera-probe \
   can-simulator recording-ctl topic voice-ctl; do
@@ -73,7 +78,7 @@ if [[ "${runtime_ready}" != "true" ]]; then
 fi
 
 runtime_status="$("${bin_dir}/cockpit-ctl" runtime status --socket "${socket_path}")"
-for module in transfer vehicle_driver audio_driver camera_driver agent recording; do
+for module in "${expected_modules[@]}"; do
   if [[ "${runtime_status}" != *"module=${module} state=running"* ]]; then
     echo "Navigator module ${module} is not running" >&2
     exit 1

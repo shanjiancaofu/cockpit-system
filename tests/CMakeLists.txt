@@ -48,6 +48,17 @@ add_test(NAME navigator_stability_test COMMAND bash
 )
 set_tests_properties(navigator_stability_test PROPERTIES TIMEOUT 30)
 
+if(BUILD_COCKPIT_UI)
+    add_test(NAME hmi_runtime_test COMMAND bash
+        ${CMAKE_CURRENT_SOURCE_DIR}/runtime/hmi_runtime_test.sh
+        $<TARGET_FILE:cockpit-navigator>
+        $<TARGET_FILE:cockpit-ctl>
+        ${CMAKE_BINARY_DIR}/lib/cockpit/modules
+        ${PROJECT_SOURCE_DIR}/configs/config.yaml
+    )
+    set_tests_properties(hmi_runtime_test PROPERTIES TIMEOUT 30)
+endif()
+
 add_executable(audio_wav_test modules/audio/audio_wav_test.cc)
 target_link_libraries(audio_wav_test PRIVATE audio)
 add_test(NAME audio_wav_test COMMAND audio_wav_test)

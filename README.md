@@ -17,6 +17,7 @@
 - 基于最新共享帧的 JPEG 拍照，支持 camera-ctl 和 Qt UI。
 - VehicleState 研发录包、会话清单和异常中断恢复。
 - Qt 6/QML 车辆和相机界面。
+- HMI 动态模块监管 Qt UI 生命周期和崩溃恢复。
 - `cockpit-ctl` 聚合状态和各类 probe/ctl 工具。
 - Navigator 统一入口、动态业务模块、运行模式切换和故障重启限制。
 - Navigator 周期状态/健康采样、受控故障注入和 JSON 稳定性报告。

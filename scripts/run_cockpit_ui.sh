@@ -80,6 +80,11 @@ if [[ "${runtime_ready}" != true ]]; then
   echo "Navigator normal mode did not become ready; see ${navigator_log}" >&2
   exit 1
 fi
+runtime_status="$("${bin_dir}/cockpit-ctl" runtime status --socket "${socket_path}")"
+if [[ "${runtime_status}" != *"module=hmi state=running"* ]]; then
+  echo "Navigator did not start HMI; see ${navigator_log}" >&2
+  exit 1
+fi
 
 if [[ "${camera_required}" == true && ! -e "${camera_device}" ]]; then
   echo "required camera device not found: ${camera_device}" >&2
@@ -108,5 +113,6 @@ if [[ "${camera_auto_start}" == true && -e "${camera_device}" ]]; then
   fi
 fi
 
-echo "cockpit UI connected through Navigator; log: ${navigator_log}"
-"${bin_dir}/cockpit-ui" --config "${config_path}"
+echo "cockpit UI is managed by Navigator; press Ctrl+C to stop; log: ${navigator_log}"
+wait "${navigator_pid}"
+navigator_pid=""

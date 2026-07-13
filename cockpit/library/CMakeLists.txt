@@ -152,7 +152,12 @@ target_link_libraries(agent_runtime PUBLIC
 add_cockpit_module(cockpit_module_agent agent agent/entry.cc)
 target_link_libraries(cockpit_module_agent PRIVATE agent_runtime)
 
+add_library(hmi_runtime STATIC hmi/hmi_runtime.cc)
+target_include_directories(hmi_runtime PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(hmi_runtime PUBLIC config logging)
+
 add_cockpit_module(cockpit_module_hmi hmi hmi/entry.cc)
+target_link_libraries(cockpit_module_hmi PRIVATE hmi_runtime)
 
 add_library(carupload_runtime STATIC carupload/carupload_runtime.cc)
 target_include_directories(carupload_runtime PUBLIC ${PROJECT_SOURCE_DIR})

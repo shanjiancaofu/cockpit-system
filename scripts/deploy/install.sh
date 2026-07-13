@@ -34,6 +34,7 @@ if [[ "${install_systemd}" == "true" ]]; then
     camera-service.service
     cloud-uplink-service.service
     cockpit-gateway-service.service
+    cockpit-ui.service
     recording-service.service
     vehicle-data-service.service
     voice-interaction-service.service
