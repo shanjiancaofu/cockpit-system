@@ -27,6 +27,10 @@ struct UpgradeResult {
 bool ReadUpgradePackageVersion(const std::filesystem::path& package_root, std::string* version,
                                std::string* error);
 bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result);
+bool RecoverInterruptedUpgrade(const std::filesystem::path& install_root, bool* recovered,
+                               std::string* error);
+bool ConfirmUpgrade(const std::filesystem::path& install_root, const std::string& version,
+                    std::string* error);
 bool RollbackUpgrade(const std::filesystem::path& install_root,
                      const std::filesystem::path& previous_release, std::string* error);
 bool WaitForUpgradeHealth(const std::filesystem::path& command,

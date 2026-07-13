@@ -166,6 +166,71 @@ bool ReadRequiredScalar(const YAML::Node& root, const char* key, std::string* va
   return true;
 }
 
+enum class TransactionState {
+  kPrepared,
+  kActivated,
+  kConfirmed,
+};
+
+struct UpgradeTransaction {
+  TransactionState state{TransactionState::kPrepared};
+  std::string version;
+  std::filesystem::path previous_release;
+};
+
+bool SaveTransaction(const std::filesystem::path& path, const UpgradeTransaction& transaction,
+                     std::string* error) {
+  const char* state = "prepared";
+  if (transaction.state == TransactionState::kActivated) {
+    state = "activated";
+  } else if (transaction.state == TransactionState::kConfirmed) {
+    state = "confirmed";
+  }
+  YAML::Emitter output;
+  output << YAML::BeginMap << YAML::Key << "state" << YAML::Value << state << YAML::Key << "version"
+         << YAML::Value << transaction.version << YAML::Key << "previous_release" << YAML::Value
+         << transaction.previous_release.string() << YAML::EndMap;
+  return output.good() ? WriteYaml(path, output, error)
+                       : Fail(error, "serialize upgrade transaction failed");
+}
+
+bool LoadTransaction(const std::filesystem::path& path, UpgradeTransaction* transaction,
+                     std::string* error) {
+  try {
+    const YAML::Node root = YAML::LoadFile(path.string());
+    std::string state;
+    std::string previous_release;
+    if (!root.IsMap() || !ReadRequiredScalar(root, "state", &state, error) ||
+        !ReadRequiredScalar(root, "version", &transaction->version, error) ||
+        !ReadRequiredScalar(root, "previous_release", &previous_release, error)) {
+      return false;
+    }
+    if (!IsValidVersion(transaction->version)) {
+      return Fail(error, "upgrade transaction version is invalid");
+    }
+    transaction->previous_release = previous_release;
+    if (!transaction->previous_release.empty() &&
+        !IsSafeReleaseTarget(transaction->previous_release)) {
+      return Fail(error, "upgrade transaction previous release is unsafe");
+    }
+    if (transaction->previous_release == std::filesystem::path("releases") / transaction->version) {
+      return Fail(error, "upgrade transaction candidate matches previous release");
+    }
+    if (state == "prepared") {
+      transaction->state = TransactionState::kPrepared;
+    } else if (state == "activated") {
+      transaction->state = TransactionState::kActivated;
+    } else if (state == "confirmed") {
+      transaction->state = TransactionState::kConfirmed;
+    } else {
+      return Fail(error, "upgrade transaction state is invalid");
+    }
+    return true;
+  } catch (const std::exception& exception) {
+    return Fail(error, "load upgrade transaction failed: " + std::string(exception.what()));
+  }
+}
+
 }  // namespace
 
 bool ReadUpgradePackageVersion(const std::filesystem::path& package_root, std::string* version,
@@ -225,6 +290,7 @@ bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result) {
 
     const std::filesystem::path install_root = std::filesystem::absolute(request.install_root);
     const std::filesystem::path current = install_root / "current";
+    const std::filesystem::path transaction_path = install_root / "run/upgrade-transaction.yaml";
     const std::filesystem::file_status current_status = std::filesystem::symlink_status(current);
     if (std::filesystem::exists(current_status)) {
       if (!std::filesystem::is_symlink(current_status)) {
@@ -244,18 +310,23 @@ bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result) {
       return false;
     }
 
+    UpgradeTransaction transaction;
+    transaction.version = request.version;
+    transaction.previous_release = result->previous_release;
+    if (!SaveTransaction(transaction_path, transaction, &result->error)) {
+      return false;
+    }
+
     const std::filesystem::path installer = package_root / "deploy/install.sh";
     const int install_result =
         RunProcess({installer.string()}, installer.parent_path(),
                    {{"COCKPIT_ROOT", install_root.string()}, {"INSTALL_SYSTEMD", "false"}});
     if (install_result != 0) {
-      const std::filesystem::path candidate = std::filesystem::path("releases") / request.version;
-      std::error_code cleanup_error;
-      if (std::filesystem::is_symlink(current) &&
-          std::filesystem::read_symlink(current) == candidate) {
-        RollbackUpgrade(install_root, result->previous_release, nullptr);
-      } else {
-        std::filesystem::remove_all(install_root / candidate, cleanup_error);
+      std::string recovery_error;
+      if (!RecoverInterruptedUpgrade(install_root, nullptr, &recovery_error)) {
+        result->error = "package installer failed with exit code " +
+                        std::to_string(install_result) + "; " + recovery_error;
+        return false;
       }
       result->error = "package installer failed with exit code " + std::to_string(install_result);
       return false;
@@ -264,7 +335,18 @@ bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result) {
         std::filesystem::read_symlink(current) !=
             std::filesystem::path("releases") / request.version) {
       result->error = "package installer did not activate expected release";
-      RollbackUpgrade(install_root, result->previous_release, nullptr);
+      std::string recovery_error;
+      if (!RecoverInterruptedUpgrade(install_root, nullptr, &recovery_error)) {
+        result->error += "; " + recovery_error;
+      }
+      return false;
+    }
+    transaction.state = TransactionState::kActivated;
+    if (!SaveTransaction(transaction_path, transaction, &result->error)) {
+      std::string recovery_error;
+      if (!RecoverInterruptedUpgrade(install_root, nullptr, &recovery_error)) {
+        result->error += "; " + recovery_error;
+      }
       return false;
     }
     result->state = UpgradeState::kActivated;
@@ -299,6 +381,9 @@ bool RollbackUpgrade(const std::filesystem::path& install_root,
       if (!IsSafeReleaseTarget(previous_release)) {
         return Fail(error, "previous release symlink target is unsafe");
       }
+      if (!std::filesystem::is_directory(root / previous_release)) {
+        return Fail(error, "previous release directory does not exist");
+      }
       std::filesystem::create_symlink(previous_release, temporary);
       std::filesystem::rename(temporary, current);
     }
@@ -311,6 +396,94 @@ bool RollbackUpgrade(const std::filesystem::path& install_root,
     return true;
   } catch (const std::exception& exception) {
     return Fail(error, "rollback upgrade failed: " + std::string(exception.what()));
+  }
+}
+
+bool RecoverInterruptedUpgrade(const std::filesystem::path& install_root, bool* recovered,
+                               std::string* error) {
+  if (recovered != nullptr) {
+    *recovered = false;
+  }
+  try {
+    const std::filesystem::path root = std::filesystem::absolute(install_root);
+    const std::filesystem::path transaction_path = root / "run/upgrade-transaction.yaml";
+    const std::filesystem::file_status transaction_status =
+        std::filesystem::symlink_status(transaction_path);
+    if (!std::filesystem::exists(transaction_status)) {
+      return true;
+    }
+    if (!std::filesystem::is_regular_file(transaction_status)) {
+      return Fail(error, "upgrade transaction path is not a regular file");
+    }
+
+    UpgradeTransaction transaction;
+    if (!LoadTransaction(transaction_path, &transaction, error)) {
+      return false;
+    }
+    if (transaction.state == TransactionState::kConfirmed) {
+      const std::filesystem::path current = root / "current";
+      const std::filesystem::path candidate =
+          std::filesystem::path("releases") / transaction.version;
+      if (!std::filesystem::is_symlink(current) ||
+          std::filesystem::read_symlink(current) != candidate ||
+          !std::filesystem::is_directory(root / candidate)) {
+        return Fail(error, "confirmed upgrade transaction does not match current release");
+      }
+    } else if (!RollbackUpgrade(root, transaction.previous_release, error)) {
+      return false;
+    }
+
+    std::error_code filesystem_error;
+    if (transaction.state != TransactionState::kConfirmed) {
+      std::filesystem::remove_all(root / "releases" / transaction.version, filesystem_error);
+      if (filesystem_error) {
+        return Fail(error, "remove interrupted release failed: " + filesystem_error.message());
+      }
+    }
+    std::filesystem::remove(transaction_path, filesystem_error);
+    if (filesystem_error) {
+      return Fail(error, "remove upgrade transaction failed: " + filesystem_error.message());
+    }
+    if (recovered != nullptr) {
+      *recovered = true;
+    }
+    return true;
+  } catch (const std::exception& exception) {
+    return Fail(error, "recover interrupted upgrade failed: " + std::string(exception.what()));
+  }
+}
+
+bool ConfirmUpgrade(const std::filesystem::path& install_root, const std::string& version,
+                    std::string* error) {
+  try {
+    const std::filesystem::path root = std::filesystem::absolute(install_root);
+    const std::filesystem::path transaction_path = root / "run/upgrade-transaction.yaml";
+    UpgradeTransaction transaction;
+    if (!LoadTransaction(transaction_path, &transaction, error)) {
+      return false;
+    }
+    if (transaction.state != TransactionState::kActivated || transaction.version != version) {
+      return Fail(error, "active upgrade transaction does not match confirmed version");
+    }
+    const std::filesystem::path expected_release =
+        std::filesystem::path("releases") / transaction.version;
+    const std::filesystem::path current = root / "current";
+    if (!std::filesystem::is_symlink(current) ||
+        std::filesystem::read_symlink(current) != expected_release) {
+      return Fail(error, "confirmed release is not active");
+    }
+
+    transaction.state = TransactionState::kConfirmed;
+    if (!SaveTransaction(transaction_path, transaction, error)) {
+      return false;
+    }
+    std::error_code filesystem_error;
+    std::filesystem::remove(transaction_path, filesystem_error);
+    return filesystem_error
+               ? Fail(error, "remove confirmed transaction failed: " + filesystem_error.message())
+               : true;
+  } catch (const std::exception& exception) {
+    return Fail(error, "confirm upgrade failed: " + std::string(exception.what()));
   }
 }
 

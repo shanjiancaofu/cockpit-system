@@ -35,8 +35,26 @@ make_package() {
 }
 
 install_root="${work_dir}/install"
-mkdir -p "${install_root}/releases/1.0.0"
+mkdir -p "${install_root}/releases/1.0.0" "${install_root}/run"
 ln -s releases/1.0.0 "${install_root}/current"
+
+lock_ready="${work_dir}/lock-ready"
+(
+  exec 9>"${install_root}/run/safe-ota.lock"
+  flock -n 9
+  : >"${lock_ready}"
+  sleep 1
+) &
+lock_pid=$!
+while [[ ! -e "${lock_ready}" ]]; do
+  sleep 0.01
+done
+set +e
+"${safe_ota}" --recover --root "${install_root}"
+lock_result=$?
+set -e
+wait "${lock_pid}"
+[[ "${lock_result}" -eq 1 ]]
 
 package_two="${work_dir}/package-2"
 make_package "${package_two}" 2.0.0
@@ -51,6 +69,25 @@ set -e
 "${safe_ota}" --package "${package_two}" --confirm 2.0.0 --root "${install_root}" \
   --health-command /bin/true --standalone
 [[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
+[[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
+
+mkdir -p "${install_root}/releases/2.1.0"
+printf 'state: prepared\nversion: 2.1.0\nprevious_release: releases/2.0.0\n' \
+  >"${install_root}/run/upgrade-transaction.yaml"
+"${safe_ota}" --recover --root "${install_root}"
+[[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
+[[ ! -e "${install_root}/releases/2.1.0" ]]
+[[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
+
+mkdir -p "${install_root}/releases/2.2.0"
+ln -sfn releases/2.2.0 "${install_root}/current.new"
+mv -Tf "${install_root}/current.new" "${install_root}/current"
+printf 'state: activated\nversion: 2.2.0\nprevious_release: releases/2.0.0\n' \
+  >"${install_root}/run/upgrade-transaction.yaml"
+"${safe_ota}" --recover --root "${install_root}"
+[[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
+[[ ! -e "${install_root}/releases/2.2.0" ]]
+[[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
 
 package_three="${work_dir}/package-3"
 make_package "${package_three}" 3.0.0
@@ -62,6 +99,7 @@ set -e
 [[ "${health_result}" -eq 3 ]]
 [[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
 [[ ! -e "${install_root}/releases/3.0.0" ]]
+[[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
 
 printf 'tampered\n' >>"${package_three}/release/bin/probe"
 set +e
