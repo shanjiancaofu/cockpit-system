@@ -113,6 +113,10 @@ int main(int argc, char** argv) {
   std::string response;
   success &= Expect(WaitFor(socket_path, "module=transfer state=running", &response),
                     "normal mode did not start transfer module");
+  success &= Expect(Send(socket_path, "reload", &response) && response == "OK\n",
+                    "failed to reload active mode");
+  success &= Expect(WaitFor(socket_path, "module=transfer state=running", &response),
+                    "reloaded module is not running");
   const pid_t ctl_pid = fork();
   if (ctl_pid == 0) {
     execl(cockpit_ctl_path.c_str(), cockpit_ctl_path.c_str(), "runtime", "mode", "--socket",

@@ -19,7 +19,7 @@
 - Qt 6/QML 车辆和相机界面。
 - `cockpit-ctl` 聚合状态和各类 probe/ctl 工具。
 - Navigator 统一入口、动态业务模块、运行模式切换和故障重启限制。
-- systemd、Release 打包、健康检查和回滚脚本。
+- systemd、Release 打包，以及 `safe-ota` 校验、安装、健康检查和失败回滚原型。
 
 ## 架构
 

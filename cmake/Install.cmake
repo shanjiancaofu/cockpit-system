@@ -16,6 +16,7 @@ set(cockpit_runtime_targets
     cockpit-ctl
     recording-ctl
     recording-service
+    safe-ota
     topic
     voice-ctl
 )

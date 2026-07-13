@@ -41,6 +41,7 @@ class ProcessManager {
   bool StartModule(const std::string& name, std::string* error);
   bool StopModule(const std::string& name, std::string* error);
   bool RestartModule(const std::string& name, std::string* error);
+  bool Reload(std::string* error);
   void ReapExited();
   void StopAll();
 

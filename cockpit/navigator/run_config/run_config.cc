@@ -28,6 +28,7 @@ RunConfig RunConfig::Default() {
       {"development",
        {"transfer", "vehicle_driver", "audio_driver", "camera_driver", "agent", "recording"}},
       {"cloud", {"transfer", "vehicle_driver", "carupload"}},
+      {"upgrade", {"upgrader"}},
   };
   return config;
 }

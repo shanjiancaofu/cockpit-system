@@ -17,7 +17,7 @@ void PrintUsage() {
             << "  cockpit-ctl status --watch [--interval SEC] [--config configs/config.yaml]\n"
             << "  cockpit-ctl health [--config configs/config.yaml]\n"
             << "  cockpit-ctl dependencies [--config configs/config.yaml]\n"
-            << "  cockpit-ctl runtime status|mode [--socket PATH]\n"
+            << "  cockpit-ctl runtime status|mode|reload [--socket PATH]\n"
             << "  cockpit-ctl runtime switch MODE [--socket PATH]\n"
             << "  cockpit-ctl runtime start|stop|restart MODULE [--socket PATH]\n"
             << "\nOptions:\n"

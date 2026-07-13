@@ -12,13 +12,13 @@ namespace runtime_command {
 
 int Run(int argc, char** argv, const runtime::Args& args) {
   if (argc < 3) {
-    std::cerr << "runtime command requires status, mode, switch, start, stop or restart\n";
+    std::cerr << "runtime command requires status, mode, reload, switch, start, stop or restart\n";
     return diagnostics::ToInt(diagnostics::ExitCode::kInvalidArguments);
   }
 
   const std::string action = argv[2];
   std::string request;
-  if (action == "status" || action == "mode") {
+  if (action == "status" || action == "mode" || action == "reload") {
     request = action;
   } else if (action == "switch" || action == "start" || action == "stop" || action == "restart") {
     if (argc < 4 || std::string(argv[3]).rfind("--", 0) == 0) {

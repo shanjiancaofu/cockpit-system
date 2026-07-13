@@ -172,6 +172,16 @@ bool ProcessManager::RestartModule(const std::string& name, std::string* error) 
   return StartModule(name, error);
 }
 
+bool ProcessManager::Reload(std::string* error) {
+  const std::string mode = mode_;
+  if (mode.empty()) {
+    *error = "runtime mode is not active";
+    return false;
+  }
+  StopAll();
+  return SwitchMode(mode, error);
+}
+
 void ProcessManager::ReapExited() {
   int wait_status = 0;
   while (true) {

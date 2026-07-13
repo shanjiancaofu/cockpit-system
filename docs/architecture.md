@@ -58,11 +58,12 @@ tests/                     单元测试与 smoke test
 - `agent`：订阅识别文本，执行模型、意图、动作和语音回复编排。
 - `recording`：面向研发诊断，订阅车辆状态并管理持久化录包会话。
 - `carupload`：保留原 MQTT 上传占位行为，尚不代表真实云端传输。
+- `upgrader`：在独占的 upgrade mode 中校验并安装候选版本，发布持久化事务结果。
 
 `normal` 启动 transfer、三类 driver 和 agent；`development` 在此基础上增加 recording；`cloud`
-启动 transfer、vehicle_driver 和 carupload。`hmi/upgrader/debugger/calibration/watchdog` 只保留 ABI
-骨架，不进入可运行 mode，手动启动会明确失败。旧 `processes/*` 二进制复用同一 Runtime，仅用于独立
-烟测和迁移兼容，不再由主 systemd target 组合启动。
+启动 transfer、vehicle_driver 和 carupload；`upgrade` 只启动 upgrader，避免安装期间继续占用业务
+资源。`hmi/debugger/calibration/watchdog` 只保留 ABI 骨架，不进入可运行 mode，手动启动会明确失败。
+旧 `processes/*` 二进制复用同一 Runtime，仅用于独立烟测和迁移兼容，不再由主 systemd target 组合启动。
 
 三个 systemd target 分别启动一个 `cockpit-navigator@<mode>.service` 实例，target 之间互斥。
 `ProcessRuntime` 只保留给兼容入口；Navigator 与模块真实业务生命周期不再并列管理同一资源。
@@ -215,6 +216,10 @@ Jetson CUDA/TensorRT 验证、音视频多源录包、MQTT、WebSocket、视觉 
 
 systemd 负责进程启动和重启，每个硬件资源只有一个 process owner；UI 崩溃不应关闭设备进程，
 process 重启后 client 应重连，设备权限由部署配置固定。`cloud-uplink-service` 当前仍是可选占位。
+
+升级控制面由一次性 `safe-ota` 发起：确认候选版本后切换到 `upgrade`，upgrader 校验 SHA256、安装到
+独立版本目录并原子切换 `current`；切回原业务 mode 后执行健康检查，失败则恢复旧 symlink 并让
+Navigator 重新加载旧模块。当前闭环用于 WSL 原型验证，不等同于量产 OTA。
 
 当前已经实现 RAII、有界队列和丢弃指标、gRPC deadline/cancellation、signal stop、配置校验、
 mock/null backend，以及 shared memory 的 name/layout/version/capacity 校验。尚未达到量产要求的部分

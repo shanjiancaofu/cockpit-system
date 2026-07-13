@@ -84,6 +84,10 @@ std::string Navigator::ExecuteCommand(const std::string& command) {
     stop_requested_ = true;
     return "OK\n";
   }
+  if (operation == "reload" && !(input >> trailing)) {
+    std::string error;
+    return process_manager_.Reload(&error) ? "OK\n" : "ERROR " + error + "\n";
+  }
   if (!(input >> argument) || (input >> trailing)) {
     return "ERROR invalid command\n";
   }

@@ -182,7 +182,15 @@ target_link_libraries(recording_runtime PUBLIC
 add_cockpit_module(cockpit_module_recording recording recording/entry.cc)
 target_link_libraries(cockpit_module_recording PRIVATE recording_runtime)
 
+add_library(upgrader_runtime STATIC
+    upgrader/upgrade_transaction.cc
+    upgrader/upgrader_runtime.cc
+)
+target_include_directories(upgrader_runtime PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(upgrader_runtime PUBLIC config logging)
+
 add_cockpit_module(cockpit_module_upgrader upgrader upgrader/entry.cc)
+target_link_libraries(cockpit_module_upgrader PRIVATE upgrader_runtime)
 add_cockpit_module(cockpit_module_debugger debugger debugger/entry.cc)
 add_cockpit_module(cockpit_module_calibration calibration calibration/entry.cc)
 add_cockpit_module(cockpit_module_watchdog watchdog watchdog/entry.cc)

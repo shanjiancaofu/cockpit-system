@@ -42,5 +42,11 @@ int main() {
         std::find(cloud->second.begin(), cloud->second.end(), "carupload") != cloud->second.end(),
         "cloud mode does not contain carupload");
   }
+  const auto upgrade = config.modes.find("upgrade");
+  success &= Expect(upgrade != config.modes.end(), "upgrade mode is missing");
+  if (upgrade != config.modes.end()) {
+    success &= Expect(upgrade->second.size() == 1 && upgrade->second.front() == "upgrader",
+                      "upgrade mode must only contain upgrader");
+  }
   return success ? 0 : 1;
 }

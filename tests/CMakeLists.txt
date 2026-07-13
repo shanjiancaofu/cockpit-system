@@ -28,6 +28,14 @@ add_executable(run_config_test runtime/run_config_test.cc)
 target_link_libraries(run_config_test PRIVATE navigator_core)
 add_test(NAME run_config_test COMMAND run_config_test)
 
+add_test(NAME safe_ota_test COMMAND bash
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime/safe_ota_test.sh
+    $<TARGET_FILE:safe-ota>
+    $<TARGET_FILE:cockpit-navigator>
+    ${CMAKE_BINARY_DIR}/lib/cockpit/modules
+    ${PROJECT_SOURCE_DIR}
+)
+
 add_executable(audio_wav_test modules/audio/audio_wav_test.cc)
 target_link_libraries(audio_wav_test PRIVATE audio)
 add_test(NAME audio_wav_test COMMAND audio_wav_test)
