@@ -17,6 +17,7 @@ class ModuleLoader {
 
   bool Load(const std::string& path, const std::string& expected_name, std::string* error);
   int Start(const std::string& config_path) const;
+  int Poll() const;
   void Stop() const;
   void Unload();
 

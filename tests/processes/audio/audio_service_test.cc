@@ -1,4 +1,4 @@
-#include "cockpit/processes/audio/processing/audio_service.h"
+#include "cockpit/library/driver/audio/processing/audio_service.h"
 
 #include <atomic>
 #include <chrono>

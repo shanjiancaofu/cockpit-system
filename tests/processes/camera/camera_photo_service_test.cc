@@ -1,4 +1,4 @@
-#include "cockpit/processes/camera/photo/camera_photo_service.h"
+#include "cockpit/library/driver/camera/photo/camera_photo_service.h"
 
 #include <unistd.h>
 

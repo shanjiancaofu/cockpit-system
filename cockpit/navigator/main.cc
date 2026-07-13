@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 
+#include "cockpit/core/config/system_config.h"
 #include "cockpit/core/logging/logger.h"
 #include "cockpit/core/runtime/args.h"
 #include "cockpit/navigator/connection/ipc_connector.h"
@@ -27,7 +28,7 @@ std::string ExecutablePath() {
 void PrintUsage() {
   std::cout << "Usage:\n"
             << "  cockpit-navigator [--config PATH] [--module-dir PATH] [--mode NAME]\n"
-            << "  cockpit-navigator --command COMMAND [--config PATH] [--socket PATH]\n";
+            << "  cockpit-navigator --command COMMAND [--socket PATH]\n";
 }
 
 }  // namespace
@@ -44,8 +45,8 @@ int main(int argc, char** argv) {
       return 0;
     }
 
-    cockpit::logging::InitLogger("cockpit-navigator", "logs");
     if (args.HasFlag("module-child")) {
+      cockpit::logging::InitLogger("cockpit-navigator", "logs");
       const std::string name = args.GetString("module", "");
       const std::string library = args.GetString("library", "");
       if (name.empty() || library.empty()) {
@@ -56,8 +57,7 @@ int main(int argc, char** argv) {
                                                 args.GetInt("ready-fd", -1));
     }
 
-    const std::string config_path = args.GetString("config", "configs/navigator.yaml");
-    RunConfig config = RunConfig::LoadFromFile(config_path);
+    RunConfig config = RunConfig::Default();
     const std::string socket_path = args.GetString("socket", config.socket_path);
     const std::string command = args.GetString("command", "");
     if (!command.empty()) {
@@ -71,6 +71,13 @@ int main(int argc, char** argv) {
       return response.rfind("OK", 0) == 0 ? 0 : 1;
     }
 
+    const std::string config_path = args.GetString("config", "configs/config.yaml");
+    const auto system_config = cockpit::config::SystemConfig::LoadFromFile(config_path);
+    cockpit::logging::InitLogger("cockpit-navigator", system_config.paths().log_dir,
+                                 cockpit::logging::ParseLevel(system_config.logging().level),
+                                 system_config.logging().max_bytes,
+                                 system_config.logging().mirror_stderr);
+    config.socket_path = socket_path;
     const std::string mode = args.GetString("mode", "");
     if (!mode.empty()) {
       config.initial_mode = mode;
@@ -82,7 +89,8 @@ int main(int argc, char** argv) {
     const std::string default_module_dir =
         (executable.parent_path().parent_path() / "lib/cockpit/modules").string();
     cockpit::navigator::Navigator navigator(std::move(config), executable.string(),
-                                            args.GetString("module-dir", default_module_dir));
+                                            args.GetString("module-dir", default_module_dir),
+                                            config_path);
     return navigator.Run();
   } catch (const std::exception& error) {
     std::cerr << "cockpit-navigator: " << error.what() << '\n';

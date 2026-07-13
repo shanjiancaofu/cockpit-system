@@ -14,15 +14,15 @@ target 和职责目录实现内部模块化，不提前拆分云端前端、后�
 ## 分层结构
 
 ```text
-systemd → cockpit/navigator → cockpit/library   统一入口、子进程、动态业务模块
-                                  ↓
-                           cockpit/modules      进程内领域实现
-                                  ↓
-                           cockpit/drivers      Linux/硬件适配
-                                  ↓
-                             cockpit/core       通用基础设施
-
-cockpit/processes 当前作为尚未迁移的生产进程入口，与新运行时暂时并存。
+systemd → cockpit-navigator                 唯一长运行入口
+              ↓ fork + exec
+         module child → cockpit/library    进程级动态业务模块
+                              ↓
+                       cockpit/modules     进程内领域实现
+                              ↓
+                       cockpit/drivers     Linux/硬件适配
+                              ↓
+                         cockpit/core      通用基础设施
 ```
 
 主要目录：
@@ -36,34 +36,36 @@ cockpit/
 ├── modules/               audio、camera、recording、vehicle、voice
 ├── navigator/             统一入口、配置、连接、加载和子进程管理
 ├── proto/                 protobuf/gRPC 契约
-└── processes/             迁移期间保留的原车端进程入口
+└── processes/             独立烟测和兼容部署使用的薄入口
 tools/                     诊断和模拟工具
 tests/                     单元测试与 smoke test
 ```
 
 ## 进程职责
 
-新运行时以 `cockpit-navigator` 作为唯一入口。父进程读取 `navigator.yaml`，按 mode 启动同一
-可执行文件的 `--module-child` 子进程；子进程通过版本化 C ABI 和 `dlopen` 加载一个 `library/*`
+`cockpit-navigator` 是车端唯一长运行入口。进程级模块表和 mode 组合固定在
+`navigator/run_config/run_config.cc`，不由业务 YAML 暴露动态库路径。父进程只把统一的
+`config.yaml` 路径传给 module child；子进程通过版本化 C ABI 和 `dlopen` 加载一个 `library/*`
 动态库。Navigator 负责模式切换、显式启停、状态查询、崩溃重启限制和退出回收，本地 Unix Socket
 控制接口不依赖 transfer 模块。
 
-现有 `ProcessRuntime` 和 `ModuleManager` 仍服务尚未迁移的进程以及进程内真实生命周期对象，不能
-与 Navigator 管理的进程级动态模块混为一层。当前第一批只完成运行框架和可加载骨架，下面的真实
-车辆、音频、相机、语音和录包职责仍由原 `processes/*` 二进制承担。
+当前已经迁入真实 Runtime 的进程级模块：
 
-- `vehicle-data-service`：独占 CAN 或 mock 车辆数据源，发布 `VehicleState`。
-- `cockpit-gateway-service`：聚合车辆状态，向 UI、topic 和语音动作提供数据。
-- `audio-service`：独占麦克风和扬声器，运行采集、VAD、分段、ASR 和 TTS 播放。
-- `camera-service`：独占摄像头，负责预览生命周期和共享内存写入。
-- `voice-interaction-service`：订阅识别文本，执行意图、动作和语音回复编排。
-- `recording-service`：面向研发诊断，订阅车辆状态并管理持久化录包会话。
-- `cloud-uplink-service`：当前为 MQTT 上传占位实现。
+- `vehicle_driver`：独占 CAN 或 mock 车辆数据源，发布 `VehicleState`。
+- `transfer`：聚合车辆状态，向 UI、topic 和语音动作提供数据。
+- `audio_driver`：独占麦克风和扬声器，运行采集、VAD、分段、ASR 和 TTS 播放。
+- `camera_driver`：独占摄像头，负责预览生命周期和共享内存写入。
+- `agent`：订阅识别文本，执行模型、意图、动作和语音回复编排。
+- `recording`：面向研发诊断，订阅车辆状态并管理持久化录包会话。
+- `carupload`：保留原 MQTT 上传占位行为，尚不代表真实云端传输。
 
-正式 `cockpit.target` 启动车辆、gateway、音频、相机和语音交互进程；
-`cockpit-development.target` 额外启动 recording；`cockpit-cloud.target` 单独启用云端占位进程。
-迁移完成前这些 target 不切换到 Navigator；`cockpit-navigator.service` 仅用于新运行时验证，避免
-骨架模块和原业务进程同时占有硬件。
+`normal` 启动 transfer、三类 driver 和 agent；`development` 在此基础上增加 recording；`cloud`
+启动 transfer、vehicle_driver 和 carupload。`hmi/upgrader/debugger/calibration/watchdog` 只保留 ABI
+骨架，不进入可运行 mode，手动启动会明确失败。旧 `processes/*` 二进制复用同一 Runtime，仅用于独立
+烟测和迁移兼容，不再由主 systemd target 组合启动。
+
+三个 systemd target 分别启动一个 `cockpit-navigator@<mode>.service` 实例，target 之间互斥。
+`ProcessRuntime` 只保留给兼容入口；Navigator 与模块真实业务生命周期不再并列管理同一资源。
 
 ## 通信模型
 

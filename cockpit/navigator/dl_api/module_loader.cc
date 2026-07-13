@@ -49,6 +49,10 @@ int ModuleLoader::Start(const std::string& config_path) const {
   return api_->start(config_path.c_str());
 }
 
+int ModuleLoader::Poll() const {
+  return api_->poll == nullptr ? 0 : api_->poll();
+}
+
 void ModuleLoader::Stop() const {
   api_->stop();
 }

@@ -1,23 +1,22 @@
-#include "vehicle_data_service.h"
-#include "vehicle_grpc_service.h"
+#include <chrono>
+#include <thread>
 
 #include "cockpit/core/runtime/process_runtime.h"
+#include "cockpit/library/driver/vehicle/vehicle_runtime.h"
 
 int main(int argc, char** argv) {
   auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "vehicle-data-service");
-  cockpit::vehicle::VehicleGrpcService grpc_service;
-  const std::string& grpc_address = runtime.config().services().vehicle_data.grpc.listen_address;
-  if (!grpc_service.Start(grpc_address)) {
+  cockpit::vehicle::VehicleRuntime vehicle;
+  if (!vehicle.Start(runtime.config_path(), runtime.args().GetString("source", ""),
+                     runtime.args().GetInt("samples", 5), runtime.args().HasFlag("forever"))) {
     runtime.MarkStopped();
     return 1;
   }
-
-  cockpit::vehicle::VehicleDataService service(
-      runtime, [&grpc_service](const cockpit::vehicle::VehicleState& state) {
-        grpc_service.Publish(state);
-      });
-  const int result = service.Run();
-  grpc_service.Shutdown();
+  while (!runtime.ShouldStop() && vehicle.Poll() == 0) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  const int result = runtime.ShouldStop() ? 0 : vehicle.Poll();
+  vehicle.Stop();
   runtime.MarkStopped();
   return result;
 }

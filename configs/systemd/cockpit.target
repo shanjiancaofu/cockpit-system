@@ -1,7 +1,7 @@
 [Unit]
-Description=cockpit-system Core Processes
-Wants=vehicle-data-service.service cockpit-gateway-service.service audio-service.service
-Wants=voice-interaction-service.service camera-service.service
+Description=cockpit-system Normal Mode
+Wants=cockpit-navigator@normal.service
+Conflicts=cockpit-development.target cockpit-cloud.target
 After=network.target sound.target
 
 [Install]

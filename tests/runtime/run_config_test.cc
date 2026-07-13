@@ -1,11 +1,7 @@
 #include "cockpit/navigator/run_config/run_config.h"
 
-#include <unistd.h>
-
-#include <filesystem>
-#include <fstream>
+#include <algorithm>
 #include <iostream>
-#include <stdexcept>
 #include <string>
 
 namespace {
@@ -21,47 +17,30 @@ bool Expect(bool condition, const char* message) {
 }  // namespace
 
 int main() {
-  const std::filesystem::path test_dir = std::filesystem::temp_directory_path() /
-                                         ("cockpit-run-config-test-" + std::to_string(getpid()));
-  std::filesystem::create_directories(test_dir);
-
-  const std::filesystem::path valid_path = test_dir / "valid.yaml";
-  std::ofstream valid(valid_path);
-  valid << "initial_mode: normal\n"
-        << "socket_path: /tmp/navigator-test.sock\n"
-        << "modules:\n"
-        << "  - name: transfer\n"
-        << "    library: libtransfer.so\n"
-        << "    config: system.yaml\n"
-        << "modes:\n"
-        << "  normal: [transfer]\n";
-  valid.close();
-
-  const cockpit::navigator::RunConfig config =
-      cockpit::navigator::RunConfig::LoadFromFile(valid_path.string());
+  const cockpit::navigator::RunConfig config = cockpit::navigator::RunConfig::Default();
   bool success = true;
-  success &= Expect(config.initial_mode == "normal", "initial mode mismatch");
-  success &= Expect(config.modules.size() == 1, "module count mismatch");
-  success &= Expect(config.modules[0].config_path == (test_dir / "system.yaml").string(),
-                    "relative module config path was not resolved");
+  success &= Expect(config.initial_mode == "normal", "default mode mismatch");
+  success &= Expect(config.FindModule("transfer") != nullptr, "transfer module is missing");
+  success &= Expect(config.FindModule("carupload") != nullptr, "carupload module is missing");
+  success &= Expect(config.FindModule("upgrader") != nullptr, "upgrader skeleton is missing");
+  success &= Expect(config.FindModule("missing") == nullptr, "unknown module was resolved");
 
-  const std::filesystem::path invalid_path = test_dir / "invalid.yaml";
-  std::ofstream invalid(invalid_path);
-  invalid << "initial_mode: normal\n"
-          << "socket_path: /tmp/navigator-test.sock\n"
-          << "modules:\n"
-          << "  - name: transfer\n"
-          << "    library: libtransfer.so\n"
-          << "modes:\n"
-          << "  normal: [missing]\n";
-  invalid.close();
-
-  try {
-    cockpit::navigator::RunConfig::LoadFromFile(invalid_path.string());
-    success &= Expect(false, "unknown mode module was accepted");
-  } catch (const std::runtime_error&) {
+  const auto normal = config.modes.find("normal");
+  success &= Expect(normal != config.modes.end(), "normal mode is missing");
+  if (normal != config.modes.end()) {
+    success &= Expect(
+        std::find(normal->second.begin(), normal->second.end(), "transfer") != normal->second.end(),
+        "normal mode does not contain transfer");
+    success &= Expect(
+        std::find(normal->second.begin(), normal->second.end(), "hmi") == normal->second.end(),
+        "normal mode contains unavailable hmi module");
   }
-
-  std::filesystem::remove_all(test_dir);
+  const auto cloud = config.modes.find("cloud");
+  success &= Expect(cloud != config.modes.end(), "cloud mode is missing");
+  if (cloud != config.modes.end()) {
+    success &= Expect(
+        std::find(cloud->second.begin(), cloud->second.end(), "carupload") != cloud->second.end(),
+        "cloud mode does not contain carupload");
+  }
   return success ? 0 : 1;
 }

@@ -1,4 +1,4 @@
-#include "cockpit/processes/interaction/interaction/voice_interaction_service.h"
+#include "cockpit/library/agent/interaction/voice_interaction_service.h"
 
 #include <chrono>
 #include <condition_variable>

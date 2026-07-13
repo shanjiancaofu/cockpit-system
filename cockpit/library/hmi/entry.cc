@@ -2,7 +2,7 @@
 
 namespace {
 int Start(const char*) {
-  return 0;
+  return 1;
 }
 void Stop() {
 }

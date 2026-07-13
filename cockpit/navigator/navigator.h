@@ -11,7 +11,8 @@ namespace navigator {
 
 class Navigator {
  public:
-  Navigator(RunConfig config, std::string executable_path, std::string module_dir);
+  Navigator(RunConfig config, std::string executable_path, std::string module_dir,
+            std::string module_config_path);
 
   int Run();
 

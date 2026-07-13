@@ -1,3 +1,5 @@
+#include "cockpit/navigator/navigator.h"
+
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -9,6 +11,7 @@
 #include <thread>
 
 #include "cockpit/navigator/connection/ipc_connector.h"
+#include "cockpit/navigator/run_config/run_config.h"
 
 namespace {
 
@@ -55,8 +58,8 @@ int RunModuleChild(const std::string& navigator_path, const std::string& module_
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 5) {
-    std::cerr << "expected navigator, good, crash and incompatible module paths\n";
+  if (argc != 6) {
+    std::cerr << "expected navigator, module and cockpit-ctl paths\n";
     return 1;
   }
 
@@ -64,11 +67,11 @@ int main(int argc, char** argv) {
   const std::string good_module = argv[2];
   const std::string crash_module = argv[3];
   const std::string incompatible_module = argv[4];
+  const std::string cockpit_ctl_path = argv[5];
   const std::filesystem::path test_dir = std::filesystem::temp_directory_path() /
                                          ("cockpit-navigator-test-" + std::to_string(getpid()));
   std::filesystem::create_directories(test_dir);
   const std::string socket_path = (test_dir / "navigator.sock").string();
-  const std::string config_path = (test_dir / "navigator.yaml").string();
 
   std::ofstream socket_blocker(socket_path);
   socket_blocker << "do not remove";
@@ -82,37 +85,45 @@ int main(int argc, char** argv) {
       Expect(std::filesystem::is_regular_file(socket_path), "navigator removed a non-socket path");
   std::filesystem::remove(socket_path);
 
-  std::ofstream config(config_path);
-  config << "initial_mode: normal\n"
-         << "socket_path: " << socket_path << "\n"
-         << "startup_timeout_ms: 500\n"
-         << "stop_timeout_ms: 500\n"
-         << "restart:\n"
-         << "  max_attempts: 2\n"
-         << "  window_seconds: 10\n"
-         << "modules:\n"
-         << "  - name: transfer\n"
-         << "    library: " << good_module << "\n"
-         << "  - name: crash\n"
-         << "    library: " << crash_module << "\n"
-         << "  - name: incompatible\n"
-         << "    library: " << incompatible_module << "\n"
-         << "modes:\n"
-         << "  normal: [transfer]\n"
-         << "  development: [transfer, crash]\n"
-         << "  broken: [incompatible]\n";
-  config.close();
+  cockpit::navigator::RunConfig config;
+  config.initial_mode = "normal";
+  config.socket_path = socket_path;
+  config.startup_timeout_ms = 500;
+  config.stop_timeout_ms = 500;
+  config.max_restarts = 2;
+  config.restart_window_seconds = 10;
+  config.modules = {
+      {"transfer", good_module},
+      {"crash", crash_module},
+      {"incompatible", incompatible_module},
+  };
+  config.modes = {
+      {"normal", {"transfer"}},
+      {"development", {"transfer", "crash"}},
+      {"broken", {"incompatible"}},
+  };
 
   const pid_t navigator_pid = fork();
   if (navigator_pid == 0) {
-    execl(navigator_path.c_str(), navigator_path.c_str(), "--config", config_path.c_str(),
-          "--module-dir", test_dir.c_str(), static_cast<char*>(nullptr));
-    _exit(127);
+    cockpit::navigator::Navigator navigator(std::move(config), navigator_path, test_dir.string(),
+                                            "");
+    _exit(navigator.Run());
   }
 
   std::string response;
   success &= Expect(WaitFor(socket_path, "module=transfer state=running", &response),
                     "normal mode did not start transfer module");
+  const pid_t ctl_pid = fork();
+  if (ctl_pid == 0) {
+    execl(cockpit_ctl_path.c_str(), cockpit_ctl_path.c_str(), "runtime", "mode", "--socket",
+          socket_path.c_str(), static_cast<char*>(nullptr));
+    _exit(127);
+  }
+  int ctl_status = 0;
+  while (waitpid(ctl_pid, &ctl_status, 0) < 0) {
+  }
+  success &= Expect(WIFEXITED(ctl_status) && WEXITSTATUS(ctl_status) == 0,
+                    "cockpit-ctl runtime mode failed");
   success &= Expect(Send(socket_path, "switch development", &response) && response == "OK\n",
                     "failed to switch to development mode");
   success &= Expect(WaitFor(socket_path, "module=crash state=failed", &response),

@@ -5,8 +5,8 @@ root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/scripts/lib/build_paths.sh"
 
 build_dir="${BUILD_DIR:-${root_dir}/$(cockpit_default_release_build_dir)}"
-stage_dir="${STAGE_DIR:-${root_dir}/stage}"
-dist_dir="${DIST_DIR:-${root_dir}/dist}"
+stage_dir="${STAGE_DIR:-${root_dir}/install/stage}"
+dist_dir="${DIST_DIR:-${root_dir}/install/dist}"
 
 if [[ ! -f "${build_dir}/CMakeCache.txt" ]]; then
   echo "CMake build directory not found: ${build_dir}" >&2
@@ -49,8 +49,6 @@ cmake --install "${build_dir}" --prefix "${package_root}/release" --component Ru
 
 install -m 0644 "${root_dir}/configs/config.yaml" \
   "${package_root}/config/config.example.yaml"
-install -m 0644 "${root_dir}/configs/navigator.yaml" \
-  "${package_root}/config/navigator.example.yaml"
 cp -a "${root_dir}/configs/systemd/." "${package_root}/systemd/"
 install -m 0755 "${root_dir}"/scripts/deploy/*.sh "${package_root}/deploy/"
 install -m 0644 "${root_dir}/scripts/deploy/THIRD_PARTY_NOTICES.md" \

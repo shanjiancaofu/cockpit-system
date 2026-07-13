@@ -1,0 +1,392 @@
+#include "cockpit/library/recording/recording_grpc_service.h"
+
+#include "cockpit/core/logging/logger.h"
+#include "cockpit/core/time/time.h"
+
+namespace cockpit {
+namespace recording {
+namespace {
+
+proto::recording::RecordingState ToProtoState(RecordingState state) {
+  switch (state) {
+    case RecordingState::kIdle:
+      return proto::recording::RECORDING_STATE_IDLE;
+    case RecordingState::kRecording:
+      return proto::recording::RECORDING_STATE_RECORDING;
+    case RecordingState::kFaulted:
+      return proto::recording::RECORDING_STATE_FAULTED;
+  }
+  return proto::recording::RECORDING_STATE_UNSPECIFIED;
+}
+
+proto::recording::RecordingTimelineEntryKind ToProtoTimelineKind(RecordingTimelineEntryKind kind) {
+  switch (kind) {
+    case RecordingTimelineEntryKind::kVehicleState:
+      return proto::recording::RECORDING_TIMELINE_ENTRY_KIND_VEHICLE_STATE;
+    case RecordingTimelineEntryKind::kEvent:
+      return proto::recording::RECORDING_TIMELINE_ENTRY_KIND_EVENT;
+    case RecordingTimelineEntryKind::kDataFile:
+      return proto::recording::RECORDING_TIMELINE_ENTRY_KIND_DATA_FILE;
+  }
+  return proto::recording::RECORDING_TIMELINE_ENTRY_KIND_UNSPECIFIED;
+}
+
+proto::recording::RecordingIntegrityIssueKind ToProtoIntegrityIssueKind(
+    RecordingIntegrityIssueKind kind) {
+  switch (kind) {
+    case RecordingIntegrityIssueKind::kInvalidIndex:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_INVALID_INDEX;
+    case RecordingIntegrityIssueKind::kUnsafePath:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_UNSAFE_PATH;
+    case RecordingIntegrityIssueKind::kMissingFile:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_MISSING_FILE;
+    case RecordingIntegrityIssueKind::kNotRegularFile:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_NOT_REGULAR_FILE;
+    case RecordingIntegrityIssueKind::kSizeMismatch:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_SIZE_MISMATCH;
+    case RecordingIntegrityIssueKind::kChecksumMismatch:
+      return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_CHECKSUM_MISMATCH;
+  }
+  return proto::recording::RECORDING_INTEGRITY_ISSUE_KIND_UNSPECIFIED;
+}
+
+proto::recording::RecordingSessionIntegrityState ToProtoSessionIntegrityState(
+    RecordingSessionIntegrityState state) {
+  switch (state) {
+    case RecordingSessionIntegrityState::kHealthy:
+      return proto::recording::RECORDING_SESSION_INTEGRITY_STATE_HEALTHY;
+    case RecordingSessionIntegrityState::kDamaged:
+      return proto::recording::RECORDING_SESSION_INTEGRITY_STATE_DAMAGED;
+    case RecordingSessionIntegrityState::kUnavailable:
+      return proto::recording::RECORDING_SESSION_INTEGRITY_STATE_UNAVAILABLE;
+  }
+  return proto::recording::RECORDING_SESSION_INTEGRITY_STATE_UNSPECIFIED;
+}
+
+void FillHealth(const RecordingStatus& status, proto::common::ServiceHealth* health) {
+  health->set_service_name("recording-service");
+  health->set_checked_at_ms(time::NowMs());
+  health->set_last_error(status.last_error);
+  if (status.state == RecordingState::kFaulted) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);
+    health->set_message(status.last_error.empty() ? "recording faulted" : status.last_error);
+    return;
+  }
+  health->set_state(proto::common::SERVICE_HEALTH_STATE_OK);
+  health->set_message(status.state == RecordingState::kRecording ? "recording active"
+                                                                 : "recording idle");
+}
+
+}  // namespace
+
+RecordingGrpcService::RecordingGrpcService(RecordingService& recording_service)
+    : recording_service_(recording_service) {
+}
+
+RecordingGrpcService::~RecordingGrpcService() {
+  Shutdown();
+}
+
+bool RecordingGrpcService::Listen(const std::string& address) {
+  grpc::ServerBuilder builder;
+  builder.AddListeningPort(address, grpc::InsecureServerCredentials());
+  builder.RegisterService(this);
+  server_ = builder.BuildAndStart();
+  if (server_ == nullptr) {
+    LOG_ERROR("failed to start recording gRPC server address=" + address);
+    return false;
+  }
+  LOG_INFO("recording gRPC server listening address=" + address);
+  return true;
+}
+
+void RecordingGrpcService::Shutdown() {
+  if (server_ != nullptr) {
+    server_->Shutdown();
+    server_.reset();
+  }
+}
+
+grpc::Status RecordingGrpcService::Start(grpc::ServerContext*,
+                                         const proto::recording::StartRecordingRequest* request,
+                                         proto::recording::RecordingStatus* response) {
+  std::string error;
+  if (!recording_service_.Start(request->trigger(), &error)) {
+    FillStatus(recording_service_.status(), response);
+    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error);
+  }
+  FillStatus(recording_service_.status(), response);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::Stop(grpc::ServerContext*, const proto::common::Empty*,
+                                        proto::recording::RecordingStatus* response) {
+  std::string error;
+  if (!recording_service_.Stop(&error)) {
+    FillStatus(recording_service_.status(), response);
+    return grpc::Status(grpc::StatusCode::INTERNAL, error);
+  }
+  FillStatus(recording_service_.status(), response);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::AppendEvent(
+    grpc::ServerContext*, const proto::recording::AppendRecordingEventRequest* request,
+    proto::recording::RecordingStatus* response) {
+  RecordingEvent event;
+  event.timestamp_ms = request->timestamp_ms();
+  event.topic = request->topic();
+  event.payload_json = request->payload_json();
+  std::string error;
+  if (!recording_service_.HandleEvent(event, &error)) {
+    FillStatus(recording_service_.status(), response);
+    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error);
+  }
+  FillStatus(recording_service_.status(), response);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::AppendDataFile(
+    grpc::ServerContext*, const proto::recording::AppendRecordingDataFileRequest* request,
+    proto::recording::RecordingStatus* response) {
+  RecordingDataFile file;
+  file.timestamp_ms = request->timestamp_ms();
+  file.source = request->source();
+  file.kind = request->kind();
+  file.path = request->path();
+  file.size_bytes = request->size_bytes();
+  file.checksum = request->checksum();
+  file.copy_into_session = request->copy_into_session();
+  std::string error;
+  if (!recording_service_.HandleDataFile(file, &error)) {
+    FillStatus(recording_service_.status(), response);
+    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error);
+  }
+  FillStatus(recording_service_.status(), response);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::GetStatus(grpc::ServerContext*, const proto::common::Empty*,
+                                             proto::recording::RecordingStatus* response) {
+  FillStatus(recording_service_.status(), response);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::List(grpc::ServerContext*,
+                                        const proto::recording::ListRecordingsRequest* request,
+                                        proto::recording::ListRecordingsResponse* response) {
+  const auto all_sessions = recording_service_.List(0);
+  const auto sessions = recording_service_.List(request->limit());
+  for (const auto& session : sessions) {
+    FillSession(session, response->add_sessions());
+  }
+  response->set_total_sessions(all_sessions.size());
+  response->set_total_bytes(recording_service_.status().stored_bytes);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::GetDetail(
+    grpc::ServerContext*, const proto::recording::GetRecordingDetailRequest* request,
+    proto::recording::RecordingSessionDetail* response) {
+  if (request->session_id().empty()) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "session_id is required");
+  }
+  RecordingSessionDetail detail;
+  std::string error;
+  if (!recording_service_.GetDetail(request->session_id(), &detail, &error)) {
+    return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
+  }
+  FillDetail(detail, response);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::GetTimeline(
+    grpc::ServerContext*, const proto::recording::GetRecordingTimelineRequest* request,
+    proto::recording::GetRecordingTimelineResponse* response) {
+  if (request->session_id().empty()) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "session_id is required");
+  }
+  if (request->from_timestamp_ms() < 0 || request->to_timestamp_ms() < 0 ||
+      (request->to_timestamp_ms() > 0 &&
+       request->from_timestamp_ms() > request->to_timestamp_ms())) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "timestamp range is invalid");
+  }
+  const std::size_t limit = request->limit() == 0 ? RecordingTimelineReader::kDefaultLimit
+                                                  : static_cast<std::size_t>(request->limit());
+  if (limit > RecordingTimelineReader::kMaximumLimit) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "timeline limit is too large");
+  }
+
+  RecordingSessionDetail detail;
+  std::string error;
+  if (!recording_service_.GetDetail(request->session_id(), &detail, &error)) {
+    return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
+  }
+  RecordingTimelineQuery query;
+  query.from_timestamp_ms = request->from_timestamp_ms();
+  query.to_timestamp_ms = request->to_timestamp_ms();
+  query.limit = limit;
+  RecordingTimelineResult result;
+  if (!recording_service_.GetTimeline(request->session_id(), query, &result, &error)) {
+    return grpc::Status(grpc::StatusCode::INTERNAL, error);
+  }
+  for (const auto& entry : result.entries) {
+    auto* timeline_entry = response->add_entries();
+    timeline_entry->set_timestamp_ms(entry.timestamp_ms);
+    timeline_entry->set_kind(ToProtoTimelineKind(entry.kind));
+    timeline_entry->set_source(entry.source);
+    timeline_entry->set_label(entry.label);
+    timeline_entry->set_path(entry.path);
+    timeline_entry->set_record_json(entry.record_json);
+  }
+  response->set_total_entries(result.total_entries);
+  response->set_corrupted_lines(result.corrupted_lines);
+  response->set_truncated(result.truncated);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::Verify(grpc::ServerContext*,
+                                          const proto::recording::VerifyRecordingRequest* request,
+                                          proto::recording::VerifyRecordingResponse* response) {
+  if (request->session_id().empty()) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "session_id is required");
+  }
+  RecordingSessionDetail detail;
+  std::string error;
+  if (!recording_service_.GetDetail(request->session_id(), &detail, &error)) {
+    return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
+  }
+  RecordingIntegrityResult result;
+  if (!recording_service_.Verify(request->session_id(), &result, &error)) {
+    return grpc::Status(grpc::StatusCode::INTERNAL, error);
+  }
+  response->set_healthy(result.healthy);
+  response->set_index_entries(result.index_entries);
+  response->set_files_checked(result.files_checked);
+  response->set_checksums_checked(result.checksums_checked);
+  response->set_checksums_unavailable(result.checksums_unavailable);
+  for (const auto& issue : result.issues) {
+    auto* proto_issue = response->add_issues();
+    proto_issue->set_kind(ToProtoIntegrityIssueKind(issue.kind));
+    proto_issue->set_line_number(issue.line_number);
+    proto_issue->set_source(issue.source);
+    proto_issue->set_path(issue.path);
+    proto_issue->set_message(issue.message);
+    proto_issue->set_expected_size_bytes(issue.expected_size_bytes);
+    proto_issue->set_actual_size_bytes(issue.actual_size_bytes);
+    proto_issue->set_expected_checksum(issue.expected_checksum);
+    proto_issue->set_actual_checksum(issue.actual_checksum);
+  }
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::VerifyAll(
+    grpc::ServerContext*, const proto::recording::VerifyAllRecordingsRequest* request,
+    proto::recording::VerifyAllRecordingsResponse* response) {
+  RecordingIntegrityBatchQuery query;
+  query.from_started_at_ms = request->from_started_at_ms();
+  query.to_started_at_ms = request->to_started_at_ms();
+  query.limit = request->limit() == 0 ? 100 : static_cast<std::size_t>(request->limit());
+  RecordingIntegrityBatchResult result;
+  std::string error;
+  if (!recording_service_.VerifyAll(query, &result, &error)) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, error);
+  }
+  response->set_total_sessions(result.total_sessions);
+  response->set_healthy_sessions(result.healthy_sessions);
+  response->set_damaged_sessions(result.damaged_sessions);
+  response->set_unavailable_sessions(result.unavailable_sessions);
+  response->set_truncated(result.truncated);
+  for (const auto& session : result.sessions) {
+    auto* proto_session = response->add_sessions();
+    proto_session->set_session_id(session.session_id);
+    proto_session->set_started_at_ms(session.started_at_ms);
+    proto_session->set_state(ToProtoSessionIntegrityState(session.state));
+    proto_session->set_files_checked(session.files_checked);
+    proto_session->set_issues(session.issues);
+    proto_session->set_error(session.error);
+  }
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::Delete(grpc::ServerContext*,
+                                          const proto::recording::DeleteRecordingRequest* request,
+                                          proto::common::Empty*) {
+  if (request->session_id().empty()) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "session_id is required");
+  }
+  std::string error;
+  if (!recording_service_.Delete(request->session_id(), &error)) {
+    return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
+  }
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::Prune(grpc::ServerContext*, const proto::common::Empty*,
+                                         proto::recording::PruneRecordingsResponse* response) {
+  RecordingPruneResult result;
+  std::string error;
+  if (!recording_service_.Prune(&result, &error)) {
+    return grpc::Status(grpc::StatusCode::INTERNAL, error);
+  }
+  const RecordingStatus status = recording_service_.status();
+  response->set_sessions_deleted(result.sessions_deleted);
+  response->set_bytes_deleted(result.bytes_deleted);
+  response->set_sessions_remaining(status.stored_sessions);
+  response->set_bytes_remaining(status.stored_bytes);
+  return grpc::Status::OK;
+}
+
+void RecordingGrpcService::FillStatus(const RecordingStatus& status,
+                                      proto::recording::RecordingStatus* response) {
+  response->set_state(ToProtoState(status.state));
+  response->set_session_id(status.session_id);
+  response->set_directory(status.directory);
+  response->set_trigger(status.trigger);
+  response->set_messages_written(status.messages_written);
+  response->set_started_at_ms(status.started_at_ms);
+  response->set_stopped_at_ms(status.stopped_at_ms);
+  response->set_first_message_timestamp_ms(status.first_message_timestamp_ms);
+  response->set_last_message_timestamp_ms(status.last_message_timestamp_ms);
+  response->set_last_error(status.last_error);
+  response->set_stored_sessions(status.stored_sessions);
+  response->set_stored_bytes(status.stored_bytes);
+  response->set_data_files_indexed(status.data_files_indexed);
+  FillHealth(status, response->mutable_health());
+}
+
+void RecordingGrpcService::FillSession(const RecordingSessionInfo& session,
+                                       proto::recording::RecordingSessionInfo* response) {
+  response->set_session_id(session.session_id);
+  response->set_state(session.state);
+  response->set_trigger(session.trigger);
+  response->set_directory(session.directory);
+  response->set_messages_written(session.messages_written);
+  response->set_size_bytes(session.size_bytes);
+  response->set_started_at_ms(session.started_at_ms);
+  response->set_stopped_at_ms(session.stopped_at_ms);
+  response->set_data_files_indexed(session.data_files_indexed);
+}
+
+void RecordingGrpcService::FillDetail(const RecordingSessionDetail& detail,
+                                      proto::recording::RecordingSessionDetail* response) {
+  FillSession(detail.info, response->mutable_info());
+  response->set_project(detail.project);
+  response->set_schema_version(detail.schema_version);
+  response->set_vehicle_id(detail.vehicle_id);
+  response->set_config_path(detail.config_path);
+  response->set_config_checksum(detail.config_checksum);
+  response->set_git_commit(detail.git_commit);
+  response->set_git_dirty(detail.git_dirty);
+  response->set_build_type(detail.build_type);
+  response->set_binary_version(detail.binary_version);
+  response->set_first_message_timestamp_ms(detail.first_message_timestamp_ms);
+  response->set_last_message_timestamp_ms(detail.last_message_timestamp_ms);
+  response->set_data_files_indexed(detail.data_files_indexed);
+  for (const auto& source : detail.sources) {
+    response->add_sources(source);
+  }
+}
+
+}  // namespace recording
+}  // namespace cockpit

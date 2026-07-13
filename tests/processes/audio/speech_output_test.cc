@@ -1,4 +1,4 @@
-#include "cockpit/processes/audio/playback/speech_output.h"
+#include "cockpit/library/driver/audio/playback/speech_output.h"
 
 #include <chrono>
 #include <condition_variable>

@@ -10,7 +10,6 @@ namespace navigator {
 struct ModuleConfig {
   std::string name;
   std::string library;
-  std::string config_path;
 };
 
 struct RunConfig {
@@ -23,7 +22,7 @@ struct RunConfig {
   std::vector<ModuleConfig> modules;
   std::unordered_map<std::string, std::vector<std::string>> modes;
 
-  static RunConfig LoadFromFile(const std::string& path);
+  static RunConfig Default();
   const ModuleConfig* FindModule(const std::string& name) const;
 };
 

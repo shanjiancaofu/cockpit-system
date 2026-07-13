@@ -6,8 +6,8 @@
 #include <string>
 #include <thread>
 
+#include "cockpit/library/driver/audio/processing/audio_service.h"
 #include "cockpit/modules/voice/asr/mock_speech_recognizer.h"
-#include "cockpit/processes/audio/processing/audio_service.h"
 
 namespace {
 

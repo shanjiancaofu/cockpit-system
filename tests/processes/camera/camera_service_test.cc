@@ -1,4 +1,4 @@
-#include "cockpit/processes/camera/control/camera_service.h"
+#include "cockpit/library/driver/camera/control/camera_service.h"
 
 #include <iostream>
 #include <memory>
@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "cockpit/core/event/message_bus.h"
-#include "cockpit/processes/camera/recording_bridge.h"
+#include "cockpit/library/driver/camera/recording_bridge.h"
 
 namespace {
 

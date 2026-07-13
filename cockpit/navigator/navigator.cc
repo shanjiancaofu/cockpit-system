@@ -32,9 +32,11 @@ void InstallSignalHandlers() {
 
 }  // namespace
 
-Navigator::Navigator(RunConfig config, std::string executable_path, std::string module_dir)
+Navigator::Navigator(RunConfig config, std::string executable_path, std::string module_dir,
+                     std::string module_config_path)
     : config_(std::move(config)),
-      process_manager_(config_, std::move(executable_path), std::move(module_dir)) {
+      process_manager_(config_, std::move(executable_path), std::move(module_dir),
+                       std::move(module_config_path)) {
 }
 
 int Navigator::Run() {
@@ -131,11 +133,22 @@ int RunModuleChild(const std::string& module_name, const std::string& library_pa
   }
   if (ready_fd >= 0) {
     const char ready = '1';
-    write(ready_fd, &ready, 1);
+    if (write(ready_fd, &ready, 1) != 1) {
+      close(ready_fd);
+      loader.Stop();
+      loader.Unload();
+      return 74;
+    }
     close(ready_fd);
   }
 
   while (signal_received == 0) {
+    const int module_result = loader.Poll();
+    if (module_result != 0) {
+      loader.Stop();
+      loader.Unload();
+      return module_result;
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   loader.Stop();

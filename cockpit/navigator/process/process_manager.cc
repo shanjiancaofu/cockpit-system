@@ -45,10 +45,11 @@ const char* ToString(ProcessState state) {
 }
 
 ProcessManager::ProcessManager(RunConfig config, std::string executable_path,
-                               std::string module_dir)
+                               std::string module_dir, std::string module_config_path)
     : config_(std::move(config)),
       executable_path_(std::move(executable_path)),
-      module_dir_(std::move(module_dir)) {
+      module_dir_(std::move(module_dir)),
+      module_config_path_(std::move(module_config_path)) {
   for (const ModuleConfig& module : config_.modules) {
     processes_.push_back(ProcessRecord{module});
   }
@@ -238,8 +239,7 @@ bool ProcessManager::Start(ProcessRecord* process, std::string* error) {
     const std::string ready_fd = std::to_string(ready_pipe[1]);
     execl(executable_path_.c_str(), executable_path_.c_str(), "--module-child", "--module",
           process->config.name.c_str(), "--library", library_path.c_str(), "--module-config",
-          process->config.config_path.c_str(), "--ready-fd", ready_fd.c_str(),
-          static_cast<char*>(nullptr));
+          module_config_path_.c_str(), "--ready-fd", ready_fd.c_str(), static_cast<char*>(nullptr));
     _exit(127);
   }
 

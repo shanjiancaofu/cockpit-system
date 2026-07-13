@@ -5,6 +5,7 @@
 #include "cockpit/core/runtime/args.h"
 #include "tools/cockpit-ctl/dependencies_command.h"
 #include "tools/cockpit-ctl/health_command.h"
+#include "tools/cockpit-ctl/runtime_command.h"
 #include "tools/cockpit-ctl/status_command.h"
 #include "tools/diagnostics/cli_output.h"
 
@@ -16,8 +17,12 @@ void PrintUsage() {
             << "  cockpit-ctl status --watch [--interval SEC] [--config configs/config.yaml]\n"
             << "  cockpit-ctl health [--config configs/config.yaml]\n"
             << "  cockpit-ctl dependencies [--config configs/config.yaml]\n"
+            << "  cockpit-ctl runtime status|mode [--socket PATH]\n"
+            << "  cockpit-ctl runtime switch MODE [--socket PATH]\n"
+            << "  cockpit-ctl runtime start|stop|restart MODULE [--socket PATH]\n"
             << "\nOptions:\n"
             << "  --config PATH    config file path (default: configs/config.yaml)\n"
+            << "  --socket PATH    Navigator Unix Socket path\n"
             << "  --watch          watch mode, refresh status periodically\n"
             << "  --output FORMAT  text or json (default: text)\n"
             << "  --interval SEC   refresh interval in seconds (default: "
@@ -33,10 +38,14 @@ int main(int argc, char** argv) {
     PrintUsage();
     return command.empty() ? 1 : 0;
   }
-  if (command != "status" && command != "health" && command != "dependencies") {
+  if (command != "status" && command != "health" && command != "dependencies" &&
+      command != "runtime") {
     std::cerr << "unknown command: " << command << '\n';
     PrintUsage();
     return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
+  }
+  if (command == "runtime") {
+    return cockpit::ctl::runtime_command::Run(argc, argv, args);
   }
 
   const auto config =

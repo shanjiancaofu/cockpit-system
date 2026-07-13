@@ -30,7 +30,8 @@ struct ProcessStatus {
 
 class ProcessManager {
  public:
-  ProcessManager(RunConfig config, std::string executable_path, std::string module_dir);
+  ProcessManager(RunConfig config, std::string executable_path, std::string module_dir,
+                 std::string module_config_path);
   ~ProcessManager();
 
   ProcessManager(const ProcessManager&) = delete;
@@ -66,6 +67,7 @@ class ProcessManager {
   RunConfig config_;
   std::string executable_path_;
   std::string module_dir_;
+  std::string module_config_path_;
   std::string mode_;
   std::vector<ProcessRecord> processes_;
 };

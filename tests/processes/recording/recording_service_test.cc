@@ -1,4 +1,4 @@
-#include "cockpit/processes/recording/recording_service.h"
+#include "cockpit/library/recording/recording_service.h"
 
 #include <unistd.h>
 

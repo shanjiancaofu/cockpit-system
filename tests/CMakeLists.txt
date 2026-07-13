@@ -8,6 +8,9 @@ add_library(navigator_crash_module MODULE runtime/crash_module.cc)
 target_include_directories(navigator_crash_module PRIVATE ${PROJECT_SOURCE_DIR})
 target_link_libraries(navigator_crash_module PRIVATE Threads::Threads)
 
+add_library(navigator_good_module MODULE runtime/good_module.cc)
+target_include_directories(navigator_good_module PRIVATE ${PROJECT_SOURCE_DIR})
+
 add_library(navigator_incompatible_module MODULE runtime/incompatible_module.cc)
 target_include_directories(navigator_incompatible_module PRIVATE ${PROJECT_SOURCE_DIR})
 
@@ -15,9 +18,10 @@ add_executable(navigator_test runtime/navigator_test.cc)
 target_link_libraries(navigator_test PRIVATE navigator_core)
 add_test(NAME navigator_test COMMAND navigator_test
     $<TARGET_FILE:cockpit-navigator>
-    $<TARGET_FILE:cockpit_module_transfer>
+    $<TARGET_FILE:navigator_good_module>
     $<TARGET_FILE:navigator_crash_module>
     $<TARGET_FILE:navigator_incompatible_module>
+    $<TARGET_FILE:cockpit-ctl>
 )
 
 add_executable(run_config_test runtime/run_config_test.cc)

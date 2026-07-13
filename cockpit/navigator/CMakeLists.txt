@@ -8,7 +8,7 @@ add_library(navigator_core STATIC
     run_config/run_config.cc
 )
 target_include_directories(navigator_core PUBLIC ${PROJECT_SOURCE_DIR})
-target_link_libraries(navigator_core PUBLIC logging yaml-cpp Threads::Threads ${CMAKE_DL_LIBS})
+target_link_libraries(navigator_core PUBLIC logging Threads::Threads ${CMAKE_DL_LIBS})
 
 add_executable(cockpit-navigator main.cc)
 target_link_libraries(cockpit-navigator PRIVATE navigator_core runtime)

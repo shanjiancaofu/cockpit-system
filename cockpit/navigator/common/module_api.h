@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#define COCKPIT_MODULE_ABI_VERSION 1U
+#define COCKPIT_MODULE_ABI_VERSION 2U
 #define COCKPIT_MODULE_API_SYMBOL "CockpitModuleGetApi"
 
 extern "C" {
@@ -14,6 +14,7 @@ struct CockpitModuleApi {
   const char* name;
   int (*start)(const char* config_path);
   void (*stop)();
+  int (*poll)();
 };
 
 using CockpitModuleGetApiFn = const CockpitModuleApi* (*)();
