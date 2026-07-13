@@ -2,6 +2,7 @@
 /out/
 /bin/
 /logs/
+/data/
 *.user
 *.log
 *.log.1

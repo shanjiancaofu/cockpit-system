@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "$(dirname -- "${BASH_SOURCE[0]}")/lib/build_paths.sh"
+root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${root_dir}/scripts/lib/build_paths.sh"
 
 if [[ "${1:-}" == "--offscreen" ]]; then
   export QT_QPA_PLATFORM=offscreen
@@ -12,37 +13,20 @@ if [[ "$#" -ne 0 ]]; then
   exit 2
 fi
 
-build_dir="${BUILD_DIR:-$(cockpit_default_debug_build_dir)}"
+build_dir="$(realpath -m "${BUILD_DIR:-${root_dir}/$(cockpit_default_debug_build_dir)}")"
 bin_dir="${build_dir}/bin"
-config_path="${CONFIG_PATH:-configs/config.yaml}"
+module_dir="${build_dir}/lib/cockpit/modules"
+source_config="$(realpath "${CONFIG_PATH:-${root_dir}/configs/config.yaml}")"
 vehicle_source="${VEHICLE_SOURCE:-mock}"
 camera_device="${CAMERA_DEVICE:-/dev/video0}"
 camera_auto_start="${CAMERA_AUTO_START:-true}"
 camera_required="${CAMERA_REQUIRED:-false}"
-vehicle_log="${build_dir}/ui-vehicle-data.log"
-gateway_log="${build_dir}/ui-gateway.log"
-camera_log="${build_dir}/ui-camera.log"
+run_dir="${build_dir}/navigator-ui-${BASHPID}"
+config_path="${run_dir}/config.yaml"
+socket_path="${run_dir}/navigator.sock"
+navigator_log="${run_dir}/navigator.log"
 
-vehicle_pid=""
-gateway_pid=""
-camera_pid=""
-
-stop_process() {
-  local pid="$1"
-  if [[ -n "${pid}" ]] && kill -0 "${pid}" >/dev/null 2>&1; then
-    kill -TERM "${pid}" >/dev/null 2>&1 || true
-    wait "${pid}" >/dev/null 2>&1 || true
-  fi
-}
-
-cleanup() {
-  stop_process "${camera_pid}"
-  stop_process "${gateway_pid}"
-  stop_process "${vehicle_pid}"
-}
-trap cleanup EXIT INT TERM
-
-for executable in vehicle-data-service cockpit-gateway-service camera-service camera-ctl topic cockpit-ui; do
+for executable in cockpit-navigator cockpit-ctl camera-ctl topic cockpit-ui; do
   if [[ ! -x "${bin_dir}/${executable}" ]]; then
     echo "missing ${bin_dir}/${executable}" >&2
     echo "build with: cmake -S . -B ${build_dir} -G Ninja -DBUILD_COCKPIT_UI=ON" >&2
@@ -50,53 +34,50 @@ for executable in vehicle-data-service cockpit-gateway-service camera-service ca
     exit 2
   fi
 done
+if [[ ! -d "${module_dir}" ]]; then
+  echo "missing Navigator modules under ${module_dir}" >&2
+  exit 2
+fi
 
-mkdir -p "${build_dir}"
-"${bin_dir}/vehicle-data-service" --config "${config_path}" \
-  --source "${vehicle_source}" --forever >"${vehicle_log}" 2>&1 &
-vehicle_pid="$!"
+mkdir -p "${run_dir}"
+awk -v source="${vehicle_source}" '
+  /^    source: / { sub(/source: .*/, "source: " source) }
+  { print }
+' "${source_config}" >"${config_path}"
 
-"${bin_dir}/cockpit-gateway-service" --config "${config_path}" \
-  >"${gateway_log}" 2>&1 &
-gateway_pid="$!"
+navigator_pid=""
+cleanup() {
+  if [[ -n "${navigator_pid}" ]] && kill -0 "${navigator_pid}" >/dev/null 2>&1; then
+    "${bin_dir}/cockpit-navigator" --command shutdown --socket "${socket_path}" \
+      >/dev/null 2>&1 || kill "${navigator_pid}" >/dev/null 2>&1 || true
+    wait "${navigator_pid}" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT INT TERM
 
-"${bin_dir}/camera-service" --config "${config_path}" >"${camera_log}" 2>&1 &
-camera_pid="$!"
+(
+  cd "${run_dir}"
+  exec "${bin_dir}/cockpit-navigator" --config "${config_path}" --module-dir "${module_dir}" \
+    --socket "${socket_path}" --mode normal
+) >"${navigator_log}" 2>&1 &
+navigator_pid=$!
 
-gateway_ready=false
-camera_ready=false
-for _ in $(seq 1 50); do
-  if ! kill -0 "${vehicle_pid}" >/dev/null 2>&1; then
-    echo "vehicle-data-service exited during startup; see ${vehicle_log}" >&2
-    exit 1
+runtime_ready=false
+for _ in $(seq 1 100); do
+  if "${bin_dir}/cockpit-ctl" runtime status --socket "${socket_path}" >/dev/null 2>&1 &&
+      "${bin_dir}/topic" list --backend grpc --timeout-ms 200 \
+        --config "${config_path}" >/dev/null 2>&1 &&
+      "${bin_dir}/camera-ctl" --status --config "${config_path}" >/dev/null 2>&1; then
+    runtime_ready=true
+    break
   fi
-  if ! kill -0 "${gateway_pid}" >/dev/null 2>&1; then
-    echo "cockpit-gateway-service exited during startup; see ${gateway_log}" >&2
-    exit 1
-  fi
-  if ! kill -0 "${camera_pid}" >/dev/null 2>&1; then
-    echo "camera-service exited during startup; see ${camera_log}" >&2
-    exit 1
-  fi
-  if "${bin_dir}/topic" list --backend grpc --timeout-ms 200 \
-      --config "${config_path}" >/dev/null 2>&1; then
-    gateway_ready=true
-  fi
-  if "${bin_dir}/camera-ctl" --status --config "${config_path}" >/dev/null 2>&1; then
-    camera_ready=true
-  fi
-  if [[ "${gateway_ready}" == true && "${camera_ready}" == true ]]; then
+  if ! kill -0 "${navigator_pid}" >/dev/null 2>&1; then
     break
   fi
   sleep 0.1
 done
-
-if [[ "${gateway_ready}" != true ]]; then
-  echo "cockpit-gateway-service did not become ready; see ${gateway_log}" >&2
-  exit 1
-fi
-if [[ "${camera_ready}" != true ]]; then
-  echo "camera-service did not become ready; see ${camera_log}" >&2
+if [[ "${runtime_ready}" != true ]]; then
+  echo "Navigator normal mode did not become ready; see ${navigator_log}" >&2
   exit 1
 fi
 
@@ -108,7 +89,7 @@ fi
 if [[ "${camera_auto_start}" == true && -e "${camera_device}" ]]; then
   if ! "${bin_dir}/camera-ctl" --start --device "${camera_device}" \
       --config "${config_path}" >/dev/null; then
-    echo "camera preview did not start; see ${camera_log}" >&2
+    echo "camera preview did not start; see ${navigator_log}" >&2
     exit 1
   fi
   camera_live=false
@@ -122,10 +103,10 @@ if [[ "${camera_auto_start}" == true && -e "${camera_device}" ]]; then
     sleep 0.1
   done
   if [[ "${camera_live}" != true ]]; then
-    echo "camera preview started but no live frame arrived; see ${camera_log}" >&2
+    echo "camera preview started but no live frame arrived; see ${navigator_log}" >&2
     exit 1
   fi
 fi
 
-echo "cockpit UI connected; service logs: ${vehicle_log}, ${gateway_log}, ${camera_log}"
+echo "cockpit UI connected through Navigator; log: ${navigator_log}"
 "${bin_dir}/cockpit-ui" --config "${config_path}"

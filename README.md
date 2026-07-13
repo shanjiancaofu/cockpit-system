@@ -19,6 +19,7 @@
 - Qt 6/QML 车辆和相机界面。
 - `cockpit-ctl` 聚合状态和各类 probe/ctl 工具。
 - Navigator 统一入口、动态业务模块、运行模式切换和故障重启限制。
+- Navigator 周期状态/健康采样、受控故障注入和 JSON 稳定性报告。
 - systemd、Release 打包，以及 `safe-ota` 校验、安装、健康检查和失败回滚原型。
 
 ## 架构
@@ -38,7 +39,6 @@ systemd → cockpit/navigator → cockpit/library
 - `cockpit/modules`：audio、camera、vehicle、voice 等领域能力。
 - `cockpit/navigator`：统一入口、模式、模块进程和状态管理。
 - `cockpit/library`：进程级动态业务模块和资源所有权。
-- `cockpit/processes`：独立烟测和迁移兼容的薄入口。
 - `cockpit/apps`：Qt/QML UI。
 - `tools`：模拟器和诊断工具。
 
@@ -74,6 +74,7 @@ bash scripts/install_ubuntu_deps.sh
 ```bash
 bash scripts/build.sh
 bash scripts/run_smoke.sh
+bash scripts/run_navigator_stability.sh --duration 300 --interval 5 --fault crash
 ```
 
 构建目录：

@@ -36,6 +36,18 @@ add_test(NAME safe_ota_test COMMAND bash
     ${PROJECT_SOURCE_DIR}
 )
 
+add_test(NAME navigator_stability_test COMMAND bash
+    ${PROJECT_SOURCE_DIR}/scripts/run_navigator_stability.sh
+    --build-dir ${CMAKE_BINARY_DIR}
+    --config ${PROJECT_SOURCE_DIR}/configs/config.yaml
+    --duration 3
+    --interval 1
+    --fault crash
+    --module camera_driver
+    --output ${CMAKE_BINARY_DIR}/navigator-stability-test.json
+)
+set_tests_properties(navigator_stability_test PROPERTIES TIMEOUT 30)
+
 add_executable(audio_wav_test modules/audio/audio_wav_test.cc)
 target_link_libraries(audio_wav_test PRIVATE audio)
 add_test(NAME audio_wav_test COMMAND audio_wav_test)
@@ -92,7 +104,7 @@ add_executable(recording_integrity_test modules/recording/recording_integrity_te
 target_link_libraries(recording_integrity_test PRIVATE recording)
 add_test(NAME recording_integrity_test COMMAND recording_integrity_test)
 
-add_executable(recording_service_test processes/recording/recording_service_test.cc)
+add_executable(recording_service_test library/recording/recording_service_test.cc)
 target_link_libraries(recording_service_test PRIVATE recording_service)
 add_test(NAME recording_service_test COMMAND recording_service_test)
 
@@ -108,15 +120,17 @@ add_executable(shared_frame_buffer_test modules/camera/shared_frame_buffer_test.
 target_link_libraries(shared_frame_buffer_test PRIVATE camera_shm)
 add_test(NAME shared_frame_buffer_test COMMAND shared_frame_buffer_test)
 
-add_executable(camera_service_test processes/camera/camera_service_test.cc)
+add_executable(camera_service_test library/driver/camera/camera_service_test.cc)
 target_link_libraries(camera_service_test PRIVATE camera_service)
 add_test(NAME camera_service_test COMMAND camera_service_test)
 
-add_executable(camera_synthetic_stability_test processes/camera/camera_synthetic_stability_test.cc)
+add_executable(camera_synthetic_stability_test
+    library/driver/camera/camera_synthetic_stability_test.cc
+)
 target_link_libraries(camera_synthetic_stability_test PRIVATE camera_control synthetic_camera)
 add_test(NAME camera_synthetic_stability_test COMMAND camera_synthetic_stability_test)
 
-add_executable(camera_photo_service_test processes/camera/camera_photo_service_test.cc)
+add_executable(camera_photo_service_test library/driver/camera/camera_photo_service_test.cc)
 target_link_libraries(camera_photo_service_test PRIVATE camera_photo_service)
 add_test(NAME camera_photo_service_test COMMAND camera_photo_service_test)
 
@@ -159,19 +173,19 @@ add_executable(cockpit_action_dispatcher_test modules/voice/cockpit_action_dispa
 target_link_libraries(cockpit_action_dispatcher_test PRIVATE voice)
 add_test(NAME cockpit_action_dispatcher_test COMMAND cockpit_action_dispatcher_test)
 
-add_executable(audio_service_test processes/audio/audio_service_test.cc)
-target_link_libraries(audio_service_test PRIVATE audio_service)
+add_executable(audio_service_test library/driver/audio/audio_service_test.cc)
+target_link_libraries(audio_service_test PRIVATE audio_processing)
 add_test(NAME audio_service_test COMMAND audio_service_test)
 
-add_executable(audio_asr_pipeline_test processes/audio/audio_asr_pipeline_test.cc)
-target_link_libraries(audio_asr_pipeline_test PRIVATE audio_service voice)
+add_executable(audio_asr_pipeline_test library/driver/audio/audio_asr_pipeline_test.cc)
+target_link_libraries(audio_asr_pipeline_test PRIVATE audio_processing voice)
 add_test(NAME audio_asr_pipeline_test COMMAND audio_asr_pipeline_test)
 
-add_executable(voice_interaction_service_test processes/interaction/voice_interaction_service_test.cc)
+add_executable(voice_interaction_service_test library/agent/voice_interaction_service_test.cc)
 target_link_libraries(voice_interaction_service_test PRIVATE voice_interaction)
 add_test(NAME voice_interaction_service_test COMMAND voice_interaction_service_test)
 
-add_executable(speech_output_test processes/audio/speech_output_test.cc)
+add_executable(speech_output_test library/driver/audio/speech_output_test.cc)
 target_link_libraries(speech_output_test PRIVATE speech_output)
 add_test(NAME speech_output_test COMMAND speech_output_test)
 

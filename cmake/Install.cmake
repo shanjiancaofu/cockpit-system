@@ -2,12 +2,6 @@ include(GNUInstallDirs)
 
 set(cockpit_runtime_targets
     cockpit-navigator
-    audio-service
-    camera-service
-    cloud-uplink-service
-    cockpit-gateway-service
-    vehicle-data-service
-    voice-interaction-service
     audio-probe
     camera-ctl
     camera-preview-probe
@@ -15,7 +9,6 @@ set(cockpit_runtime_targets
     can-simulator
     cockpit-ctl
     recording-ctl
-    recording-service
     safe-ota
     topic
     voice-ctl

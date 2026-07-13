@@ -35,8 +35,7 @@ cockpit/
 ├── library/               可由 Navigator 加载的进程级业务模块
 ├── modules/               audio、camera、recording、vehicle、voice
 ├── navigator/             统一入口、配置、连接、加载和子进程管理
-├── proto/                 protobuf/gRPC 契约
-└── processes/             独立烟测和兼容部署使用的薄入口
+└── proto/                 protobuf/gRPC 契约
 tools/                     诊断和模拟工具
 tests/                     单元测试与 smoke test
 ```
@@ -63,10 +62,10 @@ tests/                     单元测试与 smoke test
 `normal` 启动 transfer、三类 driver 和 agent；`development` 在此基础上增加 recording；`cloud`
 启动 transfer、vehicle_driver 和 carupload；`upgrade` 只启动 upgrader，避免安装期间继续占用业务
 资源。`hmi/debugger/calibration/watchdog` 只保留 ABI 骨架，不进入可运行 mode，手动启动会明确失败。
-旧 `processes/*` 二进制复用同一 Runtime，仅用于独立烟测和迁移兼容，不再由主 systemd target 组合启动。
 
 三个 systemd target 分别启动一个 `cockpit-navigator@<mode>.service` 实例，target 之间互斥。
-`ProcessRuntime` 只保留给兼容入口；Navigator 与模块真实业务生命周期不再并列管理同一资源。
+旧独立 service 二进制不再构建或打包；详细 smoke、UI 联调和 vcan smoke 都通过 Navigator 选择模块
+组合。`ProcessRuntime` 只服务于诊断工具等独立可执行程序，不再管理长运行的产品业务资源。
 
 ## 通信模型
 
@@ -86,9 +85,9 @@ ring buffer 或共享内存传输连续数据。
 
 ```text
 can-simulator / SocketCAN
-    → vehicle-data-service
+    → vehicle_driver
     → VehicleState gRPC stream
-    → cockpit-gateway-service
+    → transfer
     → cockpit-ui / topic / voice action
 ```
 
@@ -104,13 +103,13 @@ ALSA microphone
     → Energy VAD
     → SpeechSegmenter
     → mock ASR / whisper.cpp
-    → voice-interaction-service
+    → agent
     → intent / action
     → mock TTS
     → ALSA speaker
 ```
 
-PCM 和语音片段保持在 `audio-service` 进程内，只有 transcript、控制和指标通过 gRPC。
+PCM 和语音片段保持在 `audio_driver` module child 内，只有 transcript、控制和指标通过 gRPC。
 
 ## 相机链路
 
@@ -118,7 +117,7 @@ PCM 和语音片段保持在 `audio-service` 进程内，只有 transcript、控
 USB Camera
     → V4L2
     → GStreamer appsink
-    → camera-service
+    → camera_driver
     → POSIX Shared Memory 双缓冲
     → Qt camera worker
     → QML Camera 页面
@@ -152,7 +151,7 @@ start/recover 状态机，因此合成测试与真实 GStreamer pipeline 共享�
 
 cockpit-ui 在进程内保留最近 32 条状态切换，初次采样只建立基线，不生成虚假事件。每个服务记录
 最近一次 degraded/faulted 的状态、时间和原因，恢复为 OK 后仍可在 Dashboard 和 Diagnostics 页面
-追溯。历史不写数据库，UI 重启后清空；长期运行证据后续由 WSL 长稳报告负责。
+追溯。历史不写数据库，UI 重启后清空；长期运行证据由 `run_navigator_stability.sh` 输出到构建目录。
 
 ## 诊断 CLI 输出
 
