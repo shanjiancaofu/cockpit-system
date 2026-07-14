@@ -82,6 +82,8 @@ Item {
             id: viewTabs
             Layout.fillWidth: true
             Layout.preferredHeight: 42
+            currentIndex: hmiControl.currentView
+            onCurrentIndexChanged: hmiControl.currentView = currentIndex
 
             TabButton {
                 text: "DASHBOARD"

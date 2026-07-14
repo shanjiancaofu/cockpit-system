@@ -8,6 +8,7 @@
 int main() {
   const auto config = cockpit::config::SystemConfig::LoadFromFile(VALID_CONFIG_PATH);
   if (config.system().name != "cockpit-system" || config.system().vehicle_id != "car_001" ||
+      config.paths().run_dir != "run" ||
       config.services().vehicle_data.grpc.listen_address != "127.0.0.1:50050" ||
       config.services().gateway.stream_timeout_ms != 10000 ||
       config.services().audio.grpc.listen_address != "127.0.0.1:50052" ||
@@ -34,6 +35,7 @@ int main() {
   unsetenv("COCKPIT_RUNTIME_DIR");
   if (development_config.paths().data_dir != "/tmp/cockpit-runtime/data" ||
       development_config.paths().log_dir != "/tmp/cockpit-runtime/logs" ||
+      development_config.paths().run_dir != "/tmp/cockpit-runtime/run" ||
       development_config.tools().topic.dir != "/tmp/cockpit-runtime/logs/topics") {
     std::cerr << "COCKPIT_RUNTIME_DIR did not override development output paths" << std::endl;
     return 1;

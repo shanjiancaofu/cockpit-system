@@ -153,6 +153,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   const YAML::Node paths = ChildMap(root, "paths", "paths");
   config.paths_.data_dir = Read(paths, "data_dir", config.paths_.data_dir, "paths.data_dir");
   config.paths_.log_dir = Read(paths, "log_dir", config.paths_.log_dir, "paths.log_dir");
+  config.paths_.run_dir = Read(paths, "run_dir", config.paths_.run_dir, "paths.run_dir");
 
   const YAML::Node logging = ChildMap(root, "logging", "logging");
   config.logging_.level = Read(logging, "level", config.logging_.level, "logging.level");
@@ -391,6 +392,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
     const std::filesystem::path runtime_path(runtime_dir);
     config.paths_.data_dir = (runtime_path / "data").string();
     config.paths_.log_dir = (runtime_path / "logs").string();
+    config.paths_.run_dir = (runtime_path / "run").string();
     config.tools_.topic.dir = (runtime_path / "logs/topics").string();
   }
 

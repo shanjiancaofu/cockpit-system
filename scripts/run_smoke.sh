@@ -207,11 +207,13 @@ if [[ "${vehicle_response}" != *"action_status=succeeded"* ||
   echo "voice vehicle status did not return expected live response" >&2
   exit 1
 fi
-music_response="$("${bin_dir}/voice-ctl" --process "play music" --config "${config_path}")"
 camera_response="$("${bin_dir}/voice-ctl" --process "open camera" --config "${config_path}")"
-if [[ "${music_response}" != *"play_music"* ||
-      "${camera_response}" != *"open_camera_preview"* ]]; then
-  echo "voice HMI handoff did not return expected responses" >&2
+music_response="$("${bin_dir}/voice-ctl" --process "play music" --config "${config_path}")"
+if [[ "${camera_response}" != *"action_status=succeeded"* ||
+      "${camera_response}" != *"Camera view opened."* ||
+      "${music_response}" != *"action_status=failed"* ||
+      "${music_response}" != *"Media player is not connected."* ]]; then
+  echo "voice HMI execution did not return expected responses" >&2
   exit 1
 fi
 voice_status_json="$("${bin_dir}/voice-ctl" --status --output json --config "${config_path}")"

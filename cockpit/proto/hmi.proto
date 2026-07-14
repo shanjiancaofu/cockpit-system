@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package cockpit.proto.hmi;
+
+enum HmiCommand {
+  HMI_COMMAND_UNSPECIFIED = 0;
+  HMI_COMMAND_OPEN_CAMERA_PREVIEW = 1;
+  HMI_COMMAND_PLAY_MUSIC = 2;
+}
+
+message ExecuteHmiCommandRequest {
+  HmiCommand command = 1;
+}
+
+message ExecuteHmiCommandResponse {
+  bool executed = 1;
+  string message = 2;
+}
+
+service HmiControl {
+  rpc Execute(ExecuteHmiCommandRequest) returns (ExecuteHmiCommandResponse);
+}

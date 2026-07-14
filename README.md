@@ -11,7 +11,7 @@
 - ROS 风格 `topic list/info/echo/hz` 调试。
 - ALSA 录音/播放、AudioFrame、SPSC ring、VAD 和语音分段。
 - mock ASR/TTS 和可选 whisper.cpp ASR。
-- 语音意图、动作分发、车辆状态查询和 HMI handoff。
+- 语音意图、动作分发、车辆状态查询和 Qt 相机页面控制。
 - V4L2/GStreamer USB 摄像头预览。
 - 相机帧 POSIX shared memory 双缓冲。
 - 基于最新共享帧的 JPEG 拍照，支持 camera-ctl 和 Qt UI。

@@ -11,6 +11,8 @@ Jetson 车机端 Qt 6/QML 应用。
 - `CameraImageProvider` 通过 `image://camera` 向 QML 提供 BGRx/RGB 图像。
 - Camera 页面可将当前新鲜帧保存为 JPEG，并展示最后照片路径。
 - 相机状态区分 waiting/live/stalled/last-frame/disconnected，并在 writer 重启后重连。
+- 本地 HMI gRPC 接收受控动作；`open_camera_preview` 在 Qt 主线程切换 Camera 页面并返回执行结果。
+- 媒体播放器尚未接入，`play_music` 明确返回未执行。
 
 ## 运行
 

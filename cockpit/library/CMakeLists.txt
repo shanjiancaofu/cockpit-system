@@ -128,7 +128,7 @@ add_cockpit_library(voice_vehicle_client agent/vehicle/gateway_vehicle_status_cl
 target_link_libraries(voice_vehicle_client PUBLIC contracts voice)
 
 add_cockpit_library(voice_hmi agent/hmi/local_hmi_command_provider.cc)
-target_link_libraries(voice_hmi PUBLIC voice)
+target_link_libraries(voice_hmi PUBLIC contracts voice)
 
 add_cockpit_library(voice_grpc agent/grpc/voice_grpc_service.cc)
 target_link_libraries(voice_grpc PUBLIC contracts voice_interaction)

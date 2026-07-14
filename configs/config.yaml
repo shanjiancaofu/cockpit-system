@@ -5,6 +5,7 @@ system:
 paths:
   data_dir: data
   log_dir: logs
+  run_dir: run
 
 logging:
   level: info

@@ -14,6 +14,7 @@ struct SystemIdentityConfig {
 struct PathsConfig {
   std::string data_dir = "data";
   std::string log_dir = "logs";
+  std::string run_dir = "run";
 };
 
 struct LoggingConfig {

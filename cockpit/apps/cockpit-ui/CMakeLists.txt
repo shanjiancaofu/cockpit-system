@@ -1,5 +1,10 @@
 find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2)
 
+add_library(ui_hmi STATIC hmi_control.cc)
+set_target_properties(ui_hmi PROPERTIES AUTOMOC ON)
+target_include_directories(ui_hmi PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(ui_hmi PUBLIC Qt6::Core contracts logging)
+
 add_library(ui_vehicle STATIC vehicle/gateway_client.cc vehicle/vehicle_state_model.cc)
 set_target_properties(ui_vehicle PROPERTIES AUTOMOC ON)
 target_include_directories(ui_vehicle PUBLIC ${PROJECT_SOURCE_DIR})
@@ -35,5 +40,6 @@ target_link_libraries(cockpit-ui PRIVATE
     runtime
     ui_camera
     ui_health
+    ui_hmi
     ui_vehicle
 )

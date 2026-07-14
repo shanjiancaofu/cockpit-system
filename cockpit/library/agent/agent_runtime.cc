@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 #include <exception>
+#include <filesystem>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -76,10 +77,14 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
     std::unique_ptr<voice::ActionDispatcher> dispatcher;
     std::unique_ptr<voice::VoiceResponseSink> output;
     if (enabled) {
+      const std::string hmi_address =
+          "unix:" + std::filesystem::absolute(std::filesystem::path(config.paths().run_dir) /
+                                              "hmi-control.sock")
+                        .string();
       assistant = std::make_unique<voice::MockVoiceAssistant>();
       dispatcher = std::make_unique<voice::CockpitActionDispatcher>(
           std::make_unique<voice::GatewayVehicleStatusClient>(interaction_config.gateway_address),
-          std::make_unique<voice::LocalHmiCommandProvider>());
+          std::make_unique<voice::LocalHmiCommandProvider>(hmi_address));
       output = std::make_unique<voice::AsyncVoiceResponseSink>(
           std::make_unique<voice::AudioSpeechClient>(interaction_config.audio_address));
     }
