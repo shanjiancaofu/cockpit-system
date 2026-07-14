@@ -29,7 +29,8 @@
 - mock ASR、whisper.cpp adapter 和 WSL CPU 推理。
 - transcript 订阅、重连、历史重放。
 - 白名单意图和类型化 ActionDispatcher。
-- 车辆状态查询、打开相机和播放音乐 HMI handoff。
+- 车辆状态查询通过 gateway gRPC 真实执行。
+- 打开相机和播放音乐当前只生成并记录 HMI handoff，尚未驱动 Qt/Android 或媒体播放器。
 - 异步 TTS 队列、取消和健康指标。
 
 ## Provider 边界
@@ -77,12 +78,17 @@ transcript
 音乐播放通常由 Android/Qt 媒体应用负责。C++ Runtime 只产生 `play_music`、`pause_music` 等 HMI
 命令，未来通过明确的 bridge 交给 UI/Android，不在 voice module 内实现完整播放器。
 
+当前 `LocalHmiCommandProvider` 是可测试的交接占位：它记录命令并返回说明文本，不代表动作已经执行。
+下一步先让 `open_camera` 通过最小 bridge 切换 Qt 页面，并把真实成功或失败结果返回 ActionDispatcher；
+媒体命令等播放器责任边界明确后再接入。
+
 ## 演进顺序
 
-1. Jetson 麦克风和扬声器标定。
-2. Whisper 中文真实语音测试和性能测量。
-3. 替换真实 TTS。
-4. 加入 push-to-talk 完整 UI。
-5. 增加唤醒词、AEC 和打断。
-6. 引入 LLM provider 和受控工具调用。
-7. 根据 Jetson 性能评估 SenseVoice/Qwen ASR 等替代方案。
+1. 在 WSL 闭环 Qt `open_camera` 动作并验证失败返回。
+2. 用 mock 覆盖打断、连续命令、超时和 provider 失败。
+3. Jetson 麦克风和扬声器标定。
+4. Whisper 中文真实语音测试和性能测量。
+5. 替换真实 TTS 并加入 push-to-talk 完整 UI。
+6. 增加唤醒词、AEC 和打断。
+7. 引入 LLM provider 和受控工具调用。
+8. 根据 Jetson 性能评估 SenseVoice/Qwen ASR 等替代方案。

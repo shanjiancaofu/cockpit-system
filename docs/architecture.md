@@ -94,10 +94,13 @@ can-simulator / SocketCAN
     → vehicle_driver
     → VehicleState gRPC stream
     → transfer
-    → cockpit-ui / topic / voice action
+    → cockpit-ui / topic / voice vehicle query
 ```
 
 当前 CAN 映射是原型格式；正式车辆接入必须基于确认后的 DBC 或信号文档。
+
+语音车辆状态查询通过 gateway gRPC 执行。打开相机和播放音乐属于 HMI 动作边界，当前
+`LocalHmiCommandProvider` 只记录 handoff，尚未驱动 Qt 页面或媒体播放器，因此不计为已闭环动作。
 
 ## 音频与语音链路
 
