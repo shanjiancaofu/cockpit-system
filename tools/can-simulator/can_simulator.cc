@@ -13,8 +13,7 @@
 #include "cockpit/modules/vehicle/vehicle_can_codec.h"
 #include "cockpit/modules/vehicle/vehicle_state.h"
 
-int cockpit::can_simulator::Run(int argc, char** argv) {
-  auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "can-simulator");
+int cockpit::can_simulator::SimulateCan(const cockpit::runtime::ProcessRuntime& runtime) {
   const auto& config = runtime.config().hardware().can;
 
   const std::string& can_if = config.interface;
@@ -49,6 +48,5 @@ int cockpit::can_simulator::Run(int argc, char** argv) {
     std::cout << can_if << ' ' << frame.ToString() << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
   }
-  runtime.MarkStopped();
   return 0;
 }

@@ -9,11 +9,6 @@
 
 namespace {
 
-int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
-  runtime.MarkStopped();
-  return result;
-}
-
 void PrintUsage() {
   std::cout << "camera-probe [--list] [--device /dev/video0 --formats] "
                "[--config configs/config.yaml]\n";
@@ -55,16 +50,16 @@ int ListDevices(const cockpit::runtime::ProcessRuntime& runtime) {
   const auto devices = cockpit::camera::V4l2Camera::ListDevices(&error);
   if (!error.empty() && devices.empty()) {
     std::cerr << error << '\n';
-    return Finish(runtime, 1);
+    return 1;
   }
   if (devices.empty()) {
     std::cout << "no V4L2 video devices found\n";
-    return Finish(runtime, 0);
+    return 0;
   }
   for (const auto& device : devices) {
     PrintDevice(device);
   }
-  return Finish(runtime, 0);
+  return 0;
 }
 
 int ListFormats(const cockpit::runtime::ProcessRuntime& runtime) {
@@ -73,23 +68,22 @@ int ListFormats(const cockpit::runtime::ProcessRuntime& runtime) {
   const auto formats = cockpit::camera::V4l2Camera::ListFormats(device, &error);
   if (!error.empty()) {
     std::cerr << error << '\n';
-    return Finish(runtime, 1);
+    return 1;
   }
   if (formats.empty()) {
     std::cout << "no capture formats found for " << device << '\n';
-    return Finish(runtime, 0);
+    return 0;
   }
   PrintFormats(formats);
-  return Finish(runtime, 0);
+  return 0;
 }
 
 }  // namespace
 
-int cockpit::camera_probe::Run(int argc, char** argv) {
-  const auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "camera-probe");
+int cockpit::camera_probe::ProbeCamera(const cockpit::runtime::ProcessRuntime& runtime) {
   if (runtime.args().HasFlag("help")) {
     PrintUsage();
-    return Finish(runtime, 0);
+    return 0;
   }
   if (runtime.args().HasFlag("formats")) {
     return ListFormats(runtime);

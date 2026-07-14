@@ -1,7 +1,12 @@
 #pragma once
 
-namespace cockpit::camera_ctl {
+namespace cockpit {
+namespace runtime {
+class ProcessRuntime;
+}
+namespace camera_ctl {
 
-int Run(int argc, char** argv);
+int ControlCamera(const runtime::ProcessRuntime& runtime);
 
-}  // namespace cockpit::camera_ctl
+}  // namespace camera_ctl
+}  // namespace cockpit

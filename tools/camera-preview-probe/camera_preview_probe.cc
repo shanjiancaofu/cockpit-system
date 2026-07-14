@@ -12,11 +12,6 @@
 
 namespace {
 
-int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
-  runtime.MarkStopped();
-  return result;
-}
-
 void PrintUsage() {
   std::cout << "camera-preview-probe --device /dev/video0 [--frames 30] "
                "[--width 640] [--height 480] [--fps 30] "
@@ -37,11 +32,11 @@ struct ProbeState {
 
 }  // namespace
 
-int cockpit::camera_preview_probe::Run(int argc, char** argv) {
-  const auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "camera-preview-probe");
+int cockpit::camera_preview_probe::ProbeCameraPreview(
+    const cockpit::runtime::ProcessRuntime& runtime) {
   if (runtime.args().HasFlag("help")) {
     PrintUsage();
-    return Finish(runtime, 0);
+    return 0;
   }
 
   cockpit::camera::CameraPreviewConfig config;
@@ -54,7 +49,7 @@ int cockpit::camera_preview_probe::Run(int argc, char** argv) {
   const int timeout_ms = runtime.args().GetInt("timeout-ms", 5000);
   if (target_frames <= 0 || timeout_ms <= 0) {
     std::cerr << "frames and timeout-ms must be positive\n";
-    return Finish(runtime, 2);
+    return 2;
   }
 
   ProbeState state;
@@ -80,7 +75,7 @@ int cockpit::camera_preview_probe::Run(int argc, char** argv) {
       &error);
   if (!started) {
     std::cerr << error << '\n';
-    return Finish(runtime, 1);
+    return 1;
   }
 
   bool complete = false;
@@ -96,7 +91,7 @@ int cockpit::camera_preview_probe::Run(int argc, char** argv) {
   std::lock_guard<std::mutex> lock(state.mutex);
   if (state.frames == 0) {
     std::cerr << "no preview frames received from " << config.device << '\n';
-    return Finish(runtime, 1);
+    return 1;
   }
 
   const double span_s =
@@ -111,7 +106,7 @@ int cockpit::camera_preview_probe::Run(int argc, char** argv) {
             << " bytes=" << state.bytes << " fps=" << fps << '\n';
   if (!complete) {
     std::cerr << "timed out before requested frame count\n";
-    return Finish(runtime, 1);
+    return 1;
   }
-  return Finish(runtime, 0);
+  return 0;
 }

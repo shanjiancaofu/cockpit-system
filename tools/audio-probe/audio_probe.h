@@ -1,7 +1,12 @@
 #pragma once
 
-namespace cockpit::audio_probe {
+namespace cockpit {
+namespace runtime {
+class ProcessRuntime;
+}
+namespace audio_probe {
 
-int Run(int argc, char** argv);
+int ProbeAudio(const runtime::ProcessRuntime& runtime);
 
-}  // namespace cockpit::audio_probe
+}  // namespace audio_probe
+}  // namespace cockpit

@@ -179,11 +179,6 @@ void PrintBatchVerification(
   }
 }
 
-int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
-  runtime.MarkStopped();
-  return result;
-}
-
 std::uint64_t ParseUint64(const std::string& value) {
   if (value.empty()) {
     return 0;
@@ -208,8 +203,7 @@ std::int64_t ParseInt64(const std::string& value) {
 
 }  // namespace
 
-int cockpit::recording_ctl::Run(int argc, char** argv) {
-  const auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "recording-ctl");
+int cockpit::recording_ctl::ControlRecording(const cockpit::runtime::ProcessRuntime& runtime) {
   cockpit::recording::RecordingControlClient client(
       runtime.config().services().recording.grpc.listen_address);
   cockpit::proto::recording::RecordingStatus status;
@@ -252,7 +246,7 @@ int cockpit::recording_ctl::Run(int argc, char** argv) {
     const int limit = runtime.args().GetInt("limit", 100);
     if (limit < 0) {
       std::cerr << "timeline limit must not be negative\n";
-      return Finish(runtime, 1);
+      return 1;
     }
     request.set_limit(static_cast<std::uint32_t>(limit));
     cockpit::proto::recording::GetRecordingTimelineResponse response;
@@ -266,7 +260,7 @@ int cockpit::recording_ctl::Run(int argc, char** argv) {
     if (ok) {
       PrintVerification(response);
       if (!response.healthy()) {
-        return Finish(runtime, 2);
+        return 2;
       }
     }
   } else if (verify_all) {
@@ -274,8 +268,7 @@ int cockpit::recording_ctl::Run(int argc, char** argv) {
     if (!cockpit::diagnostics::ParseOutputFormat(runtime.args().GetString("output", "text"),
                                                  &output_format, &error)) {
       std::cerr << error << '\n';
-      return Finish(runtime,
-                    cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments));
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
     }
     const std::int64_t from_ms = ParseInt64(runtime.args().GetString("from-started-ms", "0"));
     const std::int64_t to_ms = ParseInt64(runtime.args().GetString("to-started-ms", "0"));
@@ -287,8 +280,7 @@ int cockpit::recording_ctl::Run(int argc, char** argv) {
       } else {
         std::cerr << kMessage << '\n';
       }
-      return Finish(runtime,
-                    cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments));
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
     }
     cockpit::proto::recording::VerifyAllRecordingsRequest request;
     request.set_from_started_at_ms(from_ms);
@@ -303,21 +295,18 @@ int cockpit::recording_ctl::Run(int argc, char** argv) {
       } else {
         std::cerr << message << '\n';
       }
-      return Finish(runtime,
-                    cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed);
     }
     if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
       if (!cockpit::diagnostics::WriteJson(response, &std::cout, &error)) {
         cockpit::diagnostics::WriteJsonError("operation_failed", error, &std::cerr);
-        return Finish(
-            runtime, cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
+        return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed);
       }
     } else {
       PrintBatchVerification(response);
     }
     if (response.damaged_sessions() > 0 || response.unavailable_sessions() > 0) {
-      return Finish(runtime,
-                    cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kUnhealthy));
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kUnhealthy);
     }
   } else if (!delete_session_id.empty()) {
     ok = client.Delete(delete_session_id, &error);
@@ -355,12 +344,12 @@ int cockpit::recording_ctl::Run(int argc, char** argv) {
   }
   if (!ok) {
     std::cerr << (error.empty() ? "recording control request failed" : error) << '\n';
-    return Finish(runtime, 1);
+    return 1;
   }
   if (!runtime.args().HasFlag("list") && detail_session_id.empty() && delete_session_id.empty() &&
       timeline_session_id.empty() && verify_session_id.empty() && !verify_all &&
       !runtime.args().HasFlag("prune")) {
     PrintStatus(status);
   }
-  return Finish(runtime, 0);
+  return 0;
 }

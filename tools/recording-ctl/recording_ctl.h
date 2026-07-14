@@ -1,7 +1,12 @@
 #pragma once
 
-namespace cockpit::recording_ctl {
+namespace cockpit {
+namespace runtime {
+class ProcessRuntime;
+}
+namespace recording_ctl {
 
-int Run(int argc, char** argv);
+int ControlRecording(const runtime::ProcessRuntime& runtime);
 
-}  // namespace cockpit::recording_ctl
+}  // namespace recording_ctl
+}  // namespace cockpit

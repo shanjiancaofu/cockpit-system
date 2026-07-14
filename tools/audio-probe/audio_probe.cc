@@ -18,21 +18,16 @@
 
 namespace {
 
-int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
-  runtime.MarkStopped();
-  return result;
-}
-
 int ListDevices(const cockpit::runtime::ProcessRuntime& runtime) {
   std::string error;
   const auto devices = cockpit::audio::AlsaPcm::ListDevices(&error);
   if (!error.empty()) {
     LOG_ERROR(error);
-    return Finish(runtime, 1);
+    return 1;
   }
   if (devices.empty()) {
     std::cout << "no ALSA PCM devices found\n";
-    return Finish(runtime, 0);
+    return 0;
   }
   for (const auto& device : devices) {
     std::cout << device.name << " [" << cockpit::audio::ToString(device.io) << ']';
@@ -44,7 +39,7 @@ int ListDevices(const cockpit::runtime::ProcessRuntime& runtime) {
     }
     std::cout << '\n';
   }
-  return Finish(runtime, 0);
+  return 0;
 }
 
 int Capture(const cockpit::runtime::ProcessRuntime& runtime, const std::string& output_path) {
@@ -60,14 +55,14 @@ int Capture(const cockpit::runtime::ProcessRuntime& runtime, const std::string& 
   if (total_frames >
       std::numeric_limits<std::size_t>::max() / static_cast<std::size_t>(format.channels)) {
     LOG_ERROR("audio capture size overflow");
-    return Finish(runtime, 2);
+    return 2;
   }
 
   cockpit::audio::AlsaPcm pcm;
   std::string error;
   if (!pcm.Open(device, cockpit::audio::PcmDirection::kCapture, format, &error)) {
     LOG_ERROR(error);
-    return Finish(runtime, 1);
+    return 1;
   }
 
   std::vector<std::int16_t> samples;
@@ -89,7 +84,7 @@ int Capture(const cockpit::runtime::ProcessRuntime& runtime, const std::string& 
     }
     if (result.status == cockpit::audio::CaptureStatus::kDeviceError) {
       LOG_ERROR(result.message);
-      return Finish(runtime, 1);
+      return 1;
     }
     samples.insert(
         samples.end(), period.begin(),
@@ -101,15 +96,15 @@ int Capture(const cockpit::runtime::ProcessRuntime& runtime, const std::string& 
 
   if (samples.empty()) {
     LOG_ERROR("audio capture stopped before any samples were received");
-    return Finish(runtime, 1);
+    return 1;
   }
   if (!cockpit::audio::WritePcm16Wav(output_path, format, samples, &error)) {
     LOG_ERROR(error);
-    return Finish(runtime, 1);
+    return 1;
   }
   std::cout << "captured " << captured_frames << " frames from " << device << " to " << output_path
             << '\n';
-  return Finish(runtime, 0);
+  return 0;
 }
 
 int Play(const cockpit::runtime::ProcessRuntime& runtime, const std::string& input_path) {
@@ -117,7 +112,7 @@ int Play(const cockpit::runtime::ProcessRuntime& runtime, const std::string& inp
   std::string error;
   if (!cockpit::audio::ReadPcm16Wav(input_path, &buffer, &error)) {
     LOG_ERROR(error);
-    return Finish(runtime, 1);
+    return 1;
   }
 
   const auto& audio_config = runtime.config().hardware().audio;
@@ -126,7 +121,7 @@ int Play(const cockpit::runtime::ProcessRuntime& runtime, const std::string& inp
   cockpit::audio::AlsaPcm pcm;
   if (!pcm.Open(device, cockpit::audio::PcmDirection::kPlayback, buffer.format, &error)) {
     LOG_ERROR(error);
-    return Finish(runtime, 1);
+    return 1;
   }
 
   std::size_t played_frames = 0;
@@ -137,18 +132,18 @@ int Play(const cockpit::runtime::ProcessRuntime& runtime, const std::string& inp
         buffer.samples.data() + played_frames * static_cast<std::size_t>(buffer.format.channels);
     if (!pcm.WriteFrames(samples, frames, &error)) {
       LOG_ERROR(error);
-      return Finish(runtime, 1);
+      return 1;
     }
     played_frames += frames;
   }
   if (!runtime.ShouldStop() && !pcm.Drain(&error)) {
     LOG_ERROR(error);
-    return Finish(runtime, 1);
+    return 1;
   }
   pcm.Close();
   std::cout << "played " << played_frames << " frames from " << input_path << " through " << device
             << '\n';
-  return Finish(runtime, 0);
+  return 0;
 }
 
 const char* CaptureStateName(cockpit::proto::audio::CaptureState state) {
@@ -241,19 +236,17 @@ int Control(const cockpit::runtime::ProcessRuntime& runtime, const std::string& 
     } else {
       LOG_ERROR("audio control RPC failed address=" + address + " error=" + error);
     }
-    return Finish(runtime,
-                  cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
+    return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed);
   }
   if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
     if (!cockpit::diagnostics::WriteJson(status, &std::cout, &error)) {
       cockpit::diagnostics::WriteJsonError("serialization_failed", error, &std::cerr);
-      return Finish(runtime,
-                    cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed);
     }
   } else {
     PrintStatusText(status);
   }
-  return Finish(runtime, 0);
+  return 0;
 }
 
 int Transcripts(const cockpit::runtime::ProcessRuntime& runtime,
@@ -289,10 +282,9 @@ int Transcripts(const cockpit::runtime::ProcessRuntime& runtime,
     } else {
       LOG_ERROR("transcript stream failed address=" + address + " error=" + error);
     }
-    return Finish(runtime,
-                  cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
+    return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed);
   }
-  return Finish(runtime, 0);
+  return 0;
 }
 
 int Speak(const cockpit::runtime::ProcessRuntime& runtime, const std::string& text) {
@@ -302,10 +294,10 @@ int Speak(const cockpit::runtime::ProcessRuntime& runtime, const std::string& te
   std::string error;
   if (!client.Speak(text, &error)) {
     LOG_ERROR("audio speak RPC failed address=" + address + " error=" + error);
-    return Finish(runtime, 1);
+    return 1;
   }
   std::cout << "speech queued\n";
-  return Finish(runtime, 0);
+  return 0;
 }
 
 void PrintUsage() {
@@ -323,15 +315,13 @@ void PrintUsage() {
 
 }  // namespace
 
-int cockpit::audio_probe::Run(int argc, char** argv) {
-  auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "audio-probe");
+int cockpit::audio_probe::ProbeAudio(const cockpit::runtime::ProcessRuntime& runtime) {
   cockpit::diagnostics::OutputFormat output_format;
   std::string output_error;
   if (!cockpit::diagnostics::ParseOutputFormat(runtime.args().GetString("output", "text"),
                                                &output_format, &output_error)) {
     std::cerr << output_error << '\n';
-    return Finish(runtime,
-                  cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments));
+    return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
   }
   const std::string capture_path = runtime.args().GetString("capture", "");
   const std::string play_path = runtime.args().GetString("play", "");
@@ -349,15 +339,14 @@ int cockpit::audio_probe::Run(int argc, char** argv) {
                             static_cast<int>(transcripts) + static_cast<int>(!speak_text.empty());
   if (command_count != 1) {
     PrintUsage();
-    return Finish(runtime, 2);
+    return 2;
   }
   if (output_format == cockpit::diagnostics::OutputFormat::kJson &&
       (list || !capture_path.empty() || !play_path.empty() || !speak_text.empty())) {
     cockpit::diagnostics::WriteJsonError(
         "invalid_arguments", "JSON output is supported for control status and transcripts",
         &std::cerr);
-    return Finish(runtime,
-                  cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments));
+    return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
   }
   if (list) {
     return ListDevices(runtime);

@@ -13,11 +13,6 @@
 
 namespace {
 
-int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
-  runtime.MarkStopped();
-  return result;
-}
-
 const char* StateName(cockpit::proto::voice::InteractionState state) {
   switch (state) {
     case cockpit::proto::voice::INTERACTION_STATE_DISABLED:
@@ -93,15 +88,13 @@ bool PrintMessage(const google::protobuf::Message& message,
 
 }  // namespace
 
-int cockpit::voice_ctl::Run(int argc, char** argv) {
-  auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "voice-ctl");
+int cockpit::voice_ctl::ControlVoice(const cockpit::runtime::ProcessRuntime& runtime) {
   cockpit::diagnostics::OutputFormat output_format;
   std::string error;
   if (!cockpit::diagnostics::ParseOutputFormat(runtime.args().GetString("output", "text"),
                                                &output_format, &error)) {
     std::cerr << error << '\n';
-    return Finish(runtime,
-                  cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments));
+    return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
   }
   const std::string text = runtime.args().GetString("process", "");
   const bool responses = runtime.args().HasFlag("responses");
@@ -110,7 +103,7 @@ int cockpit::voice_ctl::Run(int argc, char** argv) {
       static_cast<int>(status) + static_cast<int>(!text.empty()) + static_cast<int>(responses);
   if (command_count != 1) {
     PrintUsage();
-    return Finish(runtime, 2);
+    return 2;
   }
 
   const std::string address = runtime.args().GetString(
@@ -160,8 +153,7 @@ int cockpit::voice_ctl::Run(int argc, char** argv) {
     } else {
       LOG_ERROR("voice control RPC failed address=" + address + " error=" + error);
     }
-    return Finish(runtime,
-                  cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
+    return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed);
   }
-  return Finish(runtime, 0);
+  return 0;
 }

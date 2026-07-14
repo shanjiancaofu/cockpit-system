@@ -1,9 +1,12 @@
 #pragma once
 
 namespace cockpit {
+namespace runtime {
+class ProcessRuntime;
+}
 namespace camera_preview_probe {
 
-int Run(int argc, char** argv);
+int ProbeCameraPreview(const runtime::ProcessRuntime& runtime);
 
 }  // namespace camera_preview_probe
 }  // namespace cockpit

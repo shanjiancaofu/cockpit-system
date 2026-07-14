@@ -1,7 +1,12 @@
 #pragma once
 
-namespace cockpit::voice_ctl {
+namespace cockpit {
+namespace runtime {
+class ProcessRuntime;
+}
+namespace voice_ctl {
 
-int Run(int argc, char** argv);
+int ControlVoice(const runtime::ProcessRuntime& runtime);
 
-}  // namespace cockpit::voice_ctl
+}  // namespace voice_ctl
+}  // namespace cockpit

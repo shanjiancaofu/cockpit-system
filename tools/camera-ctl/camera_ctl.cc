@@ -10,11 +10,6 @@
 
 namespace {
 
-int Finish(const cockpit::runtime::ProcessRuntime& runtime, int result) {
-  runtime.MarkStopped();
-  return result;
-}
-
 void PrintUsage() {
   std::cout << "camera-ctl [--list|--status|--start|--stop|--photo] "
                "[--device /dev/video0] [--width 640] [--height 480] [--fps 30] "
@@ -89,8 +84,7 @@ int PrintError(const cockpit::runtime::ProcessRuntime& runtime,
   } else {
     std::cerr << message << '\n';
   }
-  return Finish(runtime,
-                cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed));
+  return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed);
 }
 
 int PrintArgumentError(const cockpit::runtime::ProcessRuntime& runtime,
@@ -100,25 +94,22 @@ int PrintArgumentError(const cockpit::runtime::ProcessRuntime& runtime,
   } else {
     std::cerr << message << '\n';
   }
-  return Finish(runtime,
-                cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments));
+  return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
 }
 
 }  // namespace
 
-int cockpit::camera_ctl::Run(int argc, char** argv) {
-  const auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "camera-ctl");
+int cockpit::camera_ctl::ControlCamera(const cockpit::runtime::ProcessRuntime& runtime) {
   cockpit::diagnostics::OutputFormat output_format;
   std::string error;
   if (!cockpit::diagnostics::ParseOutputFormat(runtime.args().GetString("output", "text"),
                                                &output_format, &error)) {
     std::cerr << error << '\n';
-    return Finish(runtime,
-                  cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments));
+    return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
   }
   if (runtime.args().HasFlag("help")) {
     PrintUsage();
-    return Finish(runtime, 0);
+    return 0;
   }
 
   const bool list = runtime.args().HasFlag("list");
@@ -145,7 +136,7 @@ int cockpit::camera_ctl::Run(int argc, char** argv) {
       if (!PrintMessage(response, output_format, &error)) {
         return PrintError(runtime, output_format, error);
       }
-      return Finish(runtime, 0);
+      return 0;
     }
     if (response.devices().empty()) {
       std::cout << "no V4L2 video devices found\n";
@@ -153,7 +144,7 @@ int cockpit::camera_ctl::Run(int argc, char** argv) {
     for (const auto& device : response.devices()) {
       PrintDevice(device);
     }
-    return Finish(runtime, 0);
+    return 0;
   }
 
   if (start) {
@@ -182,7 +173,7 @@ int cockpit::camera_ctl::Run(int argc, char** argv) {
     if (output_format == cockpit::diagnostics::OutputFormat::kText) {
       PrintStatusText(status);
     }
-    return Finish(runtime, 0);
+    return 0;
   }
 
   if (stop) {
@@ -196,7 +187,7 @@ int cockpit::camera_ctl::Run(int argc, char** argv) {
     if (output_format == cockpit::diagnostics::OutputFormat::kText) {
       PrintStatusText(status);
     }
-    return Finish(runtime, 0);
+    return 0;
   }
 
   if (photo) {
@@ -208,14 +199,14 @@ int cockpit::camera_ctl::Run(int argc, char** argv) {
       if (!PrintMessage(response, output_format, &error)) {
         return PrintError(runtime, output_format, error);
       }
-      return Finish(runtime, 0);
+      return 0;
     }
     std::cout << "photo: " << response.path() << '\n'
               << "frame sequence: " << response.frame_sequence() << '\n'
               << "frame timestamp ms: " << response.frame_timestamp_ms() << '\n'
               << "size: " << response.width() << 'x' << response.height() << '\n'
               << "bytes: " << response.size_bytes() << '\n';
-    return Finish(runtime, 0);
+    return 0;
   }
 
   cockpit::proto::camera::CameraStatus status;
@@ -228,5 +219,5 @@ int cockpit::camera_ctl::Run(int argc, char** argv) {
   if (output_format == cockpit::diagnostics::OutputFormat::kText) {
     PrintStatusText(status);
   }
-  return Finish(runtime, 0);
+  return 0;
 }
