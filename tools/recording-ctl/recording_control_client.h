@@ -31,6 +31,8 @@ class RecordingControlClient {
                    proto::recording::GetRecordingTimelineResponse* response, std::string* error);
   bool Verify(const std::string& session_id, proto::recording::VerifyRecordingResponse* response,
               std::string* error);
+  bool GetReport(const proto::recording::GetRecordingReportRequest& request,
+                 proto::recording::RecordingReport* response, std::string* error);
   bool VerifyAll(const proto::recording::VerifyAllRecordingsRequest& request,
                  proto::recording::VerifyAllRecordingsResponse* response, std::string* error);
   bool Delete(const std::string& session_id, std::string* error);

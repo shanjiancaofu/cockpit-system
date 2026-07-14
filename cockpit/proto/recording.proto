@@ -160,6 +160,21 @@ message VerifyRecordingResponse {
   repeated RecordingIntegrityIssue issues = 6;
 }
 
+message GetRecordingReportRequest {
+  string session_id = 1;
+  uint32 timeline_limit = 2;
+  uint32 issue_limit = 3;
+}
+
+message RecordingReport {
+  RecordingSessionDetail detail = 1;
+  GetRecordingTimelineResponse timeline = 2;
+  VerifyRecordingResponse integrity = 3;
+  uint64 total_integrity_issues = 4;
+  bool integrity_issues_truncated = 5;
+  bool healthy = 6;
+}
+
 message VerifyAllRecordingsRequest {
   int64 from_started_at_ms = 1;
   int64 to_started_at_ms = 2;
@@ -208,6 +223,7 @@ service RecordingControl {
   rpc GetDetail(GetRecordingDetailRequest) returns (RecordingSessionDetail);
   rpc GetTimeline(GetRecordingTimelineRequest) returns (GetRecordingTimelineResponse);
   rpc Verify(VerifyRecordingRequest) returns (VerifyRecordingResponse);
+  rpc GetReport(GetRecordingReportRequest) returns (RecordingReport);
   rpc VerifyAll(VerifyAllRecordingsRequest) returns (VerifyAllRecordingsResponse);
   rpc Delete(DeleteRecordingRequest) returns (cockpit.proto.common.Empty);
   rpc Prune(cockpit.proto.common.Empty) returns (PruneRecordingsResponse);

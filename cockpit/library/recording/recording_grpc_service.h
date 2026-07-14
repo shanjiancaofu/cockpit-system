@@ -45,6 +45,9 @@ class RecordingGrpcService final : public proto::recording::RecordingControl::Se
   grpc::Status Verify(grpc::ServerContext* context,
                       const proto::recording::VerifyRecordingRequest* request,
                       proto::recording::VerifyRecordingResponse* response) override;
+  grpc::Status GetReport(grpc::ServerContext* context,
+                         const proto::recording::GetRecordingReportRequest* request,
+                         proto::recording::RecordingReport* response) override;
   grpc::Status VerifyAll(grpc::ServerContext* context,
                          const proto::recording::VerifyAllRecordingsRequest* request,
                          proto::recording::VerifyAllRecordingsResponse* response) override;
@@ -60,6 +63,10 @@ class RecordingGrpcService final : public proto::recording::RecordingControl::Se
                           proto::recording::RecordingSessionInfo* response);
   static void FillDetail(const RecordingSessionDetail& detail,
                          proto::recording::RecordingSessionDetail* response);
+  static void FillTimeline(const RecordingTimelineResult& timeline,
+                           proto::recording::GetRecordingTimelineResponse* response);
+  static void FillIntegrity(const RecordingIntegrityResult& integrity,
+                            proto::recording::VerifyRecordingResponse* response);
 
   RecordingService& recording_service_;
   std::unique_ptr<grpc::Server> server_;

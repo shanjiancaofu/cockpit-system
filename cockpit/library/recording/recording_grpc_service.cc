@@ -230,18 +230,7 @@ grpc::Status RecordingGrpcService::GetTimeline(
   if (!recording_service_.GetTimeline(request->session_id(), query, &result, &error)) {
     return grpc::Status(grpc::StatusCode::INTERNAL, error);
   }
-  for (const auto& entry : result.entries) {
-    auto* timeline_entry = response->add_entries();
-    timeline_entry->set_timestamp_ms(entry.timestamp_ms);
-    timeline_entry->set_kind(ToProtoTimelineKind(entry.kind));
-    timeline_entry->set_source(entry.source);
-    timeline_entry->set_label(entry.label);
-    timeline_entry->set_path(entry.path);
-    timeline_entry->set_record_json(entry.record_json);
-  }
-  response->set_total_entries(result.total_entries);
-  response->set_corrupted_lines(result.corrupted_lines);
-  response->set_truncated(result.truncated);
+  FillTimeline(result, response);
   return grpc::Status::OK;
 }
 
@@ -260,23 +249,42 @@ grpc::Status RecordingGrpcService::Verify(grpc::ServerContext*,
   if (!recording_service_.Verify(request->session_id(), &result, &error)) {
     return grpc::Status(grpc::StatusCode::INTERNAL, error);
   }
-  response->set_healthy(result.healthy);
-  response->set_index_entries(result.index_entries);
-  response->set_files_checked(result.files_checked);
-  response->set_checksums_checked(result.checksums_checked);
-  response->set_checksums_unavailable(result.checksums_unavailable);
-  for (const auto& issue : result.issues) {
-    auto* proto_issue = response->add_issues();
-    proto_issue->set_kind(ToProtoIntegrityIssueKind(issue.kind));
-    proto_issue->set_line_number(issue.line_number);
-    proto_issue->set_source(issue.source);
-    proto_issue->set_path(issue.path);
-    proto_issue->set_message(issue.message);
-    proto_issue->set_expected_size_bytes(issue.expected_size_bytes);
-    proto_issue->set_actual_size_bytes(issue.actual_size_bytes);
-    proto_issue->set_expected_checksum(issue.expected_checksum);
-    proto_issue->set_actual_checksum(issue.actual_checksum);
+  FillIntegrity(result, response);
+  return grpc::Status::OK;
+}
+
+grpc::Status RecordingGrpcService::GetReport(
+    grpc::ServerContext*, const proto::recording::GetRecordingReportRequest* request,
+    proto::recording::RecordingReport* response) {
+  if (request->session_id().empty()) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "session_id is required");
   }
+  RecordingReportQuery query;
+  query.timeline_limit = request->timeline_limit() == 0
+                             ? RecordingTimelineReader::kDefaultLimit
+                             : static_cast<std::size_t>(request->timeline_limit());
+  query.issue_limit =
+      request->issue_limit() == 0 ? 100 : static_cast<std::size_t>(request->issue_limit());
+  if (query.timeline_limit > RecordingTimelineReader::kMaximumLimit ||
+      query.issue_limit > RecordingService::kMaximumReportIssueLimit) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "recording report limit is too large");
+  }
+
+  RecordingSessionDetail detail;
+  std::string error;
+  if (!recording_service_.GetDetail(request->session_id(), &detail, &error)) {
+    return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
+  }
+  RecordingReport report;
+  if (!recording_service_.GetReport(request->session_id(), query, &report, &error)) {
+    return grpc::Status(grpc::StatusCode::INTERNAL, error);
+  }
+  FillDetail(report.detail, response->mutable_detail());
+  FillTimeline(report.timeline, response->mutable_timeline());
+  FillIntegrity(report.integrity, response->mutable_integrity());
+  response->set_total_integrity_issues(report.total_integrity_issues);
+  response->set_integrity_issues_truncated(report.integrity_issues_truncated);
+  response->set_healthy(report.healthy);
   return grpc::Status::OK;
 }
 
@@ -385,6 +393,43 @@ void RecordingGrpcService::FillDetail(const RecordingSessionDetail& detail,
   response->set_data_files_indexed(detail.data_files_indexed);
   for (const auto& source : detail.sources) {
     response->add_sources(source);
+  }
+}
+
+void RecordingGrpcService::FillTimeline(const RecordingTimelineResult& timeline,
+                                        proto::recording::GetRecordingTimelineResponse* response) {
+  for (const auto& entry : timeline.entries) {
+    auto* timeline_entry = response->add_entries();
+    timeline_entry->set_timestamp_ms(entry.timestamp_ms);
+    timeline_entry->set_kind(ToProtoTimelineKind(entry.kind));
+    timeline_entry->set_source(entry.source);
+    timeline_entry->set_label(entry.label);
+    timeline_entry->set_path(entry.path);
+    timeline_entry->set_record_json(entry.record_json);
+  }
+  response->set_total_entries(timeline.total_entries);
+  response->set_corrupted_lines(timeline.corrupted_lines);
+  response->set_truncated(timeline.truncated);
+}
+
+void RecordingGrpcService::FillIntegrity(const RecordingIntegrityResult& integrity,
+                                         proto::recording::VerifyRecordingResponse* response) {
+  response->set_healthy(integrity.healthy);
+  response->set_index_entries(integrity.index_entries);
+  response->set_files_checked(integrity.files_checked);
+  response->set_checksums_checked(integrity.checksums_checked);
+  response->set_checksums_unavailable(integrity.checksums_unavailable);
+  for (const auto& issue : integrity.issues) {
+    auto* proto_issue = response->add_issues();
+    proto_issue->set_kind(ToProtoIntegrityIssueKind(issue.kind));
+    proto_issue->set_line_number(issue.line_number);
+    proto_issue->set_source(issue.source);
+    proto_issue->set_path(issue.path);
+    proto_issue->set_message(issue.message);
+    proto_issue->set_expected_size_bytes(issue.expected_size_bytes);
+    proto_issue->set_actual_size_bytes(issue.actual_size_bytes);
+    proto_issue->set_expected_checksum(issue.expected_checksum);
+    proto_issue->set_actual_checksum(issue.actual_checksum);
   }
 }
 

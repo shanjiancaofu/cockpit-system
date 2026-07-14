@@ -213,6 +213,7 @@ int cockpit::recording_ctl::ControlRecording(const cockpit::runtime::ProcessRunt
   const std::string detail_session_id = runtime.args().GetString("detail", "");
   const std::string timeline_session_id = runtime.args().GetString("timeline", "");
   const std::string verify_session_id = runtime.args().GetString("verify", "");
+  const std::string report_session_id = runtime.args().GetString("report", "");
   const bool verify_all = runtime.args().HasFlag("verify-all");
   const std::string event_topic = runtime.args().GetString("event-topic", "");
   const std::string file_path = runtime.args().GetString("file-path", "");
@@ -262,6 +263,58 @@ int cockpit::recording_ctl::ControlRecording(const cockpit::runtime::ProcessRunt
       if (!response.healthy()) {
         return 2;
       }
+    }
+  } else if (!report_session_id.empty()) {
+    cockpit::diagnostics::OutputFormat output_format;
+    if (!cockpit::diagnostics::ParseOutputFormat(runtime.args().GetString("output", "text"),
+                                                 &output_format, &error)) {
+      std::cerr << error << '\n';
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
+    }
+    const int timeline_limit = runtime.args().GetInt("timeline-limit", 100);
+    const int issue_limit = runtime.args().GetInt("issue-limit", 100);
+    if (timeline_limit < 1 || timeline_limit > 1000 || issue_limit < 1 || issue_limit > 1000) {
+      constexpr char kMessage[] = "report limits must be between 1 and 1000";
+      if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+        cockpit::diagnostics::WriteJsonError("invalid_arguments", kMessage, &std::cerr);
+      } else {
+        std::cerr << kMessage << '\n';
+      }
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
+    }
+    cockpit::proto::recording::GetRecordingReportRequest request;
+    request.set_session_id(report_session_id);
+    request.set_timeline_limit(static_cast<std::uint32_t>(timeline_limit));
+    request.set_issue_limit(static_cast<std::uint32_t>(issue_limit));
+    cockpit::proto::recording::RecordingReport response;
+    ok = client.GetReport(request, &response, &error);
+    if (!ok) {
+      const std::string message = error.empty() ? "recording report request failed" : error;
+      if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+        cockpit::diagnostics::WriteJsonError("operation_failed", message, &std::cerr);
+      } else {
+        std::cerr << message << '\n';
+      }
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed);
+    }
+    if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+      if (!cockpit::diagnostics::WriteJson(response, &std::cout, &error)) {
+        cockpit::diagnostics::WriteJsonError("operation_failed", error, &std::cerr);
+        return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed);
+      }
+    } else {
+      std::cout << "healthy: " << (response.healthy() ? "true" : "false") << '\n' << "[manifest]\n";
+      PrintDetail(response.detail());
+      std::cout << "[timeline]\n";
+      PrintTimeline(response.timeline());
+      std::cout << "[integrity]\n"
+                << "total issues: " << response.total_integrity_issues() << '\n'
+                << "issues truncated: "
+                << (response.integrity_issues_truncated() ? "true" : "false") << '\n';
+      PrintVerification(response.integrity());
+    }
+    if (!response.healthy()) {
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kUnhealthy);
     }
   } else if (verify_all) {
     cockpit::diagnostics::OutputFormat output_format;
@@ -347,8 +400,8 @@ int cockpit::recording_ctl::ControlRecording(const cockpit::runtime::ProcessRunt
     return 1;
   }
   if (!runtime.args().HasFlag("list") && detail_session_id.empty() && delete_session_id.empty() &&
-      timeline_session_id.empty() && verify_session_id.empty() && !verify_all &&
-      !runtime.args().HasFlag("prune")) {
+      timeline_session_id.empty() && verify_session_id.empty() && report_session_id.empty() &&
+      !verify_all && !runtime.args().HasFlag("prune")) {
     PrintStatus(status);
   }
   return 0;

@@ -39,6 +39,15 @@ int main() {
   data_file.source = "test";
   data_file.kind = "artifact";
   data_file.path = "external.bin";
+  const auto checksum_source = root / "checksum.bin";
+  std::ofstream(checksum_source, std::ios::binary) << "hello";
+  cockpit::recording::RecordingDataFile checksum_file;
+  checksum_file.timestamp_ms = 1002;
+  checksum_file.source = "test";
+  checksum_file.kind = "artifact";
+  checksum_file.path = checksum_source.string();
+  checksum_file.checksum = "fnv1a64:0000000000000000";
+  checksum_file.copy_into_session = true;
 
   const bool idle_rejected =
       Check(!service.HandleEvent(event, &error), "idle recording service accepted event") &&
@@ -49,6 +58,7 @@ int main() {
   if (!idle_rejected || !Check(service.Start("unit_test", &error), "recording start failed") ||
       !Check(service.HandleEvent(event, &error), "active recording event failed") ||
       !Check(service.HandleDataFile(data_file, &error), "active recording data file failed") ||
+      !Check(service.HandleDataFile(checksum_file, &error), "active checksum data file failed") ||
       !Check(service.Stop(&error), "recording stop failed")) {
     std::cerr << error << '\n';
     std::filesystem::remove_all(root);
@@ -56,6 +66,7 @@ int main() {
   }
 
   const auto damaged_sessions = service.List(0);
+  std::ofstream(damaged_sessions.front().directory + "/events.jsonl", std::ios::app) << "{bad}\n";
   if (!Check(damaged_sessions.size() == 1, "damaged recording was not cataloged") ||
       !Check(service.Start("healthy", &error), "healthy recording start failed") ||
       !Check(service.Stop(&error), "healthy recording stop failed")) {
@@ -92,12 +103,31 @@ int main() {
   cockpit::recording::RecordingIntegrityBatchQuery invalid_query;
   invalid_query.from_started_at_ms = 2;
   invalid_query.to_started_at_ms = 1;
+  cockpit::recording::RecordingReportQuery report_query;
+  report_query.timeline_limit = 10;
+  report_query.issue_limit = 10;
+  cockpit::recording::RecordingReport damaged_report;
+  cockpit::recording::RecordingReportQuery limited_report_query = report_query;
+  limited_report_query.issue_limit = 1;
+  cockpit::recording::RecordingReport limited_report;
+  std::string healthy_session_id;
+  std::string healthy_session_directory;
+  for (const auto& session : sessions) {
+    if (session.trigger == "healthy") {
+      healthy_session_id = session.session_id;
+      healthy_session_directory = session.directory;
+    }
+  }
+  cockpit::recording::RecordingReport healthy_report;
+  cockpit::recording::RecordingReportQuery invalid_report_query;
+  invalid_report_query.issue_limit = 0;
   const bool result =
       Check(sessions.size() == 3, "recording catalog size mismatch") &&
       Check(service.GetTimeline(damaged_sessions.front().session_id, query, &timeline, &error),
             "recording timeline query failed") &&
-      Check(timeline.total_entries == 2, "recording timeline total mismatch") &&
-      Check(timeline.entries.size() == 2, "recording timeline entry count mismatch") &&
+      Check(timeline.total_entries == 3, "recording timeline total mismatch") &&
+      Check(timeline.entries.size() == 3, "recording timeline entry count mismatch") &&
+      Check(timeline.corrupted_lines == 1, "recording timeline corruption count mismatch") &&
       Check(timeline.entries[0].kind == cockpit::recording::RecordingTimelineEntryKind::kEvent,
             "recording event timeline entry mismatch") &&
       Check(timeline.entries[1].kind == cockpit::recording::RecordingTimelineEntryKind::kDataFile,
@@ -105,10 +135,38 @@ int main() {
       Check(service.Verify(damaged_sessions.front().session_id, &integrity, &error),
             "recording integrity verification failed") &&
       Check(!integrity.healthy, "missing external recording file was reported healthy") &&
-      Check(integrity.issues.size() == 1 &&
+      Check(integrity.issues.size() == 2 &&
                 integrity.issues[0].kind ==
-                    cockpit::recording::RecordingIntegrityIssueKind::kMissingFile,
-            "recording integrity missing file issue mismatch") &&
+                    cockpit::recording::RecordingIntegrityIssueKind::kMissingFile &&
+                integrity.issues[1].kind ==
+                    cockpit::recording::RecordingIntegrityIssueKind::kChecksumMismatch,
+            "recording integrity issue mismatch") &&
+      Check(service.GetReport(damaged_sessions.front().session_id, report_query, &damaged_report,
+                              &error),
+            "damaged recording report failed") &&
+      Check(damaged_report.detail.data_files_indexed == 2 &&
+                damaged_report.timeline.total_entries == 3 &&
+                damaged_report.timeline.corrupted_lines == 1 && !damaged_report.integrity.healthy &&
+                damaged_report.total_integrity_issues == 2 &&
+                damaged_report.integrity.issues.size() == 2 &&
+                !damaged_report.integrity_issues_truncated && !damaged_report.healthy,
+            "damaged recording report mismatch") &&
+      Check(service.GetReport(damaged_sessions.front().session_id, limited_report_query,
+                              &limited_report, &error),
+            "limited recording report failed") &&
+      Check(limited_report.total_integrity_issues == 2 &&
+                limited_report.integrity.issues.size() == 1 &&
+                limited_report.integrity_issues_truncated,
+            "recording report issue limit mismatch") &&
+      Check(!healthy_session_id.empty(), "healthy recording session was not found") &&
+      Check(service.GetReport(healthy_session_id, report_query, &healthy_report, &error),
+            "healthy recording report failed") &&
+      Check(healthy_report.integrity.healthy && healthy_report.total_integrity_issues == 0 &&
+                healthy_report.timeline.corrupted_lines == 0 && healthy_report.healthy,
+            "healthy recording report mismatch") &&
+      Check(!service.GetReport(damaged_sessions.front().session_id, invalid_report_query,
+                               &damaged_report, &error),
+            "invalid recording report limit was accepted") &&
       Check(service.VerifyAll(batch_query, &batch, &error),
             "batch recording verification failed") &&
       Check(batch.total_sessions == 3 && batch.sessions.size() == 3,
@@ -133,6 +191,19 @@ int main() {
       Check(!service.VerifyAll(invalid_query, &batch, &error),
             "invalid batch recording range was accepted");
 
+  bool corrupted_timeline_result = false;
+  if (result) {
+    std::ofstream(healthy_session_directory + "/events.jsonl", std::ios::app) << "{bad}\n";
+    cockpit::recording::RecordingReport corrupted_timeline_report;
+    corrupted_timeline_result =
+        Check(
+            service.GetReport(healthy_session_id, report_query, &corrupted_timeline_report, &error),
+            "corrupted timeline report failed") &&
+        Check(!corrupted_timeline_report.healthy && corrupted_timeline_report.integrity.healthy &&
+                  corrupted_timeline_report.timeline.corrupted_lines == 1,
+              "corrupted timeline report was healthy");
+  }
+
   cockpit::recording::RecordingService empty_service(root / "empty", "test_vehicle",
                                                      {10, std::uint64_t{1024} * 1024U});
   cockpit::recording::RecordingIntegrityBatchResult empty_batch;
@@ -145,5 +216,5 @@ int main() {
                 empty_batch.unavailable_sessions == 0 && !empty_batch.truncated,
             "empty batch recording verification mismatch");
   std::filesystem::remove_all(root);
-  return result && empty_result ? 0 : 1;
+  return result && corrupted_timeline_result && empty_result ? 0 : 1;
 }

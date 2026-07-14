@@ -61,6 +61,45 @@ bool RecordingService::Verify(const std::string& session_id, RecordingIntegrityR
   return RecordingIntegrityVerifier::Verify(detail.info.directory, result, error);
 }
 
+bool RecordingService::GetReport(const std::string& session_id, const RecordingReportQuery& query,
+                                 RecordingReport* report, std::string* error) const {
+  if (report == nullptr) {
+    if (error != nullptr) {
+      *error = "recording report must not be null";
+    }
+    return false;
+  }
+  if (query.timeline_limit == 0 || query.timeline_limit > RecordingTimelineReader::kMaximumLimit ||
+      query.issue_limit == 0 || query.issue_limit > kMaximumReportIssueLimit) {
+    if (error != nullptr) {
+      *error = "recording report limit is invalid";
+    }
+    return false;
+  }
+
+  RecordingReport local_report;
+  if (!GetDetail(session_id, &local_report.detail, error)) {
+    return false;
+  }
+  RecordingTimelineQuery timeline_query;
+  timeline_query.limit = query.timeline_limit;
+  if (!RecordingTimelineReader::Read(local_report.detail.info.directory, timeline_query,
+                                     &local_report.timeline, error) ||
+      !RecordingIntegrityVerifier::Verify(local_report.detail.info.directory,
+                                          &local_report.integrity, error)) {
+    return false;
+  }
+  local_report.total_integrity_issues = local_report.integrity.issues.size();
+  local_report.healthy =
+      local_report.integrity.healthy && local_report.timeline.corrupted_lines == 0;
+  if (local_report.integrity.issues.size() > query.issue_limit) {
+    local_report.integrity.issues.resize(query.issue_limit);
+    local_report.integrity_issues_truncated = true;
+  }
+  *report = std::move(local_report);
+  return true;
+}
+
 bool RecordingService::VerifyAll(const RecordingIntegrityBatchQuery& query,
                                  RecordingIntegrityBatchResult* result, std::string* error) const {
   constexpr std::size_t kMaximumLimit = 1000;

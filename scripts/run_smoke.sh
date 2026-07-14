@@ -169,6 +169,16 @@ if [[ "${recording_verification}" != *"healthy: true"* ||
   echo "recording smoke integrity verification failed" >&2
   exit 1
 fi
+recording_report="$("${bin_dir}/recording-ctl" --report "${recording_session_id}" \
+  --timeline-limit 20 --issue-limit 20 --output json --config "${config_path}")"
+if [[ "${recording_report}" != *'"detail"'* ||
+      "${recording_report}" != *'"timeline"'* ||
+      "${recording_report}" != *'"integrity"'* ||
+      "${recording_report}" != *'"healthy":true'* ||
+      "${recording_report}" != *'"data_files_indexed":"1"'* ]]; then
+  echo "recording smoke report is incomplete" >&2
+  exit 1
+fi
 recording_batch="$("${bin_dir}/recording-ctl" --verify-all --limit 10 --output json \
   --config "${config_path}")"
 if [[ "${recording_batch}" != *'"total_sessions":"1"'* ||

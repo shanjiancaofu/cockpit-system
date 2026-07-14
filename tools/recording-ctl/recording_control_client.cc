@@ -108,6 +108,14 @@ bool RecordingControlClient::Verify(const std::string& session_id,
   return FinishRpc(stub_->Verify(&context, request, response), error);
 }
 
+bool RecordingControlClient::GetReport(const proto::recording::GetRecordingReportRequest& request,
+                                       proto::recording::RecordingReport* response,
+                                       std::string* error) {
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->GetReport(&context, request, response), error);
+}
+
 bool RecordingControlClient::VerifyAll(const proto::recording::VerifyAllRecordingsRequest& request,
                                        proto::recording::VerifyAllRecordingsResponse* response,
                                        std::string* error) {

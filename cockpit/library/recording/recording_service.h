@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -13,8 +14,24 @@
 namespace cockpit {
 namespace recording {
 
+struct RecordingReportQuery {
+  std::size_t timeline_limit = RecordingTimelineReader::kDefaultLimit;
+  std::size_t issue_limit = 100;
+};
+
+struct RecordingReport {
+  RecordingSessionDetail detail;
+  RecordingTimelineResult timeline;
+  RecordingIntegrityResult integrity;
+  std::uint64_t total_integrity_issues = 0;
+  bool integrity_issues_truncated = false;
+  bool healthy = false;
+};
+
 class RecordingService {
  public:
+  static constexpr std::size_t kMaximumReportIssueLimit = 1000;
+
   RecordingService(std::filesystem::path root_directory, std::string vehicle_id,
                    RecordingRetentionPolicy retention_policy, RecordingMetadata metadata = {});
 
@@ -28,6 +45,8 @@ class RecordingService {
                    RecordingTimelineResult* result, std::string* error) const;
   bool Verify(const std::string& session_id, RecordingIntegrityResult* result,
               std::string* error) const;
+  bool GetReport(const std::string& session_id, const RecordingReportQuery& query,
+                 RecordingReport* report, std::string* error) const;
   bool VerifyAll(const RecordingIntegrityBatchQuery& query, RecordingIntegrityBatchResult* result,
                  std::string* error) const;
   bool Delete(const std::string& session_id, std::string* error);

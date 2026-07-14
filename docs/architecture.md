@@ -202,6 +202,10 @@ unavailable，但不会误报为内容损坏。诊断会汇总全部 issue，CLI
 仍通过单会话接口查询，避免长稳测试后一次 RPC 返回无界诊断数据。批量查询支持时间范围和 limit，
 原始 JSONL 与 manifest 仍是权威来源，不为汇总结果额外引入数据库。
 
+`recording-ctl --report <session-id>` 复用 detail、timeline 和 integrity 读取边界，返回一份 text/JSON
+聚合报告。timeline 和 issue 分别限制为最多 1000 条，同时保留总数与截断状态；artifact 损坏或
+JSONL 损坏行都会使报告整体状态变为不健康并返回退出码 3。
+
 ### 录包时间语义
 
 recording-service 已提供多源时间线查询：读取 `vehicle_state.jsonl`、`events.jsonl` 和
