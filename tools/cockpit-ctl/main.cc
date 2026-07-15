@@ -6,6 +6,7 @@
 #include "tools/cockpit-ctl/dependencies_command.h"
 #include "tools/cockpit-ctl/health_command.h"
 #include "tools/cockpit-ctl/runtime_command.h"
+#include "tools/cockpit-ctl/snapshot_command.h"
 #include "tools/cockpit-ctl/status_command.h"
 #include "tools/diagnostics/cli_output.h"
 
@@ -18,6 +19,7 @@ void PrintUsage() {
             << "  cockpit-ctl health [--mode normal|development|cloud]"
                " [--config configs/config.yaml]\n"
             << "  cockpit-ctl dependencies [--config configs/config.yaml]\n"
+            << "  cockpit-ctl snapshot [--directory PATH] [--max-log-bytes N] [--socket PATH]\n"
             << "  cockpit-ctl runtime status|mode|reload [--socket PATH]\n"
             << "  cockpit-ctl runtime switch MODE [--socket PATH]\n"
             << "  cockpit-ctl runtime start|stop|restart MODULE [--socket PATH]\n"
@@ -25,6 +27,8 @@ void PrintUsage() {
             << "  --config PATH    config file path (default: configs/config.yaml)\n"
             << "  --socket PATH    Navigator Unix Socket path\n"
             << "  --mode MODE      health target mode (default: normal)\n"
+            << "  --directory PATH diagnostic snapshot output directory\n"
+            << "  --max-log-bytes N maximum bytes copied from each log (default: 262144)\n"
             << "  --watch          watch mode, refresh status periodically\n"
             << "  --output FORMAT  text or json (default: text)\n"
             << "  --interval SEC   refresh interval in seconds (default: "
@@ -41,7 +45,7 @@ int main(int argc, char** argv) {
     return command.empty() ? 1 : 0;
   }
   if (command != "status" && command != "health" && command != "dependencies" &&
-      command != "runtime") {
+      command != "runtime" && command != "snapshot") {
     std::cerr << "unknown command: " << command << '\n';
     PrintUsage();
     return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
@@ -52,6 +56,9 @@ int main(int argc, char** argv) {
 
   const auto config =
       cockpit::config::SystemConfig::LoadFromFile(args.GetString("config", "configs/config.yaml"));
+  if (command == "snapshot") {
+    return cockpit::ctl::snapshot::Run(config, args);
+  }
   cockpit::diagnostics::OutputFormat output_format;
   std::string output_error;
   if (!cockpit::diagnostics::ParseOutputFormat(args.GetString("output", "text"), &output_format,

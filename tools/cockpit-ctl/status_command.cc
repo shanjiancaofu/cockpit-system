@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <thread>
 
@@ -385,7 +386,7 @@ std::string FetchStatusJson(Fetch fetch) {
   return json_text;
 }
 
-int RunStatusJson(const config::SystemConfig& config) {
+std::string BuildStatusJson(const config::SystemConfig& config) {
   auto gateway = proto::gateway::CockpitGateway::NewStub(grpc::CreateChannel(
       config.services().gateway.grpc.listen_address, grpc::InsecureChannelCredentials()));
   auto audio = proto::audio::AudioControl::NewStub(grpc::CreateChannel(
@@ -398,37 +399,37 @@ int RunStatusJson(const config::SystemConfig& config) {
       config.services().recording.grpc.listen_address, grpc::InsecureChannelCredentials()));
   const proto::common::Empty request;
 
-  std::cout << "{\"system\":{\"name\":\"" << json::EscapeString(config.system().name)
-            << "\",\"vehicle_id\":\"" << json::EscapeString(config.system().vehicle_id)
-            << "\"},\"services\":{";
-  std::cout << "\"gateway\":"
-            << FetchStatusJson<proto::gateway::GatewayStatus>(
-                   [&](grpc::ClientContext* context, proto::gateway::GatewayStatus* response) {
-                     return gateway->GetStatus(context, request, response);
-                   });
-  std::cout << ",\"audio\":"
-            << FetchStatusJson<proto::audio::AudioStatus>(
-                   [&](grpc::ClientContext* context, proto::audio::AudioStatus* response) {
-                     return audio->GetStatus(context, request, response);
-                   });
-  std::cout << ",\"voice\":"
-            << FetchStatusJson<proto::voice::VoiceInteractionStatus>(
-                   [&](grpc::ClientContext* context,
-                       proto::voice::VoiceInteractionStatus* response) {
-                     return voice->GetStatus(context, request, response);
-                   });
-  std::cout << ",\"camera\":"
-            << FetchStatusJson<proto::camera::CameraStatus>(
-                   [&](grpc::ClientContext* context, proto::camera::CameraStatus* response) {
-                     return camera->GetStatus(context, request, response);
-                   });
-  std::cout << ",\"recording\":"
-            << FetchStatusJson<proto::recording::RecordingStatus>(
-                   [&](grpc::ClientContext* context, proto::recording::RecordingStatus* response) {
-                     return recording->GetStatus(context, request, response);
-                   });
-  std::cout << "}}\n";
-  return diagnostics::ToInt(diagnostics::ExitCode::kSuccess);
+  std::ostringstream output;
+  output << "{\"system\":{\"name\":\"" << json::EscapeString(config.system().name)
+         << "\",\"vehicle_id\":\"" << json::EscapeString(config.system().vehicle_id)
+         << "\"},\"services\":{";
+  output << "\"gateway\":"
+         << FetchStatusJson<proto::gateway::GatewayStatus>(
+                [&](grpc::ClientContext* context, proto::gateway::GatewayStatus* response) {
+                  return gateway->GetStatus(context, request, response);
+                });
+  output << ",\"audio\":"
+         << FetchStatusJson<proto::audio::AudioStatus>(
+                [&](grpc::ClientContext* context, proto::audio::AudioStatus* response) {
+                  return audio->GetStatus(context, request, response);
+                });
+  output << ",\"voice\":"
+         << FetchStatusJson<proto::voice::VoiceInteractionStatus>(
+                [&](grpc::ClientContext* context, proto::voice::VoiceInteractionStatus* response) {
+                  return voice->GetStatus(context, request, response);
+                });
+  output << ",\"camera\":"
+         << FetchStatusJson<proto::camera::CameraStatus>(
+                [&](grpc::ClientContext* context, proto::camera::CameraStatus* response) {
+                  return camera->GetStatus(context, request, response);
+                });
+  output << ",\"recording\":"
+         << FetchStatusJson<proto::recording::RecordingStatus>(
+                [&](grpc::ClientContext* context, proto::recording::RecordingStatus* response) {
+                  return recording->GetStatus(context, request, response);
+                });
+  output << "}}";
+  return output.str();
 }
 
 int WatchStatus(const config::SystemConfig& config, int interval_sec) {
@@ -450,13 +451,20 @@ int WatchStatus(const config::SystemConfig& config, int interval_sec) {
 
 }  // namespace
 
+std::string CaptureJson(const config::SystemConfig& config) {
+  return BuildStatusJson(config);
+}
+
 int Run(const config::SystemConfig& config, diagnostics::OutputFormat output_format, bool watch,
         int interval_sec) {
   if (watch) {
     return WatchStatus(config, interval_sec);
   }
-  return output_format == diagnostics::OutputFormat::kJson ? RunStatusJson(config)
-                                                           : RunStatusText(config);
+  if (output_format == diagnostics::OutputFormat::kJson) {
+    std::cout << CaptureJson(config) << '\n';
+    return diagnostics::ToInt(diagnostics::ExitCode::kSuccess);
+  }
+  return RunStatusText(config);
 }
 
 }  // namespace status

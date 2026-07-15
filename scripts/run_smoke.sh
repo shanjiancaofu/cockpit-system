@@ -231,6 +231,15 @@ if [[ "${voice_status_json}" != *'"state":"INTERACTION_STATE_LISTENING"'* ||
   echo "voice JSON status output is invalid" >&2
   exit 1
 fi
+snapshot_dir="${run_dir}/diagnostic-snapshot"
+"${bin_dir}/cockpit-ctl" snapshot --config "${config_path}" --socket "${socket_path}" \
+  --directory "${snapshot_dir}" --max-log-bytes 4096
+if ! grep -q '"runtime":{"available":true' "${snapshot_dir}/manifest.json" ||
+   ! grep -q '"services"' "${snapshot_dir}/service_status.json" ||
+   ! grep -q 'module=agent state=running' "${snapshot_dir}/runtime_status.txt"; then
+  echo "online diagnostic snapshot is incomplete" >&2
+  exit 1
+fi
 "${bin_dir}/topic" hz /vehicle/state --backend grpc --window 3 --count 3 \
   --config "${config_path}"
 

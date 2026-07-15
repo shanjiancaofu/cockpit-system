@@ -99,6 +99,12 @@ add_executable(cli_output_test tools/cli_output_test.cc)
 target_link_libraries(cli_output_test PRIVATE diagnostic_cli json_util)
 add_test(NAME cli_output_test COMMAND cli_output_test)
 
+add_test(NAME diagnostic_snapshot_test COMMAND bash
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools/diagnostic_snapshot_test.sh
+    $<TARGET_FILE:cockpit-ctl>
+    ${PROJECT_SOURCE_DIR}/configs/config.yaml
+)
+
 add_executable(gateway_grpc_service_test library/transfer/gateway_grpc_service_test.cc)
 target_link_libraries(gateway_grpc_service_test PRIVATE transfer_runtime)
 add_test(NAME gateway_grpc_service_test COMMAND gateway_grpc_service_test)
