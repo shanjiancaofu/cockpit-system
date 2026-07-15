@@ -92,6 +92,14 @@ grpc::Status VoiceGrpcService::ProcessTranscript(
   return grpc::Status::OK;
 }
 
+grpc::Status VoiceGrpcService::Interrupt(grpc::ServerContext*, const proto::common::Empty*,
+                                         proto::voice::InterruptVoiceResponse* response) {
+  const VoiceInterruptResult result = service_.Interrupt();
+  response->set_active_request_interrupted(result.active_request_interrupted);
+  response->set_queued_transcripts_discarded(result.queued_transcripts_discarded);
+  return grpc::Status::OK;
+}
+
 grpc::Status VoiceGrpcService::SubscribeResponses(
     grpc::ServerContext* context, const proto::voice::SubscribeVoiceResponsesRequest* request,
     grpc::ServerWriter<proto::voice::VoiceResponseEvent>* writer) {
@@ -142,6 +150,9 @@ void VoiceGrpcService::FillStatus(const VoiceInteractionStatus& value,
   metrics->set_actions_attempted(value.metrics.actions_attempted);
   metrics->set_actions_succeeded(value.metrics.actions_succeeded);
   metrics->set_actions_failed(value.metrics.actions_failed);
+  metrics->set_requests_interrupted(value.metrics.requests_interrupted);
+  metrics->set_provider_timeouts(value.metrics.provider_timeouts);
+  metrics->set_provider_failures(value.metrics.provider_failures);
   metrics->set_speech_requests_accepted(value.metrics.output.queued);
   metrics->set_speech_requests_failed(value.metrics.output.failed);
   metrics->set_speech_requests_dropped(value.metrics.output.dropped);

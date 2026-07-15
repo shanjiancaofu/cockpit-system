@@ -32,6 +32,8 @@ class VoiceAssistant {
   virtual ~VoiceAssistant() = default;
 
   virtual VoiceAssistantResult HandleTranscript(const SpeechTranscript& transcript) = 0;
+  virtual void Cancel() {
+  }
 };
 
 const char* ToString(VoiceIntent intent);

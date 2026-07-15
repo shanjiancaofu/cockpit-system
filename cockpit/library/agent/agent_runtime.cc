@@ -1,6 +1,7 @@
 #include "cockpit/library/agent/agent_runtime.h"
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <exception>
 #include <filesystem>
@@ -98,7 +99,8 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
         [recording_events](const voice::VoiceResponse& response) {
           recording_events->Publish(static_cast<std::int64_t>(response.timestamp_ms),
                                     "/voice/response", VoiceResponsePayload(response));
-        });
+        },
+        std::chrono::milliseconds(config.features().ai.request_timeout_ms));
     impl_->grpc = std::make_unique<voice::VoiceGrpcService>(*impl_->service);
     if (!impl_->grpc->Start(interaction_config.grpc.listen_address)) {
       impl_.reset();
@@ -123,7 +125,7 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
               impl_->service->RecordUpstreamReconnect();
             },
             [this](const std::string& error) {
-              impl_->service->SetUpstreamError(error);
+              impl_->service->SetLastError(error);
             });
         if (!impl_->stopping.load() && result == 0) {
           result = 1;

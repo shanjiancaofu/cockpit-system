@@ -5,6 +5,8 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <stdexcept>
+#include <thread>
 
 #include "cockpit/modules/voice/actions/mock_action_dispatcher.h"
 #include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
@@ -60,6 +62,24 @@ class BlockingActionDispatcher final : public cockpit::voice::ActionDispatcher {
   std::condition_variable changed_;
   bool entered_ = false;
   bool cancelled_ = false;
+};
+
+class RecoveringVoiceAssistant final : public cockpit::voice::VoiceAssistant {
+ public:
+  cockpit::voice::VoiceAssistantResult HandleTranscript(
+      const cockpit::voice::SpeechTranscript&) override {
+    ++calls_;
+    if (calls_ == 1) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    } else if (calls_ == 2) {
+      throw std::runtime_error("mock provider failed");
+    }
+    return {cockpit::voice::VoiceIntent::kUnknown, cockpit::voice::VoiceAction::kNone,
+            "provider recovered"};
+  }
+
+ private:
+  int calls_ = 0;
 };
 
 }  // namespace
@@ -126,6 +146,31 @@ int main() {
     return 1;
   }
 
+  cockpit::voice::VoiceInteractionService recovering_service(
+      true, std::make_unique<RecoveringVoiceAssistant>(), nullptr, nullptr, nullptr,
+      std::chrono::milliseconds(10));
+  cockpit::voice::SpeechTranscript provider_transcript;
+  provider_transcript.text = "provider test";
+  if (recovering_service.HandleTranscript(provider_transcript).has_value() ||
+      recovering_service.status().metrics.provider_timeouts != 1 ||
+      recovering_service.status().state != cockpit::voice::InteractionState::kListening) {
+    std::cerr << "voice provider timeout was not recorded\n";
+    return 1;
+  }
+  if (recovering_service.HandleTranscript(provider_transcript).has_value() ||
+      recovering_service.status().metrics.provider_failures != 1) {
+    std::cerr << "voice provider failure was not recorded\n";
+    return 1;
+  }
+  const auto recovered = recovering_service.HandleTranscript(provider_transcript);
+  const auto recovered_status = recovering_service.status();
+  if (!recovered.has_value() || recovered_status.metrics.processing_errors != 2 ||
+      recovered_status.metrics.responses_published != 1 || !recovered_status.last_error.empty() ||
+      recovered_status.state != cockpit::voice::InteractionState::kListening) {
+    std::cerr << "voice service did not recover after provider failure\n";
+    return 1;
+  }
+
   cockpit::voice::VoiceInteractionService async_service(
       true, std::make_unique<cockpit::voice::MockVoiceAssistant>(),
       std::make_unique<cockpit::voice::MockActionDispatcher>());
@@ -136,16 +181,23 @@ int main() {
   cockpit::voice::SpeechTranscript async_transcript;
   async_transcript.id = 99;
   async_transcript.text = "show vehicle status";
-  if (async_service.SubmitTranscript(async_transcript) !=
-      cockpit::event::EventQueuePushResult::kAccepted) {
-    std::cerr << "async voice service rejected transcript\n";
-    return 1;
+  for (std::uint64_t id = 99; id <= 101; ++id) {
+    async_transcript.id = id;
+    if (async_service.SubmitTranscript(async_transcript) !=
+        cockpit::event::EventQueuePushResult::kAccepted) {
+      std::cerr << "async voice service rejected consecutive transcript\n";
+      return 1;
+    }
   }
-  cockpit::voice::VoiceResponse async_response;
-  if (!async_service.WaitForResponse(0, std::chrono::milliseconds(500), &async_response) ||
-      async_response.transcript_id != 99) {
-    std::cerr << "async voice service did not publish response\n";
-    return 1;
+  std::uint64_t after_id = 0;
+  for (std::uint64_t transcript_id = 99; transcript_id <= 101; ++transcript_id) {
+    cockpit::voice::VoiceResponse async_response;
+    if (!async_service.WaitForResponse(after_id, std::chrono::milliseconds(500), &async_response) ||
+        async_response.transcript_id != transcript_id) {
+      std::cerr << "consecutive voice responses are out of order\n";
+      return 1;
+    }
+    after_id = async_response.id;
   }
   async_service.Stop();
   if (async_service.SubmitTranscript(async_transcript) !=
@@ -153,6 +205,48 @@ int main() {
     std::cerr << "stopped async voice service accepted transcript\n";
     return 1;
   }
+
+  auto interrupt_dispatcher = std::make_unique<BlockingActionDispatcher>();
+  auto* interrupt_observer = interrupt_dispatcher.get();
+  cockpit::voice::VoiceInteractionService interrupt_service(
+      true, std::make_unique<cockpit::voice::MockVoiceAssistant>(),
+      std::move(interrupt_dispatcher));
+  if (!interrupt_service.Start()) {
+    std::cerr << "interruptible voice service did not start\n";
+    return 1;
+  }
+  cockpit::voice::SpeechTranscript interrupt_transcript;
+  interrupt_transcript.id = 200;
+  interrupt_transcript.text = "show vehicle status";
+  if (interrupt_service.SubmitTranscript(interrupt_transcript) !=
+          cockpit::event::EventQueuePushResult::kAccepted ||
+      !interrupt_observer->WaitUntilEntered()) {
+    std::cerr << "interruptible action did not start\n";
+    return 1;
+  }
+  interrupt_transcript.id = 201;
+  interrupt_service.SubmitTranscript(interrupt_transcript);
+  interrupt_transcript.id = 202;
+  interrupt_service.SubmitTranscript(interrupt_transcript);
+  const auto interrupt_result = interrupt_service.Interrupt();
+  interrupt_transcript.id = 203;
+  interrupt_transcript.text = "something unknown";
+  if (!interrupt_result.active_request_interrupted ||
+      interrupt_result.queued_transcripts_discarded != 2 ||
+      interrupt_service.SubmitTranscript(interrupt_transcript) !=
+          cockpit::event::EventQueuePushResult::kAccepted) {
+    std::cerr << "voice interrupt did not cancel active and queued work\n";
+    return 1;
+  }
+  cockpit::voice::VoiceResponse interrupt_recovery;
+  if (!interrupt_service.WaitForResponse(0, std::chrono::milliseconds(500), &interrupt_recovery) ||
+      interrupt_recovery.transcript_id != 203 ||
+      interrupt_service.status().metrics.requests_interrupted != 1 ||
+      interrupt_service.status().metrics.transcript_events_dropped < 2) {
+    std::cerr << "voice service did not recover after interruption\n";
+    return 1;
+  }
+  interrupt_service.Stop();
 
   auto blocking_dispatcher = std::make_unique<BlockingActionDispatcher>();
   auto* blocking_observer = blocking_dispatcher.get();
@@ -163,7 +257,7 @@ int main() {
     return 1;
   }
   cockpit::voice::SpeechTranscript blocking_transcript;
-  blocking_transcript.id = 200;
+  blocking_transcript.id = 300;
   blocking_transcript.text = "show vehicle status";
   if (cancellable_service.SubmitTranscript(blocking_transcript) !=
           cockpit::event::EventQueuePushResult::kAccepted ||
@@ -171,15 +265,16 @@ int main() {
     std::cerr << "blocking action did not start\n";
     return 1;
   }
-  blocking_transcript.id = 201;
+  blocking_transcript.id = 301;
   cancellable_service.SubmitTranscript(blocking_transcript);
-  blocking_transcript.id = 202;
+  blocking_transcript.id = 302;
   cancellable_service.SubmitTranscript(blocking_transcript);
   const auto stop_started = std::chrono::steady_clock::now();
   cancellable_service.Stop();
   const auto stop_elapsed = std::chrono::steady_clock::now() - stop_started;
   if (stop_elapsed > std::chrono::milliseconds(300) ||
-      cancellable_service.status().metrics.transcript_events_dropped < 2) {
+      cancellable_service.status().metrics.transcript_events_dropped < 2 ||
+      cancellable_service.status().metrics.responses_published != 0) {
     std::cerr << "voice stop did not cancel active work and discard queued transcripts\n";
     return 1;
   }

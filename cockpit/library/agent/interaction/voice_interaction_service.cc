@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <exception>
+#include <stdexcept>
 #include <utility>
 
 namespace cockpit {
@@ -12,12 +13,17 @@ VoiceInteractionService::VoiceInteractionService(bool enabled,
                                                  std::unique_ptr<VoiceAssistant> assistant,
                                                  std::unique_ptr<ActionDispatcher> dispatcher,
                                                  std::unique_ptr<VoiceResponseSink> output,
-                                                 ResponseObserver response_observer)
+                                                 ResponseObserver response_observer,
+                                                 std::chrono::milliseconds request_timeout)
     : enabled_(enabled),
       assistant_(std::move(assistant)),
       dispatcher_(std::move(dispatcher)),
       output_(std::move(output)),
-      response_observer_(std::move(response_observer)) {
+      response_observer_(std::move(response_observer)),
+      request_timeout_(request_timeout) {
+  if (request_timeout_ <= std::chrono::milliseconds::zero()) {
+    throw std::invalid_argument("voice request timeout must be positive");
+  }
   state_.store(enabled_ ? InteractionState::kListening : InteractionState::kDisabled);
 }
 
@@ -41,8 +47,12 @@ bool VoiceInteractionService::Start() {
 
 void VoiceInteractionService::Stop() {
   const bool was_running = worker_running_.exchange(false);
+  interrupt_generation_.fetch_add(1U);
   transcript_events_.Close();
   transcript_events_.DiscardPending();
+  if (assistant_ != nullptr) {
+    assistant_->Cancel();
+  }
   if (dispatcher_ != nullptr) {
     dispatcher_->Cancel();
   }
@@ -71,17 +81,55 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
   if (!enabled_ || assistant_ == nullptr) {
     return std::nullopt;
   }
+  const std::uint64_t request_generation = interrupt_generation_.load();
   std::lock_guard<std::mutex> processing_lock(processing_mutex_);
+  if (request_generation != interrupt_generation_.load()) {
+    SetLastError("voice request interrupted");
+    return std::nullopt;
+  }
   if (transcript.text.empty()) {
     processing_errors_.fetch_add(1U);
-    SetUpstreamError("transcript text is empty");
+    SetLastError("transcript text is empty");
     return std::nullopt;
   }
 
   state_.store(InteractionState::kProcessing);
   transcripts_received_.fetch_add(1U);
+  const auto provider_started = std::chrono::steady_clock::now();
+  VoiceAssistantResult result;
   try {
-    const VoiceAssistantResult result = assistant_->HandleTranscript(transcript);
+    result = assistant_->HandleTranscript(transcript);
+  } catch (const std::exception& exception) {
+    if (request_generation != interrupt_generation_.load()) {
+      state_.store(InteractionState::kListening);
+      return std::nullopt;
+    }
+    const auto elapsed = std::chrono::steady_clock::now() - provider_started;
+    processing_errors_.fetch_add(1U);
+    if (elapsed > request_timeout_) {
+      provider_timeouts_.fetch_add(1U);
+      SetLastError("voice assistant provider timed out");
+    } else {
+      provider_failures_.fetch_add(1U);
+      SetLastError(exception.what());
+    }
+    state_.store(InteractionState::kListening);
+    return std::nullopt;
+  }
+
+  if (request_generation != interrupt_generation_.load()) {
+    state_.store(InteractionState::kListening);
+    return std::nullopt;
+  }
+  if (std::chrono::steady_clock::now() - provider_started > request_timeout_) {
+    processing_errors_.fetch_add(1U);
+    provider_timeouts_.fetch_add(1U);
+    SetLastError("voice assistant provider timed out");
+    state_.store(InteractionState::kListening);
+    return std::nullopt;
+  }
+
+  try {
     VoiceResponse response;
     response.timestamp_ms =
         static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -104,6 +152,10 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
         actions_failed_.fetch_add(1U);
       } else {
         const ActionExecutionResult execution = dispatcher_->Execute(result.action);
+        if (request_generation != interrupt_generation_.load()) {
+          state_.store(InteractionState::kListening);
+          return std::nullopt;
+        }
         response.action_status = execution.status;
         response.action_message = execution.message;
         if (!execution.message.empty()) {
@@ -124,10 +176,29 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
     return response;
   } catch (const std::exception& exception) {
     processing_errors_.fetch_add(1U);
-    SetUpstreamError(exception.what());
-    state_.store(InteractionState::kFaulted);
+    SetLastError(exception.what());
+    state_.store(InteractionState::kListening);
     return std::nullopt;
   }
+}
+
+VoiceInterruptResult VoiceInteractionService::Interrupt() {
+  VoiceInterruptResult result;
+  interrupt_generation_.fetch_add(1U);
+  result.queued_transcripts_discarded = transcript_events_.DiscardPending();
+  result.active_request_interrupted = state_.load() == InteractionState::kProcessing;
+  if (result.active_request_interrupted) {
+    requests_interrupted_.fetch_add(1U);
+    state_.store(InteractionState::kListening);
+    SetLastError("voice request interrupted");
+    if (assistant_ != nullptr) {
+      assistant_->Cancel();
+    }
+    if (dispatcher_ != nullptr) {
+      dispatcher_->Cancel();
+    }
+  }
+  return result;
 }
 
 bool VoiceInteractionService::WaitForResponse(std::uint64_t after_id,
@@ -162,6 +233,9 @@ VoiceInteractionStatus VoiceInteractionService::status() const {
   result.metrics.actions_attempted = actions_attempted_.load();
   result.metrics.actions_succeeded = actions_succeeded_.load();
   result.metrics.actions_failed = actions_failed_.load();
+  result.metrics.requests_interrupted = requests_interrupted_.load();
+  result.metrics.provider_timeouts = provider_timeouts_.load();
+  result.metrics.provider_failures = provider_failures_.load();
   if (output_ != nullptr) {
     result.metrics.output = output_->metrics();
   }
@@ -177,7 +251,7 @@ void VoiceInteractionService::RecordUpstreamReconnect() {
   upstream_reconnects_.fetch_add(1U);
 }
 
-void VoiceInteractionService::SetUpstreamError(std::string error) {
+void VoiceInteractionService::SetLastError(std::string error) {
   std::lock_guard<std::mutex> lock(response_mutex_);
   last_error_ = std::move(error);
 }

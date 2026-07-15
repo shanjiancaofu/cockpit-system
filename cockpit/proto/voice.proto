@@ -41,6 +41,9 @@ message VoiceMetrics {
   uint64 speech_output_reconnects = 14;
   uint64 speech_output_consecutive_failures = 15;
   uint64 speech_output_last_success_timestamp_ms = 16;
+  uint64 requests_interrupted = 17;
+  uint64 provider_timeouts = 18;
+  uint64 provider_failures = 19;
 }
 
 message VoiceInteractionStatus {
@@ -55,6 +58,11 @@ message ProcessTranscriptRequest {
   string text = 1;
 }
 
+message InterruptVoiceResponse {
+  bool active_request_interrupted = 1;
+  uint64 queued_transcripts_discarded = 2;
+}
+
 message SubscribeVoiceResponsesRequest {
   string client_id = 1;
   uint64 after_id = 2;
@@ -64,6 +72,7 @@ message SubscribeVoiceResponsesRequest {
 service VoiceInteractionControl {
   rpc GetStatus(cockpit.proto.common.Empty) returns (VoiceInteractionStatus);
   rpc ProcessTranscript(ProcessTranscriptRequest) returns (VoiceResponseEvent);
+  rpc Interrupt(cockpit.proto.common.Empty) returns (InterruptVoiceResponse);
   rpc SubscribeResponses(SubscribeVoiceResponsesRequest)
       returns (stream VoiceResponseEvent);
 }

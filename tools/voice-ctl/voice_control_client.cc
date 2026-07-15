@@ -45,6 +45,14 @@ bool VoiceControlClient::ProcessTranscript(const std::string& text,
   return FinishRpc(stub_->ProcessTranscript(&context, request, response), error);
 }
 
+bool VoiceControlClient::Interrupt(proto::voice::InterruptVoiceResponse* response,
+                                   std::string* error) {
+  proto::common::Empty request;
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->Interrupt(&context, request, response), error);
+}
+
 bool VoiceControlClient::SubscribeResponses(std::uint64_t after_id, std::uint32_t count,
                                             int timeout_ms, const ResponseHandler& handler,
                                             std::string* error) {

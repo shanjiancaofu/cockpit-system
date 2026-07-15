@@ -50,7 +50,10 @@ void PrintStatusText(const cockpit::proto::voice::VoiceInteractionStatus& status
             << "upstream reconnects: " << metrics.upstream_reconnects() << '\n';
   std::cout << "actions attempted: " << metrics.actions_attempted() << '\n'
             << "actions succeeded: " << metrics.actions_succeeded() << '\n'
-            << "actions failed: " << metrics.actions_failed() << '\n';
+            << "actions failed: " << metrics.actions_failed() << '\n'
+            << "requests interrupted: " << metrics.requests_interrupted() << '\n'
+            << "provider timeouts: " << metrics.provider_timeouts() << '\n'
+            << "provider failures: " << metrics.provider_failures() << '\n';
   std::cout << "speech requests accepted: " << metrics.speech_requests_accepted() << '\n'
             << "speech requests failed: " << metrics.speech_requests_failed() << '\n'
             << "speech requests dropped: " << metrics.speech_requests_dropped() << '\n'
@@ -73,6 +76,7 @@ void PrintUsage() {
   std::cout << "usage:\n"
             << "  voice-ctl --status [--address HOST:PORT]\n"
             << "  voice-ctl --process TEXT [--address HOST:PORT]\n"
+            << "  voice-ctl --interrupt [--address HOST:PORT]\n"
             << "  voice-ctl --responses [--after-id N] [--count N] "
                "[--timeout-ms N]\n"
             << "  all commands accept [--output text|json]\n";
@@ -98,9 +102,11 @@ int cockpit::voice_ctl::ControlVoice(const cockpit::runtime::ProcessRuntime& run
   }
   const std::string text = runtime.args().GetString("process", "");
   const bool responses = runtime.args().HasFlag("responses");
-  const bool status = runtime.args().HasFlag("status") || (text.empty() && !responses);
-  const int command_count =
-      static_cast<int>(status) + static_cast<int>(!text.empty()) + static_cast<int>(responses);
+  const bool interrupt = runtime.args().HasFlag("interrupt");
+  const bool status =
+      runtime.args().HasFlag("status") || (text.empty() && !responses && !interrupt);
+  const int command_count = static_cast<int>(status) + static_cast<int>(!text.empty()) +
+                            static_cast<int>(responses) + static_cast<int>(interrupt);
   if (command_count != 1) {
     PrintUsage();
     return 2;
@@ -126,6 +132,18 @@ int cockpit::voice_ctl::ControlVoice(const cockpit::runtime::ProcessRuntime& run
       success = PrintMessage(result, output_format, &error);
       if (success && output_format == cockpit::diagnostics::OutputFormat::kText) {
         PrintResponseText(result);
+      }
+    }
+  } else if (interrupt) {
+    cockpit::proto::voice::InterruptVoiceResponse result;
+    success = client.Interrupt(&result, &error);
+    if (success) {
+      success = PrintMessage(result, output_format, &error);
+      if (success && output_format == cockpit::diagnostics::OutputFormat::kText) {
+        std::cout << "active request interrupted: "
+                  << (result.active_request_interrupted() ? "yes" : "no") << '\n'
+                  << "queued transcripts discarded: " << result.queued_transcripts_discarded()
+                  << '\n';
       }
     }
   } else {

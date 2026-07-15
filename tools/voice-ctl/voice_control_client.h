@@ -21,6 +21,7 @@ class VoiceControlClient {
   bool GetStatus(proto::voice::VoiceInteractionStatus* status, std::string* error);
   bool ProcessTranscript(const std::string& text, proto::voice::VoiceResponseEvent* response,
                          std::string* error);
+  bool Interrupt(proto::voice::InterruptVoiceResponse* response, std::string* error);
   bool SubscribeResponses(std::uint64_t after_id, std::uint32_t count, int timeout_ms,
                           const ResponseHandler& handler, std::string* error);
 

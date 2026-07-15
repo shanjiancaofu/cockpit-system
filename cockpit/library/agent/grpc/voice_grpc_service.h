@@ -25,6 +25,8 @@ class VoiceGrpcService final : public proto::voice::VoiceInteractionControl::Ser
   grpc::Status ProcessTranscript(grpc::ServerContext* context,
                                  const proto::voice::ProcessTranscriptRequest* request,
                                  proto::voice::VoiceResponseEvent* response) override;
+  grpc::Status Interrupt(grpc::ServerContext* context, const proto::common::Empty* request,
+                         proto::voice::InterruptVoiceResponse* response) override;
   grpc::Status SubscribeResponses(
       grpc::ServerContext* context, const proto::voice::SubscribeVoiceResponsesRequest* request,
       grpc::ServerWriter<proto::voice::VoiceResponseEvent>* writer) override;

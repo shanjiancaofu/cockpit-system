@@ -217,9 +217,17 @@ if [[ "${camera_response}" != *"action_status=succeeded"* ||
   echo "voice HMI execution did not return expected responses" >&2
   exit 1
 fi
+interrupt_json="$("${bin_dir}/voice-ctl" --interrupt --output json --config "${config_path}")"
+if [[ "${interrupt_json}" != *'"active_request_interrupted":false'* ||
+      "${interrupt_json}" != *'"queued_transcripts_discarded":"0"'* ]]; then
+  echo "voice interrupt control output is invalid" >&2
+  exit 1
+fi
 voice_status_json="$("${bin_dir}/voice-ctl" --status --output json --config "${config_path}")"
 if [[ "${voice_status_json}" != *'"state":"INTERACTION_STATE_LISTENING"'* ||
-      "${voice_status_json}" != *'"metrics"'* ]]; then
+      "${voice_status_json}" != *'"requests_interrupted":"0"'* ||
+      "${voice_status_json}" != *'"provider_timeouts":"0"'* ||
+      "${voice_status_json}" != *'"provider_failures":"0"'* ]]; then
   echo "voice JSON status output is invalid" >&2
   exit 1
 fi

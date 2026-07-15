@@ -51,7 +51,15 @@ struct VoiceInteractionMetrics {
   std::uint64_t actions_attempted = 0;
   std::uint64_t actions_succeeded = 0;
   std::uint64_t actions_failed = 0;
+  std::uint64_t requests_interrupted = 0;
+  std::uint64_t provider_timeouts = 0;
+  std::uint64_t provider_failures = 0;
   VoiceOutputMetrics output;
+};
+
+struct VoiceInterruptResult {
+  bool active_request_interrupted = false;
+  std::uint64_t queued_transcripts_discarded = 0;
 };
 
 struct VoiceInteractionStatus {
@@ -68,7 +76,8 @@ class VoiceInteractionService {
   VoiceInteractionService(bool enabled, std::unique_ptr<VoiceAssistant> assistant,
                           std::unique_ptr<ActionDispatcher> dispatcher,
                           std::unique_ptr<VoiceResponseSink> output = nullptr,
-                          ResponseObserver response_observer = nullptr);
+                          ResponseObserver response_observer = nullptr,
+                          std::chrono::milliseconds request_timeout = std::chrono::seconds(10));
   ~VoiceInteractionService();
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(VoiceInteractionService);
@@ -77,11 +86,12 @@ class VoiceInteractionService {
   void Stop();
   event::EventQueuePushResult SubmitTranscript(const SpeechTranscript& transcript);
   std::optional<VoiceResponse> HandleTranscript(const SpeechTranscript& transcript);
+  VoiceInterruptResult Interrupt();
   bool WaitForResponse(std::uint64_t after_id, std::chrono::milliseconds timeout,
                        VoiceResponse* response) const;
   VoiceInteractionStatus status() const;
   void RecordUpstreamReconnect();
-  void SetUpstreamError(std::string error);
+  void SetLastError(std::string error);
 
  private:
   VoiceResponse PublishResponse(VoiceResponse response);
@@ -92,6 +102,7 @@ class VoiceInteractionService {
   const std::unique_ptr<ActionDispatcher> dispatcher_;
   const std::unique_ptr<VoiceResponseSink> output_;
   const ResponseObserver response_observer_;
+  const std::chrono::milliseconds request_timeout_;
   mutable std::mutex processing_mutex_;
   event::EventQueue<SpeechTranscript> transcript_events_{32};
   std::atomic<bool> worker_running_{false};
@@ -105,6 +116,10 @@ class VoiceInteractionService {
   std::atomic<std::uint64_t> actions_attempted_{0};
   std::atomic<std::uint64_t> actions_succeeded_{0};
   std::atomic<std::uint64_t> actions_failed_{0};
+  std::atomic<std::uint64_t> requests_interrupted_{0};
+  std::atomic<std::uint64_t> provider_timeouts_{0};
+  std::atomic<std::uint64_t> provider_failures_{0};
+  std::atomic<std::uint64_t> interrupt_generation_{0};
   mutable std::mutex response_mutex_;
   mutable std::condition_variable response_changed_;
   std::deque<VoiceResponse> response_history_;
