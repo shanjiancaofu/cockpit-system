@@ -19,4 +19,5 @@ fi
 
 ln -sfn "releases/${version}" "${install_root}/current.new"
 mv -Tf "${install_root}/current.new" "${install_root}/current"
+sync -f "${install_root}"
 echo "cockpit-system current release is now ${version}"

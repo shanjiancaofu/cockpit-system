@@ -6,6 +6,7 @@ StopWhenUnneeded=yes
 [Service]
 Type=simple
 WorkingDirectory=/cockpit-system
+ExecStartPre=/cockpit-system/current/bin/safe-ota --recover --root /cockpit-system
 ExecStart=/cockpit-system/current/bin/cockpit-navigator --config /cockpit-system/config/config.yaml --module-dir /cockpit-system/current/lib/cockpit/modules --socket /cockpit-system/run/navigator.sock --mode %i
 Restart=on-failure
 RestartSec=2

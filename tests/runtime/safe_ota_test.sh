@@ -55,6 +55,9 @@ lock_result=$?
 set -e
 wait "${lock_pid}"
 [[ "${lock_result}" -eq 1 ]]
+grep -Fq \
+  'ExecStartPre=/cockpit-system/current/bin/safe-ota --recover --root /cockpit-system' \
+  "${source_root}/configs/systemd/cockpit-navigator@.service"
 
 package_two="${work_dir}/package-2"
 make_package "${package_two}" 2.0.0
@@ -82,11 +85,31 @@ printf 'state: prepared\nversion: 2.1.0\nprevious_release: releases/2.0.0\n' \
 mkdir -p "${install_root}/releases/2.2.0"
 ln -sfn releases/2.2.0 "${install_root}/current.new"
 mv -Tf "${install_root}/current.new" "${install_root}/current"
-printf 'state: activated\nversion: 2.2.0\nprevious_release: releases/2.0.0\n' \
+printf 'state: prepared\nversion: 2.2.0\nprevious_release: releases/2.0.0\n' \
   >"${install_root}/run/upgrade-transaction.yaml"
 "${safe_ota}" --recover --root "${install_root}"
 [[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
 [[ ! -e "${install_root}/releases/2.2.0" ]]
+[[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
+
+mkdir -p "${install_root}/releases/2.3.0"
+ln -sfn releases/2.3.0 "${install_root}/current.new"
+mv -Tf "${install_root}/current.new" "${install_root}/current"
+printf 'state: activated\nversion: 2.3.0\nprevious_release: releases/2.0.0\n' \
+  >"${install_root}/run/upgrade-transaction.yaml"
+"${safe_ota}" --recover --root "${install_root}"
+[[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
+[[ ! -e "${install_root}/releases/2.3.0" ]]
+[[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
+
+mkdir -p "${install_root}/releases/2.4.0"
+ln -sfn releases/2.4.0 "${install_root}/current.new"
+mv -Tf "${install_root}/current.new" "${install_root}/current"
+printf 'state: confirmed\nversion: 2.4.0\nprevious_release: releases/2.0.0\n' \
+  >"${install_root}/run/upgrade-transaction.yaml"
+"${safe_ota}" --recover --root "${install_root}"
+[[ "$(readlink "${install_root}/current")" == "releases/2.4.0" ]]
+[[ -d "${install_root}/releases/2.4.0" ]]
 [[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
 
 package_three="${work_dir}/package-3"
@@ -97,7 +120,7 @@ set +e
 health_result=$?
 set -e
 [[ "${health_result}" -eq 3 ]]
-[[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
+[[ "$(readlink "${install_root}/current")" == "releases/2.4.0" ]]
 [[ ! -e "${install_root}/releases/3.0.0" ]]
 [[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
 
@@ -108,7 +131,7 @@ set +e
 checksum_result=$?
 set -e
 [[ "${checksum_result}" -eq 1 ]]
-[[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
+[[ "$(readlink "${install_root}/current")" == "releases/2.4.0" ]]
 
 package_four="${work_dir}/package-4"
 make_package "${package_four}" 4.0.0

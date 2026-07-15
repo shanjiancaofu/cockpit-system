@@ -14,6 +14,7 @@ work_dir="$(mktemp -d "${work_parent}/wsl-matrix-XXXXXX")"
 
 configuration_status="not_run"
 deployment_status="not_run"
+ota_recovery_status="not_run"
 gateway_status="not_run"
 recording_status="not_run"
 queue_status="not_run"
@@ -44,6 +45,7 @@ finish() {
   "cases": {
     "configuration_boundary": "${configuration_status}",
     "package_install_healthcheck_rollback": "${deployment_status}",
+    "ota_startup_recovery": "${ota_recovery_status}",
     "gateway_stream_loss": "${gateway_status}",
     "recording_unavailable": "${recording_status}",
     "queue_full": "${queue_status}",
@@ -78,6 +80,10 @@ queue_status="passed"
 shared_memory_status="failed"
 ctest --test-dir "${debug_build_dir}" --output-on-failure -R '^shared_frame_buffer_test$'
 shared_memory_status="passed"
+
+ota_recovery_status="failed"
+ctest --test-dir "${debug_build_dir}" --output-on-failure -R '^safe_ota_test$'
+ota_recovery_status="passed"
 
 gateway_status="failed"
 ctest --test-dir "${debug_build_dir}" --output-on-failure -R '^gateway_grpc_service_test$'

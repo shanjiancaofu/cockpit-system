@@ -34,8 +34,11 @@ else
   echo "kept config.yaml; new template written to config.yaml.new"
 fi
 
+# Make the candidate contents durable before publishing the new current link.
+sync -f "${install_root}"
 ln -sfn "releases/${version}" "${install_root}/current.new"
 mv -Tf "${install_root}/current.new" "${install_root}/current"
+sync -f "${install_root}"
 
 if [[ "${install_systemd}" == "true" ]]; then
   legacy_units=(

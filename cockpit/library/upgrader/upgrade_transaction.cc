@@ -1,5 +1,6 @@
 #include "cockpit/library/upgrader/upgrade_transaction.h"
 
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <yaml-cpp/yaml.h>
@@ -8,8 +9,10 @@
 #include <cctype>
 #include <cerrno>
 #include <chrono>
+#include <cstring>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -23,6 +26,26 @@ bool Fail(std::string* error, std::string message) {
     *error = std::move(message);
   }
   return false;
+}
+
+bool SyncPath(const std::filesystem::path& path, int flags, std::string_view description,
+              std::string* error) {
+  const int descriptor = open(path.c_str(), flags | O_CLOEXEC);
+  if (descriptor < 0) {
+    return Fail(error, "open " + std::string(description) +
+                           " for sync failed: " + std::string(std::strerror(errno)));
+  }
+  if (fsync(descriptor) != 0) {
+    const int sync_error = errno;
+    close(descriptor);
+    return Fail(error, "sync " + std::string(description) +
+                           " failed: " + std::string(std::strerror(sync_error)));
+  }
+  if (close(descriptor) != 0) {
+    return Fail(error, "close " + std::string(description) +
+                           " failed: " + std::string(std::strerror(errno)));
+  }
+  return true;
 }
 
 bool IsValidVersion(const std::string& version) {
@@ -148,12 +171,16 @@ bool WriteYaml(const std::filesystem::path& path, const YAML::Emitter& output, s
       return Fail(error, "write temporary upgrade state failed: " + temporary.string());
     }
   }
+  if (!SyncPath(temporary, O_RDONLY, "temporary upgrade state", error)) {
+    std::filesystem::remove(temporary);
+    return false;
+  }
   std::filesystem::rename(temporary, path, filesystem_error);
   if (filesystem_error) {
     std::filesystem::remove(temporary);
     return Fail(error, "publish upgrade state failed: " + filesystem_error.message());
   }
-  return true;
+  return SyncPath(path.parent_path(), O_RDONLY | O_DIRECTORY, "upgrade state directory", error);
 }
 
 bool ReadRequiredScalar(const YAML::Node& root, const char* key, std::string* value,
@@ -393,7 +420,12 @@ bool RollbackUpgrade(const std::filesystem::path& install_root,
         return Fail(error, "remove failed release failed: " + filesystem_error.message());
       }
     }
-    return true;
+    if (!SyncPath(root, O_RDONLY | O_DIRECTORY, "install root", error)) {
+      return false;
+    }
+    const std::filesystem::path releases = root / "releases";
+    return !std::filesystem::is_directory(releases) ||
+           SyncPath(releases, O_RDONLY | O_DIRECTORY, "release directory", error);
   } catch (const std::exception& exception) {
     return Fail(error, "rollback upgrade failed: " + std::string(exception.what()));
   }
@@ -439,10 +471,19 @@ bool RecoverInterruptedUpgrade(const std::filesystem::path& install_root, bool* 
       if (filesystem_error) {
         return Fail(error, "remove interrupted release failed: " + filesystem_error.message());
       }
+      const std::filesystem::path releases = root / "releases";
+      if (std::filesystem::is_directory(releases) &&
+          !SyncPath(releases, O_RDONLY | O_DIRECTORY, "release directory", error)) {
+        return false;
+      }
     }
     std::filesystem::remove(transaction_path, filesystem_error);
     if (filesystem_error) {
       return Fail(error, "remove upgrade transaction failed: " + filesystem_error.message());
+    }
+    if (!SyncPath(transaction_path.parent_path(), O_RDONLY | O_DIRECTORY, "upgrade state directory",
+                  error)) {
+      return false;
     }
     if (recovered != nullptr) {
       *recovered = true;
@@ -479,9 +520,11 @@ bool ConfirmUpgrade(const std::filesystem::path& install_root, const std::string
     }
     std::error_code filesystem_error;
     std::filesystem::remove(transaction_path, filesystem_error);
-    return filesystem_error
-               ? Fail(error, "remove confirmed transaction failed: " + filesystem_error.message())
-               : true;
+    if (filesystem_error) {
+      return Fail(error, "remove confirmed transaction failed: " + filesystem_error.message());
+    }
+    return SyncPath(transaction_path.parent_path(), O_RDONLY | O_DIRECTORY,
+                    "upgrade state directory", error);
   } catch (const std::exception& exception) {
     return Fail(error, "confirm upgrade failed: " + std::string(exception.what()));
   }
