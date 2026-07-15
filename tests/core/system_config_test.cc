@@ -6,6 +6,7 @@
 #include <string>
 
 int main() {
+  unsetenv("COCKPIT_RUNTIME_DIR");
   const auto config = cockpit::config::SystemConfig::LoadFromFile(VALID_CONFIG_PATH);
   if (config.system().name != "cockpit-system" || config.system().vehicle_id != "car_001" ||
       config.paths().run_dir != "run" ||
@@ -49,6 +50,30 @@ int main() {
     const std::string message = error.what();
     if (message.find("services.vehicle_data.grpc.listen_address") == std::string::npos) {
       std::cerr << "invalid config error did not identify YAML path: " << message << std::endl;
+      return 1;
+    }
+  }
+
+  try {
+    cockpit::config::SystemConfig::LoadFromFile(INVALID_CONFIG_TYPE_PATH);
+    std::cerr << "invalid config type was accepted" << std::endl;
+    return 1;
+  } catch (const std::runtime_error& error) {
+    const std::string message = error.what();
+    if (message.find("logging.max_bytes must be a scalar") == std::string::npos) {
+      std::cerr << "invalid type error did not identify YAML path: " << message << std::endl;
+      return 1;
+    }
+  }
+
+  try {
+    cockpit::config::SystemConfig::LoadFromFile(INVALID_CONFIG_KEY_PATH);
+    std::cerr << "unknown config key was accepted" << std::endl;
+    return 1;
+  } catch (const std::runtime_error& error) {
+    const std::string message = error.what();
+    if (message.find("services.gateway.max_sessions is not supported") == std::string::npos) {
+      std::cerr << "unknown key error did not identify YAML path: " << message << std::endl;
       return 1;
     }
   }

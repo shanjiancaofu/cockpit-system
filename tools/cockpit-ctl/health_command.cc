@@ -132,14 +132,21 @@ struct Target {
 
 }  // namespace
 
-int Run(const config::SystemConfig& config, diagnostics::OutputFormat output_format) {
-  const std::vector<Target> targets = {
+int Run(const config::SystemConfig& config, diagnostics::OutputFormat output_format,
+        const std::string& mode) {
+  std::vector<Target> targets = {
       {"gateway", &config.services().gateway.grpc.listen_address, CheckGateway},
-      {"audio", &config.services().audio.grpc.listen_address, CheckAudio},
-      {"voice", &config.services().voice_interaction.grpc.listen_address, CheckVoice},
-      {"camera", &config.services().camera.grpc.listen_address, CheckCamera},
-      {"recording", &config.services().recording.grpc.listen_address, CheckRecording},
   };
+  if (mode == "normal" || mode == "development") {
+    targets.push_back({"audio", &config.services().audio.grpc.listen_address, CheckAudio});
+    targets.push_back(
+        {"voice", &config.services().voice_interaction.grpc.listen_address, CheckVoice});
+    targets.push_back({"camera", &config.services().camera.grpc.listen_address, CheckCamera});
+  }
+  if (mode == "development") {
+    targets.push_back(
+        {"recording", &config.services().recording.grpc.listen_address, CheckRecording});
+  }
   bool healthy = true;
   if (output_format == diagnostics::OutputFormat::kText) {
     std::cout << "cockpit-system health\n";

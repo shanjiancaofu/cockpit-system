@@ -1,0 +1,2 @@
+logging:
+  max_bytes: [2097152]

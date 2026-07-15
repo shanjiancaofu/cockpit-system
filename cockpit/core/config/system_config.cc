@@ -6,14 +6,31 @@
 #include <cctype>
 #include <cstdlib>
 #include <filesystem>
+#include <initializer_list>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 namespace cockpit {
 namespace config {
 namespace {
+
+void ValidateKeys(const YAML::Node& node, const std::string& path,
+                  std::initializer_list<std::string_view> allowed_keys) {
+  for (const auto& item : node) {
+    if (!item.first.IsScalar()) {
+      throw std::runtime_error(path.empty() ? "config keys must be scalars"
+                                            : path + " keys must be scalars");
+    }
+    const std::string key = item.first.as<std::string>();
+    if (std::find(allowed_keys.begin(), allowed_keys.end(), std::string_view(key)) ==
+        allowed_keys.end()) {
+      throw std::runtime_error((path.empty() ? key : path + "." + key) + " is not supported");
+    }
+  }
+}
 
 YAML::Node ChildMap(const YAML::Node& parent, const std::string& key, const std::string& path) {
   const YAML::Node child = parent[key];
@@ -104,6 +121,7 @@ std::vector<std::string> ReadStringList(const YAML::Node& parent, const std::str
 std::vector<ServiceDependencyConfig> ReadServiceDependencies(
     const YAML::Node& parent, const std::vector<ServiceDependencyConfig>& default_value,
     const std::string& path) {
+  ValidateKeys(parent, path, {"dependencies"});
   const YAML::Node value = parent["dependencies"];
   if (!value) {
     return default_value;
@@ -117,15 +135,14 @@ std::vector<ServiceDependencyConfig> ReadServiceDependencies(
     if (!item.IsMap()) {
       throw std::runtime_error(path + ".dependencies items must be maps");
     }
+    const std::string item_path = path + ".dependencies[" + std::to_string(i) + "]";
+    ValidateKeys(item, item_path, {"service", "required", "optional"});
     ServiceDependencyConfig dependency;
-    dependency.service = Read(item, "service", dependency.service,
-                              path + ".dependencies[" + std::to_string(i) + "].service");
+    dependency.service = Read(item, "service", dependency.service, item_path + ".service");
     dependency.required =
-        ReadStringList(item, "required", dependency.required,
-                       path + ".dependencies[" + std::to_string(i) + "].required");
+        ReadStringList(item, "required", dependency.required, item_path + ".required");
     dependency.optional =
-        ReadStringList(item, "optional", dependency.optional,
-                       path + ".dependencies[" + std::to_string(i) + "].optional");
+        ReadStringList(item, "optional", dependency.optional, item_path + ".optional");
     result.push_back(std::move(dependency));
   }
   return result;
@@ -143,19 +160,25 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   if (!root.IsMap()) {
     throw std::runtime_error("config root must be a map: " + path);
   }
+  ValidateKeys(
+      root, "",
+      {"system", "paths", "logging", "services", "hardware", "features", "tools", "runtime"});
 
   SystemConfig config;
   const YAML::Node system = ChildMap(root, "system", "system");
+  ValidateKeys(system, "system", {"name", "vehicle_id"});
   config.system_.name = Read(system, "name", config.system_.name, "system.name");
   config.system_.vehicle_id =
       Read(system, "vehicle_id", config.system_.vehicle_id, "system.vehicle_id");
 
   const YAML::Node paths = ChildMap(root, "paths", "paths");
+  ValidateKeys(paths, "paths", {"data_dir", "log_dir", "run_dir"});
   config.paths_.data_dir = Read(paths, "data_dir", config.paths_.data_dir, "paths.data_dir");
   config.paths_.log_dir = Read(paths, "log_dir", config.paths_.log_dir, "paths.log_dir");
   config.paths_.run_dir = Read(paths, "run_dir", config.paths_.run_dir, "paths.run_dir");
 
   const YAML::Node logging = ChildMap(root, "logging", "logging");
+  ValidateKeys(logging, "logging", {"level", "max_bytes", "mirror_stderr"});
   config.logging_.level = Read(logging, "level", config.logging_.level, "logging.level");
   config.logging_.max_bytes =
       Read(logging, "max_bytes", config.logging_.max_bytes, "logging.max_bytes");
@@ -163,18 +186,26 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(logging, "mirror_stderr", config.logging_.mirror_stderr, "logging.mirror_stderr");
 
   const YAML::Node services = ChildMap(root, "services", "services");
+  ValidateKeys(services, "services",
+               {"vehicle_data", "gateway", "audio", "camera", "voice_interaction", "cloud_uplink",
+                "recording"});
   const YAML::Node vehicle_data = ChildMap(services, "vehicle_data", "services.vehicle_data");
+  ValidateKeys(vehicle_data, "services.vehicle_data", {"source", "publish_interval_ms", "grpc"});
   config.services_.vehicle_data.source = Read(
       vehicle_data, "source", config.services_.vehicle_data.source, "services.vehicle_data.source");
   config.services_.vehicle_data.publish_interval_ms =
       Read(vehicle_data, "publish_interval_ms", config.services_.vehicle_data.publish_interval_ms,
            "services.vehicle_data.publish_interval_ms");
   const YAML::Node vehicle_grpc = ChildMap(vehicle_data, "grpc", "services.vehicle_data.grpc");
+  ValidateKeys(vehicle_grpc, "services.vehicle_data.grpc", {"listen_address"});
   config.services_.vehicle_data.grpc.listen_address =
       Read(vehicle_grpc, "listen_address", config.services_.vehicle_data.grpc.listen_address,
            "services.vehicle_data.grpc.listen_address");
 
   const YAML::Node gateway = ChildMap(services, "gateway", "services.gateway");
+  ValidateKeys(
+      gateway, "services.gateway",
+      {"vehicle_data_address", "stream_timeout_ms", "retry_delay_ms", "grpc", "websocket"});
   config.services_.gateway.vehicle_data_address =
       Read(gateway, "vehicle_data_address", config.services_.gateway.vehicle_data_address,
            "services.gateway.vehicle_data_address");
@@ -185,22 +216,29 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(gateway, "retry_delay_ms", config.services_.gateway.retry_delay_ms,
            "services.gateway.retry_delay_ms");
   const YAML::Node gateway_grpc = ChildMap(gateway, "grpc", "services.gateway.grpc");
+  ValidateKeys(gateway_grpc, "services.gateway.grpc", {"listen_address"});
   config.services_.gateway.grpc.listen_address =
       Read(gateway_grpc, "listen_address", config.services_.gateway.grpc.listen_address,
            "services.gateway.grpc.listen_address");
   const YAML::Node gateway_websocket = ChildMap(gateway, "websocket", "services.gateway.websocket");
+  ValidateKeys(gateway_websocket, "services.gateway.websocket", {"listen_address"});
   config.services_.gateway.websocket.listen_address =
       Read(gateway_websocket, "listen_address", config.services_.gateway.websocket.listen_address,
            "services.gateway.websocket.listen_address");
 
   const YAML::Node audio_service = ChildMap(services, "audio", "services.audio");
+  ValidateKeys(audio_service, "services.audio", {"auto_start", "grpc", "vad", "speech_segment"});
   config.services_.audio.auto_start = Read(
       audio_service, "auto_start", config.services_.audio.auto_start, "services.audio.auto_start");
   const YAML::Node audio_grpc = ChildMap(audio_service, "grpc", "services.audio.grpc");
+  ValidateKeys(audio_grpc, "services.audio.grpc", {"listen_address"});
   config.services_.audio.grpc.listen_address =
       Read(audio_grpc, "listen_address", config.services_.audio.grpc.listen_address,
            "services.audio.grpc.listen_address");
   const YAML::Node vad = ChildMap(audio_service, "vad", "services.audio.vad");
+  ValidateKeys(
+      vad, "services.audio.vad",
+      {"enabled", "backend", "speech_threshold_dbfs", "speech_start_frames", "speech_end_frames"});
   config.services_.audio.vad.enabled =
       Read(vad, "enabled", config.services_.audio.vad.enabled, "services.audio.vad.enabled");
   config.services_.audio.vad.backend =
@@ -216,6 +254,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            "services.audio.vad.speech_end_frames");
   const YAML::Node speech_segment =
       ChildMap(audio_service, "speech_segment", "services.audio.speech_segment");
+  ValidateKeys(speech_segment, "services.audio.speech_segment", {"pre_roll_ms", "max_segment_ms"});
   config.services_.audio.speech_segment.pre_roll_ms =
       Read(speech_segment, "pre_roll_ms", config.services_.audio.speech_segment.pre_roll_ms,
            "services.audio.speech_segment.pre_roll_ms");
@@ -224,7 +263,13 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            "services.audio.speech_segment.max_segment_ms");
 
   const YAML::Node camera_service = ChildMap(services, "camera", "services.camera");
+  ValidateKeys(
+      camera_service, "services.camera",
+      {"grpc", "capture_backend", "preview_stale_timeout_ms", "synthetic_fault",
+       "synthetic_fault_after_frames", "frame_transport", "shared_memory_name", "max_frame_bytes",
+       "photo_directory", "photo_jpeg_quality", "photo_max_frame_age_ms"});
   const YAML::Node camera_grpc = ChildMap(camera_service, "grpc", "services.camera.grpc");
+  ValidateKeys(camera_grpc, "services.camera.grpc", {"listen_address"});
   config.services_.camera.grpc.listen_address =
       Read(camera_grpc, "listen_address", config.services_.camera.grpc.listen_address,
            "services.camera.grpc.listen_address");
@@ -262,6 +307,8 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
 
   const YAML::Node voice_interaction =
       ChildMap(services, "voice_interaction", "services.voice_interaction");
+  ValidateKeys(voice_interaction, "services.voice_interaction",
+               {"audio_address", "gateway_address", "stream_timeout_ms", "retry_delay_ms", "grpc"});
   config.services_.voice_interaction.audio_address =
       Read(voice_interaction, "audio_address", config.services_.voice_interaction.audio_address,
            "services.voice_interaction.audio_address");
@@ -276,15 +323,18 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            "services.voice_interaction.retry_delay_ms");
   const YAML::Node voice_grpc =
       ChildMap(voice_interaction, "grpc", "services.voice_interaction.grpc");
+  ValidateKeys(voice_grpc, "services.voice_interaction.grpc", {"listen_address"});
   config.services_.voice_interaction.grpc.listen_address =
       Read(voice_grpc, "listen_address", config.services_.voice_interaction.grpc.listen_address,
            "services.voice_interaction.grpc.listen_address");
 
   const YAML::Node cloud_uplink = ChildMap(services, "cloud_uplink", "services.cloud_uplink");
+  ValidateKeys(cloud_uplink, "services.cloud_uplink", {"enabled", "mqtt"});
   config.services_.cloud_uplink.enabled =
       Read(cloud_uplink, "enabled", config.services_.cloud_uplink.enabled,
            "services.cloud_uplink.enabled");
   const YAML::Node mqtt = ChildMap(cloud_uplink, "mqtt", "services.cloud_uplink.mqtt");
+  ValidateKeys(mqtt, "services.cloud_uplink.mqtt", {"broker", "telemetry_topic", "qos"});
   config.services_.cloud_uplink.mqtt.broker =
       Read(mqtt, "broker", config.services_.cloud_uplink.mqtt.broker,
            "services.cloud_uplink.mqtt.broker");
@@ -295,6 +345,9 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(mqtt, "qos", config.services_.cloud_uplink.mqtt.qos, "services.cloud_uplink.mqtt.qos");
 
   const YAML::Node recording = ChildMap(services, "recording", "services.recording");
+  ValidateKeys(recording, "services.recording",
+               {"auto_start", "directory", "vehicle_data_address", "stream_timeout_ms",
+                "retry_delay_ms", "max_sessions", "max_total_bytes", "grpc"});
   config.services_.recording.auto_start =
       Read(recording, "auto_start", config.services_.recording.auto_start,
            "services.recording.auto_start");
@@ -316,12 +369,17 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(recording, "max_total_bytes", config.services_.recording.max_total_bytes,
            "services.recording.max_total_bytes");
   const YAML::Node recording_grpc = ChildMap(recording, "grpc", "services.recording.grpc");
+  ValidateKeys(recording_grpc, "services.recording.grpc", {"listen_address"});
   config.services_.recording.grpc.listen_address =
       Read(recording_grpc, "listen_address", config.services_.recording.grpc.listen_address,
            "services.recording.grpc.listen_address");
 
   const YAML::Node hardware = ChildMap(root, "hardware", "hardware");
+  ValidateKeys(hardware, "hardware", {"can", "audio"});
   const YAML::Node can = ChildMap(hardware, "can", "hardware.can");
+  ValidateKeys(can, "hardware.can",
+               {"interface", "simulator_backend", "simulator_interval_ms", "receive_timeout_ms",
+                "max_idle_timeouts"});
   config.hardware_.can.interface =
       Read(can, "interface", config.hardware_.can.interface, "hardware.can.interface");
   config.hardware_.can.simulator_backend =
@@ -338,6 +396,9 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            "hardware.can.max_idle_timeouts");
 
   const YAML::Node audio = ChildMap(hardware, "audio", "hardware.audio");
+  ValidateKeys(audio, "hardware.audio",
+               {"capture_backend", "playback_backend", "input_device", "output_device",
+                "sample_rate_hz", "channels", "frame_ms"});
   config.hardware_.audio.capture_backend =
       Read(audio, "capture_backend", config.hardware_.audio.capture_backend,
            "hardware.audio.capture_backend");
@@ -357,7 +418,11 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(audio, "frame_ms", config.hardware_.audio.frame_ms, "hardware.audio.frame_ms");
 
   const YAML::Node features = ChildMap(root, "features", "features");
+  ValidateKeys(features, "features", {"voice", "ai"});
   const YAML::Node voice = ChildMap(features, "voice", "features.voice");
+  ValidateKeys(voice, "features.voice",
+               {"enabled", "mode", "asr_provider", "asr_model_path", "asr_language", "asr_threads",
+                "tts_provider"});
   config.features_.voice.enabled =
       Read(voice, "enabled", config.features_.voice.enabled, "features.voice.enabled");
   config.features_.voice.mode =
@@ -374,6 +439,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.features_.voice.tts_provider = Read(
       voice, "tts_provider", config.features_.voice.tts_provider, "features.voice.tts_provider");
   const YAML::Node ai = ChildMap(features, "ai", "features.ai");
+  ValidateKeys(ai, "features.ai", {"provider", "model", "request_timeout_ms"});
   config.features_.ai.provider =
       Read(ai, "provider", config.features_.ai.provider, "features.ai.provider");
   config.features_.ai.model = Read(ai, "model", config.features_.ai.model, "features.ai.model");
@@ -382,7 +448,9 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            "features.ai.request_timeout_ms");
 
   const YAML::Node tools = ChildMap(root, "tools", "tools");
+  ValidateKeys(tools, "tools", {"topic"});
   const YAML::Node topic = ChildMap(tools, "topic", "tools.topic");
+  ValidateKeys(topic, "tools.topic", {"backend", "dir"});
   config.tools_.topic.backend =
       Read(topic, "backend", config.tools_.topic.backend, "tools.topic.backend");
   config.tools_.topic.dir = Read(topic, "dir", config.tools_.topic.dir, "tools.topic.dir");

@@ -1,0 +1,3 @@
+services:
+  gateway:
+    max_sessions: 100

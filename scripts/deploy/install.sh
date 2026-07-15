@@ -4,7 +4,16 @@ set -euo pipefail
 package_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 install_root="${COCKPIT_ROOT:-/cockpit-system}"
 install_systemd="${INSTALL_SYSTEMD:-true}"
+if [[ ! -f "${package_root}/manifest/SHA256SUMS" ]] ||
+   ! (cd "${package_root}" && sha256sum --check --quiet manifest/SHA256SUMS); then
+  echo "package checksum verification failed" >&2
+  exit 1
+fi
 version="$(<"${package_root}/manifest/VERSION")"
+if [[ ! "${version}" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+  echo "invalid package version: ${version}" >&2
+  exit 1
+fi
 release_dir="${install_root}/releases/${version}"
 
 if [[ "${install_systemd}" == "true" && "${EUID}" -ne 0 ]]; then

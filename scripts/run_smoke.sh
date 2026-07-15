@@ -86,7 +86,8 @@ for module in "${expected_modules[@]}"; do
     exit 1
   fi
 done
-health_json="$("${bin_dir}/cockpit-ctl" health --output json --config "${config_path}")"
+health_json="$("${bin_dir}/cockpit-ctl" health --mode development --output json \
+  --config "${config_path}")"
 if [[ "${health_json}" != *'"healthy":true'* ]]; then
   echo "Navigator development services are not healthy" >&2
   exit 1

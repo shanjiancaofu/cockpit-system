@@ -22,8 +22,6 @@ services:
     vehicle_data_address: 127.0.0.1:50050
     stream_timeout_ms: 10000
     retry_delay_ms: 200
-    max_sessions: 100
-    max_total_bytes: 5368709120
     grpc:
       listen_address: 127.0.0.1:50051
     websocket:
@@ -73,6 +71,8 @@ services:
     vehicle_data_address: 127.0.0.1:50050
     stream_timeout_ms: 10000
     retry_delay_ms: 200
+    max_sessions: 100
+    max_total_bytes: 5368709120
     grpc:
       listen_address: 127.0.0.1:50055
 

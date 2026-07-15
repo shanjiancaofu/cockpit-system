@@ -15,7 +15,8 @@ void PrintUsage() {
   std::cout << "Usage:\n"
             << "  cockpit-ctl status [--config configs/config.yaml]\n"
             << "  cockpit-ctl status --watch [--interval SEC] [--config configs/config.yaml]\n"
-            << "  cockpit-ctl health [--config configs/config.yaml]\n"
+            << "  cockpit-ctl health [--mode normal|development|cloud]"
+               " [--config configs/config.yaml]\n"
             << "  cockpit-ctl dependencies [--config configs/config.yaml]\n"
             << "  cockpit-ctl runtime status|mode|reload [--socket PATH]\n"
             << "  cockpit-ctl runtime switch MODE [--socket PATH]\n"
@@ -23,6 +24,7 @@ void PrintUsage() {
             << "\nOptions:\n"
             << "  --config PATH    config file path (default: configs/config.yaml)\n"
             << "  --socket PATH    Navigator Unix Socket path\n"
+            << "  --mode MODE      health target mode (default: normal)\n"
             << "  --watch          watch mode, refresh status periodically\n"
             << "  --output FORMAT  text or json (default: text)\n"
             << "  --interval SEC   refresh interval in seconds (default: "
@@ -59,7 +61,12 @@ int main(int argc, char** argv) {
   }
 
   if (command == "health") {
-    return cockpit::ctl::health::Run(config, output_format);
+    const std::string mode = args.GetString("mode", "normal");
+    if (mode != "normal" && mode != "development" && mode != "cloud") {
+      std::cerr << "mode must be normal, development, or cloud\n";
+      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
+    }
+    return cockpit::ctl::health::Run(config, output_format, mode);
   }
   if (command == "dependencies") {
     if (output_format == cockpit::diagnostics::OutputFormat::kJson) {

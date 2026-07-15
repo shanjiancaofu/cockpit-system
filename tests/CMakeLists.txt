@@ -210,6 +210,8 @@ target_compile_definitions(system_config_test
     PRIVATE
         VALID_CONFIG_PATH="${PROJECT_SOURCE_DIR}/configs/config.yaml"
         INVALID_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config.yaml"
+        INVALID_CONFIG_TYPE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config_type.yaml"
+        INVALID_CONFIG_KEY_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config_key.yaml"
         INVALID_AUDIO_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_config.yaml"
         INVALID_AUDIO_FORMAT_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_format_config.yaml"
         INVALID_VAD_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_vad_config.yaml"

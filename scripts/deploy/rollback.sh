@@ -8,6 +8,10 @@ if [[ -z "${version}" ]]; then
   echo "usage: rollback.sh VERSION" >&2
   exit 1
 fi
+if [[ ! "${version}" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+  echo "invalid release version: ${version}" >&2
+  exit 1
+fi
 if [[ ! -d "${install_root}/releases/${version}" ]]; then
   echo "release not found: ${install_root}/releases/${version}" >&2
   exit 1
