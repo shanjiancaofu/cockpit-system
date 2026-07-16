@@ -82,7 +82,7 @@ bool IsWithinDirectory(const std::filesystem::path& path, const std::filesystem:
 
 std::filesystem::path ResolvePath(const IndexedFile& file,
                                   const std::filesystem::path& session_directory, bool* safe) {
-  const std::filesystem::path indexed_path(file.path);
+  std::filesystem::path indexed_path(file.path);
   if (!file.copied_into_session) {
     *safe = true;
     return indexed_path;
@@ -93,7 +93,7 @@ std::filesystem::path ResolvePath(const IndexedFile& file,
   }
   const std::filesystem::path normalized_session =
       std::filesystem::absolute(session_directory).lexically_normal();
-  const std::filesystem::path resolved = (normalized_session / indexed_path).lexically_normal();
+  std::filesystem::path resolved = (normalized_session / indexed_path).lexically_normal();
   *safe = IsWithinDirectory(resolved, normalized_session) && resolved != normalized_session;
   return resolved;
 }

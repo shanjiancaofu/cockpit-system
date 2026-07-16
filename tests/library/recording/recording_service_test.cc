@@ -77,7 +77,7 @@ int main() {
 
   const auto corrupted_directory = root / "sessions" / "corrupted_manual";
   std::filesystem::create_directories(corrupted_directory);
-  std::ofstream(corrupted_directory / "COMPLETE");
+  { std::ofstream complete_marker(corrupted_directory / "COMPLETE"); }
   std::ofstream(corrupted_directory / "manifest.json") << "{invalid";
   if (!Check(service.Initialize(&error), "recording catalog refresh failed")) {
     std::cerr << error << '\n';

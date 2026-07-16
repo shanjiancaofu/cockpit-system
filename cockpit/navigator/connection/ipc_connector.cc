@@ -55,7 +55,7 @@ bool ReadToEnd(int fd, std::string* value, std::string* error) {
       return true;
     }
     value->append(buffer, static_cast<std::size_t>(size));
-    if (value->size() > 64 * 1024) {
+    if (value->size() > std::size_t{64} * 1024U) {
       *error = "Unix socket response exceeds 64 KiB";
       return false;
     }

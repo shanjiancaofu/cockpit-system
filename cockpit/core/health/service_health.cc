@@ -16,8 +16,9 @@ const char* StateName(proto::common::ServiceHealthState state) {
       return "unknown";
     case proto::common::SERVICE_HEALTH_STATE_FAULTED:
       return "faulted";
+    default:
+      return "unknown";
   }
-  return "unknown";
 }
 
 int Severity(proto::common::ServiceHealthState state) {
@@ -33,8 +34,9 @@ int Severity(proto::common::ServiceHealthState state) {
       return 3;
     case proto::common::SERVICE_HEALTH_STATE_FAULTED:
       return 4;
+    default:
+      return 3;
   }
-  return 3;
 }
 
 bool PassesHealthCheck(proto::common::ServiceHealthState state) {

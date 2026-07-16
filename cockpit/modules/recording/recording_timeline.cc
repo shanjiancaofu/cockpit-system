@@ -12,7 +12,7 @@ namespace cockpit {
 namespace recording {
 namespace {
 
-constexpr std::size_t kMaximumLineBytes = 1024U * 1024U;
+constexpr std::size_t kMaximumLineBytes = std::size_t{1024} * 1024U;
 
 void AssignError(std::string* error, const std::string& message) {
   if (error != nullptr) {

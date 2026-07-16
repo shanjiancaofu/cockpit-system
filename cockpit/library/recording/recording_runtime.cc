@@ -45,11 +45,11 @@ std::string ConfigChecksum(const std::string& path) {
 class RecordingRuntime::Impl {
  public:
   Impl(std::filesystem::path directory, std::string vehicle_id, RecordingRetentionPolicy retention,
-       RecordingMetadata metadata, std::string vehicle_address, int stream_timeout_ms,
+       RecordingMetadata metadata, const std::string& vehicle_address, int stream_timeout_ms,
        int retry_delay_ms)
       : service(std::move(directory), std::move(vehicle_id), retention, std::move(metadata)),
         grpc(service),
-        subscriber(std::move(vehicle_address), stream_timeout_ms, retry_delay_ms) {
+        subscriber(vehicle_address, stream_timeout_ms, retry_delay_ms) {
   }
 
   RecordingService service;
