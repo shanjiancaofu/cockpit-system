@@ -19,7 +19,9 @@ struct PathsConfig {
 
 struct LoggingConfig {
   std::string level = "info";
-  int max_bytes = 2 * 1024 * 1024;
+  int dump_time_secs = 5;
+  int cut_off_time_mins = 5;
+  int max_files = 10;
   bool mirror_stderr = true;
 };
 

@@ -40,8 +40,9 @@ bool VehicleRuntime::Start(const std::string& config_path, const std::string& so
   try {
     const auto config = config::SystemConfig::LoadFromFile(config_path);
     logging::InitLogger("vehicle_driver", config.paths().log_dir,
-                        logging::ParseLevel(config.logging().level), config.logging().max_bytes,
-                        config.logging().mirror_stderr);
+                        logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
+                        config.logging().dump_time_secs, config.logging().cut_off_time_mins,
+                        config.logging().max_files);
     impl_ = std::make_unique<Impl>();
     if (!impl_->grpc.Start(config.services().vehicle_data.grpc.listen_address)) {
       impl_.reset();

@@ -23,9 +23,11 @@ bool TransferRuntime::Start(const std::string& config_path, int samples, int max
   try {
     const auto system_config = config::SystemConfig::LoadFromFile(config_path);
     const auto& gateway_config = system_config.services().gateway;
-    logging::InitLogger("transfer", system_config.paths().log_dir,
-                        logging::ParseLevel(system_config.logging().level),
-                        system_config.logging().max_bytes, system_config.logging().mirror_stderr);
+    logging::InitLogger(
+        "transfer", system_config.paths().log_dir,
+        logging::ParseLevel(system_config.logging().level), system_config.logging().mirror_stderr,
+        system_config.logging().dump_time_secs, system_config.logging().cut_off_time_mins,
+        system_config.logging().max_files);
     if (!gateway_service_.Start(gateway_config.grpc.listen_address, std::max(1, 1000 / max_hz))) {
       return false;
     }

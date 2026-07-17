@@ -50,8 +50,9 @@ bool CameraRuntime::Start(const std::string& config_path) {
     const auto config = config::SystemConfig::LoadFromFile(config_path);
     const auto& camera_config = config.services().camera;
     logging::InitLogger("camera_driver", config.paths().log_dir,
-                        logging::ParseLevel(config.logging().level), config.logging().max_bytes,
-                        config.logging().mirror_stderr);
+                        logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
+                        config.logging().dump_time_secs, config.logging().cut_off_time_mins,
+                        config.logging().max_files);
 
     SharedFrameBufferConfig frame_config;
     frame_config.name = camera_config.shared_memory_name;

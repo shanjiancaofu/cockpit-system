@@ -6,11 +6,13 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "cockpit/core/build/build_info.h"
@@ -121,28 +123,34 @@ int Run(const config::SystemConfig& config, const runtime::Args& args) {
     WriteTextFile(partial_directory / "runtime_status.txt",
                   runtime_available ? runtime_status : "unavailable: " + runtime_error + "\n");
 
-    std::vector<std::filesystem::path> log_paths;
+    using LogFile = std::pair<std::filesystem::file_time_type, std::filesystem::path>;
+    std::vector<LogFile> log_files;
     const std::filesystem::path log_directory = config.paths().log_dir;
     const auto log_status = std::filesystem::symlink_status(log_directory, filesystem_error);
     if (!filesystem_error && std::filesystem::is_directory(log_status)) {
       for (const auto& entry : std::filesystem::directory_iterator(log_directory)) {
         const std::string name = entry.path().filename().string();
         if (IsLogFileName(name) && std::filesystem::is_regular_file(entry.symlink_status())) {
-          log_paths.push_back(entry.path());
+          const auto modified_at = entry.last_write_time(filesystem_error);
+          if (!filesystem_error) {
+            log_files.emplace_back(modified_at, entry.path());
+          }
+          filesystem_error.clear();
         }
       }
     }
-    std::sort(log_paths.begin(), log_paths.end());
+    std::sort(log_files.begin(), log_files.end(), std::greater<>());
     const std::size_t logs_omitted =
-        log_paths.size() > kMaximumLogFiles ? log_paths.size() - kMaximumLogFiles : 0;
-    if (log_paths.size() > kMaximumLogFiles) {
-      log_paths.resize(kMaximumLogFiles);
+        log_files.size() > kMaximumLogFiles ? log_files.size() - kMaximumLogFiles : 0;
+    if (log_files.size() > kMaximumLogFiles) {
+      log_files.resize(kMaximumLogFiles);
     }
 
     std::vector<IncludedLog> included_logs;
     std::size_t logs_failed = 0;
-    included_logs.reserve(log_paths.size());
-    for (const auto& log_path : log_paths) {
+    included_logs.reserve(log_files.size());
+    for (const auto& log_file : log_files) {
+      const auto& log_path = log_file.second;
       const std::filesystem::path destination = partial_directory / "logs" / log_path.filename();
       try {
         included_logs.push_back(

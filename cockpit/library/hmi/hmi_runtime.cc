@@ -33,7 +33,8 @@ bool HmiRuntime::Start(const std::string& config_path) {
   try {
     const auto config = config::SystemConfig::LoadFromFile(config_path);
     logging::InitLogger("hmi", config.paths().log_dir, logging::ParseLevel(config.logging().level),
-                        config.logging().max_bytes, config.logging().mirror_stderr);
+                        config.logging().mirror_stderr, config.logging().dump_time_secs,
+                        config.logging().cut_off_time_mins, config.logging().max_files);
 
     char executable_path[PATH_MAX];
     const ssize_t path_size =

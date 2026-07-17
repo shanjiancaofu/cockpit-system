@@ -22,8 +22,9 @@ bool UpgraderRuntime::Start(const std::string& config_path) {
   try {
     const auto config = config::SystemConfig::LoadFromFile(config_path);
     logging::InitLogger("upgrader", config.paths().log_dir,
-                        logging::ParseLevel(config.logging().level), config.logging().max_bytes,
-                        config.logging().mirror_stderr);
+                        logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
+                        config.logging().dump_time_secs, config.logging().cut_off_time_mins,
+                        config.logging().max_files);
 
     const std::filesystem::path install_root =
         std::filesystem::absolute(config_path).parent_path().parent_path();

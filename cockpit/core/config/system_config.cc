@@ -178,10 +178,15 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.paths_.run_dir = Read(paths, "run_dir", config.paths_.run_dir, "paths.run_dir");
 
   const YAML::Node logging = ChildMap(root, "logging", "logging");
-  ValidateKeys(logging, "logging", {"level", "max_bytes", "mirror_stderr"});
+  ValidateKeys(logging, "logging",
+               {"level", "dump_time_secs", "cut_off_time_mins", "max_files", "mirror_stderr"});
   config.logging_.level = Read(logging, "level", config.logging_.level, "logging.level");
-  config.logging_.max_bytes =
-      Read(logging, "max_bytes", config.logging_.max_bytes, "logging.max_bytes");
+  config.logging_.dump_time_secs =
+      Read(logging, "dump_time_secs", config.logging_.dump_time_secs, "logging.dump_time_secs");
+  config.logging_.cut_off_time_mins = Read(
+      logging, "cut_off_time_mins", config.logging_.cut_off_time_mins, "logging.cut_off_time_mins");
+  config.logging_.max_files =
+      Read(logging, "max_files", config.logging_.max_files, "logging.max_files");
   config.logging_.mirror_stderr =
       Read(logging, "mirror_stderr", config.logging_.mirror_stderr, "logging.mirror_stderr");
 
@@ -477,7 +482,18 @@ void SystemConfig::Validate() const {
   RequireNotEmpty(system_.vehicle_id, "system.vehicle_id");
   RequireNotEmpty(paths_.data_dir, "paths.data_dir");
   RequireNotEmpty(paths_.log_dir, "paths.log_dir");
-  RequirePositive(logging_.max_bytes, "logging.max_bytes");
+  RequirePositive(logging_.dump_time_secs, "logging.dump_time_secs");
+  RequirePositive(logging_.cut_off_time_mins, "logging.cut_off_time_mins");
+  RequirePositive(logging_.max_files, "logging.max_files");
+  if (logging_.dump_time_secs > 60) {
+    throw std::runtime_error("logging.dump_time_secs must not exceed 60");
+  }
+  if (logging_.cut_off_time_mins > 1440) {
+    throw std::runtime_error("logging.cut_off_time_mins must not exceed 1440");
+  }
+  if (logging_.max_files > 100) {
+    throw std::runtime_error("logging.max_files must not exceed 100");
+  }
   if (logging_.level != "debug" && logging_.level != "info" && logging_.level != "warn" &&
       logging_.level != "warning" && logging_.level != "error") {
     throw std::runtime_error("logging.level must be debug, info, warn, warning, or error");

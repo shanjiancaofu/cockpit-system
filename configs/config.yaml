@@ -9,7 +9,9 @@ paths:
 
 logging:
   level: info
-  max_bytes: 2097152
+  dump_time_secs: 5
+  cut_off_time_mins: 5
+  max_files: 10
   mirror_stderr: true
 
 services:

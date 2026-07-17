@@ -9,7 +9,8 @@ int main() {
   unsetenv("COCKPIT_RUNTIME_DIR");
   const auto config = cockpit::config::SystemConfig::LoadFromFile(VALID_CONFIG_PATH);
   if (config.system().name != "cockpit-system" || config.system().vehicle_id != "car_001" ||
-      config.paths().run_dir != "run" ||
+      config.paths().run_dir != "run" || config.logging().dump_time_secs != 5 ||
+      config.logging().cut_off_time_mins != 5 || config.logging().max_files != 10 ||
       config.services().vehicle_data.grpc.listen_address != "127.0.0.1:50050" ||
       config.services().gateway.stream_timeout_ms != 10000 ||
       config.services().audio.grpc.listen_address != "127.0.0.1:50052" ||
@@ -60,7 +61,7 @@ int main() {
     return 1;
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
-    if (message.find("logging.max_bytes must be a scalar") == std::string::npos) {
+    if (message.find("logging.dump_time_secs must be a scalar") == std::string::npos) {
       std::cerr << "invalid type error did not identify YAML path: " << message << std::endl;
       return 1;
     }

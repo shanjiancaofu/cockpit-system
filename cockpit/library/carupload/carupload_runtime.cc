@@ -19,8 +19,9 @@ bool CaruploadRuntime::Start(const std::string& config_path) {
     const auto config = config::SystemConfig::LoadFromFile(config_path);
     const auto& mqtt = config.services().cloud_uplink.mqtt;
     logging::InitLogger("carupload", config.paths().log_dir,
-                        logging::ParseLevel(config.logging().level), config.logging().max_bytes,
-                        config.logging().mirror_stderr);
+                        logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
+                        config.logging().dump_time_secs, config.logging().cut_off_time_mins,
+                        config.logging().max_files);
     const auto state = vehicle::MakeMockVehicleState(1);
     LOG_INFO("carupload plan vehicle_id=" + config.system().vehicle_id + " broker=" + mqtt.broker);
     LOG_WARN("MQTT transport is a placeholder; next step is Paho or Mosquitto integration");

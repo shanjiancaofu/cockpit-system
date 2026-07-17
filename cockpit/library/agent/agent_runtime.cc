@@ -70,8 +70,9 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
     const auto config = config::SystemConfig::LoadFromFile(config_path);
     const auto& interaction_config = config.services().voice_interaction;
     logging::InitLogger("agent", config.paths().log_dir,
-                        logging::ParseLevel(config.logging().level), config.logging().max_bytes,
-                        config.logging().mirror_stderr);
+                        logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
+                        config.logging().dump_time_secs, config.logging().cut_off_time_mins,
+                        config.logging().max_files);
     const bool enabled = config.features().voice.enabled || force_enable;
 
     std::unique_ptr<voice::VoiceAssistant> assistant;

@@ -42,8 +42,9 @@ bool AudioRuntime::Start(const std::string& config_path,
   try {
     const auto config = config::SystemConfig::LoadFromFile(config_path);
     logging::InitLogger("audio_driver", config.paths().log_dir,
-                        logging::ParseLevel(config.logging().level), config.logging().max_bytes,
-                        config.logging().mirror_stderr);
+                        logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
+                        config.logging().dump_time_secs, config.logging().cut_off_time_mins,
+                        config.logging().max_files);
     std::unique_ptr<voice::SpeechRecognizer> recognizer;
     if (config.features().voice.enabled) {
       const auto& voice_config = config.features().voice;

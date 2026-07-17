@@ -91,6 +91,10 @@ add_executable(json_util_test core/json_util_test.cc)
 target_link_libraries(json_util_test PRIVATE json_util)
 add_test(NAME json_util_test COMMAND json_util_test)
 
+add_executable(logger_test core/logger_test.cc)
+target_link_libraries(logger_test PRIVATE logging)
+add_test(NAME logger_test COMMAND logger_test)
+
 add_executable(service_health_test core/service_health_test.cc)
 target_link_libraries(service_health_test PRIVATE service_health)
 add_test(NAME service_health_test COMMAND service_health_test)

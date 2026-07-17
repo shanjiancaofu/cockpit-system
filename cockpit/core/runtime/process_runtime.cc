@@ -35,9 +35,10 @@ ProcessRuntime ProcessRuntime::Create(int argc, char** argv, const std::string& 
   auto config = config::SystemConfig::LoadFromFile(config_path);
 
   const std::string& log_dir = config.paths().log_dir;
-  const int max_bytes = config.logging().max_bytes;
   const auto log_level = logging::ParseLevel(config.logging().level);
-  logging::InitLogger(process_name, log_dir, log_level, max_bytes, config.logging().mirror_stderr);
+  logging::InitLogger(process_name, log_dir, log_level, config.logging().mirror_stderr,
+                      config.logging().dump_time_secs, config.logging().cut_off_time_mins,
+                      config.logging().max_files);
   LOG_INFO(process_name + " started config=" + config_path);
 
   return ProcessRuntime(process_name, config_path, args, config);

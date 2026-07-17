@@ -1,4 +1,5 @@
 find_package(yaml-cpp REQUIRED)
+find_package(Threads REQUIRED)
 
 configure_file(build/build_info_config.h.in generated/build_info_config.h @ONLY)
 
@@ -20,6 +21,7 @@ target_link_libraries(service_health PUBLIC contracts)
 add_cockpit_library(ipc ipc/shared_memory_region.cc)
 add_cockpit_library(json_util json/json.cc)
 add_cockpit_library(logging logging/logger.cc)
+target_link_libraries(logging PUBLIC Threads::Threads)
 add_cockpit_library(time_util time/time.cc)
 
 add_cockpit_library(runtime

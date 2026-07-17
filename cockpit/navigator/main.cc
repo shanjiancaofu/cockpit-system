@@ -46,7 +46,6 @@ int main(int argc, char** argv) {
     }
 
     if (args.HasFlag("module-child")) {
-      cockpit::logging::InitLogger("cockpit-navigator", "logs");
       const std::string name = args.GetString("module", "");
       const std::string library = args.GetString("library", "");
       if (name.empty() || library.empty()) {
@@ -73,10 +72,11 @@ int main(int argc, char** argv) {
 
     const std::string config_path = args.GetString("config", "configs/config.yaml");
     const auto system_config = cockpit::config::SystemConfig::LoadFromFile(config_path);
-    cockpit::logging::InitLogger("cockpit-navigator", system_config.paths().log_dir,
-                                 cockpit::logging::ParseLevel(system_config.logging().level),
-                                 system_config.logging().max_bytes,
-                                 system_config.logging().mirror_stderr);
+    cockpit::logging::InitLogger(
+        "cockpit-navigator", system_config.paths().log_dir,
+        cockpit::logging::ParseLevel(system_config.logging().level),
+        system_config.logging().mirror_stderr, system_config.logging().dump_time_secs,
+        system_config.logging().cut_off_time_mins, system_config.logging().max_files);
     config.socket_path = socket_path;
     const std::string mode = args.GetString("mode", "");
     if (!mode.empty()) {

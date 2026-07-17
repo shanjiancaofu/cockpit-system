@@ -76,9 +76,11 @@ bool RecordingRuntime::Start(const std::string& config_path,
   try {
     const auto system_config = config::SystemConfig::LoadFromFile(config_path);
     const auto& recording_config = system_config.services().recording;
-    logging::InitLogger("recording", system_config.paths().log_dir,
-                        logging::ParseLevel(system_config.logging().level),
-                        system_config.logging().max_bytes, system_config.logging().mirror_stderr);
+    logging::InitLogger(
+        "recording", system_config.paths().log_dir,
+        logging::ParseLevel(system_config.logging().level), system_config.logging().mirror_stderr,
+        system_config.logging().dump_time_secs, system_config.logging().cut_off_time_mins,
+        system_config.logging().max_files);
 
     std::filesystem::path directory(directory_override.empty() ? recording_config.directory
                                                                : directory_override);

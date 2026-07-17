@@ -9,6 +9,10 @@ trap 'rm -rf "${work_dir}"' EXIT
 runtime_dir="${work_dir}/runtime"
 snapshot_dir="${work_dir}/snapshot"
 mkdir -p "${runtime_dir}/logs"
+for index in $(seq -w 0 31); do
+  printf 'old log' >"${runtime_dir}/logs/a${index}.log"
+  touch -d '2000-01-01 UTC' "${runtime_dir}/logs/a${index}.log"
+done
 printf 'abcdefghijklmnopqrstuvwxyz' >"${runtime_dir}/logs/navigator.log"
 printf 'not a log' >"${runtime_dir}/logs/ignored.txt"
 
@@ -22,7 +26,7 @@ COCKPIT_RUNTIME_DIR="${runtime_dir}" "${cockpit_ctl}" snapshot --config "${confi
 [[ ! -e "${snapshot_dir}/logs/ignored.txt" ]]
 [[ ! -e "${snapshot_dir}/config.yaml" ]]
 grep -q '"runtime":{"available":false' "${snapshot_dir}/manifest.json"
-grep -q '"logs_omitted":0,"logs_failed":0' "${snapshot_dir}/manifest.json"
+grep -q '"logs_omitted":1,"logs_failed":0' "${snapshot_dir}/manifest.json"
 grep -q '"name":"navigator.log","bytes":8,"truncated":true' \
   "${snapshot_dir}/manifest.json"
 grep -q '"services"' "${snapshot_dir}/service_status.json"
