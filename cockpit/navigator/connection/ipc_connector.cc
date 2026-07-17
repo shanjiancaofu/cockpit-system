@@ -1,8 +1,10 @@
 #include "cockpit/navigator/connection/ipc_connector.h"
 
+#include <fcntl.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/un.h>
 #include <unistd.h>
 
@@ -13,6 +15,8 @@
 namespace cockpit {
 namespace navigator {
 namespace {
+
+constexpr int kIoTimeoutMs = 1000;
 
 bool FillAddress(const std::string& path, sockaddr_un* address, std::string* error) {
   if (path.empty() || path.size() >= sizeof(address->sun_path)) {
@@ -25,14 +29,25 @@ bool FillAddress(const std::string& path, sockaddr_un* address, std::string* err
   return true;
 }
 
-bool WriteAll(int fd, const std::string& value) {
+bool WriteAll(int fd, const std::string& value, std::string* error) {
   std::size_t offset = 0;
   while (offset < value.size()) {
     const ssize_t written = send(fd, value.data() + offset, value.size() - offset, MSG_NOSIGNAL);
     if (written < 0 && errno == EINTR) {
       continue;
     }
-    if (written <= 0) {
+    if (written < 0) {
+      if (error != nullptr) {
+        *error = errno == EAGAIN || errno == EWOULDBLOCK
+                     ? "timed out writing Unix socket request"
+                     : std::string("failed to write Unix socket: ") + std::strerror(errno);
+      }
+      return false;
+    }
+    if (written == 0) {
+      if (error != nullptr) {
+        *error = "Unix socket closed while writing request";
+      }
       return false;
     }
     offset += static_cast<std::size_t>(written);
@@ -48,7 +63,9 @@ bool ReadToEnd(int fd, std::string* value, std::string* error) {
       continue;
     }
     if (size < 0) {
-      *error = std::string("failed to read Unix socket: ") + std::strerror(errno);
+      *error = errno == EAGAIN || errno == EWOULDBLOCK
+                   ? "timed out waiting for Unix socket response"
+                   : std::string("failed to read Unix socket: ") + std::strerror(errno);
       return false;
     }
     if (size == 0) {
@@ -118,6 +135,11 @@ int IpcConnector::WaitForRequest(int timeout_ms, std::string* request) {
   if (client_fd < 0) {
     return -1;
   }
+  const timeval send_timeout{kIoTimeoutMs / 1000, (kIoTimeoutMs % 1000) * 1000};
+  if (setsockopt(client_fd, SOL_SOCKET, SO_SNDTIMEO, &send_timeout, sizeof(send_timeout)) < 0) {
+    close(client_fd);
+    return -1;
+  }
   pollfd client{client_fd, POLLIN, 0};
   if (poll(&client, 1, 1000) <= 0 || (client.revents & POLLIN) == 0) {
     close(client_fd);
@@ -138,7 +160,7 @@ int IpcConnector::WaitForRequest(int timeout_ms, std::string* request) {
 }
 
 void IpcConnector::ReplyAndClose(int client_fd, const std::string& response) const {
-  WriteAll(client_fd, response);
+  WriteAll(client_fd, response, nullptr);
   shutdown(client_fd, SHUT_WR);
   close(client_fd);
 }
@@ -165,18 +187,53 @@ bool IpcConnector::SendRequest(const std::string& socket_path, const std::string
   if (!FillAddress(socket_path, &address, error)) {
     return false;
   }
-  const int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+  const int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
   if (fd < 0) {
     *error = std::string("failed to create Unix socket: ") + std::strerror(errno);
     return false;
   }
-  if (connect(fd, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) < 0) {
-    *error = std::string("failed to connect to ") + socket_path + ": " + std::strerror(errno);
+  const int connect_result =
+      connect(fd, reinterpret_cast<const sockaddr*>(&address), sizeof(address));
+  if (connect_result < 0) {
+    if (errno != EINPROGRESS && errno != EAGAIN && errno != EINTR) {
+      *error = std::string("failed to connect to ") + socket_path + ": " + std::strerror(errno);
+      close(fd);
+      return false;
+    }
+    pollfd descriptor{fd, POLLOUT, 0};
+    const int ready = poll(&descriptor, 1, kIoTimeoutMs);
+    if (ready == 0) {
+      *error = "timed out connecting to " + socket_path;
+      close(fd);
+      return false;
+    }
+    if (ready < 0) {
+      *error =
+          std::string("failed while connecting to ") + socket_path + ": " + std::strerror(errno);
+      close(fd);
+      return false;
+    }
+    int socket_error = 0;
+    socklen_t error_size = sizeof(socket_error);
+    if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_error, &error_size) < 0 || socket_error != 0) {
+      const int connect_error = socket_error == 0 ? errno : socket_error;
+      *error =
+          std::string("failed to connect to ") + socket_path + ": " + std::strerror(connect_error);
+      close(fd);
+      return false;
+    }
+  }
+
+  const int flags = fcntl(fd, F_GETFL, 0);
+  const timeval io_timeout{kIoTimeoutMs / 1000, (kIoTimeoutMs % 1000) * 1000};
+  if (flags < 0 || fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) < 0 ||
+      setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &io_timeout, sizeof(io_timeout)) < 0 ||
+      setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &io_timeout, sizeof(io_timeout)) < 0) {
+    *error = std::string("failed to configure Unix socket timeout: ") + std::strerror(errno);
     close(fd);
     return false;
   }
-  if (!WriteAll(fd, request + "\n")) {
-    *error = std::string("failed to write Unix socket: ") + std::strerror(errno);
+  if (!WriteAll(fd, request + "\n", error)) {
     close(fd);
     return false;
   }

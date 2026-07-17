@@ -85,6 +85,25 @@ int main(int argc, char** argv) {
       Expect(std::filesystem::is_regular_file(socket_path), "navigator removed a non-socket path");
   std::filesystem::remove(socket_path);
 
+  success &= Expect(connector.Open(socket_path, &socket_error), "failed to open stalled peer");
+  std::thread stalled_peer([&connector]() {
+    std::string request;
+    const int client_fd = connector.WaitForRequest(1000, &request);
+    if (client_fd >= 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+      close(client_fd);
+    }
+  });
+  std::string stalled_response;
+  std::string stalled_error;
+  const bool stalled_result = cockpit::navigator::IpcConnector::SendRequest(
+      socket_path, "status", &stalled_response, &stalled_error);
+  stalled_peer.join();
+  success &=
+      Expect(!stalled_result && stalled_error == "timed out waiting for Unix socket response",
+             "stalled peer did not time out");
+  connector.Close();
+
   cockpit::navigator::RunConfig config;
   config.initial_mode = "normal";
   config.socket_path = socket_path;
