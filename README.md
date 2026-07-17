@@ -77,7 +77,7 @@ bash scripts/install_ubuntu_deps.sh
 bash scripts/build.sh                         # Clang Debug 开发构建和 CTest
 bash scripts/build.sh --type release          # GCC Release 正式 Linux 构建
 bash scripts/run_smoke.sh
-bash scripts/run_navigator_stability.sh --duration 300 --interval 5 --fault crash
+bash scripts/run_navigator_stability.sh --duration 300 --interval 5 --fault crash --fault-count 3
 ```
 
 `build.sh` 按构建类型选择工具链：Debug 默认使用 Clang，Release 默认使用 GCC。需要复现特定组合时可

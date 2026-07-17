@@ -44,6 +44,7 @@ add_test(NAME navigator_stability_test COMMAND bash
     --interval 1
     --fault crash
     --module camera_driver
+    --fault-count 3
     --output ${CMAKE_BINARY_DIR}/navigator-stability-test.json
 )
 set_tests_properties(navigator_stability_test PROPERTIES TIMEOUT 30)
