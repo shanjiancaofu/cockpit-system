@@ -26,7 +26,7 @@
 
 - ALSA 采集和播放。
 - 20 ms PCM frame、SPSC ring、VAD 和语音分段。
-- mock ASR 和 whisper.cpp adapter；默认构建未启用 whisper.cpp，WSL 真实模型基线列入 WSL-R4。
+- mock ASR 和 whisper.cpp adapter；WSL-R4 已完成真实模型 CPU 基线，默认构建仍未启用 whisper.cpp。
 - transcript 订阅、重连、历史重放。
 - 白名单意图和类型化 ActionDispatcher。
 - 车辆状态查询通过 gateway gRPC 真实执行。
@@ -90,7 +90,8 @@ transcript
 ## 演进顺序
 
 1. 已完成：mock 打断、连续命令、队列丢弃、超时和 provider 失败恢复。
-2. WSL-R4：Whisper 真实 WAV 识别和 CPU 耗时/内存基线，不改变默认构建。
+2. 已完成 WSL-R4：whisper.cpp `6fc7c33b` 与 `ggml-small.bin` 在 GCC Release 下识别 16 kHz mono
+   JFK WAV，耗时 4.39 秒、CPU 393%、峰值 RSS 649232 KiB；源码、模型和 WAV 均不进入仓库。
 3. Jetson 麦克风、扬声器、AEC、增益和唤醒/打断标定。
 4. 播放器责任边界明确后补 Qt/Android 媒体动作和 push-to-talk UI。
 5. 根据 Jetson 性能选择真实 TTS 和 SenseVoice/Qwen ASR 等替代方案。

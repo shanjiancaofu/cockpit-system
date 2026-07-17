@@ -144,6 +144,12 @@ fi
 
 if [[ "${cross_compiling}" == false ]]; then
   if [[ "${compiler_family}" == "clang" ]]; then
+    for candidate in clang clang-18 clang-17 clang-16 clang-15 clang-14; do
+      if command -v "${candidate}" >/dev/null 2>&1; then
+        c_compiler="$(command -v "${candidate}")"
+        break
+      fi
+    done
     for candidate in clang++ clang++-18 clang++-17 clang++-16 clang++-15 clang++-14; do
       if command -v "${candidate}" >/dev/null 2>&1; then
         cxx_compiler="$(command -v "${candidate}")"
@@ -151,13 +157,17 @@ if [[ "${cross_compiling}" == false ]]; then
       fi
     done
   else
+    c_compiler="$(command -v gcc || true)"
     cxx_compiler="$(command -v g++ || true)"
   fi
-  if [[ -z "${cxx_compiler:-}" ]]; then
-    echo "${compiler_family} C++ compiler not found" >&2
+  if [[ -z "${c_compiler:-}" || -z "${cxx_compiler:-}" ]]; then
+    echo "${compiler_family} C/C++ compilers not found" >&2
     exit 1
   fi
-  cmake_options+=("-DCMAKE_CXX_COMPILER=${cxx_compiler}")
+  cmake_options+=(
+    "-DCMAKE_C_COMPILER=${c_compiler}"
+    "-DCMAKE_CXX_COMPILER=${cxx_compiler}"
+  )
 fi
 
 echo "Configuring ${build_type} with ${compiler_family} in ${build_dir}"

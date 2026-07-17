@@ -142,11 +142,17 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 模型不提交到仓库。启用 whisper.cpp：
 
 ```bash
-bash scripts/build.sh -- \
+BUILD_DIR=_output/build/x86_64-whisper-release \
+  bash scripts/build.sh --type release --compiler gcc --no-test -- \
   -DBUILD_WHISPER_CPP_ASR=ON \
   -DWHISPER_CPP_DIR=/home/ffz/code/third_party/whisper.cpp \
   -DWHISPER_CPP_MODEL_PATH=/path/to/ggml-small.bin
+
+ctest --test-dir _output/build/x86_64-whisper-release \
+  --output-on-failure -R '^whisper_speech_recognizer_test$'
 ```
+
+使用独立构建目录，避免改变默认 Debug/Release 构建的可选项和缓存。
 
 ## 提交规范
 
