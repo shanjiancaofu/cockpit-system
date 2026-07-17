@@ -1,12 +1,7 @@
 {
     "cmake.sourceDirectory": "${workspaceFolder}",
     "cmake.buildDirectory": "${workspaceFolder}/_output/build/x86_64-debug",
-    "cmake.configureSettings": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_COMPILER": "/usr/bin/clang++-14",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-    },
     "C_Cpp.default.compileCommands": "${workspaceFolder}/_output/build/x86_64-debug/compile_commands.json",
-    "C_Cpp.default.compilerPath": "/usr/bin/clang++-14",
+    "C_Cpp.default.compilerPath": "/usr/bin/c++",
     "C_Cpp.default.cppStandard": "c++17"
 }
