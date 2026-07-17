@@ -19,7 +19,8 @@ class IpcConnector {
   void Close();
 
   static bool SendRequest(const std::string& socket_path, const std::string& request,
-                          std::string* response, std::string* error);
+                          std::string* response, std::string* error,
+                          int response_timeout_ms = 1000);
 
  private:
   int socket_fd_{-1};

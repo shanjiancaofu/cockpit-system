@@ -1,6 +1,5 @@
 add_executable(cockpit-ctl
     main.cc
-    dependencies_command.cc
     health_command.cc
     runtime_command.cc
     snapshot_command.cc

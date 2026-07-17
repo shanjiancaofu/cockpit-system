@@ -26,6 +26,8 @@ COCKPIT_RUNTIME_DIR="${runtime_dir}" "${cockpit_ctl}" snapshot --config "${confi
 [[ ! -e "${snapshot_dir}/logs/ignored.txt" ]]
 [[ ! -e "${snapshot_dir}/config.yaml" ]]
 grep -q '"runtime":{"available":false' "${snapshot_dir}/manifest.json"
+grep -q '"retention":{"max_snapshots":10,"max_total_bytes":104857600}' \
+  "${snapshot_dir}/manifest.json"
 grep -q '"logs_omitted":1,"logs_failed":0' "${snapshot_dir}/manifest.json"
 grep -q '"name":"navigator.log","bytes":8,"truncated":true' \
   "${snapshot_dir}/manifest.json"
@@ -42,3 +44,24 @@ set -e
 
 [[ "${existing_result}" -eq 1 ]]
 [[ "${invalid_result}" -eq 2 ]]
+
+retention_dir="${work_dir}/retention"
+mkdir -p "${retention_dir}"
+COCKPIT_RUNTIME_DIR="${runtime_dir}" "${cockpit_ctl}" snapshot --config "${config}" \
+  --directory "${retention_dir}/snapshot-1" --socket "${work_dir}/missing.sock" \
+  --max-snapshots 10 --max-total-bytes 1048576 >/dev/null
+dd if=/dev/zero of="${retention_dir}/snapshot-1/large.bin" bs=1024 count=64 status=none
+COCKPIT_RUNTIME_DIR="${runtime_dir}" "${cockpit_ctl}" snapshot --config "${config}" \
+  --directory "${retention_dir}/snapshot-2" --socket "${work_dir}/missing.sock" \
+  --max-snapshots 10 --max-total-bytes 32768 >/dev/null
+[[ ! -e "${retention_dir}/snapshot-1" ]]
+[[ -d "${retention_dir}/snapshot-2" ]]
+
+for index in 3 4; do
+  COCKPIT_RUNTIME_DIR="${runtime_dir}" "${cockpit_ctl}" snapshot --config "${config}" \
+    --directory "${retention_dir}/snapshot-${index}" --socket "${work_dir}/missing.sock" \
+    --max-snapshots 2 --max-total-bytes 1048576 >/dev/null
+done
+[[ ! -e "${retention_dir}/snapshot-2" ]]
+[[ -d "${retention_dir}/snapshot-3" ]]
+[[ -d "${retention_dir}/snapshot-4" ]]

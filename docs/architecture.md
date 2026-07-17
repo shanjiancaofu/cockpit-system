@@ -60,7 +60,7 @@ tests/                     单元测试与 smoke test
 - `recording`：面向研发诊断，订阅车辆状态并管理持久化录包会话。
 - `upgrader`：在独占的 upgrade mode 中校验并安装候选版本，发布持久化事务结果。
 
-`carupload` 可在 cloud mode 加载，但当前只输出 MQTT 上传计划，没有 broker 连接、TLS、设备身份或
+`carupload` 可在 cloud mode 加载，但当前只验证模块生命周期，没有 broker 连接、TLS、设备身份或
 发布确认，因此仍属于 ABI 占位，不计为已实现的云端传输。
 
 UI 构建中，`normal` 启动 transfer、三类 driver、agent 和 hmi；`development` 在此基础上增加 recording；`cloud`

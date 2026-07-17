@@ -3,7 +3,6 @@
 
 #include "cockpit/core/config/system_config.h"
 #include "cockpit/core/runtime/args.h"
-#include "tools/cockpit-ctl/dependencies_command.h"
 #include "tools/cockpit-ctl/health_command.h"
 #include "tools/cockpit-ctl/runtime_command.h"
 #include "tools/cockpit-ctl/snapshot_command.h"
@@ -18,8 +17,8 @@ void PrintUsage() {
             << "  cockpit-ctl status --watch [--interval SEC] [--config configs/config.yaml]\n"
             << "  cockpit-ctl health [--mode normal|development|cloud]"
                " [--config configs/config.yaml]\n"
-            << "  cockpit-ctl dependencies [--config configs/config.yaml]\n"
-            << "  cockpit-ctl snapshot [--directory PATH] [--max-log-bytes N] [--socket PATH]\n"
+            << "  cockpit-ctl snapshot [--directory PATH] [--max-log-bytes N]"
+               " [--max-snapshots N] [--max-total-bytes N] [--socket PATH]\n"
             << "  cockpit-ctl runtime status|mode|reload [--socket PATH]\n"
             << "  cockpit-ctl runtime switch MODE [--socket PATH]\n"
             << "  cockpit-ctl runtime start|stop|restart MODULE [--socket PATH]\n"
@@ -29,6 +28,8 @@ void PrintUsage() {
             << "  --mode MODE      health target mode (default: normal)\n"
             << "  --directory PATH diagnostic snapshot output directory\n"
             << "  --max-log-bytes N maximum bytes copied from each log (default: 262144)\n"
+            << "  --max-snapshots N maximum retained snapshots (default: 10)\n"
+            << "  --max-total-bytes N maximum retained snapshot bytes (default: 104857600)\n"
             << "  --watch          watch mode, refresh status periodically\n"
             << "  --output FORMAT  text or json (default: text)\n"
             << "  --interval SEC   refresh interval in seconds (default: "
@@ -44,8 +45,7 @@ int main(int argc, char** argv) {
     PrintUsage();
     return command.empty() ? 1 : 0;
   }
-  if (command != "status" && command != "health" && command != "dependencies" &&
-      command != "runtime" && command != "snapshot") {
+  if (command != "status" && command != "health" && command != "runtime" && command != "snapshot") {
     std::cerr << "unknown command: " << command << '\n';
     PrintUsage();
     return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
@@ -75,15 +75,6 @@ int main(int argc, char** argv) {
     }
     return cockpit::ctl::health::Run(config, output_format, mode);
   }
-  if (command == "dependencies") {
-    if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
-      cockpit::diagnostics::WriteJsonError("invalid_arguments",
-                                           "dependencies does not support JSON output", &std::cerr);
-      return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
-    }
-    return cockpit::ctl::dependencies::Run(config);
-  }
-
   const bool watch = args.HasFlag("watch");
   if (watch && output_format == cockpit::diagnostics::OutputFormat::kJson) {
     cockpit::diagnostics::WriteJsonError("invalid_arguments", "watch does not support JSON output",

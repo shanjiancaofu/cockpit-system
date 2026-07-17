@@ -1,12 +1,10 @@
 #include "cockpit/library/carupload/carupload_runtime.h"
 
 #include <exception>
-#include <iostream>
 #include <string>
 
 #include "cockpit/core/config/system_config.h"
 #include "cockpit/core/logging/logger.h"
-#include "cockpit/modules/vehicle/vehicle_state.h"
 
 namespace cockpit {
 namespace carupload {
@@ -17,16 +15,11 @@ bool CaruploadRuntime::Start(const std::string& config_path) {
   }
   try {
     const auto config = config::SystemConfig::LoadFromFile(config_path);
-    const auto& mqtt = config.services().cloud_uplink.mqtt;
     logging::InitLogger("carupload", config.paths().log_dir,
                         logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
                         config.logging().dump_time_secs, config.logging().cut_off_time_mins,
                         config.logging().max_files);
-    const auto state = vehicle::MakeMockVehicleState(1);
-    LOG_INFO("carupload plan vehicle_id=" + config.system().vehicle_id + " broker=" + mqtt.broker);
-    LOG_WARN("MQTT transport is a placeholder; next step is Paho or Mosquitto integration");
-    std::cout << "would publish topic=" << mqtt.telemetry_topic << " payload=" << state.ToJson()
-              << std::endl;
+    LOG_WARN("carupload transport is not implemented; cloud mode validates module lifecycle only");
   } catch (const std::exception& error) {
     LOG_ERROR("failed to configure carupload: " + std::string(error.what()));
     return false;

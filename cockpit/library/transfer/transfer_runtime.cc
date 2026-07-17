@@ -34,8 +34,7 @@ bool TransferRuntime::Start(const std::string& config_path, int samples, int max
     vehicle_client_ = std::make_unique<gateway::VehicleStateClient>(
         gateway_config.vehicle_data_address, gateway_config.stream_timeout_ms,
         gateway_config.retry_delay_ms);
-    LOG_INFO("transfer listen plan grpc_address=" + gateway_config.grpc.listen_address +
-             " websocket_address=" + gateway_config.websocket.listen_address);
+    LOG_INFO("transfer runtime started grpc_address=" + gateway_config.grpc.listen_address);
   } catch (const std::exception& error) {
     LOG_ERROR("failed to configure transfer: " + std::string(error.what()));
     gateway_service_.Shutdown();

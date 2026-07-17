@@ -20,7 +20,7 @@
 - HMI 动态模块监管 Qt UI 生命周期和崩溃恢复。
 - `cockpit-ctl` 聚合状态和各类 probe/ctl 工具。
 - Navigator 统一入口、动态业务模块、运行模式切换、有界本地 IPC 和故障重启限制。
-- Navigator 周期状态/健康采样、受控故障注入、JSON 稳定性报告和手动诊断快照。
+- Navigator 周期状态/健康采样、受控故障注入、JSON 稳定性报告和失败自动诊断快照。
 - systemd、Release 打包，以及 `safe-ota` 校验、安装、健康检查和失败回滚原型。
 
 ## 架构

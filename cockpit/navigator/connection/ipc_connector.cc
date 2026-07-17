@@ -180,7 +180,7 @@ void IpcConnector::Close() {
 }
 
 bool IpcConnector::SendRequest(const std::string& socket_path, const std::string& request,
-                               std::string* response, std::string* error) {
+                               std::string* response, std::string* error, int response_timeout_ms) {
   response->clear();
   error->clear();
   sockaddr_un address;
@@ -225,10 +225,11 @@ bool IpcConnector::SendRequest(const std::string& socket_path, const std::string
   }
 
   const int flags = fcntl(fd, F_GETFL, 0);
-  const timeval io_timeout{kIoTimeoutMs / 1000, (kIoTimeoutMs % 1000) * 1000};
+  const timeval send_timeout{kIoTimeoutMs / 1000, (kIoTimeoutMs % 1000) * 1000};
+  const timeval receive_timeout{response_timeout_ms / 1000, (response_timeout_ms % 1000) * 1000};
   if (flags < 0 || fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) < 0 ||
-      setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &io_timeout, sizeof(io_timeout)) < 0 ||
-      setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &io_timeout, sizeof(io_timeout)) < 0) {
+      setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &send_timeout, sizeof(send_timeout)) < 0 ||
+      setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &receive_timeout, sizeof(receive_timeout)) < 0) {
     *error = std::string("failed to configure Unix socket timeout: ") + std::strerror(errno);
     close(fd);
     return false;

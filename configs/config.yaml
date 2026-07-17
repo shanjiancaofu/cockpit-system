@@ -26,15 +26,12 @@ services:
     retry_delay_ms: 200
     grpc:
       listen_address: 127.0.0.1:50051
-    websocket:
-      listen_address: 127.0.0.1:18080
   audio:
     auto_start: false
     grpc:
       listen_address: 127.0.0.1:50052
     vad:
       enabled: true
-      backend: energy
       speech_threshold_dbfs: -40.0
       speech_start_frames: 3
       speech_end_frames: 10
@@ -46,7 +43,6 @@ services:
     preview_stale_timeout_ms: 2000
     synthetic_fault: none
     synthetic_fault_after_frames: 30
-    frame_transport: shared_memory
     shared_memory_name: /cockpit_camera_preview
     max_frame_bytes: 8388608
     photo_directory: photos
@@ -61,12 +57,6 @@ services:
     retry_delay_ms: 200
     grpc:
       listen_address: 127.0.0.1:50053
-  cloud_uplink:
-    enabled: false
-    mqtt:
-      broker: tcp://127.0.0.1:1883
-      telemetry_topic: vehicle/status
-      qos: 1
   recording:
     auto_start: false
     directory: recordings
@@ -86,8 +76,6 @@ hardware:
     receive_timeout_ms: 500
     max_idle_timeouts: 10
   audio:
-    capture_backend: alsa
-    playback_backend: alsa
     input_device: default
     output_device: default
     sample_rate_hz: 16000
@@ -97,33 +85,14 @@ hardware:
 features:
   voice:
     enabled: false
-    mode: push_to_talk
     asr_provider: mock
     asr_model_path: ""
     asr_language: zh
     asr_threads: 4
-    tts_provider: mock
   ai:
-    provider: mock
-    model: local-demo
     request_timeout_ms: 10000
 
 tools:
   topic:
     backend: file
     dir: logs/topics
-
-runtime:
-  dependencies:
-    - service: cockpit-gateway-service
-      required: [vehicle-data-service]
-    - service: voice-interaction-service
-      required: [audio-service, cockpit-gateway-service]
-      optional: [recording-service]
-    - service: camera-service
-      optional: [recording-service]
-    - service: recording-service
-      required: [vehicle-data-service]
-    - service: cockpit-ui
-      required: [cockpit-gateway-service, camera-service]
-      optional: [audio-service, voice-interaction-service, recording-service]

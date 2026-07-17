@@ -29,6 +29,10 @@ namespace {
 constexpr int kDefaultMaxLogBytes = 256 * 1024;
 constexpr int kMaximumLogBytes = 4 * 1024 * 1024;
 constexpr std::size_t kMaximumLogFiles = 32;
+constexpr int kDefaultMaxSnapshots = 10;
+constexpr int kMaximumSnapshots = 100;
+constexpr int kDefaultMaxTotalBytes = 100 * 1024 * 1024;
+constexpr int kMaximumTotalBytes = 1024 * 1024 * 1024;
 
 struct IncludedLog {
   std::string name;
@@ -72,6 +76,52 @@ IncludedLog CopyLogTail(const std::filesystem::path& source,
   return {source.filename().string(), copied_bytes, copied_bytes < file_bytes};
 }
 
+void PruneSnapshots(const std::filesystem::path& current_snapshot, std::size_t max_snapshots,
+                    std::uintmax_t max_total_bytes) {
+  struct SnapshotDirectory {
+    std::filesystem::file_time_type modified_at;
+    std::filesystem::path path;
+    std::uintmax_t bytes = 0;
+  };
+
+  std::vector<SnapshotDirectory> snapshots;
+  std::uintmax_t total_bytes = 0;
+  for (const auto& entry : std::filesystem::directory_iterator(current_snapshot.parent_path())) {
+    const std::string name = entry.path().filename().string();
+    if (entry.path() != current_snapshot && name.rfind("snapshot-", 0) != 0) {
+      continue;
+    }
+    if (!std::filesystem::is_directory(entry.symlink_status())) {
+      continue;
+    }
+
+    SnapshotDirectory snapshot{entry.last_write_time(), entry.path(), 0};
+    for (const auto& child : std::filesystem::recursive_directory_iterator(entry.path())) {
+      if (std::filesystem::is_regular_file(child.symlink_status())) {
+        snapshot.bytes += child.file_size();
+      }
+    }
+    total_bytes += snapshot.bytes;
+    snapshots.push_back(std::move(snapshot));
+  }
+  std::sort(snapshots.begin(), snapshots.end(), [](const auto& left, const auto& right) {
+    return left.modified_at < right.modified_at;
+  });
+
+  while (snapshots.size() > max_snapshots || total_bytes > max_total_bytes) {
+    const auto oldest = std::find_if(snapshots.begin(), snapshots.end(), [&](const auto& snapshot) {
+      return snapshot.path != current_snapshot;
+    });
+    if (oldest == snapshots.end()) {
+      std::filesystem::remove_all(current_snapshot);
+      throw std::runtime_error("diagnostic snapshot exceeds max-total-bytes");
+    }
+    total_bytes -= oldest->bytes;
+    std::filesystem::remove_all(oldest->path);
+    snapshots.erase(oldest);
+  }
+}
+
 }  // namespace
 
 int Run(const config::SystemConfig& config, const runtime::Args& args) {
@@ -83,6 +133,16 @@ int Run(const config::SystemConfig& config, const runtime::Args& args) {
     std::cerr << "max-log-bytes must be between 1 and " << kMaximumLogBytes << '\n';
     return ToInt(ExitCode::kInvalidArguments);
   }
+  const int max_snapshots = args.GetInt("max-snapshots", kDefaultMaxSnapshots);
+  if (max_snapshots < 1 || max_snapshots > kMaximumSnapshots) {
+    std::cerr << "max-snapshots must be between 1 and " << kMaximumSnapshots << '\n';
+    return ToInt(ExitCode::kInvalidArguments);
+  }
+  const int max_total_bytes = args.GetInt("max-total-bytes", kDefaultMaxTotalBytes);
+  if (max_total_bytes < 1 || max_total_bytes > kMaximumTotalBytes) {
+    std::cerr << "max-total-bytes must be between 1 and " << kMaximumTotalBytes << '\n';
+    return ToInt(ExitCode::kInvalidArguments);
+  }
 
   const auto generated_at_ms =
       static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -92,7 +152,8 @@ int Run(const config::SystemConfig& config, const runtime::Args& args) {
                                                   "diagnostics" /
                                                   ("snapshot-" + std::to_string(generated_at_ms));
   const std::filesystem::path output_directory =
-      std::filesystem::absolute(args.GetString("directory", default_directory.string()));
+      std::filesystem::absolute(args.GetString("directory", default_directory.string()))
+          .lexically_normal();
   const std::filesystem::path partial_directory = output_directory.string() + ".partial";
 
   std::error_code filesystem_error;
@@ -178,6 +239,8 @@ int Run(const config::SystemConfig& config, const runtime::Args& args) {
         << "\",\"runtime\":{\"available\":" << (runtime_available ? "true" : "false")
         << ",\"socket\":\"" << json::EscapeString(socket_path) << "\",\"error\":\""
         << json::EscapeString(runtime_error) << "\"},\"max_log_bytes\":" << max_log_bytes
+        << ",\"retention\":{\"max_snapshots\":" << max_snapshots
+        << ",\"max_total_bytes\":" << max_total_bytes << "}"
         << ",\"logs_omitted\":" << logs_omitted << ",\"logs_failed\":" << logs_failed
         << ",\"logs\":[";
     for (std::size_t index = 0; index < included_logs.size(); ++index) {
@@ -197,6 +260,8 @@ int Run(const config::SystemConfig& config, const runtime::Args& args) {
 
     std::filesystem::create_directories(output_directory.parent_path());
     std::filesystem::rename(partial_directory, output_directory);
+    PruneSnapshots(output_directory, static_cast<std::size_t>(max_snapshots),
+                   static_cast<std::uintmax_t>(max_total_bytes));
     std::cout << "diagnostic snapshot: " << output_directory.string() << '\n';
     return ToInt(ExitCode::kSuccess);
   } catch (const std::exception& exception) {

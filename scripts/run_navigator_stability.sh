@@ -14,12 +14,15 @@ mode="development"
 fault="restart"
 fault_module="camera_driver"
 output_path=""
+snapshot_max_count=10
+snapshot_max_total_bytes=104857600
 
 usage() {
   echo "Usage:"
   echo "  run_navigator_stability.sh [--duration SEC] [--interval SEC]"
   echo "      [--mode normal|development] [--fault none|restart|crash]"
   echo "      [--module NAME] [--output PATH] [--build-dir PATH] [--config PATH]"
+  echo "      [--snapshot-max-count N] [--snapshot-max-total-bytes N]"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -32,14 +35,26 @@ while [[ $# -gt 0 ]]; do
     --output) output_path="${2:-}"; shift 2 ;;
     --build-dir) build_dir="${2:-}"; shift 2 ;;
     --config) config_path="${2:-}"; shift 2 ;;
+    --snapshot-max-count) snapshot_max_count="${2:-}"; shift 2 ;;
+    --snapshot-max-total-bytes) snapshot_max_total_bytes="${2:-}"; shift 2 ;;
     --help|-h) usage; exit 0 ;;
     *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
 
 if [[ ! "${duration_seconds}" =~ ^[1-9][0-9]*$ ||
-      ! "${interval_seconds}" =~ ^[1-9][0-9]*$ ]]; then
-  echo "duration and interval must be positive integers" >&2
+      ! "${interval_seconds}" =~ ^[1-9][0-9]*$ ||
+      ! "${snapshot_max_count}" =~ ^[1-9][0-9]*$ ||
+      ! "${snapshot_max_total_bytes}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "duration, interval and snapshot limits must be positive integers" >&2
+  exit 2
+fi
+duration_seconds=$((10#${duration_seconds}))
+interval_seconds=$((10#${interval_seconds}))
+snapshot_max_count=$((10#${snapshot_max_count}))
+snapshot_max_total_bytes=$((10#${snapshot_max_total_bytes}))
+if ((snapshot_max_count > 100 || snapshot_max_total_bytes > 1073741824)); then
+  echo "snapshot max count must be <= 100 and total bytes must be <= 1073741824" >&2
   exit 2
 fi
 if [[ "${mode}" != "normal" && "${mode}" != "development" ]]; then
@@ -99,6 +114,71 @@ mkdir -p "${run_dir}"
 : >"${samples_path}"
 
 navigator_pid=""
+started_at_ms="$(date +%s%3N)"
+sample_count=0
+failed_samples=0
+injection_attempted=false
+injection_recovered=true
+before_pid=0
+after_pid=0
+runtime_alive=false
+report_healthy=false
+snapshot_attempted=false
+snapshot_available=false
+snapshot_reason=""
+snapshot_path=""
+report_written=false
+
+capture_failure_snapshot() {
+  if [[ "${snapshot_attempted}" == "true" ]]; then
+    return
+  fi
+  snapshot_attempted=true
+  snapshot_reason="$1"
+  snapshot_path="${runtime_dir}/data/diagnostics/snapshot-$(date +%s%3N)"
+  if "${bin_dir}/cockpit-ctl" snapshot --config "${config_path}" --socket "${socket_path}" \
+      --directory "${snapshot_path}" --max-snapshots "${snapshot_max_count}" \
+      --max-total-bytes "${snapshot_max_total_bytes}" >/dev/null 2>&1; then
+    snapshot_available=true
+  fi
+}
+
+write_report() {
+  local ended_at_ms config_sha256 project_version git_revision git_dirty samples_json
+  ended_at_ms="$(date +%s%3N)"
+  config_sha256="$(sha256sum "${config_path}" | awk '{print $1}')"
+  project_version="$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' "${build_dir}/CMakeCache.txt")"
+  git_revision="$(git -C "${root_dir}" rev-parse HEAD 2>/dev/null || echo unknown)"
+  git_dirty=false
+  if [[ -n "$(git -C "${root_dir}" status --porcelain)" ]]; then
+    git_dirty=true
+  fi
+  samples_json="$(paste -sd, "${samples_path}")"
+  local temporary_output="${output_path}.tmp"
+  {
+    printf '{"schema_version":2,"project":"cockpit-system","project_version":"%s",' \
+      "${project_version}"
+    printf '"git_revision":"%s","git_dirty":%s,"config_sha256":"%s",' \
+      "${git_revision}" "${git_dirty}" "${config_sha256}"
+    printf '"mode":"%s","started_at_ms":%s,"ended_at_ms":%s,' \
+      "${mode}" "${started_at_ms}" "${ended_at_ms}"
+    printf '"duration_seconds":%s,"interval_seconds":%s,"navigator_log":"%s",' \
+      "${duration_seconds}" "${interval_seconds}" "${navigator_log}"
+    printf '"injection":{"action":"%s","module":"%s","attempted":%s,' \
+      "${fault}" "${fault_module}" "${injection_attempted}"
+    printf '"before_pid":%s,"after_pid":%s,"recovered":%s},' \
+      "${before_pid}" "${after_pid}" "${injection_recovered}"
+    printf '"diagnostic_snapshot":{"attempted":%s,"available":%s,' \
+      "${snapshot_attempted}" "${snapshot_available}"
+    printf '"reason":"%s","path":"%s"},' "${snapshot_reason}" "${snapshot_path}"
+    printf '"samples":[%s],"summary":{"healthy":%s,"runtime_alive":%s,' \
+      "${samples_json}" "${report_healthy}" "${runtime_alive}"
+    printf '"sample_count":%s,"failed_samples":%s}}\n' "${sample_count}" "${failed_samples}"
+  } >"${temporary_output}"
+  mv "${temporary_output}" "${output_path}"
+  report_written=true
+}
+
 cleanup() {
   if [[ -n "${navigator_pid}" ]] && kill -0 "${navigator_pid}" >/dev/null 2>&1; then
     "${bin_dir}/cockpit-navigator" --command shutdown --socket "${socket_path}" \
@@ -106,7 +186,22 @@ cleanup() {
     wait "${navigator_pid}" >/dev/null 2>&1 || true
   fi
 }
-trap cleanup EXIT
+
+finish() {
+  local result=$?
+  set +e
+  if [[ ${result} -ne 0 && "${report_written}" != "true" ]]; then
+    if [[ -n "${navigator_pid}" ]] && kill -0 "${navigator_pid}" >/dev/null 2>&1; then
+      runtime_alive=true
+    fi
+    capture_failure_snapshot "script_failed"
+    write_report
+  fi
+  cleanup
+  trap - EXIT
+  exit "${result}"
+}
+trap finish EXIT
 
 (
   cd "${run_dir}"
@@ -127,12 +222,15 @@ for _ in $(seq 1 100); do
   sleep 0.1
 done
 if [[ "${runtime_ready}" != "true" ]]; then
+  if kill -0 "${navigator_pid}" >/dev/null 2>&1; then
+    runtime_alive=true
+  fi
+  capture_failure_snapshot "runtime_not_ready"
+  write_report
   echo "Navigator did not become ready; see ${navigator_log}" >&2
   exit 1
 fi
 
-sample_count=0
-failed_samples=0
 collect_sample() {
   local timestamp_ms status runtime_json health_json health_result sample_healthy
   timestamp_ms="$(date +%s%3N)"
@@ -197,18 +295,18 @@ collect_sample() {
   sample_count=$((sample_count + 1))
   if [[ "${sample_healthy}" != "true" ]]; then
     failed_samples=$((failed_samples + 1))
+    if ! kill -0 "${navigator_pid}" >/dev/null 2>&1; then
+      capture_failure_snapshot "navigator_exited"
+    else
+      capture_failure_snapshot "health_sample_failed"
+    fi
   fi
 }
 
-started_at_ms="$(date +%s%3N)"
 start_seconds="$(date +%s)"
 deadline_seconds=$((start_seconds + duration_seconds))
 collect_sample
 
-injection_attempted=false
-injection_recovered=true
-before_pid=0
-after_pid=0
 if [[ "${fault}" != "none" ]]; then
   injection_attempted=true
   status_before="$("${bin_dir}/cockpit-ctl" runtime status --socket "${socket_path}")"
@@ -237,52 +335,30 @@ if [[ "${fault}" != "none" ]]; then
   done
   if [[ "${injection_recovered}" != "true" ]]; then
     after_pid=0
+    capture_failure_snapshot "fault_recovery_failed"
   fi
 fi
 
 while [[ "$(date +%s)" -lt "${deadline_seconds}" ]]; do
   sleep "${interval_seconds}"
+  if ! kill -0 "${navigator_pid}" >/dev/null 2>&1; then
+    capture_failure_snapshot "navigator_exited"
+    break
+  fi
   collect_sample
 done
 
-runtime_alive=true
-if ! kill -0 "${navigator_pid}" >/dev/null 2>&1; then
-  runtime_alive=false
+if kill -0 "${navigator_pid}" >/dev/null 2>&1; then
+  runtime_alive=true
 fi
-report_healthy=true
 if [[ ${failed_samples} -ne 0 || "${injection_recovered}" != "true" ||
       "${runtime_alive}" != "true" ]]; then
-  report_healthy=false
+  capture_failure_snapshot "stability_check_failed"
+else
+  report_healthy=true
 fi
 
-ended_at_ms="$(date +%s%3N)"
-config_sha256="$(sha256sum "${config_path}" | awk '{print $1}')"
-project_version="$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' "${build_dir}/CMakeCache.txt")"
-git_revision="$(git -C "${root_dir}" rev-parse HEAD 2>/dev/null || echo unknown)"
-git_dirty=false
-if [[ -n "$(git -C "${root_dir}" status --porcelain)" ]]; then
-  git_dirty=true
-fi
-samples_json="$(paste -sd, "${samples_path}")"
-temporary_output="${output_path}.tmp"
-{
-  printf '{"schema_version":1,"project":"cockpit-system","project_version":"%s",' \
-    "${project_version}"
-  printf '"git_revision":"%s","git_dirty":%s,"config_sha256":"%s",' \
-    "${git_revision}" "${git_dirty}" "${config_sha256}"
-  printf '"mode":"%s","started_at_ms":%s,"ended_at_ms":%s,' \
-    "${mode}" "${started_at_ms}" "${ended_at_ms}"
-  printf '"duration_seconds":%s,"interval_seconds":%s,' \
-    "${duration_seconds}" "${interval_seconds}"
-  printf '"injection":{"action":"%s","module":"%s","attempted":%s,' \
-    "${fault}" "${fault_module}" "${injection_attempted}"
-  printf '"before_pid":%s,"after_pid":%s,"recovered":%s},' \
-    "${before_pid}" "${after_pid}" "${injection_recovered}"
-  printf '"samples":[%s],"summary":{"healthy":%s,"runtime_alive":%s,' \
-    "${samples_json}" "${report_healthy}" "${runtime_alive}"
-  printf '"sample_count":%s,"failed_samples":%s}}\n' "${sample_count}" "${failed_samples}"
-} >"${temporary_output}"
-mv "${temporary_output}" "${output_path}"
+write_report
 
 echo "Navigator stability report: ${output_path}"
 if [[ "${report_healthy}" != "true" ]]; then

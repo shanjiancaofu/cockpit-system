@@ -16,10 +16,13 @@ namespace cockpit {
 namespace safe_ota {
 namespace {
 
+constexpr int kRuntimeCommandTimeoutMs = 30000;
+
 bool SendRuntimeCommand(const std::string& socket_path, const std::string& command,
                         std::string* error) {
   std::string response;
-  if (!navigator::IpcConnector::SendRequest(socket_path, command, &response, error)) {
+  if (!navigator::IpcConnector::SendRequest(socket_path, command, &response, error,
+                                            kRuntimeCommandTimeoutMs)) {
     return false;
   }
   if (response.rfind("OK", 0) != 0) {

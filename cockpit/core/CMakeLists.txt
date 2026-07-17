@@ -26,7 +26,6 @@ add_cockpit_library(time_util time/time.cc)
 
 add_cockpit_library(runtime
     runtime/args.cc
-    runtime/dependency_graph.cc
     runtime/module.cc
     runtime/module_manager.cc
     runtime/process_runtime.cc

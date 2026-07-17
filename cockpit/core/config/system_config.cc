@@ -10,8 +10,6 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <utility>
-#include <vector>
 
 namespace cockpit {
 namespace config {
@@ -98,56 +96,6 @@ bool IsOneOf(const std::string& value, const std::string& first, const std::stri
   return value == first || value == second;
 }
 
-std::vector<std::string> ReadStringList(const YAML::Node& parent, const std::string& key,
-                                        const std::vector<std::string>& default_value,
-                                        const std::string& path) {
-  const YAML::Node value = parent[key];
-  if (!value) {
-    return default_value;
-  }
-  if (!value.IsSequence()) {
-    throw std::runtime_error(path + " must be a list");
-  }
-  std::vector<std::string> result;
-  for (std::size_t i = 0; i < value.size(); ++i) {
-    if (!value[i].IsScalar()) {
-      throw std::runtime_error(path + " items must be scalars");
-    }
-    result.push_back(value[i].as<std::string>());
-  }
-  return result;
-}
-
-std::vector<ServiceDependencyConfig> ReadServiceDependencies(
-    const YAML::Node& parent, const std::vector<ServiceDependencyConfig>& default_value,
-    const std::string& path) {
-  ValidateKeys(parent, path, {"dependencies"});
-  const YAML::Node value = parent["dependencies"];
-  if (!value) {
-    return default_value;
-  }
-  if (!value.IsSequence()) {
-    throw std::runtime_error(path + ".dependencies must be a list");
-  }
-  std::vector<ServiceDependencyConfig> result;
-  for (std::size_t i = 0; i < value.size(); ++i) {
-    const YAML::Node item = value[i];
-    if (!item.IsMap()) {
-      throw std::runtime_error(path + ".dependencies items must be maps");
-    }
-    const std::string item_path = path + ".dependencies[" + std::to_string(i) + "]";
-    ValidateKeys(item, item_path, {"service", "required", "optional"});
-    ServiceDependencyConfig dependency;
-    dependency.service = Read(item, "service", dependency.service, item_path + ".service");
-    dependency.required =
-        ReadStringList(item, "required", dependency.required, item_path + ".required");
-    dependency.optional =
-        ReadStringList(item, "optional", dependency.optional, item_path + ".optional");
-    result.push_back(std::move(dependency));
-  }
-  return result;
-}
-
 }  // namespace
 
 SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
@@ -160,9 +108,8 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   if (!root.IsMap()) {
     throw std::runtime_error("config root must be a map: " + path);
   }
-  ValidateKeys(
-      root, "",
-      {"system", "paths", "logging", "services", "hardware", "features", "tools", "runtime"});
+  ValidateKeys(root, "",
+               {"system", "paths", "logging", "services", "hardware", "features", "tools"});
 
   SystemConfig config;
   const YAML::Node system = ChildMap(root, "system", "system");
@@ -192,8 +139,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
 
   const YAML::Node services = ChildMap(root, "services", "services");
   ValidateKeys(services, "services",
-               {"vehicle_data", "gateway", "audio", "camera", "voice_interaction", "cloud_uplink",
-                "recording"});
+               {"vehicle_data", "gateway", "audio", "camera", "voice_interaction", "recording"});
   const YAML::Node vehicle_data = ChildMap(services, "vehicle_data", "services.vehicle_data");
   ValidateKeys(vehicle_data, "services.vehicle_data", {"source", "publish_interval_ms", "grpc"});
   config.services_.vehicle_data.source = Read(
@@ -208,9 +154,8 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            "services.vehicle_data.grpc.listen_address");
 
   const YAML::Node gateway = ChildMap(services, "gateway", "services.gateway");
-  ValidateKeys(
-      gateway, "services.gateway",
-      {"vehicle_data_address", "stream_timeout_ms", "retry_delay_ms", "grpc", "websocket"});
+  ValidateKeys(gateway, "services.gateway",
+               {"vehicle_data_address", "stream_timeout_ms", "retry_delay_ms", "grpc"});
   config.services_.gateway.vehicle_data_address =
       Read(gateway, "vehicle_data_address", config.services_.gateway.vehicle_data_address,
            "services.gateway.vehicle_data_address");
@@ -225,12 +170,6 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.gateway.grpc.listen_address =
       Read(gateway_grpc, "listen_address", config.services_.gateway.grpc.listen_address,
            "services.gateway.grpc.listen_address");
-  const YAML::Node gateway_websocket = ChildMap(gateway, "websocket", "services.gateway.websocket");
-  ValidateKeys(gateway_websocket, "services.gateway.websocket", {"listen_address"});
-  config.services_.gateway.websocket.listen_address =
-      Read(gateway_websocket, "listen_address", config.services_.gateway.websocket.listen_address,
-           "services.gateway.websocket.listen_address");
-
   const YAML::Node audio_service = ChildMap(services, "audio", "services.audio");
   ValidateKeys(audio_service, "services.audio", {"auto_start", "grpc", "vad", "speech_segment"});
   config.services_.audio.auto_start = Read(
@@ -241,13 +180,10 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(audio_grpc, "listen_address", config.services_.audio.grpc.listen_address,
            "services.audio.grpc.listen_address");
   const YAML::Node vad = ChildMap(audio_service, "vad", "services.audio.vad");
-  ValidateKeys(
-      vad, "services.audio.vad",
-      {"enabled", "backend", "speech_threshold_dbfs", "speech_start_frames", "speech_end_frames"});
+  ValidateKeys(vad, "services.audio.vad",
+               {"enabled", "speech_threshold_dbfs", "speech_start_frames", "speech_end_frames"});
   config.services_.audio.vad.enabled =
       Read(vad, "enabled", config.services_.audio.vad.enabled, "services.audio.vad.enabled");
-  config.services_.audio.vad.backend =
-      Read(vad, "backend", config.services_.audio.vad.backend, "services.audio.vad.backend");
   config.services_.audio.vad.speech_threshold_dbfs =
       Read(vad, "speech_threshold_dbfs", config.services_.audio.vad.speech_threshold_dbfs,
            "services.audio.vad.speech_threshold_dbfs");
@@ -268,11 +204,10 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            "services.audio.speech_segment.max_segment_ms");
 
   const YAML::Node camera_service = ChildMap(services, "camera", "services.camera");
-  ValidateKeys(
-      camera_service, "services.camera",
-      {"grpc", "capture_backend", "preview_stale_timeout_ms", "synthetic_fault",
-       "synthetic_fault_after_frames", "frame_transport", "shared_memory_name", "max_frame_bytes",
-       "photo_directory", "photo_jpeg_quality", "photo_max_frame_age_ms"});
+  ValidateKeys(camera_service, "services.camera",
+               {"grpc", "capture_backend", "preview_stale_timeout_ms", "synthetic_fault",
+                "synthetic_fault_after_frames", "shared_memory_name", "max_frame_bytes",
+                "photo_directory", "photo_jpeg_quality", "photo_max_frame_age_ms"});
   const YAML::Node camera_grpc = ChildMap(camera_service, "grpc", "services.camera.grpc");
   ValidateKeys(camera_grpc, "services.camera.grpc", {"listen_address"});
   config.services_.camera.grpc.listen_address =
@@ -291,9 +226,6 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(camera_service, "synthetic_fault_after_frames",
            config.services_.camera.synthetic_fault_after_frames,
            "services.camera.synthetic_fault_after_frames");
-  config.services_.camera.frame_transport =
-      Read(camera_service, "frame_transport", config.services_.camera.frame_transport,
-           "services.camera.frame_transport");
   config.services_.camera.shared_memory_name =
       Read(camera_service, "shared_memory_name", config.services_.camera.shared_memory_name,
            "services.camera.shared_memory_name");
@@ -332,22 +264,6 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.voice_interaction.grpc.listen_address =
       Read(voice_grpc, "listen_address", config.services_.voice_interaction.grpc.listen_address,
            "services.voice_interaction.grpc.listen_address");
-
-  const YAML::Node cloud_uplink = ChildMap(services, "cloud_uplink", "services.cloud_uplink");
-  ValidateKeys(cloud_uplink, "services.cloud_uplink", {"enabled", "mqtt"});
-  config.services_.cloud_uplink.enabled =
-      Read(cloud_uplink, "enabled", config.services_.cloud_uplink.enabled,
-           "services.cloud_uplink.enabled");
-  const YAML::Node mqtt = ChildMap(cloud_uplink, "mqtt", "services.cloud_uplink.mqtt");
-  ValidateKeys(mqtt, "services.cloud_uplink.mqtt", {"broker", "telemetry_topic", "qos"});
-  config.services_.cloud_uplink.mqtt.broker =
-      Read(mqtt, "broker", config.services_.cloud_uplink.mqtt.broker,
-           "services.cloud_uplink.mqtt.broker");
-  config.services_.cloud_uplink.mqtt.telemetry_topic =
-      Read(mqtt, "telemetry_topic", config.services_.cloud_uplink.mqtt.telemetry_topic,
-           "services.cloud_uplink.mqtt.telemetry_topic");
-  config.services_.cloud_uplink.mqtt.qos =
-      Read(mqtt, "qos", config.services_.cloud_uplink.mqtt.qos, "services.cloud_uplink.mqtt.qos");
 
   const YAML::Node recording = ChildMap(services, "recording", "services.recording");
   ValidateKeys(recording, "services.recording",
@@ -402,14 +318,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
 
   const YAML::Node audio = ChildMap(hardware, "audio", "hardware.audio");
   ValidateKeys(audio, "hardware.audio",
-               {"capture_backend", "playback_backend", "input_device", "output_device",
-                "sample_rate_hz", "channels", "frame_ms"});
-  config.hardware_.audio.capture_backend =
-      Read(audio, "capture_backend", config.hardware_.audio.capture_backend,
-           "hardware.audio.capture_backend");
-  config.hardware_.audio.playback_backend =
-      Read(audio, "playback_backend", config.hardware_.audio.playback_backend,
-           "hardware.audio.playback_backend");
+               {"input_device", "output_device", "sample_rate_hz", "channels", "frame_ms"});
   config.hardware_.audio.input_device = Read(
       audio, "input_device", config.hardware_.audio.input_device, "hardware.audio.input_device");
   config.hardware_.audio.output_device = Read(
@@ -426,12 +335,9 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   ValidateKeys(features, "features", {"voice", "ai"});
   const YAML::Node voice = ChildMap(features, "voice", "features.voice");
   ValidateKeys(voice, "features.voice",
-               {"enabled", "mode", "asr_provider", "asr_model_path", "asr_language", "asr_threads",
-                "tts_provider"});
+               {"enabled", "asr_provider", "asr_model_path", "asr_language", "asr_threads"});
   config.features_.voice.enabled =
       Read(voice, "enabled", config.features_.voice.enabled, "features.voice.enabled");
-  config.features_.voice.mode =
-      Read(voice, "mode", config.features_.voice.mode, "features.voice.mode");
   config.features_.voice.asr_provider = Read(
       voice, "asr_provider", config.features_.voice.asr_provider, "features.voice.asr_provider");
   config.features_.voice.asr_model_path =
@@ -441,13 +347,8 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       voice, "asr_language", config.features_.voice.asr_language, "features.voice.asr_language");
   config.features_.voice.asr_threads =
       Read(voice, "asr_threads", config.features_.voice.asr_threads, "features.voice.asr_threads");
-  config.features_.voice.tts_provider = Read(
-      voice, "tts_provider", config.features_.voice.tts_provider, "features.voice.tts_provider");
   const YAML::Node ai = ChildMap(features, "ai", "features.ai");
-  ValidateKeys(ai, "features.ai", {"provider", "model", "request_timeout_ms"});
-  config.features_.ai.provider =
-      Read(ai, "provider", config.features_.ai.provider, "features.ai.provider");
-  config.features_.ai.model = Read(ai, "model", config.features_.ai.model, "features.ai.model");
+  ValidateKeys(ai, "features.ai", {"request_timeout_ms"});
   config.features_.ai.request_timeout_ms =
       Read(ai, "request_timeout_ms", config.features_.ai.request_timeout_ms,
            "features.ai.request_timeout_ms");
@@ -468,10 +369,6 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
     config.paths_.run_dir = (runtime_path / "run").string();
     config.tools_.topic.dir = (runtime_path / "logs/topics").string();
   }
-
-  const YAML::Node runtime = ChildMap(root, "runtime", "runtime");
-  config.runtime_.dependencies =
-      ReadServiceDependencies(runtime, config.runtime_.dependencies, "runtime");
 
   config.Validate();
   return config;
@@ -508,14 +405,9 @@ void SystemConfig::Validate() const {
                   "services.vehicle_data.grpc.listen_address");
   ValidateAddress(services_.gateway.vehicle_data_address, "services.gateway.vehicle_data_address");
   ValidateAddress(services_.gateway.grpc.listen_address, "services.gateway.grpc.listen_address");
-  ValidateAddress(services_.gateway.websocket.listen_address,
-                  "services.gateway.websocket.listen_address");
   RequirePositive(services_.gateway.stream_timeout_ms, "services.gateway.stream_timeout_ms");
   RequirePositive(services_.gateway.retry_delay_ms, "services.gateway.retry_delay_ms");
   ValidateAddress(services_.audio.grpc.listen_address, "services.audio.grpc.listen_address");
-  if (services_.audio.vad.backend != "energy") {
-    throw std::runtime_error("services.audio.vad.backend currently supports only energy");
-  }
   if (services_.audio.vad.speech_threshold_dbfs < -100.0 ||
       services_.audio.vad.speech_threshold_dbfs > 0.0) {
     throw std::runtime_error("services.audio.vad.speech_threshold_dbfs must be between -100 and 0");
@@ -554,9 +446,6 @@ void SystemConfig::Validate() const {
   if (services_.camera.synthetic_fault_after_frames < 0) {
     throw std::runtime_error("services.camera.synthetic_fault_after_frames must not be negative");
   }
-  if (services_.camera.frame_transport != "shared_memory") {
-    throw std::runtime_error("services.camera.frame_transport currently supports shared_memory");
-  }
   RequireNotEmpty(services_.camera.shared_memory_name, "services.camera.shared_memory_name");
   if (services_.camera.shared_memory_name.front() != '/') {
     throw std::runtime_error("services.camera.shared_memory_name must begin with '/'");
@@ -590,13 +479,6 @@ void SystemConfig::Validate() const {
     throw std::runtime_error("services.recording.max_total_bytes must be greater than zero");
   }
 
-  RequireNotEmpty(services_.cloud_uplink.mqtt.broker, "services.cloud_uplink.mqtt.broker");
-  RequireNotEmpty(services_.cloud_uplink.mqtt.telemetry_topic,
-                  "services.cloud_uplink.mqtt.telemetry_topic");
-  if (services_.cloud_uplink.mqtt.qos < 0 || services_.cloud_uplink.mqtt.qos > 2) {
-    throw std::runtime_error("services.cloud_uplink.mqtt.qos must be between 0 and 2");
-  }
-
   RequireNotEmpty(hardware_.can.interface, "hardware.can.interface");
   if (!IsOneOf(hardware_.can.simulator_backend, "stdout", "socketcan")) {
     throw std::runtime_error("hardware.can.simulator_backend must be stdout or socketcan");
@@ -624,18 +506,9 @@ void SystemConfig::Validate() const {
     throw std::runtime_error(
         "services.audio.speech_segment.max_segment_ms must align with hardware.audio.frame_ms");
   }
-  if (hardware_.audio.capture_backend != "alsa") {
-    throw std::runtime_error("hardware.audio.capture_backend currently supports only alsa");
-  }
-  if (hardware_.audio.playback_backend != "alsa") {
-    throw std::runtime_error("hardware.audio.playback_backend currently supports only alsa");
-  }
   RequireNotEmpty(hardware_.audio.input_device, "hardware.audio.input_device");
   RequireNotEmpty(hardware_.audio.output_device, "hardware.audio.output_device");
   RequirePositive(features_.ai.request_timeout_ms, "features.ai.request_timeout_ms");
-  if (features_.voice.mode != "push_to_talk") {
-    throw std::runtime_error("features.voice.mode currently supports only push_to_talk");
-  }
   if (features_.voice.asr_provider != "mock" && features_.voice.asr_provider != "whisper_cpp") {
     throw std::runtime_error("features.voice.asr_provider must be mock or whisper_cpp");
   }
@@ -648,31 +521,10 @@ void SystemConfig::Validate() const {
   if (features_.voice.asr_threads <= 0) {
     throw std::runtime_error("features.voice.asr_threads must be positive");
   }
-  if (features_.voice.tts_provider != "mock") {
-    throw std::runtime_error("features.voice.tts_provider currently supports only mock");
-  }
   if (!IsOneOf(tools_.topic.backend, "file", "grpc")) {
     throw std::runtime_error("tools.topic.backend must be file or grpc");
   }
   RequireNotEmpty(tools_.topic.dir, "tools.topic.dir");
-
-  for (std::size_t i = 0; i < runtime_.dependencies.size(); ++i) {
-    const auto& dependency = runtime_.dependencies[i];
-    const std::string prefix = "runtime.dependencies[" + std::to_string(i) + "]";
-    RequireNotEmpty(dependency.service, prefix + ".service");
-    for (const auto& required : dependency.required) {
-      RequireNotEmpty(required, prefix + ".required");
-      if (required == dependency.service) {
-        throw std::runtime_error(prefix + ".required must not depend on itself");
-      }
-    }
-    for (const auto& optional : dependency.optional) {
-      RequireNotEmpty(optional, prefix + ".optional");
-      if (optional == dependency.service) {
-        throw std::runtime_error(prefix + ".optional must not depend on itself");
-      }
-    }
-  }
 }
 
 }  // namespace config
