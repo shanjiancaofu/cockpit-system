@@ -74,14 +74,13 @@ bash scripts/install_ubuntu_deps.sh
 ## 构建和测试
 
 ```bash
-bash scripts/build.sh                         # Clang Debug 开发构建和 CTest
+bash scripts/build.sh                         # GCC Debug 开发构建和 CTest
 bash scripts/build.sh --type release          # GCC Release 正式 Linux 构建
 bash scripts/run_smoke.sh
 bash scripts/run_navigator_stability.sh --duration 300 --interval 5 --fault crash --fault-count 3
 ```
 
-`build.sh` 按构建类型选择工具链：Debug 默认使用 Clang，Release 默认使用 GCC。需要复现特定组合时可
-显式传入 `--compiler clang|gcc`；正式发布包只接受 GCC Release 构建。
+`build.sh` 统一使用 GCC：Debug 用于开发、CTest 和 smoke，Release 用于正式构建和发布包。
 
 构建目录：
 
@@ -143,7 +142,7 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 
 ```bash
 BUILD_DIR=_output/build/x86_64-whisper-release \
-  bash scripts/build.sh --type release --compiler gcc --no-test -- \
+  bash scripts/build.sh --type release --no-test -- \
   -DBUILD_WHISPER_CPP_ASR=ON \
   -DWHISPER_CPP_DIR=/home/ffz/code/third_party/whisper.cpp \
   -DWHISPER_CPP_MODEL_PATH=/path/to/ggml-small.bin
