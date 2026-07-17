@@ -1,6 +1,6 @@
 # camera-ctl
 
-camera-service 的本地 gRPC 诊断客户端。
+`camera_driver` 模块 CameraControl 接口的本地 gRPC 诊断客户端。
 
 ```bash
 export COCKPIT_RUNTIME_DIR="$PWD/_output/runtime"

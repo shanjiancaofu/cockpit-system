@@ -1,6 +1,6 @@
 # voice-ctl
 
-voice-interaction-service 的诊断客户端。
+`agent` 模块 VoiceInteraction 接口的诊断客户端。
 
 ```bash
 export COCKPIT_RUNTIME_DIR="$PWD/_output/runtime"

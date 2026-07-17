@@ -1,6 +1,6 @@
 # recording-ctl
 
-recording-service 的本地控制工具。
+`recording` 模块 RecordingControl 接口的本地控制工具。
 
 ```bash
 export COCKPIT_RUNTIME_DIR="$PWD/_output/runtime"

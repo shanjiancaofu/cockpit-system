@@ -9,4 +9,4 @@
 - `voice`：ASR、TTS、assistant、action 和 response。
 
 较大模块按明确职责建立子目录和独立 target；小模块保持扁平。禁止使用 `base`、`misc`、
-`common` 作为临时收纳目录。硬件 API 放在 `drivers`，进程所有权放在 `services`。
+`common` 作为临时收纳目录。硬件 API 放在 `drivers`，进程级资源所有权放在 `library`。

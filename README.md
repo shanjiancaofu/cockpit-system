@@ -15,12 +15,12 @@
 - V4L2/GStreamer USB 摄像头预览。
 - 相机帧 POSIX shared memory 双缓冲。
 - 基于最新共享帧的 JPEG 拍照，支持 camera-ctl 和 Qt UI。
-- VehicleState 研发录包、会话清单和异常中断恢复。
+- 研发录包会话、事件与文件索引、artifact 校验、时间线、报告和异常中断恢复。
 - Qt 6/QML 车辆和相机界面。
 - HMI 动态模块监管 Qt UI 生命周期和崩溃恢复。
 - `cockpit-ctl` 聚合状态和各类 probe/ctl 工具。
-- Navigator 统一入口、动态业务模块、运行模式切换和故障重启限制。
-- Navigator 周期状态/健康采样、受控故障注入和 JSON 稳定性报告。
+- Navigator 统一入口、动态业务模块、运行模式切换、有界本地 IPC 和故障重启限制。
+- Navigator 周期状态/健康采样、受控故障注入、JSON 稳定性报告和手动诊断快照。
 - systemd、Release 打包，以及 `safe-ota` 校验、安装、健康检查和失败回滚原型。
 
 ## 架构

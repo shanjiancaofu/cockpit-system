@@ -43,7 +43,7 @@ tests/                按 runtime/core/library/modules/apps/tools 分组的测�
 未来：出现独立部署和发布边界后，再考虑 cloud-backend / cloud-frontend
 ```
 
-目前不创建云端前后端仓库。Jetson 本机车辆链路、UI、调试工具和服务接口稳定后，
+目前不创建云端前后端仓库。Jetson 本机车辆链路、UI、调试工具和模块合同稳定后，
 再根据实际需求决定是否拆分。
 
 ## 维护规则

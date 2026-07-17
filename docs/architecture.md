@@ -46,9 +46,10 @@ tests/                     单元测试与 smoke test
 `navigator/run_config/run_config.cc`，不由业务 YAML 暴露动态库路径。父进程只把统一的
 `config.yaml` 路径传给 module child；子进程通过版本化 C ABI 和 `dlopen` 加载一个 `library/*`
 动态库。Navigator 负责模式切换、显式启停、状态查询、崩溃重启限制和退出回收，本地 Unix Socket
-控制接口不依赖 transfer 模块。
+控制接口不依赖 transfer 模块。客户端连接、写入和读取以及服务端回复都有 1 秒上限，
+无响应 peer 不会永久卡住运行时命令。
 
-当前已经迁入真实 Runtime 的进程级模块：
+当前已经迁入真实 Runtime、并承担实际业务职责的进程级模块：
 
 - `vehicle_driver`：独占 CAN 或 mock 车辆数据源，发布 `VehicleState`。
 - `transfer`：聚合车辆状态，向 UI、topic 和语音动作提供数据。
@@ -57,8 +58,10 @@ tests/                     单元测试与 smoke test
 - `agent`：订阅识别文本，执行模型、意图、动作和语音回复编排。
 - `hmi`：启动并监管 `cockpit-ui`，保持 Qt 主线程事件循环独立，向 Navigator 汇报退出状态。
 - `recording`：面向研发诊断，订阅车辆状态并管理持久化录包会话。
-- `carupload`：保留原 MQTT 上传占位行为，尚不代表真实云端传输。
 - `upgrader`：在独占的 upgrade mode 中校验并安装候选版本，发布持久化事务结果。
+
+`carupload` 可在 cloud mode 加载，但当前只输出 MQTT 上传计划，没有 broker 连接、TLS、设备身份或
+发布确认，因此仍属于 ABI 占位，不计为已实现的云端传输。
 
 UI 构建中，`normal` 启动 transfer、三类 driver、agent 和 hmi；`development` 在此基础上增加 recording；`cloud`
 启动 transfer、vehicle_driver 和 carupload；`upgrade` 只启动 upgrader，避免安装期间继续占用业务
@@ -136,17 +139,18 @@ USB Camera
 UI 能区分等待首帧、实时画面、卡帧、最后一帧和共享内存断开，并在 writer 重启后自动重连。
 共享帧槽使用 robust process-shared mutex；writer 异常退出后，新实例会回收遗留的 POSIX shared
 memory，reader 会拒绝布局、stride 或 payload 长度不一致的帧。
-拍照请求通过 gRPC 到 camera-service，服务读取共享内存最新帧并用 GStreamer 编码 JPEG；
+拍照请求通过 gRPC 到 `camera_driver` 内的 CameraControl service，服务读取共享内存最新帧并用
+GStreamer 编码 JPEG；
 camera-ctl 和 Qt UI 都不直接访问摄像头设备。
 
-camera-service 的运行期看门狗检查 preview source 是否仍在运行以及最后收帧时间，将故障区分为
+`camera_driver` 内的运行期看门狗检查 preview source 是否仍在运行以及最后收帧时间，将故障区分为
 `source_disconnected`、`no_frames` 和 `frame_stalled`。WSL 可将 `capture_backend` 切换为
 `synthetic`，通过同一个 `CameraPreviewSource` 边界注入无帧、卡帧和断流；恢复仍使用正式
 start/recover 状态机，因此合成测试与真实 GStreamer pipeline 共享指标和控制逻辑。
 
 ## 服务健康语义
 
-各长运行服务通过 `ServiceHealth` 暴露统一状态，`cockpit-ctl` 和 Qt Dashboard 复用
+各进程级模块内的 gRPC service 通过 `ServiceHealth` 暴露统一状态，`cockpit-ctl` 和 Qt Dashboard 复用
 `core/health` 的名称、严重度和健康检查规则：
 
 - `OK`：服务及其核心能力正常。
@@ -161,7 +165,8 @@ start/recover 状态机，因此合成测试与真实 GStreamer pipeline 共享�
 
 cockpit-ui 在进程内保留最近 32 条状态切换，初次采样只建立基线，不生成虚假事件。每个服务记录
 最近一次 degraded/faulted 的状态、时间和原因，恢复为 OK 后仍可在 Dashboard 和 Diagnostics 页面
-追溯。历史不写数据库，UI 重启后清空；长期运行证据由 `run_navigator_stability.sh` 输出到构建目录。
+追溯。历史不写数据库，UI 重启后清空；长期运行证据由 `run_navigator_stability.sh` 输出到
+`_output/runtime/reports`。
 
 ## 诊断 CLI 输出
 
@@ -175,13 +180,13 @@ ALSA 设备枚举、WAV 录放等本地硬件操作继续输出文本，它们�
 ## 研发录包链路
 
 ```text
-vehicle-data-service
+vehicle_driver
     → VehicleState gRPC stream
-    → recording-service
+    → recording
     → sessions/.recording_<id>/vehicle_state.jsonl
 camera/voice/audio metadata
     → asynchronous recording publisher
-    → recording-service event/data-file writer
+    → recording event/data-file writer
     → sessions/.recording_<id>/events.jsonl + data_files.jsonl + artifacts/
     → sessions/<id>/manifest.json + COMPLETE
 ```
@@ -190,7 +195,7 @@ camera/voice/audio metadata
 进程异常退出后，下次启动将未完成目录标记为 `interrupted_*`。目录索引从 manifest 重建，
 并按最大会话数和总字节数清理最旧数据。`events.jsonl` 只保存轻量研发事件元数据，大块图片、
 音频和视频仍以独立文件保存；需要纳入会话保留策略的文件会复制到 `artifacts/`，再写入相对路径
-索引。camera 和 voice 使用有界后台队列投递录包数据，录包服务不可用不会阻塞用户主流程。该服务
+索引。camera 和 voice 使用有界后台队列投递录包数据，recording 模块不可用不会阻塞用户主流程。该模块
 属于研发诊断边界，不接收用户语音动作。
 
 `recording-ctl --verify <session-id>` 通过 gRPC 执行会话完整性诊断，检查 `data_files.jsonl`
@@ -209,19 +214,20 @@ JSONL 损坏行都会使报告整体状态变为不健康并返回退出码 3。
 
 ### 录包时间语义
 
-recording-service 已提供多源时间线查询：读取 `vehicle_state.jsonl`、`events.jsonl` 和
+recording 模块已提供多源时间线查询：读取 `vehicle_state.jsonl`、`events.jsonl` 和
 `data_files.jsonl`，按主机侧 `timestamp_ms` 稳定排序，并支持时间范围和条数限制。损坏的 JSONL
 行会被跳过并计数，单行损坏不会阻断整段研发复盘。它不负责同步或校准 ECU、相机、音频设备等
 独立时钟，也不估算时钟偏移和漂移。
 
-当前单机原型默认各服务使用同一 Jetson/WSL 主机时钟，时间线条目保留 `timestamp_ms`、`source`、
+当前单机原型默认各模块使用同一 Jetson/WSL 主机时钟，时间线条目保留 `timestamp_ms`、`source`、
 `kind`、label、原始 JSON 和可选 path。真实硬件提供 ECU timestamp、camera PTS 或 audio sample clock
 后，再按需要增加 `source_timestamp`、`host_timestamp`、`monotonic_timestamp`、`clock_domain`、
 `offset` 和 `uncertainty`，单独实现时间戳归一化；当前不提前引入 PTP 或漂移估计。
 
 ## 当前边界
 
-已具备可运行的 WSL/Jetson 车机原型架构，但尚缺正式 DBC、真实 TTS、麦克风/扬声器标定、
+已具备可在 WSL 验证、并面向 Jetson 部署的车机原型架构，但尚缺正式 DBC、真实 TTS、
+麦克风/扬声器标定、
 Jetson CUDA/TensorRT 验证、音视频多源录包、MQTT、WebSocket、视觉 AI 和完整 LLM
 应用层。
 

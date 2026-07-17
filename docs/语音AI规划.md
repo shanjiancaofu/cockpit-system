@@ -9,15 +9,15 @@
 
 ```text
 麦克风
-  → audio-service
+  → audio_driver
   → VAD
   → SpeechSegmenter
   → mock ASR / whisper.cpp
   → transcript gRPC stream
-  → voice-interaction-service
+  → agent
   → intent / action
   → response text
-  → audio-service Speak RPC
+  → audio_driver Speak RPC
   → mock TTS
   → 扬声器
 ```
@@ -26,7 +26,7 @@
 
 - ALSA 采集和播放。
 - 20 ms PCM frame、SPSC ring、VAD 和语音分段。
-- mock ASR、whisper.cpp adapter 和 WSL CPU 推理。
+- mock ASR 和 whisper.cpp adapter；默认构建未启用 whisper.cpp，WSL 真实模型基线列入 WSL-R4。
 - transcript 订阅、重连、历史重放。
 - 白名单意图和类型化 ActionDispatcher。
 - 车辆状态查询通过 gateway gRPC 真实执行。
@@ -44,7 +44,7 @@
 - `whisper_cpp`：当前首个真实实现。
 - 后续可选：sherpa-onnx + SenseVoice、Qwen ASR、TensorRT adapter。
 
-ASR 在 `audio-service` 进程内运行，避免语音 PCM 跨进程传输。
+ASR 在 `audio_driver` module child 内运行，避免语音 PCM 跨进程传输。
 
 ### TTS
 
@@ -56,7 +56,7 @@ ASR 在 `audio-service` 进程内运行，避免语音 PCM 跨进程传输。
 
 ### LLM
 
-LLM 应位于 `voice-interaction-service`，输入是 transcript 和结构化上下文，输出是回复文本或受控
+LLM 应位于 `agent` 的 Assistant provider 边界，输入是 transcript 和结构化上下文，输出是回复文本或受控
 工具调用。LLM 不直接访问 ALSA、CAN、摄像头或 shell。
 
 ## 动作安全
@@ -84,10 +84,9 @@ transcript
 
 ## 演进顺序
 
-1. 用 mock 覆盖打断、连续命令、超时和 provider 失败。
-2. Jetson 麦克风和扬声器标定。
-3. Whisper 中文真实语音测试和性能测量。
-4. 替换真实 TTS 并加入 push-to-talk 完整 UI。
-5. 增加唤醒词、AEC 和打断。
-6. 引入 LLM provider 和受控工具调用。
-7. 根据 Jetson 性能评估 SenseVoice/Qwen ASR 等替代方案。
+1. 已完成：mock 打断、连续命令、队列丢弃、超时和 provider 失败恢复。
+2. WSL-R4：Whisper 真实 WAV 识别和 CPU 耗时/内存基线，不改变默认构建。
+3. Jetson 麦克风、扬声器、AEC、增益和唤醒/打断标定。
+4. 播放器责任边界明确后补 Qt/Android 媒体动作和 push-to-talk UI。
+5. 根据 Jetson 性能选择真实 TTS 和 SenseVoice/Qwen ASR 等替代方案。
+6. 后端 provider 合同明确后引入可取消、有 deadline 的 LLM 和受控工具调用。
