@@ -20,6 +20,12 @@ if [[ "${build_type}" != "Release" && "${ALLOW_NON_RELEASE_PACKAGE:-false}" != "
   exit 1
 fi
 
+compiler_id="$(sed -n 's/^COCKPIT_COMPILER_ID:STRING=//p' "${build_dir}/CMakeCache.txt")"
+if [[ "${compiler_id}" != "GNU" ]]; then
+  echo "official Linux package requires a GCC Release build; found '${compiler_id:-unknown}'" >&2
+  exit 1
+fi
+
 project_version="$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' "${build_dir}/CMakeCache.txt")"
 version="${VERSION:-${project_version:-0.0.0}}"
 git_revision="$(git -C "${root_dir}" rev-parse HEAD)"
@@ -57,7 +63,8 @@ install -m 0644 "${root_dir}/scripts/deploy/THIRD_PARTY_NOTICES.md" \
 
 printf '%s\n' "${version}" >"${package_root}/manifest/VERSION"
 
-compiler="$(sed -n 's/^CMAKE_CXX_COMPILER:FILEPATH=//p' "${build_dir}/CMakeCache.txt")"
+compiler="$(sed -n 's/^COCKPIT_COMPILER_PATH:FILEPATH=//p' "${build_dir}/CMakeCache.txt")"
+compiler_version="$(sed -n 's/^COCKPIT_COMPILER_VERSION:STRING=//p' "${build_dir}/CMakeCache.txt")"
 whisper_dir="$(sed -n 's/^WHISPER_CPP_DIR:PATH=//p' "${build_dir}/CMakeCache.txt")"
 whisper_commit=""
 if [[ -n "${whisper_dir}" && -d "${whisper_dir}/.git" ]]; then
@@ -82,6 +89,8 @@ cat >"${package_root}/manifest/BUILD_INFO.json" <<EOF
   "architecture": "${architecture}",
   "build_machine_architecture": "$(uname -m)",
   "compiler": "${compiler}",
+  "compiler_id": "${compiler_id}",
+  "compiler_version": "${compiler_version}",
   "whisper_cpp_revision": "${whisper_commit}",
   "whisper_model_sha1": "${model_sha1}"
 }

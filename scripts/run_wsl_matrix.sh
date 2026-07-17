@@ -70,6 +70,17 @@ if [[ ! -f "${release_build_dir}/CMakeCache.txt" ]]; then
   exit 2
 fi
 
+debug_compiler_id="$(sed -n 's/^COCKPIT_COMPILER_ID:STRING=//p' "${debug_build_dir}/CMakeCache.txt")"
+release_compiler_id="$(sed -n 's/^COCKPIT_COMPILER_ID:STRING=//p' "${release_build_dir}/CMakeCache.txt")"
+if [[ "${debug_compiler_id}" != "Clang" ]]; then
+  echo "WSL matrix requires a Clang Debug build; found '${debug_compiler_id:-unknown}'" >&2
+  exit 2
+fi
+if [[ "${release_compiler_id}" != "GNU" ]]; then
+  echo "WSL matrix requires a GCC Release build; found '${release_compiler_id:-unknown}'" >&2
+  exit 2
+fi
+
 configuration_status="failed"
 ctest --test-dir "${debug_build_dir}" --output-on-failure -R '^system_config_test$'
 configuration_status="passed"

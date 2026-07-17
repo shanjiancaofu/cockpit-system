@@ -27,7 +27,14 @@ fi
 
 if [[ ! -f "${build_dir}/compile_commands.json" ]]; then
   echo "${build_dir}/compile_commands.json not found; configuring build first."
-  bash scripts/build.sh
+  bash scripts/build.sh --type debug --compiler clang
+fi
+
+compiler_id="$(sed -n 's/^COCKPIT_COMPILER_ID:STRING=//p' "${build_dir}/CMakeCache.txt")"
+if [[ "${compiler_id}" != "Clang" ]]; then
+  echo "clang-tidy requires a Clang Debug build; found '${compiler_id:-unknown}' in ${build_dir}" >&2
+  echo "Reconfigure it with: bash scripts/build.sh --type debug --compiler clang" >&2
+  exit 1
 fi
 
 cmake --build "${build_dir}" --parallel "${jobs}"

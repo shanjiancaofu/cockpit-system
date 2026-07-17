@@ -5,6 +5,7 @@ sudo apt-get update
 sudo apt-get install -y \
   build-essential \
   alsa-utils \
+  clang \
   clang-format \
   clang-tidy \
   cmake \
@@ -36,6 +37,7 @@ sudo apt-get install -y \
   qt6-declarative-dev
 
 cmake --version
+clang++ --version
 g++ --version
 ninja --version
 protoc --version

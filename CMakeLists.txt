@@ -51,6 +51,12 @@ set(COCKPIT_TARGET_ARCH "${cockpit_target_arch}" CACHE STRING
     "Normalized architecture used for deployment packages")
 set(COCKPIT_TARGET_SYSTEM "${CMAKE_SYSTEM_NAME}" CACHE STRING
     "Target operating system used for deployment packages")
+set(COCKPIT_COMPILER_ID "${CMAKE_CXX_COMPILER_ID}" CACHE STRING
+    "Compiler family used for this build" FORCE)
+set(COCKPIT_COMPILER_VERSION "${CMAKE_CXX_COMPILER_VERSION}" CACHE STRING
+    "Compiler version used for this build" FORCE)
+set(COCKPIT_COMPILER_PATH "${CMAKE_CXX_COMPILER}" CACHE FILEPATH
+    "Compiler executable used for this build" FORCE)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
