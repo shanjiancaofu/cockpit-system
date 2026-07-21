@@ -238,6 +238,14 @@ int main() {
     return 1;
   }
 
+  request.device = "nvargus://0";
+  if (!Check(service.StartPreview(request, &error), "nvargus camera preview start failed") ||
+      !Check(preview_source_ptr->config().device == "nvargus://0",
+             "nvargus camera preview device mismatch")) {
+    std::cerr << error << '\n';
+    return 1;
+  }
+
   service.StopPreview();
   status = service.status();
   if (!Check(status.state == cockpit::camera::CameraPreviewState::kStopped,

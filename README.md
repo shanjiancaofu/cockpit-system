@@ -12,7 +12,7 @@
 - ALSA 录音/播放、AudioFrame、SPSC ring、VAD 和语音分段。
 - mock ASR/TTS 和可选 whisper.cpp ASR。
 - 语音意图、动作分发、车辆状态查询和 Qt 相机页面控制。
-- V4L2/GStreamer USB 摄像头预览。
+- V4L2/GStreamer USB 摄像头和 Jetson Argus CSI 摄像头预览。
 - 相机帧 POSIX shared memory 双缓冲。
 - 基于最新共享帧的 JPEG 拍照，支持 camera-ctl 和 Qt UI。
 - 研发录包会话、事件与文件索引、artifact 校验、时间线、报告和异常中断恢复。
@@ -120,6 +120,12 @@ _output/build/x86_64-debug/bin/cockpit-navigator \
 ```bash
 bash scripts/run_cockpit_ui.sh
 bash scripts/run_camera_ui.sh
+```
+
+Jetson CSI 默认使用 `nvargus://0`。USB 摄像头可显式指定：
+
+```bash
+CAMERA_DEVICE=/dev/video0 bash scripts/run_camera_ui.sh
 ```
 
 ## USB 摄像头权限

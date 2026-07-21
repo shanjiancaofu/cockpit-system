@@ -5,6 +5,7 @@
 #include <gst/video/video-info.h>
 
 #include <algorithm>
+#include <charconv>
 #include <cstring>
 #include <limits>
 #include <sstream>
@@ -48,6 +49,22 @@ std::uint32_t BytesPerPixel(CameraPixelFormat format) {
     return 3;
   }
   return 4;
+}
+
+bool ParseNvArgusSensorId(const std::string& device, int* sensor_id) {
+  constexpr char kPrefix[] = "nvargus://";
+  if (device.compare(0, sizeof(kPrefix) - 1, kPrefix) != 0) {
+    return false;
+  }
+  const char* begin = device.data() + sizeof(kPrefix) - 1;
+  const char* end = device.data() + device.size();
+  int parsed = -1;
+  const auto result = std::from_chars(begin, end, parsed);
+  if (begin == end || result.ec != std::errc{} || result.ptr != end || parsed < 0) {
+    return false;
+  }
+  *sensor_id = parsed;
+  return true;
 }
 
 std::string ReadBusError(GstElement* pipeline, const std::string& fallback) {
@@ -114,6 +131,13 @@ bool GstreamerPreviewPipeline::Start(const CameraPreviewConfig& config, FrameCal
       normalized.fps == 0) {
     SetError(error, "invalid camera preview config");
     return false;
+  }
+  if (normalized.device.rfind("nvargus://", 0) == 0) {
+    int sensor_id = -1;
+    if (!ParseNvArgusSensorId(normalized.device, &sensor_id)) {
+      SetError(error, "invalid nvargus camera device; expected nvargus://<sensor-id>");
+      return false;
+    }
   }
 
   GError* gst_error = nullptr;
@@ -285,11 +309,24 @@ int GstreamerPreviewPipeline::HandleNewSample(GstSample* sample) {
 std::string GstreamerPreviewPipeline::BuildPipelineDescription(
     const CameraPreviewConfig& config) const {
   std::ostringstream stream;
-  stream << "v4l2src device=" << config.device << " ! "
-         << "videoconvert ! videoscale ! videorate ! "
-         << "video/x-raw,format=" << GstFormat(config.output_format) << ",width=" << config.width
-         << ",height=" << config.height << ",framerate=" << config.fps << "/1 ! "
-         << "appsink name=preview_sink emit-signals=true sync=false max-buffers=2 drop=true";
+  int sensor_id = -1;
+  if (ParseNvArgusSensorId(config.device, &sensor_id)) {
+    stream << "nvarguscamerasrc sensor-id=" << sensor_id << " ! "
+           << "nvvidconv ! video/x-raw,format=BGRx,width=" << config.width
+           << ",height=" << config.height << " ! ";
+    if (config.output_format == CameraPixelFormat::kRgb) {
+      stream << "videoconvert ! ";
+    }
+    stream << "videorate ! video/x-raw,format=" << GstFormat(config.output_format)
+           << ",width=" << config.width << ",height=" << config.height
+           << ",framerate=" << config.fps << "/1 ! ";
+  } else {
+    stream << "v4l2src device=" << config.device << " ! "
+           << "videoconvert ! videoscale ! videorate ! "
+           << "video/x-raw,format=" << GstFormat(config.output_format) << ",width=" << config.width
+           << ",height=" << config.height << ",framerate=" << config.fps << "/1 ! ";
+  }
+  stream << "appsink name=preview_sink emit-signals=true sync=false max-buffers=2 drop=true";
   return stream.str();
 }
 

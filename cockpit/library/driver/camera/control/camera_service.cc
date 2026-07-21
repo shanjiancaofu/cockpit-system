@@ -241,6 +241,9 @@ CameraServiceStatus CameraService::status() const {
 }
 
 bool CameraService::DeviceExists(const std::string& device, std::string* error) const {
+  if (device.rfind("nvargus://", 0) == 0) {
+    return true;
+  }
   std::string list_error;
   const auto devices = ListDevices(&list_error);
   for (const auto& info : devices) {

@@ -12,7 +12,7 @@ namespace {
 
 void PrintUsage() {
   std::cout << "camera-ctl [--list|--status|--start|--stop|--photo] "
-               "[--device /dev/video0] [--width 640] [--height 480] [--fps 30] "
+               "[--device /dev/video0|nvargus://0] [--width 640] [--height 480] [--fps 30] "
                "[--filename snapshot.jpg] "
                "[--output text|json] [--config configs/config.yaml]\n";
 }

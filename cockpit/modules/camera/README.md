@@ -20,5 +20,13 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
   --device /dev/video0 --frames 30 --config configs/config.yaml
 ```
 
+Jetson CSI 通过 Argus/NVMM 获取 ISP 处理后的帧，不把 V4L2 暴露的 Bayer `RG10` 当作普通
+`video/x-raw`。设备使用显式 URI，USB 摄像头路径保持不变：
+
+```bash
+_output/build/arm64-debug/bin/camera-preview-probe \
+  --device nvargus://0 --frames 30 --config configs/config.yaml
+```
+
 `SyntheticPreviewSource` 提供不依赖摄像头硬件的 BGRx 帧，并支持 no-frames、stall 和 disconnect
 故障注入；它只用于开发验证和稳定性测试，不替代 Jetson 实机 pipeline 验证。

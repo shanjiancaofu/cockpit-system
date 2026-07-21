@@ -87,12 +87,16 @@ if [[ "${runtime_status}" != *"module=hmi state=running"* ]]; then
   exit 1
 fi
 
-if [[ "${camera_required}" == true && ! -e "${camera_device}" ]]; then
+camera_available=false
+if [[ "${camera_device}" == nvargus://* || -e "${camera_device}" ]]; then
+  camera_available=true
+fi
+if [[ "${camera_required}" == true && "${camera_available}" != true ]]; then
   echo "required camera device not found: ${camera_device}" >&2
   exit 1
 fi
 
-if [[ "${camera_auto_start}" == true && -e "${camera_device}" ]]; then
+if [[ "${camera_auto_start}" == true && "${camera_available}" == true ]]; then
   if ! "${bin_dir}/camera-ctl" --start --device "${camera_device}" \
       --config "${config_path}" >/dev/null; then
     echo "camera preview did not start; see ${navigator_log}" >&2
