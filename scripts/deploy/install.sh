@@ -33,6 +33,14 @@ else
     "${install_root}/config/config.yaml.new"
   echo "kept config.yaml; new template written to config.yaml.new"
 fi
+if [[ ! -f "${install_root}/config/environment" ]]; then
+  install -m 0644 "${package_root}/config/environment.example" \
+    "${install_root}/config/environment"
+else
+  install -m 0644 "${package_root}/config/environment.example" \
+    "${install_root}/config/environment.new"
+  echo "kept environment; new template written to environment.new"
+fi
 
 # Make the candidate contents durable before publishing the new current link.
 sync -f "${install_root}"
