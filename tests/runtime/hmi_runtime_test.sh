@@ -15,6 +15,11 @@ socket_path="${run_dir}/navigator.sock"
 navigator_log="${run_dir}/navigator.log"
 navigator_pid=""
 
+find_cockpit_ui_child() {
+  local parent_pid="$1"
+  pgrep -P "${parent_pid}" -x cockpit-ui 2>/dev/null | head -n 1 || true
+}
+
 cleanup() {
   if [[ -n "${navigator_pid}" ]] && kill -0 "${navigator_pid}" >/dev/null 2>&1; then
     "${navigator_path}" --command shutdown --socket "${socket_path}" >/dev/null 2>&1 ||
@@ -40,8 +45,8 @@ for _ in $(seq 1 100); do
   first_hmi_pid="$(printf '%s\n' "${status}" | awk '
     $1 == "module=hmi" && $2 == "state=running" { split($3, value, "="); print value[2] }
   ')"
-  if [[ -n "${first_hmi_pid}" && -r "/proc/${first_hmi_pid}/task/${first_hmi_pid}/children" ]]; then
-    first_ui_pid="$(awk '{print $1}' "/proc/${first_hmi_pid}/task/${first_hmi_pid}/children")"
+  if [[ -n "${first_hmi_pid}" ]]; then
+    first_ui_pid="$(find_cockpit_ui_child "${first_hmi_pid}")"
   fi
   if [[ -n "${first_ui_pid}" && -r "/proc/${first_ui_pid}/cmdline" &&
         "$(tr '\0' ' ' <"/proc/${first_ui_pid}/cmdline")" == *"cockpit-ui"* ]]; then
@@ -78,8 +83,8 @@ fi
 
 second_ui_pid=""
 for _ in $(seq 1 100); do
-  if [[ -r "/proc/${second_hmi_pid}/task/${second_hmi_pid}/children" ]]; then
-    second_ui_pid="$(awk '{print $1}' "/proc/${second_hmi_pid}/task/${second_hmi_pid}/children")"
+  if [[ -n "${second_hmi_pid}" ]]; then
+    second_ui_pid="$(find_cockpit_ui_child "${second_hmi_pid}")"
   fi
   if [[ -n "${second_ui_pid}" && -r "/proc/${second_ui_pid}/cmdline" &&
         "$(tr '\0' ' ' <"/proc/${second_ui_pid}/cmdline")" == *"cockpit-ui"* ]]; then

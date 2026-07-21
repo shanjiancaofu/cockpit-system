@@ -1,7 +1,7 @@
 # 文档导航
 
 本目录是 cockpit-system 的文档入口。当前实现以
-`/home/ffz/code/github/cockpit-system` 仓库为准。
+`/home/nvidia/code/github/cockpit-system` 仓库为准。
 
 ## 权威文档
 
