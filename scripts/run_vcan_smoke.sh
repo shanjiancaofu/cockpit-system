@@ -14,6 +14,7 @@ run_dir="${COCKPIT_RUNTIME_DIR}/run/vcan-${BASHPID}"
 config_path="${run_dir}/config.yaml"
 socket_path="${run_dir}/navigator.sock"
 navigator_log="${run_dir}/navigator.log"
+skip_interface_setup="${CAN_SKIP_INTERFACE_SETUP:-false}"
 
 for executable in cockpit-navigator cockpit-ctl can-simulator topic; do
   if [[ ! -x "${bin_dir}/${executable}" ]]; then
@@ -26,7 +27,14 @@ if [[ ! -d "${module_dir}" ]]; then
   exit 2
 fi
 
-bash "${root_dir}/scripts/setup_vcan.sh" "${interface_name}"
+if [[ "${skip_interface_setup}" == true ]]; then
+  if ! ip link show up dev "${interface_name}" >/dev/null 2>&1; then
+    echo "CAN interface ${interface_name} does not exist or is not up" >&2
+    exit 1
+  fi
+else
+  bash "${root_dir}/scripts/setup_vcan.sh" "${interface_name}"
+fi
 mkdir -p "${run_dir}"
 awk -v interface_name="${interface_name}" '
   /^    source: / { sub(/source: .*/, "source: socketcan") }
@@ -78,4 +86,4 @@ if [[ "${vehicle_state}" != *'"source":"socketcan"'* ]]; then
   exit 1
 fi
 
-echo "Navigator vcan smoke passed; log: ${navigator_log}"
+echo "Navigator SocketCAN smoke passed; log: ${navigator_log}"
