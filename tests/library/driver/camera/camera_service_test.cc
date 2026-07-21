@@ -35,6 +35,14 @@ cockpit::camera::VideoDeviceInfo MetadataDevice(const std::string& path) {
   return device;
 }
 
+cockpit::camera::VideoDeviceInfo JetsonCsiDevice(const std::string& path) {
+  auto device = CaptureDevice(path);
+  device.driver = "tegra-video";
+  device.card = "vi-output, imx219";
+  device.bus_info = "platform:tegra-capture-vi:1";
+  return device;
+}
+
 bool Check(bool condition, const char* message) {
   if (!condition) {
     std::cerr << message << '\n';
@@ -121,6 +129,21 @@ int main() {
   }
   if (!Check(bridge_filter.ShouldForward(frame_message),
              "camera bridge did not forward sampled frame meta")) {
+    return 1;
+  }
+
+  cockpit::camera::CameraService jetson_device_service(
+      [](std::string*) {
+        return std::vector<cockpit::camera::VideoDeviceInfo>{JetsonCsiDevice("/dev/video0"),
+                                                             JetsonCsiDevice("/dev/video1")};
+      },
+      std::make_unique<FakePreviewSource>(), nullptr);
+  const auto jetson_devices = jetson_device_service.ListDevices(nullptr);
+  if (!Check(jetson_devices.size() == 2, "Jetson CSI device count mismatch") ||
+      !Check(jetson_devices[0].path == "nvargus://0" && jetson_devices[1].path == "nvargus://1",
+             "Jetson CSI devices were not mapped to Argus sensor IDs") ||
+      !Check(jetson_devices[0].driver == "nvargus",
+             "Jetson CSI device did not expose the Argus driver")) {
     return 1;
   }
 

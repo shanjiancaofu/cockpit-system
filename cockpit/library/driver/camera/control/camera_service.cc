@@ -31,6 +31,24 @@ std::unique_ptr<CameraPreviewSource> CreateDefaultPreviewSource() {
 #endif
 }
 
+std::vector<VideoDeviceInfo> NormalizePreviewDevices(std::vector<VideoDeviceInfo> devices) {
+#if defined(COCKPIT_HAS_GSTREAMER_CAMERA)
+  std::uint32_t argus_sensor_id = 0;
+  for (auto& device : devices) {
+    const bool jetson_csi = device.query_ok && device.supports_capture &&
+                            device.supports_streaming && device.driver == "tegra-video" &&
+                            device.bus_info.rfind("platform:tegra-capture-vi", 0) == 0;
+    if (!jetson_csi) {
+      continue;
+    }
+    device.path = "nvargus://" + std::to_string(argus_sensor_id++);
+    device.driver = "nvargus";
+    device.card += " (Argus)";
+  }
+#endif
+  return devices;
+}
+
 }  // namespace
 
 CameraService::CameraService()
@@ -91,7 +109,7 @@ CameraService::~CameraService() {
 }
 
 std::vector<VideoDeviceInfo> CameraService::ListDevices(std::string* error) const {
-  return device_lister_(error);
+  return NormalizePreviewDevices(device_lister_(error));
 }
 
 bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::string* error) {

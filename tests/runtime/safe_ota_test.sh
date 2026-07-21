@@ -24,6 +24,8 @@ make_package() {
     "${package_root}/deploy" "${package_root}/manifest"
   printf 'release %s\n' "${version}" >"${package_root}/release/bin/probe"
   printf 'system:\n  name: test\n' >"${package_root}/config/config.example.yaml"
+  install -m 0644 "${source_root}/configs/environment.example" \
+    "${package_root}/config/environment.example"
   printf '%s\n' "${version}" >"${package_root}/manifest/VERSION"
   install -m 0755 "${source_root}/scripts/deploy/install.sh" \
     "${package_root}/deploy/install.sh"
