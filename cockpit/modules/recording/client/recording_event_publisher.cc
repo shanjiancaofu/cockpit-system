@@ -14,12 +14,20 @@ namespace recording {
 namespace {
 
 constexpr int kAppendEventTimeoutMs = 200;
+constexpr auto kUnavailableRetryDelay = std::chrono::seconds(1);
+
+std::shared_ptr<grpc::Channel> CreateRecordingChannel(const std::string& address) {
+  grpc::ChannelArguments arguments;
+  arguments.SetInt(GRPC_ARG_INITIAL_RECONNECT_BACKOFF_MS, 200);
+  arguments.SetInt(GRPC_ARG_MIN_RECONNECT_BACKOFF_MS, 200);
+  arguments.SetInt(GRPC_ARG_MAX_RECONNECT_BACKOFF_MS, 1000);
+  return grpc::CreateCustomChannel(address, grpc::InsecureChannelCredentials(), arguments);
+}
 
 }  // namespace
 
 RecordingEventPublisher::RecordingEventPublisher(const std::string& address)
-    : stub_(proto::recording::RecordingControl::NewStub(
-          grpc::CreateChannel(address, grpc::InsecureChannelCredentials()))),
+    : stub_(proto::recording::RecordingControl::NewStub(CreateRecordingChannel(address))),
       worker_(&RecordingEventPublisher::Run, this) {
 }
 
@@ -83,6 +91,9 @@ bool RecordingEventPublisher::Enqueue(PendingRequest request) {
 }
 
 void RecordingEventPublisher::Run() {
+  bool transport_unavailable = false;
+  std::size_t dropped_while_unavailable = 0;
+  auto retry_after = std::chrono::steady_clock::time_point::min();
   while (true) {
     PendingRequest request;
     {
@@ -95,6 +106,11 @@ void RecordingEventPublisher::Run() {
       }
       request = std::move(queue_.front());
       queue_.pop_front();
+    }
+
+    if (std::chrono::steady_clock::now() < retry_after) {
+      ++dropped_while_unavailable;
+      continue;
     }
 
     proto::recording::RecordingStatus response;
@@ -124,6 +140,24 @@ void RecordingEventPublisher::Run() {
     }
     const bool recording_inactive = status.error_code() == grpc::StatusCode::FAILED_PRECONDITION &&
                                     status.error_message() == "recording session is not active";
+    const bool transport_failure = status.error_code() == grpc::StatusCode::UNAVAILABLE ||
+                                   status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED;
+    if (transport_failure) {
+      ++dropped_while_unavailable;
+      retry_after = std::chrono::steady_clock::now() + kUnavailableRetryDelay;
+      if (!transport_unavailable) {
+        LOG_WARN("recording service unavailable; best-effort events will be dropped until retry");
+        transport_unavailable = true;
+      }
+      continue;
+    }
+    if (transport_unavailable) {
+      LOG_INFO("recording event publisher recovered dropped_requests=" +
+               std::to_string(dropped_while_unavailable));
+      transport_unavailable = false;
+      dropped_while_unavailable = 0;
+      retry_after = std::chrono::steady_clock::time_point::min();
+    }
     if (!status.ok() && !recording_inactive &&
         !(stopping && status.error_code() == grpc::StatusCode::CANCELLED)) {
       const std::string kind = request.kind == PendingRequest::Kind::kEvent ? "event" : "data file";
