@@ -17,6 +17,9 @@
 #if defined(COCKPIT_HAS_WHISPER_CPP_ASR)
 #include "cockpit/modules/voice/asr/whisper_speech_recognizer.h"
 #endif
+#if defined(COCKPIT_HAS_SHERPA_ONNX_ASR)
+#include "cockpit/modules/voice/asr/sherpa_onnx_speech_recognizer.h"
+#endif
 
 namespace cockpit {
 namespace audio {
@@ -65,6 +68,23 @@ bool AudioRuntime::Start(const std::string& config_path,
         recognizer = std::move(whisper_recognizer);
 #else
         LOG_ERROR("whisper_cpp ASR requested but BUILD_WHISPER_CPP_ASR is disabled");
+        return false;
+#endif
+      } else if (voice_config.asr_provider == "sherpa_onnx_sense_voice") {
+#if defined(COCKPIT_HAS_SHERPA_ONNX_ASR)
+        voice::SherpaOnnxRecognizerConfig sherpa_config;
+        sherpa_config.model_path = voice_config.asr_model_path;
+        sherpa_config.language = voice_config.asr_language;
+        sherpa_config.threads = voice_config.asr_threads;
+        auto sherpa_recognizer =
+            std::make_unique<voice::SherpaOnnxSpeechRecognizer>(std::move(sherpa_config));
+        if (!sherpa_recognizer->IsReady()) {
+          LOG_ERROR(sherpa_recognizer->initialization_error());
+          return false;
+        }
+        recognizer = std::move(sherpa_recognizer);
+#else
+        LOG_ERROR("sherpa_onnx_sense_voice ASR requested but BUILD_SHERPA_ONNX_ASR is disabled");
         return false;
 #endif
       }

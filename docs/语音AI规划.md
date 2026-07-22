@@ -12,7 +12,7 @@
   → audio_driver
   → VAD
   → SpeechSegmenter
-  → mock ASR / whisper.cpp
+  → mock ASR / whisper.cpp / sherpa-onnx + SenseVoice
   → transcript gRPC stream
   → agent
   → intent / action
@@ -26,7 +26,8 @@
 
 - ALSA 采集和播放。
 - 20 ms PCM frame、SPSC ring、VAD 和语音分段。
-- mock ASR 和 whisper.cpp adapter；WSL-R4 已完成真实模型 CPU 基线，默认构建仍未启用 whisper.cpp。
+- mock、whisper.cpp 和 sherpa-onnx + SenseVoice adapter；后者已在 Jetson 完成 INT8 真实模型基线，
+  默认构建仍关闭两个真实 provider。
 - transcript 订阅、重连、历史重放。
 - 白名单意图和类型化 ActionDispatcher。
 - 车辆状态查询通过 gateway gRPC 真实执行。
@@ -41,8 +42,9 @@
 统一实现 `SpeechRecognizer`：
 
 - `mock`：测试和 smoke 默认实现。
-- `whisper_cpp`：当前首个真实实现。
-- 后续可选：sherpa-onnx + SenseVoice、Qwen ASR、TensorRT adapter。
+- `whisper_cpp`：首个真实实现，保留 WSL CPU 对照基线。
+- `sherpa_onnx_sense_voice`：Jetson 当前优先实现，CPU 上运行 SenseVoice INT8。
+- 后续可选：Qwen ASR、TensorRT adapter。
 
 ASR 在 `audio_driver` module child 内运行，避免语音 PCM 跨进程传输。
 
@@ -92,7 +94,9 @@ transcript
 1. 已完成：mock 打断、连续命令、队列丢弃、超时和 provider 失败恢复。
 2. 已完成 WSL-R4：whisper.cpp `6fc7c33b` 与 `ggml-small.bin` 在 GCC Release 下识别 16 kHz mono
    JFK WAV，耗时 4.39 秒、CPU 393%、峰值 RSS 649232 KiB；源码、模型和 WAV 均不进入仓库。
-3. Jetson 麦克风、扬声器、AEC、增益和唤醒/打断标定。
-4. 播放器责任边界明确后补 Qt/Android 媒体动作和 push-to-talk UI。
-5. 根据 Jetson 性能选择真实 TTS 和 SenseVoice/Qwen ASR 等替代方案。
-6. 后端 provider 合同明确后引入可取消、有 deadline 的 LLM 和受控工具调用。
+3. 已完成 Jetson CPU 基线：sherpa-onnx `13d0ae6c` + SenseVoice INT8 识别 5.59 秒中文 WAV；
+   初始化 2.49 秒、识别 0.41 秒、RTF 约 0.074、采样峰值 RSS 344644 KiB，Release CTest 46/46。
+4. 接入 Jetson USB 麦克风和扬声器，完成 AEC、增益和唤醒/打断标定。
+5. 播放器责任边界明确后补 Qt/Android 媒体动作和 push-to-talk UI。
+6. 根据真实声学测试决定是否继续做 TensorRT 或 Qwen ASR 对照。
+7. 后端 provider 合同明确后引入可取消、有 deadline 的 LLM 和受控工具调用。

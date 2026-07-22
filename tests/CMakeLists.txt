@@ -183,6 +183,22 @@ if(TARGET whisper_asr AND WHISPER_CPP_MODEL_PATH AND EXISTS "${WHISPER_CPP_MODEL
     add_test(NAME whisper_speech_recognizer_test COMMAND whisper_speech_recognizer_test)
 endif()
 
+if(TARGET sherpa_onnx_asr AND SHERPA_ONNX_SENSEVOICE_MODEL_PATH AND
+   EXISTS "${SHERPA_ONNX_SENSEVOICE_MODEL_PATH}" AND
+   SHERPA_ONNX_SENSEVOICE_TEST_WAV_PATH AND
+   EXISTS "${SHERPA_ONNX_SENSEVOICE_TEST_WAV_PATH}")
+    add_executable(sherpa_onnx_speech_recognizer_test
+        modules/voice/sherpa_onnx_speech_recognizer_test.cc)
+    target_link_libraries(sherpa_onnx_speech_recognizer_test PRIVATE audio sherpa_onnx_asr)
+    target_compile_definitions(sherpa_onnx_speech_recognizer_test
+        PRIVATE
+            SHERPA_ONNX_TEST_MODEL_PATH="${SHERPA_ONNX_SENSEVOICE_MODEL_PATH}"
+            SHERPA_ONNX_TEST_WAV_PATH="${SHERPA_ONNX_SENSEVOICE_TEST_WAV_PATH}"
+    )
+    add_test(NAME sherpa_onnx_speech_recognizer_test
+        COMMAND sherpa_onnx_speech_recognizer_test)
+endif()
+
 add_executable(mock_voice_assistant_test modules/voice/mock_voice_assistant_test.cc)
 target_link_libraries(mock_voice_assistant_test PRIVATE voice)
 add_test(NAME mock_voice_assistant_test COMMAND mock_voice_assistant_test)
@@ -223,6 +239,7 @@ target_compile_definitions(system_config_test
         INVALID_AUDIO_FORMAT_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_format_config.yaml"
         INVALID_VAD_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_vad_config.yaml"
         INVALID_VOICE_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_voice_config.yaml"
+        VALID_SHERPA_VOICE_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/valid_sherpa_voice_config.yaml"
 )
 add_test(NAME system_config_test COMMAND system_config_test)
 

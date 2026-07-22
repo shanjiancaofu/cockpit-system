@@ -77,6 +77,17 @@ model_sha1=""
 if [[ -n "${model_path}" && -f "${model_path}" ]]; then
   model_sha1="$(sha1sum "${model_path}" | awk '{print $1}')"
 fi
+sherpa_dir="$(sed -n 's/^SHERPA_ONNX_DIR:PATH=//p' "${build_dir}/CMakeCache.txt")"
+sherpa_commit=""
+if [[ -n "${sherpa_dir}" && -d "${sherpa_dir}/.git" ]]; then
+  sherpa_commit="$(git -C "${sherpa_dir}" rev-parse HEAD)"
+fi
+sensevoice_model_path="$(sed -n 's/^SHERPA_ONNX_SENSEVOICE_MODEL_PATH:FILEPATH=//p' \
+  "${build_dir}/CMakeCache.txt")"
+sensevoice_model_sha256=""
+if [[ -n "${sensevoice_model_path}" && -f "${sensevoice_model_path}" ]]; then
+  sensevoice_model_sha256="$(sha256sum "${sensevoice_model_path}" | awk '{print $1}')"
+fi
 
 cat >"${package_root}/manifest/BUILD_INFO.json" <<EOF
 {
@@ -94,7 +105,9 @@ cat >"${package_root}/manifest/BUILD_INFO.json" <<EOF
   "compiler_id": "${compiler_id}",
   "compiler_version": "${compiler_version}",
   "whisper_cpp_revision": "${whisper_commit}",
-  "whisper_model_sha1": "${model_sha1}"
+  "whisper_model_sha1": "${model_sha1}",
+  "sherpa_onnx_revision": "${sherpa_commit}",
+  "sensevoice_model_sha256": "${sensevoice_model_sha256}"
 }
 EOF
 

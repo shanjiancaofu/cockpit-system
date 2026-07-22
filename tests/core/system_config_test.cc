@@ -126,5 +126,16 @@ int main() {
       return 1;
     }
   }
+
+  const auto sherpa_config =
+      cockpit::config::SystemConfig::LoadFromFile(VALID_SHERPA_VOICE_CONFIG_PATH);
+  if (!sherpa_config.features().voice.enabled ||
+      sherpa_config.features().voice.asr_provider != "sherpa_onnx_sense_voice" ||
+      sherpa_config.features().voice.asr_model_path != "/models/sensevoice/model.int8.onnx" ||
+      sherpa_config.features().voice.asr_language != "zh" ||
+      sherpa_config.features().voice.asr_threads != 2) {
+    std::cerr << "valid sherpa-onnx voice config was not parsed correctly" << std::endl;
+    return 1;
+  }
   return 0;
 }

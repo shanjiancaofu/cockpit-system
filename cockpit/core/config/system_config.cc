@@ -509,11 +509,15 @@ void SystemConfig::Validate() const {
   RequireNotEmpty(hardware_.audio.input_device, "hardware.audio.input_device");
   RequireNotEmpty(hardware_.audio.output_device, "hardware.audio.output_device");
   RequirePositive(features_.ai.request_timeout_ms, "features.ai.request_timeout_ms");
-  if (features_.voice.asr_provider != "mock" && features_.voice.asr_provider != "whisper_cpp") {
-    throw std::runtime_error("features.voice.asr_provider must be mock or whisper_cpp");
+  if (features_.voice.asr_provider != "mock" && features_.voice.asr_provider != "whisper_cpp" &&
+      features_.voice.asr_provider != "sherpa_onnx_sense_voice") {
+    throw std::runtime_error(
+        "features.voice.asr_provider must be mock, whisper_cpp, or sherpa_onnx_sense_voice");
   }
-  if (features_.voice.asr_provider == "whisper_cpp" && features_.voice.asr_model_path.empty()) {
-    throw std::runtime_error("features.voice.asr_model_path is required for whisper_cpp");
+  if ((features_.voice.asr_provider == "whisper_cpp" ||
+       features_.voice.asr_provider == "sherpa_onnx_sense_voice") &&
+      features_.voice.asr_model_path.empty()) {
+    throw std::runtime_error("features.voice.asr_model_path is required for selected ASR provider");
   }
   if (features_.voice.asr_language.empty()) {
     throw std::runtime_error("features.voice.asr_language must not be empty");

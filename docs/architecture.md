@@ -115,7 +115,7 @@ ALSA microphone
     → SPSC RingBuffer
     → Energy VAD
     → SpeechSegmenter
-    → mock ASR / whisper.cpp
+    → mock ASR / whisper.cpp / sherpa-onnx + SenseVoice
     → agent
     → intent / action
     → mock TTS

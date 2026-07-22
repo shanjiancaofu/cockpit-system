@@ -1,7 +1,22 @@
-find_package(Protobuf REQUIRED)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GRPCPP REQUIRED IMPORTED_TARGET grpc++)
-find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin REQUIRED)
+if(BUILD_SHERPA_ONNX_ASR)
+    find_package(Protobuf 3.21.12 CONFIG REQUIRED)
+    if(NOT Protobuf_VERSION VERSION_EQUAL 3.21.12)
+        message(FATAL_ERROR
+            "sherpa-onnx builds require Protobuf 3.21.12; found ${Protobuf_VERSION}")
+    endif()
+    find_package(gRPC 1.51.3 EXACT CONFIG REQUIRED)
+    set(COCKPIT_PROTOC protobuf::protoc)
+    set(COCKPIT_GRPC_CPP_PLUGIN "$<TARGET_FILE:gRPC::grpc_cpp_plugin>")
+    set(COCKPIT_GRPCPP_TARGET gRPC::grpc++)
+else()
+    find_package(Protobuf REQUIRED)
+    pkg_check_modules(GRPCPP REQUIRED IMPORTED_TARGET grpc++)
+    find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin REQUIRED)
+    set(COCKPIT_PROTOC "${Protobuf_PROTOC_EXECUTABLE}")
+    set(COCKPIT_GRPC_CPP_PLUGIN "${GRPC_CPP_PLUGIN}")
+    set(COCKPIT_GRPCPP_TARGET PkgConfig::GRPCPP)
+endif()
 
 set(proto_files
     audio.proto
@@ -36,12 +51,12 @@ foreach(proto_file IN LISTS proto_files)
             "${generated_dir}/${proto_name}.pb.h"
             "${generated_dir}/${proto_name}.grpc.pb.cc"
             "${generated_dir}/${proto_name}.grpc.pb.h"
-        COMMAND "${Protobuf_PROTOC_EXECUTABLE}"
+        COMMAND ${COCKPIT_PROTOC}
         ARGS
             "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}"
             "--cpp_out=${generated_dir}"
             "--grpc_out=${generated_dir}"
-            "--plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}"
+            "--plugin=protoc-gen-grpc=${COCKPIT_GRPC_CPP_PLUGIN}"
             "${CMAKE_CURRENT_SOURCE_DIR}/${proto_file}"
         DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/${proto_file}"
@@ -58,5 +73,5 @@ target_include_directories(contracts PUBLIC "${generated_dir}")
 target_link_libraries(contracts
     PUBLIC
         protobuf::libprotobuf
-        PkgConfig::GRPCPP
+        ${COCKPIT_GRPCPP_TARGET}
 )
