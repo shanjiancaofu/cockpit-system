@@ -22,7 +22,8 @@ if [[ "${install_systemd}" == "true" && "${EUID}" -ne 0 ]]; then
 fi
 
 install -d "${release_dir}" "${install_root}/config" "${install_root}/models/whisper" \
-  "${install_root}/data" "${install_root}/logs" "${install_root}/run"
+  "${install_root}/models/sensevoice" "${install_root}/data" "${install_root}/logs" \
+  "${install_root}/run"
 cp -a "${package_root}/release/." "${release_dir}/"
 
 if [[ ! -f "${install_root}/config/config.yaml" ]]; then

@@ -6,6 +6,7 @@ function(add_cockpit_module target_name module_name source)
     set_target_properties(${target_name} PROPERTIES
         OUTPUT_NAME ${module_name}
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/cockpit/modules
+        INSTALL_RPATH "$ORIGIN/../.."
     )
     install(TARGETS ${target_name}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/cockpit/modules
