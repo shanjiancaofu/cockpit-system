@@ -90,9 +90,23 @@ build_type_name="${build_type,,}"
 output_dir="$(cockpit_output_dir)"
 build_dir="${BUILD_DIR:-${output_dir}/build/${target_arch}-${build_type_name}}"
 export COCKPIT_RUNTIME_DIR="${COCKPIT_RUNTIME_DIR:-${output_dir}/runtime}"
-generator="${CMAKE_GENERATOR:-Ninja}"
 machine_arch="$(normalize_arch "$(uname -m)")"
 cross_compiling=false
+
+if ! command -v ninja >/dev/null 2>&1; then
+  echo "Ninja is required; install it with: sudo apt install ninja-build" >&2
+  exit 1
+fi
+
+if [[ -f "${build_dir}/CMakeCache.txt" ]]; then
+  configured_generator="$(sed -n 's/^CMAKE_GENERATOR:INTERNAL=//p' \
+    "${build_dir}/CMakeCache.txt")"
+  if [[ "${configured_generator}" != "Ninja" ]]; then
+    echo "build directory uses '${configured_generator:-unknown}', but cockpit-system requires Ninja" >&2
+    echo "remove the generated build directory and run this command again: ${build_dir}" >&2
+    exit 1
+  fi
+fi
 
 if [[ "${target_arch}" != "${machine_arch}" ]]; then
   if [[ "${machine_arch}" != "x86_64" || "${target_arch}" != "arm64" ]]; then
@@ -136,13 +150,11 @@ echo "Configuring ${build_type} with ${compiler_family} in ${build_dir}"
 cmake_args=(
   -S .
   -B "${build_dir}"
+  -G Ninja
   -DCMAKE_BUILD_TYPE="${build_type}"
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
   "${cmake_options[@]}"
 )
-if [[ ! -f "${build_dir}/CMakeCache.txt" ]] && command -v ninja >/dev/null 2>&1; then
-  cmake_args+=(-G "${generator}")
-fi
 cmake "${cmake_args[@]}"
 
 configured_build_type="$(sed -n 's/^CMAKE_BUILD_TYPE:STRING=//p' "${build_dir}/CMakeCache.txt")"
