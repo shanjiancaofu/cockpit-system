@@ -2,7 +2,7 @@
 
 ```text
 voice/
-├── asr/        语音识别接口、mock、whisper.cpp
+├── asr/        语音识别接口、mock、sherpa-onnx + SenseVoice
 ├── tts/        语音合成接口和 mock
 ├── assistant/  transcript、意图和回复模型
 ├── actions/    类型化动作分发

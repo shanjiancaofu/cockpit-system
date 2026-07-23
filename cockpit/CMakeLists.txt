@@ -4,7 +4,4 @@ add_subdirectory(drivers)
 add_subdirectory(proto)
 add_subdirectory(navigator)
 add_subdirectory(library)
-
-if(BUILD_COCKPIT_UI)
-    add_subdirectory(apps/cockpit-ui)
-endif()
+add_subdirectory(apps/cockpit-ui)

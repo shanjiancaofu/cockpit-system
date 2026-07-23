@@ -1,9 +1,5 @@
 #include "cockpit/drivers/v4l2/v4l2_camera.h"
 
-#if !defined(__linux__)
-#error "V4l2Camera requires Linux"
-#endif
-
 #include <dirent.h>
 #include <fcntl.h>
 #include <linux/videodev2.h>

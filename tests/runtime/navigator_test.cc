@@ -10,6 +10,7 @@
 #include <string>
 #include <thread>
 
+#include "cockpit/core/json/json.h"
 #include "cockpit/navigator/connection/ipc_connector.h"
 #include "cockpit/navigator/run_config/run_config.h"
 
@@ -125,7 +126,7 @@ int main(int argc, char** argv) {
   const pid_t navigator_pid = fork();
   if (navigator_pid == 0) {
     cockpit::navigator::Navigator navigator(std::move(config), navigator_path, test_dir.string(),
-                                            "");
+                                            "", (test_dir / "crashes").string());
     _exit(navigator.Run());
   }
 
@@ -153,6 +154,35 @@ int main(int argc, char** argv) {
                     "crashing module did not reach failed state");
   success &= Expect(response.find("restarts=2") != std::string::npos,
                     "crashing module restart count mismatch");
+  std::size_t crash_report_count = 0;
+  bool found_restart_success = false;
+  bool found_restart_limit = false;
+  const std::filesystem::path crash_directory = test_dir / "crashes";
+  success &=
+      Expect(std::filesystem::is_directory(crash_directory), "crash report directory is missing");
+  if (std::filesystem::is_directory(crash_directory)) {
+    for (const auto& entry : std::filesystem::directory_iterator(crash_directory)) {
+      if (!entry.is_regular_file() || entry.path().extension() != ".json") {
+        continue;
+      }
+      ++crash_report_count;
+      std::ifstream input(entry.path());
+      const std::string report((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+      success &= Expect(cockpit::json::IsValidValue(report), "crash report is not valid JSON");
+      success &= Expect(report.find("\"module\":\"crash\"") != std::string::npos,
+                        "crash report module mismatch");
+      success &= Expect(report.find("\"termination\":\"signal\"") != std::string::npos &&
+                            report.find("\"signal\":11") != std::string::npos,
+                        "crash report signal mismatch");
+      found_restart_success |= report.find("\"restart_result\":\"succeeded\"") != std::string::npos;
+      found_restart_limit |=
+          report.find("\"restart_result\":\"limit_exceeded\"") != std::string::npos;
+    }
+  }
+  success &= Expect(crash_report_count == 3, "unexpected crash report count");
+  success &= Expect(found_restart_success, "successful crash restart was not recorded");
+  success &= Expect(found_restart_limit, "restart limit was not recorded");
   success &= Expect(Send(socket_path, "restart transfer", &response) && response == "OK\n",
                     "failed to restart transfer module");
   success &= Expect(WaitFor(socket_path, "module=transfer state=running", &response),
@@ -179,6 +209,16 @@ int main(int argc, char** argv) {
   }
   success &= Expect(WIFEXITED(navigator_status) && WEXITSTATUS(navigator_status) == 0,
                     "navigator did not exit cleanly");
+  std::size_t final_crash_report_count = 0;
+  if (std::filesystem::is_directory(crash_directory)) {
+    for (const auto& entry : std::filesystem::directory_iterator(crash_directory)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".json") {
+        ++final_crash_report_count;
+      }
+    }
+  }
+  success &= Expect(final_crash_report_count == crash_report_count,
+                    "clean shutdown unexpectedly created a crash report");
   std::filesystem::remove_all(test_dir);
   return success ? 0 : 1;
 }

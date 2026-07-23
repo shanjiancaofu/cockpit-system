@@ -88,9 +88,11 @@ int main(int argc, char** argv) {
     const std::filesystem::path executable = ExecutablePath();
     const std::string default_module_dir =
         (executable.parent_path().parent_path() / "lib/cockpit/modules").string();
+    const std::string crash_report_directory =
+        (std::filesystem::path(system_config.paths().data_dir) / "crashes").string();
     cockpit::navigator::Navigator navigator(std::move(config), executable.string(),
                                             args.GetString("module-dir", default_module_dir),
-                                            config_path);
+                                            config_path, crash_report_directory);
     return navigator.Run();
   } catch (const std::exception& error) {
     std::cerr << "cockpit-navigator: " << error.what() << '\n';

@@ -54,38 +54,32 @@ mkdir -p "${package_root}/release/lib" "${package_root}/config" \
 cmake --build "${build_dir}"
 cmake --install "${build_dir}" --prefix "${package_root}/release" --component Runtime
 
-sherpa_enabled="$(sed -n 's/^BUILD_SHERPA_ONNX_ASR:BOOL=//p' \
+protobuf_cmake_dir="$(sed -n 's/^Protobuf_DIR:PATH=//p' \
   "${build_dir}/CMakeCache.txt")"
-protobuf_version=""
-grpc_version=""
-if [[ "${sherpa_enabled}" == "ON" ]]; then
-  protobuf_cmake_dir="$(sed -n 's/^Protobuf_DIR:PATH=//p' \
-    "${build_dir}/CMakeCache.txt")"
-  grpc_cmake_dir="$(sed -n 's/^gRPC_DIR:PATH=//p' "${build_dir}/CMakeCache.txt")"
-  if [[ -z "${protobuf_cmake_dir}" || -z "${grpc_cmake_dir}" ]]; then
-    echo "SenseVoice package is missing Protobuf/gRPC CMake metadata" >&2
-    exit 1
-  fi
-
-  protobuf_lib_dir="$(realpath "${protobuf_cmake_dir}/../..")"
-  grpc_lib_dir="$(realpath "${grpc_cmake_dir}/../..")"
-  if [[ "${protobuf_lib_dir}" != "${grpc_lib_dir}" ]]; then
-    echo "SenseVoice package requires Protobuf and gRPC from one prefix" >&2
-    exit 1
-  fi
-  if [[ ! -e "${protobuf_lib_dir}/libprotobuf.so.32" ||
-        ! -e "${protobuf_lib_dir}/libgrpc++.so.1.51" ]]; then
-    echo "expected Protobuf 3.21.12 and gRPC 1.51.3 runtime libraries were not found" >&2
-    exit 1
-  fi
-
-  while IFS= read -r -d '' runtime_library; do
-    cp -a "${runtime_library}" "${package_root}/release/lib/"
-  done < <(find "${protobuf_lib_dir}" -maxdepth 1 \( -type f -o -type l \) \
-    -name '*.so*' -print0)
-  protobuf_version="3.21.12"
-  grpc_version="1.51.3"
+grpc_cmake_dir="$(sed -n 's/^gRPC_DIR:PATH=//p' "${build_dir}/CMakeCache.txt")"
+if [[ -z "${protobuf_cmake_dir}" || -z "${grpc_cmake_dir}" ]]; then
+  echo "SenseVoice package is missing Protobuf/gRPC CMake metadata" >&2
+  exit 1
 fi
+
+protobuf_lib_dir="$(realpath "${protobuf_cmake_dir}/../..")"
+grpc_lib_dir="$(realpath "${grpc_cmake_dir}/../..")"
+if [[ "${protobuf_lib_dir}" != "${grpc_lib_dir}" ]]; then
+  echo "SenseVoice package requires Protobuf and gRPC from one prefix" >&2
+  exit 1
+fi
+if [[ ! -e "${protobuf_lib_dir}/libprotobuf.so.32" ||
+      ! -e "${protobuf_lib_dir}/libgrpc++.so.1.51" ]]; then
+  echo "expected Protobuf 3.21.12 and gRPC 1.51.3 runtime libraries were not found" >&2
+  exit 1
+fi
+
+while IFS= read -r -d '' runtime_library; do
+  cp -a "${runtime_library}" "${package_root}/release/lib/"
+done < <(find "${protobuf_lib_dir}" -maxdepth 1 \( -type f -o -type l \) \
+  -name '*.so*' -print0)
+protobuf_version="3.21.12"
+grpc_version="1.51.3"
 
 install -m 0644 "${root_dir}/configs/config.yaml" \
   "${package_root}/config/config.example.yaml"
@@ -100,16 +94,6 @@ printf '%s\n' "${version}" >"${package_root}/manifest/VERSION"
 
 compiler="$(sed -n 's/^COCKPIT_COMPILER_PATH:FILEPATH=//p' "${build_dir}/CMakeCache.txt")"
 compiler_version="$(sed -n 's/^COCKPIT_COMPILER_VERSION:STRING=//p' "${build_dir}/CMakeCache.txt")"
-whisper_dir="$(sed -n 's/^WHISPER_CPP_DIR:PATH=//p' "${build_dir}/CMakeCache.txt")"
-whisper_commit=""
-if [[ -n "${whisper_dir}" && -d "${whisper_dir}/.git" ]]; then
-  whisper_commit="$(git -C "${whisper_dir}" rev-parse HEAD)"
-fi
-model_path="$(sed -n 's/^WHISPER_CPP_MODEL_PATH:FILEPATH=//p' "${build_dir}/CMakeCache.txt")"
-model_sha1=""
-if [[ -n "${model_path}" && -f "${model_path}" ]]; then
-  model_sha1="$(sha1sum "${model_path}" | awk '{print $1}')"
-fi
 sherpa_dir="$(sed -n 's/^SHERPA_ONNX_DIR:PATH=//p' "${build_dir}/CMakeCache.txt")"
 sherpa_commit=""
 if [[ -n "${sherpa_dir}" && -d "${sherpa_dir}/.git" ]]; then
@@ -139,8 +123,6 @@ cat >"${package_root}/manifest/BUILD_INFO.json" <<EOF
   "compiler_version": "${compiler_version}",
   "protobuf_version": "${protobuf_version}",
   "grpc_version": "${grpc_version}",
-  "whisper_cpp_revision": "${whisper_commit}",
-  "whisper_model_sha1": "${model_sha1}",
   "sherpa_onnx_revision": "${sherpa_commit}",
   "sensevoice_model_sha256": "${sensevoice_model_sha256}"
 }

@@ -30,7 +30,7 @@ navigator_log="${run_dir}/navigator.log"
 for executable in cockpit-navigator cockpit-ctl camera-ctl topic cockpit-ui; do
   if [[ ! -x "${bin_dir}/${executable}" ]]; then
     echo "missing ${bin_dir}/${executable}" >&2
-    echo "build with: cmake -S . -B ${build_dir} -G Ninja -DBUILD_COCKPIT_UI=ON" >&2
+    echo "build with: bash scripts/build.sh" >&2
     echo "            cmake --build ${build_dir}" >&2
     exit 2
   fi

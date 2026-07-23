@@ -33,10 +33,10 @@ void InstallSignalHandlers() {
 }  // namespace
 
 Navigator::Navigator(RunConfig config, std::string executable_path, std::string module_dir,
-                     std::string module_config_path)
+                     std::string module_config_path, std::string crash_report_directory)
     : config_(std::move(config)),
       process_manager_(config_, std::move(executable_path), std::move(module_dir),
-                       std::move(module_config_path)) {
+                       std::move(module_config_path), std::move(crash_report_directory)) {
 }
 
 int Navigator::Run() {

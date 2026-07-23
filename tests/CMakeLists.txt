@@ -24,6 +24,10 @@ add_test(NAME navigator_test COMMAND navigator_test
     $<TARGET_FILE:cockpit-ctl>
 )
 
+add_executable(crash_reporter_test runtime/crash_reporter_test.cc)
+target_link_libraries(crash_reporter_test PRIVATE navigator_core)
+add_test(NAME crash_reporter_test COMMAND crash_reporter_test)
+
 add_executable(run_config_test runtime/run_config_test.cc)
 target_link_libraries(run_config_test PRIVATE navigator_core)
 add_test(NAME run_config_test COMMAND run_config_test)
@@ -49,16 +53,14 @@ add_test(NAME navigator_stability_test COMMAND bash
 )
 set_tests_properties(navigator_stability_test PROPERTIES TIMEOUT 30)
 
-if(BUILD_COCKPIT_UI)
-    add_test(NAME hmi_runtime_test COMMAND bash
-        ${CMAKE_CURRENT_SOURCE_DIR}/runtime/hmi_runtime_test.sh
-        $<TARGET_FILE:cockpit-navigator>
-        $<TARGET_FILE:cockpit-ctl>
-        ${CMAKE_BINARY_DIR}/lib/cockpit/modules
-        ${PROJECT_SOURCE_DIR}/configs/config.yaml
-    )
-    set_tests_properties(hmi_runtime_test PROPERTIES TIMEOUT 30)
-endif()
+add_test(NAME hmi_runtime_test COMMAND bash
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime/hmi_runtime_test.sh
+    $<TARGET_FILE:cockpit-navigator>
+    $<TARGET_FILE:cockpit-ctl>
+    ${CMAKE_BINARY_DIR}/lib/cockpit/modules
+    ${PROJECT_SOURCE_DIR}/configs/config.yaml
+)
+set_tests_properties(hmi_runtime_test PROPERTIES TIMEOUT 30)
 
 add_executable(audio_wav_test modules/audio/audio_wav_test.cc)
 target_link_libraries(audio_wav_test PRIVATE audio)
@@ -172,18 +174,7 @@ add_executable(mock_speech_recognizer_test modules/voice/mock_speech_recognizer_
 target_link_libraries(mock_speech_recognizer_test PRIVATE voice)
 add_test(NAME mock_speech_recognizer_test COMMAND mock_speech_recognizer_test)
 
-if(TARGET whisper_asr AND WHISPER_CPP_MODEL_PATH AND EXISTS "${WHISPER_CPP_MODEL_PATH}")
-    add_executable(whisper_speech_recognizer_test modules/voice/whisper_speech_recognizer_test.cc)
-    target_link_libraries(whisper_speech_recognizer_test PRIVATE audio whisper_asr)
-    target_compile_definitions(whisper_speech_recognizer_test
-        PRIVATE
-            WHISPER_TEST_MODEL_PATH="${WHISPER_CPP_MODEL_PATH}"
-            WHISPER_TEST_WAV_PATH="${WHISPER_CPP_DIR}/samples/jfk.wav"
-    )
-    add_test(NAME whisper_speech_recognizer_test COMMAND whisper_speech_recognizer_test)
-endif()
-
-if(TARGET sherpa_onnx_asr AND SHERPA_ONNX_SENSEVOICE_MODEL_PATH AND
+if(SHERPA_ONNX_SENSEVOICE_MODEL_PATH AND
    EXISTS "${SHERPA_ONNX_SENSEVOICE_MODEL_PATH}" AND
    SHERPA_ONNX_SENSEVOICE_TEST_WAV_PATH AND
    EXISTS "${SHERPA_ONNX_SENSEVOICE_TEST_WAV_PATH}")

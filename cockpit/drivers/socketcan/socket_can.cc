@@ -1,9 +1,5 @@
 #include "cockpit/drivers/socketcan/socket_can.h"
 
-#if !defined(__linux__)
-#error "SocketCan requires Linux"
-#endif
-
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>

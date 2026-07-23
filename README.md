@@ -10,7 +10,7 @@
 - SocketCAN/mock 车辆数据和 VehicleState gRPC streaming。
 - ROS 风格 `topic list/info/echo/hz` 调试。
 - ALSA 录音/播放、AudioFrame、SPSC ring、VAD 和语音分段。
-- mock ASR/TTS，以及可选 whisper.cpp、sherpa-onnx + SenseVoice ASR。
+- mock ASR/TTS，以及 sherpa-onnx + SenseVoice ASR。
 - 语音意图、动作分发、车辆状态查询和 Qt 相机页面控制。
 - V4L2/GStreamer USB 摄像头和 Jetson Argus CSI 摄像头预览。
 - 相机帧 POSIX shared memory 双缓冲。
@@ -142,40 +142,23 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
   --device /dev/video0 --frames 30 --config configs/config.yaml
 ```
 
-## 可选 ASR
+## ASR
 
-模型不提交到仓库。启用 whisper.cpp：
-
-```bash
-BUILD_DIR=_output/build/x86_64-whisper-release \
-  bash scripts/build.sh --type release --no-test -- \
-  -DBUILD_WHISPER_CPP_ASR=ON \
-  -DWHISPER_CPP_DIR=/home/ffz/code/third_party/whisper.cpp \
-  -DWHISPER_CPP_MODEL_PATH=/path/to/ggml-small.bin
-
-ctest --test-dir _output/build/x86_64-whisper-release \
-  --output-on-failure -R '^whisper_speech_recognizer_test$'
-```
-
-使用独立构建目录，避免改变默认 Debug/Release 构建的可选项和缓存。
-
-Jetson 上启用 sherpa-onnx + SenseVoice INT8：
+项目固定构建 sherpa-onnx，运行时可在 `mock` 和 `sherpa_onnx_sense_voice` 之间选择。模型不提交到
+仓库。需要执行真实模型测试时：
 
 ```bash
-BUILD_DIR=_output/build/arm64-sherpa-release \
-  bash scripts/build.sh --arch arm64 --type release --no-test -- \
-  -DCMAKE_PREFIX_PATH=/path/to/protobuf-3.21.12-grpc-1.51.3 \
-  -DBUILD_SHERPA_ONNX_ASR=ON \
-  -DSHERPA_ONNX_DIR=/home/nvidia/code/third_party/sherpa-onnx \
+bash scripts/build.sh --arch arm64 --type release --no-test -- \
   -DSHERPA_ONNX_SENSEVOICE_MODEL_PATH=/path/to/model.int8.onnx \
   -DSHERPA_ONNX_SENSEVOICE_TEST_WAV_PATH=/path/to/16k-mono.wav
 
-ctest --test-dir _output/build/arm64-sherpa-release \
+ctest --test-dir _output/build/arm64-release \
   --output-on-failure -R '^sherpa_onnx_speech_recognizer_test$'
 ```
 
 `model.int8.onnx` 与同包的 `tokens.txt` 放在同一目录；模型文件不提交仓库，也不进入程序包。
-启用该实现时，cockpit 和 sherpa-onnx 统一使用 Protobuf 3.21.12；对应的 gRPC 版本为 1.51.3。
+构建固定使用工作区 `third_party/` 下的 sherpa-onnx、Protobuf 3.21.12 和 gRPC 1.51.3；路径变化时
+可通过 `SHERPA_ONNX_DIR` 和 `COCKPIT_UNIFIED_DEPS_PREFIX` 覆盖。
 
 ## 提交规范
 

@@ -1,5 +1,10 @@
 find_package(Threads REQUIRED)
-find_package(PkgConfig QUIET)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GSTREAMER REQUIRED
+    gstreamer-1.0
+    gstreamer-app-1.0
+    gstreamer-video-1.0
+)
 
 add_cockpit_library(camera_frames frames/camera_frame.cc frames/latest_frame_buffer.cc)
 
@@ -10,32 +15,21 @@ target_link_libraries(camera_capture INTERFACE camera_frames)
 add_cockpit_library(synthetic_camera capture/synthetic_preview_source.cc)
 target_link_libraries(synthetic_camera PUBLIC camera_capture time_util Threads::Threads)
 
-if(PkgConfig_FOUND)
-    pkg_check_modules(GSTREAMER QUIET gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0)
-endif()
-if(GSTREAMER_FOUND)
-    add_cockpit_library(gstreamer_camera capture/gstreamer_preview_pipeline.cc)
-    target_include_directories(gstreamer_camera PUBLIC ${GSTREAMER_INCLUDE_DIRS})
-    target_link_directories(gstreamer_camera PUBLIC ${GSTREAMER_LIBRARY_DIRS})
-    target_link_libraries(gstreamer_camera PUBLIC camera_capture time_util ${GSTREAMER_LIBRARIES})
-    target_compile_options(gstreamer_camera PRIVATE ${GSTREAMER_CFLAGS_OTHER})
-endif()
+add_cockpit_library(gstreamer_camera capture/gstreamer_preview_pipeline.cc)
+target_include_directories(gstreamer_camera PUBLIC ${GSTREAMER_INCLUDE_DIRS})
+target_link_directories(gstreamer_camera PUBLIC ${GSTREAMER_LIBRARY_DIRS})
+target_link_libraries(gstreamer_camera PUBLIC camera_capture time_util ${GSTREAMER_LIBRARIES})
+target_compile_options(gstreamer_camera PRIVATE ${GSTREAMER_CFLAGS_OTHER})
 
 add_cockpit_library(camera_shm shared_memory/shared_frame_buffer.cc)
 target_link_libraries(camera_shm PUBLIC camera_frames ipc Threads::Threads)
 
 add_cockpit_library(camera_photo photo/jpeg_encoder.cc)
 target_link_libraries(camera_photo PUBLIC camera_frames)
-if(PkgConfig_FOUND)
-    pkg_check_modules(GSTREAMER_PHOTO QUIET gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0)
-endif()
-if(GSTREAMER_PHOTO_FOUND)
-    target_compile_definitions(camera_photo PRIVATE COCKPIT_HAS_GSTREAMER_PHOTO=1)
-    target_include_directories(camera_photo PRIVATE ${GSTREAMER_PHOTO_INCLUDE_DIRS})
-    target_link_directories(camera_photo PRIVATE ${GSTREAMER_PHOTO_LIBRARY_DIRS})
-    target_link_libraries(camera_photo PRIVATE ${GSTREAMER_PHOTO_LIBRARIES})
-    target_compile_options(camera_photo PRIVATE ${GSTREAMER_PHOTO_CFLAGS_OTHER})
-endif()
+target_include_directories(camera_photo PRIVATE ${GSTREAMER_INCLUDE_DIRS})
+target_link_directories(camera_photo PRIVATE ${GSTREAMER_LIBRARY_DIRS})
+target_link_libraries(camera_photo PRIVATE ${GSTREAMER_LIBRARIES})
+target_compile_options(camera_photo PRIVATE ${GSTREAMER_CFLAGS_OTHER})
 
 add_library(camera INTERFACE)
 target_link_libraries(camera INTERFACE camera_capture camera_frames camera_photo)

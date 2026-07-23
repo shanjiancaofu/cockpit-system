@@ -60,16 +60,9 @@ target_link_libraries(audio_runtime PUBLIC
     audio_processing
     config
     logging
+    sherpa_onnx_asr
     speech_output
 )
-if(TARGET whisper_asr)
-    target_compile_definitions(audio_runtime PRIVATE COCKPIT_HAS_WHISPER_CPP_ASR=1)
-    target_link_libraries(audio_runtime PRIVATE whisper_asr)
-endif()
-if(TARGET sherpa_onnx_asr)
-    target_compile_definitions(audio_runtime PRIVATE COCKPIT_HAS_SHERPA_ONNX_ASR=1)
-    target_link_libraries(audio_runtime PRIVATE sherpa_onnx_asr)
-endif()
 
 add_cockpit_module(cockpit_module_audio_driver audio_driver driver/audio/entry.cc)
 target_link_libraries(cockpit_module_audio_driver PRIVATE audio_runtime)
@@ -79,11 +72,7 @@ target_link_libraries(camera_preview PUBLIC camera_capture runtime)
 
 add_cockpit_library(camera_control driver/camera/control/camera_service.cc)
 target_link_libraries(camera_control PUBLIC base camera_frames camera_preview event runtime v4l2_camera)
-target_link_libraries(camera_control PRIVATE json_util)
-if(TARGET gstreamer_camera)
-    target_compile_definitions(camera_control PRIVATE COCKPIT_HAS_GSTREAMER_CAMERA=1)
-    target_link_libraries(camera_control PRIVATE gstreamer_camera)
-endif()
+target_link_libraries(camera_control PRIVATE gstreamer_camera json_util)
 
 add_cockpit_library(camera_photo_service driver/camera/photo/camera_photo_service.cc)
 target_link_libraries(camera_photo_service PUBLIC camera_photo camera_shm time_util)

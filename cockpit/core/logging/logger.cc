@@ -37,11 +37,7 @@ std::string LevelName(Level level) {
 std::string FormatTime(std::chrono::system_clock::time_point now, const char* format) {
   const auto now_time = std::chrono::system_clock::to_time_t(now);
   std::tm local_time{};
-#if defined(_WIN32)
-  localtime_s(&local_time, &now_time);
-#else
   localtime_r(&now_time, &local_time);
-#endif
   std::ostringstream out;
   out << std::put_time(&local_time, format);
   const auto millis =

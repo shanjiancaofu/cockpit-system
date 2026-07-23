@@ -7,11 +7,8 @@
 
 #include "cockpit/core/json/json.h"
 #include "cockpit/core/time/time.h"
-#include "cockpit/modules/camera/frames/latest_frame_buffer.h"
-
-#if defined(COCKPIT_HAS_GSTREAMER_CAMERA)
 #include "cockpit/modules/camera/capture/gstreamer_preview_pipeline.h"
-#endif
+#include "cockpit/modules/camera/frames/latest_frame_buffer.h"
 
 namespace cockpit {
 namespace camera {
@@ -24,15 +21,10 @@ void AssignError(std::string* error, const std::string& message) {
 }
 
 std::unique_ptr<CameraPreviewSource> CreateDefaultPreviewSource() {
-#if defined(COCKPIT_HAS_GSTREAMER_CAMERA)
   return std::make_unique<GstreamerPreviewPipeline>();
-#else
-  return nullptr;
-#endif
 }
 
 std::vector<VideoDeviceInfo> NormalizePreviewDevices(std::vector<VideoDeviceInfo> devices) {
-#if defined(COCKPIT_HAS_GSTREAMER_CAMERA)
   std::uint32_t argus_sensor_id = 0;
   for (auto& device : devices) {
     const bool jetson_csi = device.query_ok && device.supports_capture &&
@@ -45,7 +37,6 @@ std::vector<VideoDeviceInfo> NormalizePreviewDevices(std::vector<VideoDeviceInfo
     device.driver = "nvargus";
     device.card += " (Argus)";
   }
-#endif
   return devices;
 }
 

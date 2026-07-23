@@ -1,15 +1,13 @@
 #include "cockpit/modules/camera/photo/jpeg_encoder.h"
 
+#include <gst/app/gstappsrc.h>
+#include <gst/gst.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <exception>
 #include <mutex>
 #include <vector>
-
-#if defined(COCKPIT_HAS_GSTREAMER_PHOTO)
-#include <gst/app/gstappsrc.h>
-#include <gst/gst.h>
-#endif
 
 namespace cockpit {
 namespace camera {
@@ -31,7 +29,6 @@ std::uint32_t BytesPerPixel(CameraPixelFormat format) {
   return 0;
 }
 
-#if defined(COCKPIT_HAS_GSTREAMER_PHOTO)
 const char* GstreamerFormat(CameraPixelFormat format) {
   return format == CameraPixelFormat::kRgb ? "RGB" : "BGRx";
 }
@@ -62,27 +59,15 @@ std::string PipelineError(GstMessage* message) {
   }
   return result;
 }
-#endif
 
 }  // namespace
 
 bool JpegEncoder::IsAvailable() {
-#if defined(COCKPIT_HAS_GSTREAMER_PHOTO)
   return true;
-#else
-  return false;
-#endif
 }
 
 bool JpegEncoder::Encode(const CameraFrame& frame, const std::filesystem::path& output_path,
                          int quality, std::string* error) {
-#if !defined(COCKPIT_HAS_GSTREAMER_PHOTO)
-  static_cast<void>(frame);
-  static_cast<void>(output_path);
-  static_cast<void>(quality);
-  AssignError(error, "GStreamer JPEG backend is not available");
-  return false;
-#else
   if (!frame.IsValid()) {
     AssignError(error, "camera frame is invalid");
     return false;
@@ -175,7 +160,6 @@ bool JpegEncoder::Encode(const CameraFrame& frame, const std::filesystem::path& 
   gst_element_set_state(pipeline, GST_STATE_NULL);
   gst_object_unref(pipeline);
   return success;
-#endif
 }
 
 }  // namespace camera

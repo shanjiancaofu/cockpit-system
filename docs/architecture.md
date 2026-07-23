@@ -45,7 +45,8 @@ tests/                     单元测试与 smoke test
 `cockpit-navigator` 是车端唯一长运行入口。进程级模块表和 mode 组合固定在
 `navigator/run_config/run_config.cc`，不由业务 YAML 暴露动态库路径。父进程只把统一的
 `config.yaml` 路径传给 module child；子进程通过版本化 C ABI 和 `dlopen` 加载一个 `library/*`
-动态库。Navigator 负责模式切换、显式启停、状态查询、崩溃重启限制和退出回收，本地 Unix Socket
+动态库。Navigator 负责模式切换、显式启停、状态查询、崩溃重启限制和退出回收；异常退出的原因与
+重启结果以最多 20 份 JSON 写入 `paths.data_dir/crashes/`。本地 Unix Socket
 控制接口不依赖 transfer 模块。客户端连接、写入和读取以及服务端回复都有 1 秒上限，
 无响应 peer 不会永久卡住运行时命令。
 
@@ -115,7 +116,7 @@ ALSA microphone
     → SPSC RingBuffer
     → Energy VAD
     → SpeechSegmenter
-    → mock ASR / whisper.cpp / sherpa-onnx + SenseVoice
+    → mock ASR / sherpa-onnx + SenseVoice
     → agent
     → intent / action
     → mock TTS

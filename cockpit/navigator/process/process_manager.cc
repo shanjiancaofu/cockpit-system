@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "cockpit/core/logging/logger.h"
+#include "cockpit/core/time/time.h"
 
 namespace cockpit {
 namespace navigator {
@@ -28,6 +29,24 @@ int ExitCode(int wait_status) {
     return 128 + WTERMSIG(wait_status);
   }
   return -1;
+}
+
+int TerminationSignal(int wait_status) {
+  return WIFSIGNALED(wait_status) ? WTERMSIG(wait_status) : 0;
+}
+
+bool CoreDumped(int wait_status) {
+  return WIFSIGNALED(wait_status) && WCOREDUMP(wait_status);
+}
+
+const char* TerminationKind(int wait_status) {
+  if (WIFEXITED(wait_status)) {
+    return "exit";
+  }
+  if (WIFSIGNALED(wait_status)) {
+    return "signal";
+  }
+  return "unknown";
 }
 
 }  // namespace
@@ -45,11 +64,13 @@ const char* ToString(ProcessState state) {
 }
 
 ProcessManager::ProcessManager(RunConfig config, std::string executable_path,
-                               std::string module_dir, std::string module_config_path)
+                               std::string module_dir, std::string module_config_path,
+                               std::string crash_report_directory)
     : config_(std::move(config)),
       executable_path_(std::move(executable_path)),
       module_dir_(std::move(module_dir)),
-      module_config_path_(std::move(module_config_path)) {
+      module_config_path_(std::move(module_config_path)),
+      crash_reporter_(std::move(crash_report_directory)) {
   for (const ModuleConfig& module : config_.modules) {
     processes_.push_back(ProcessRecord{module});
   }
@@ -191,7 +212,7 @@ void ProcessManager::ReapExited() {
     }
     for (ProcessRecord& process : processes_) {
       if (process.pid == pid) {
-        HandleExit(&process, wait_status);
+        HandleExit(&process, pid, wait_status);
         break;
       }
     }
@@ -278,7 +299,7 @@ bool ProcessManager::Start(ProcessRecord* process, std::string* error) {
   return true;
 }
 
-void ProcessManager::HandleExit(ProcessRecord* process, int wait_status) {
+void ProcessManager::HandleExit(ProcessRecord* process, pid_t exited_pid, int wait_status) {
   process->pid = 0;
   process->last_exit_code = ExitCode(wait_status);
   if (!process->desired) {
@@ -293,6 +314,7 @@ void ProcessManager::HandleExit(ProcessRecord* process, int wait_status) {
   }
   if (static_cast<int>(process->restart_times.size()) >= config_.max_restarts) {
     process->state = ProcessState::kFailed;
+    RecordCrash(*process, exited_pid, wait_status, "limit_exceeded");
     LOG_ERROR("module " + process->config.name + " exceeded restart limit");
     return;
   }
@@ -301,6 +323,30 @@ void ProcessManager::HandleExit(ProcessRecord* process, int wait_status) {
   std::string error;
   if (!Start(process, &error)) {
     process->state = ProcessState::kFailed;
+    RecordCrash(*process, exited_pid, wait_status, "failed");
+    LOG_ERROR(error);
+    return;
+  }
+  RecordCrash(*process, exited_pid, wait_status, "succeeded");
+}
+
+void ProcessManager::RecordCrash(const ProcessRecord& process, pid_t exited_pid, int wait_status,
+                                 const std::string& restart_result) {
+  CrashReport report;
+  report.timestamp_ms = time::NowMs();
+  report.module = process.config.name;
+  report.mode = mode_;
+  report.pid = exited_pid;
+  report.termination = TerminationKind(wait_status);
+  report.exit_code = ExitCode(wait_status);
+  report.signal = TerminationSignal(wait_status);
+  report.core_dumped = CoreDumped(wait_status);
+  report.restart_result = restart_result;
+  report.restart_count = static_cast<int>(process.restart_times.size());
+  report.replacement_pid = restart_result == "succeeded" ? process.pid : 0;
+
+  std::string error;
+  if (!crash_reporter_.Record(report, &error)) {
     LOG_ERROR(error);
   }
 }

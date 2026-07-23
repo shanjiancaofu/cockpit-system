@@ -12,14 +12,8 @@
 #include "cockpit/library/driver/audio/playback/speech_output.h"
 #include "cockpit/library/driver/audio/processing/audio_service.h"
 #include "cockpit/modules/voice/asr/mock_speech_recognizer.h"
-#include "cockpit/modules/voice/tts/mock_speech_synthesizer.h"
-
-#if defined(COCKPIT_HAS_WHISPER_CPP_ASR)
-#include "cockpit/modules/voice/asr/whisper_speech_recognizer.h"
-#endif
-#if defined(COCKPIT_HAS_SHERPA_ONNX_ASR)
 #include "cockpit/modules/voice/asr/sherpa_onnx_speech_recognizer.h"
-#endif
+#include "cockpit/modules/voice/tts/mock_speech_synthesizer.h"
 
 namespace cockpit {
 namespace audio {
@@ -53,25 +47,7 @@ bool AudioRuntime::Start(const std::string& config_path,
       const auto& voice_config = config.features().voice;
       if (voice_config.asr_provider == "mock") {
         recognizer = std::make_unique<voice::MockSpeechRecognizer>();
-      } else if (voice_config.asr_provider == "whisper_cpp") {
-#if defined(COCKPIT_HAS_WHISPER_CPP_ASR)
-        voice::WhisperRecognizerConfig whisper_config;
-        whisper_config.model_path = voice_config.asr_model_path;
-        whisper_config.language = voice_config.asr_language;
-        whisper_config.threads = voice_config.asr_threads;
-        auto whisper_recognizer =
-            std::make_unique<voice::WhisperSpeechRecognizer>(std::move(whisper_config));
-        if (!whisper_recognizer->IsReady()) {
-          LOG_ERROR(whisper_recognizer->initialization_error());
-          return false;
-        }
-        recognizer = std::move(whisper_recognizer);
-#else
-        LOG_ERROR("whisper_cpp ASR requested but BUILD_WHISPER_CPP_ASR is disabled");
-        return false;
-#endif
       } else if (voice_config.asr_provider == "sherpa_onnx_sense_voice") {
-#if defined(COCKPIT_HAS_SHERPA_ONNX_ASR)
         voice::SherpaOnnxRecognizerConfig sherpa_config;
         sherpa_config.model_path = voice_config.asr_model_path;
         sherpa_config.language = voice_config.asr_language;
@@ -83,10 +59,6 @@ bool AudioRuntime::Start(const std::string& config_path,
           return false;
         }
         recognizer = std::move(sherpa_recognizer);
-#else
-        LOG_ERROR("sherpa_onnx_sense_voice ASR requested but BUILD_SHERPA_ONNX_ASR is disabled");
-        return false;
-#endif
       }
     }
 
