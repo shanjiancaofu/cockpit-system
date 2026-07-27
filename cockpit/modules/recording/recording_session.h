@@ -49,10 +49,18 @@ struct RecordingMetadata {
   std::vector<std::string> sources = {"vehicle_state", "events"};
 };
 
+struct RecordingSessionLimits {
+  std::uint64_t max_session_bytes = 1024ULL * 1024ULL * 1024ULL;
+  std::uint64_t max_total_bytes = 5ULL * 1024ULL * 1024ULL * 1024ULL;
+  std::uint64_t max_duration_ms = 4ULL * 60ULL * 60ULL * 1000ULL;
+  std::uint64_t min_free_bytes = 512ULL * 1024ULL * 1024ULL;
+  std::filesystem::path allowed_data_root;
+};
+
 class RecordingSession {
  public:
   RecordingSession(std::filesystem::path root_directory, std::string vehicle_id,
-                   RecordingMetadata metadata = {});
+                   RecordingMetadata metadata = {}, RecordingSessionLimits limits = {});
   ~RecordingSession();
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(RecordingSession);
@@ -63,11 +71,15 @@ class RecordingSession {
   bool AppendDataFile(const RecordingDataFile& file, std::string* error);
   bool Stop(std::string* error);
   RecordingStatus status() const;
+  void SetExistingBytes(std::uint64_t existing_bytes);
 
   static std::size_t RecoverInterrupted(const std::filesystem::path& root_directory,
                                         std::string* error);
 
  private:
+  bool EnsureCapacity(std::uint64_t additional_bytes, std::string* error);
+  int OpenAllowedDataFile(const std::filesystem::path& source, std::uint64_t* size,
+                          std::string* error) const;
   bool CopyDataFile(RecordingDataFile* file, std::string* error);
   static bool CloseOutput(std::ofstream* output, const char* filename, std::string* error);
   static bool WriteMarker(const std::filesystem::path& path, std::int64_t timestamp_ms,
@@ -79,6 +91,7 @@ class RecordingSession {
   const std::filesystem::path root_directory_;
   const std::string vehicle_id_;
   const RecordingMetadata metadata_;
+  const RecordingSessionLimits limits_;
   mutable std::mutex mutex_;
   RecordingStatus status_;
   std::filesystem::path temporary_directory_;
@@ -86,6 +99,11 @@ class RecordingSession {
   std::ofstream vehicle_state_file_;
   std::ofstream event_file_;
   std::ofstream data_file_index_;
+  std::uint64_t active_bytes_{0};
+  std::uint64_t existing_bytes_{0};
+  std::uint64_t vehicle_messages_since_flush_{0};
+  std::uint64_t event_messages_since_flush_{0};
+  std::uint64_t data_messages_since_flush_{0};
 };
 
 }  // namespace recording

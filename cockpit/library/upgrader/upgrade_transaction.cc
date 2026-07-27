@@ -1,25 +1,35 @@
 #include "cockpit/library/upgrader/upgrade_transaction.h"
 
 #include <fcntl.h>
+#include <signal.h>
+#include <spawn.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <cerrno>
 #include <chrono>
 #include <cstring>
 #include <fstream>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
 
+extern char** environ;
+
 namespace cockpit {
 namespace upgrader {
 namespace {
+
+constexpr auto kChecksumTimeout = std::chrono::seconds(60);
+constexpr auto kInstallTimeout = std::chrono::minutes(10);
+constexpr auto kProcessTerminationGrace = std::chrono::milliseconds(500);
 
 bool Fail(std::string* error, std::string message) {
   if (error != nullptr) {
@@ -55,6 +65,158 @@ bool IsValidVersion(const std::string& version) {
   return std::all_of(version.begin(), version.end(), [](unsigned char value) {
     return std::isalnum(value) != 0 || value == '.' || value == '_' || value == '-';
   });
+}
+
+struct SemanticVersion {
+  std::vector<unsigned long long> core;
+  std::string prerelease;
+};
+
+bool ParseSemanticVersion(const std::string& value, SemanticVersion* version) {
+  if (version == nullptr) {
+    return false;
+  }
+  const std::size_t separator = value.find('-');
+  const std::string core = value.substr(0, separator);
+  const std::string prerelease =
+      separator == std::string::npos ? std::string() : value.substr(separator + 1U);
+  if (core.empty() || (separator != std::string::npos && prerelease.empty())) {
+    return false;
+  }
+
+  SemanticVersion parsed;
+  parsed.prerelease = prerelease;
+  std::size_t begin = 0;
+  while (begin <= core.size()) {
+    const std::size_t end = core.find('.', begin);
+    const std::string component =
+        core.substr(begin, end == std::string::npos ? std::string::npos : end - begin);
+    if (component.empty() ||
+        !std::all_of(component.begin(), component.end(), [](unsigned char character) {
+          return std::isdigit(character) != 0;
+        })) {
+      return false;
+    }
+    unsigned long long number = 0;
+    for (const unsigned char character : component) {
+      const unsigned int digit = character - static_cast<unsigned char>('0');
+      if (number > (std::numeric_limits<unsigned long long>::max() - digit) / 10ULL) {
+        return false;
+      }
+      number = number * 10ULL + digit;
+    }
+    parsed.core.push_back(number);
+    if (end == std::string::npos) {
+      break;
+    }
+    begin = end + 1U;
+  }
+  if (parsed.core.size() != 3U || (!parsed.prerelease.empty() &&
+                                   !std::all_of(parsed.prerelease.begin(), parsed.prerelease.end(),
+                                                [](unsigned char character) {
+                                                  return std::isalnum(character) != 0 ||
+                                                         character == '.' || character == '-';
+                                                }))) {
+    return false;
+  }
+  *version = std::move(parsed);
+  return true;
+}
+
+int CompareSemanticVersions(const SemanticVersion& left, const SemanticVersion& right) {
+  if (left.core != right.core) {
+    return std::lexicographical_compare(left.core.begin(), left.core.end(), right.core.begin(),
+                                        right.core.end())
+               ? -1
+               : 1;
+  }
+  if (left.prerelease.empty() != right.prerelease.empty()) {
+    return left.prerelease.empty() ? 1 : -1;
+  }
+  if (left.prerelease == right.prerelease) {
+    return 0;
+  }
+  return left.prerelease < right.prerelease ? -1 : 1;
+}
+
+bool ReadVersionFile(const std::filesystem::path& path, std::string* version, std::string* error) {
+  std::ifstream input(path);
+  std::string value;
+  std::string trailing;
+  if (!input.is_open() || !std::getline(input, value) || std::getline(input, trailing)) {
+    return Fail(error, "invalid OTA version floor: " + path.string());
+  }
+  SemanticVersion parsed;
+  if (!ParseSemanticVersion(value, &parsed)) {
+    return Fail(error, "OTA version floor is not a semantic version: " + value);
+  }
+  *version = std::move(value);
+  return true;
+}
+
+bool WriteYaml(const std::filesystem::path& path, const YAML::Emitter& output, std::string* error);
+
+bool PersistVersionFloor(const std::filesystem::path& install_root, const std::string& version,
+                         std::string* error) {
+  SemanticVersion parsed;
+  if (!ParseSemanticVersion(version, &parsed)) {
+    return Fail(error, "confirmed OTA version is not a semantic version: " + version);
+  }
+  const std::filesystem::path floor_path = install_root / "data/ota-version-floor";
+  if (std::filesystem::exists(floor_path)) {
+    std::string existing_version;
+    SemanticVersion existing;
+    if (!ReadVersionFile(floor_path, &existing_version, error) ||
+        !ParseSemanticVersion(existing_version, &existing)) {
+      return false;
+    }
+    const int comparison = CompareSemanticVersions(parsed, existing);
+    if (comparison < 0) {
+      return Fail(
+          error, "refusing to lower OTA version floor from " + existing_version + " to " + version);
+    }
+    if (comparison == 0) {
+      return true;
+    }
+  }
+  YAML::Emitter output;
+  output << version;
+  return output.good() ? WriteYaml(floor_path, output, error)
+                       : Fail(error, "serialize OTA version floor failed");
+}
+
+bool CheckAntiRollback(const std::filesystem::path& install_root,
+                       const std::filesystem::path& current_release,
+                       const std::string& candidate_version, std::string* error) {
+  SemanticVersion candidate;
+  if (!ParseSemanticVersion(candidate_version, &candidate)) {
+    return Fail(error, "OTA version must use semantic version format MAJOR.MINOR.PATCH");
+  }
+
+  std::vector<std::string> baseline_versions;
+  const std::filesystem::path floor_path = install_root / "data/ota-version-floor";
+  if (std::filesystem::exists(floor_path)) {
+    std::string floor_version;
+    if (!std::filesystem::is_regular_file(floor_path) ||
+        !ReadVersionFile(floor_path, &floor_version, error)) {
+      return false;
+    }
+    baseline_versions.push_back(std::move(floor_version));
+  }
+  if (!current_release.empty()) {
+    baseline_versions.push_back(current_release.filename().string());
+  }
+  for (const std::string& baseline_version : baseline_versions) {
+    SemanticVersion baseline;
+    if (!ParseSemanticVersion(baseline_version, &baseline)) {
+      return Fail(error, "active/floor OTA version is not a semantic version: " + baseline_version);
+    }
+    if (CompareSemanticVersions(candidate, baseline) <= 0) {
+      return Fail(error, "anti-rollback rejected version " + candidate_version +
+                             "; version must be newer than " + baseline_version);
+    }
+  }
+  return true;
 }
 
 bool IsSafeReleaseTarget(const std::filesystem::path& path) {
@@ -120,38 +282,97 @@ bool ValidateChecksumManifest(const std::filesystem::path& package_root, std::st
 }
 
 int RunProcess(const std::vector<std::string>& arguments, const std::filesystem::path& directory,
-               const std::vector<std::pair<std::string, std::string>>& environment) {
+               const std::vector<std::pair<std::string, std::string>>& environment,
+               std::chrono::milliseconds timeout, const std::atomic_bool* running) {
+  if (arguments.empty() || timeout.count() <= 0) {
+    return -1;
+  }
+  std::vector<std::string> spawn_arguments{"/usr/bin/setpriv", "--pdeathsig", "SIGTERM", "--"};
+  spawn_arguments.insert(spawn_arguments.end(), arguments.begin(), arguments.end());
   std::vector<char*> argv;
-  argv.reserve(arguments.size() + 1);
-  for (const std::string& argument : arguments) {
+  argv.reserve(spawn_arguments.size() + 1);
+  for (const std::string& argument : spawn_arguments) {
     argv.push_back(const_cast<char*>(argument.c_str()));
   }
   argv.push_back(nullptr);
 
-  const pid_t pid = fork();
-  if (pid < 0) {
+  std::vector<std::string> environment_storage;
+  for (char** current = environ; current != nullptr && *current != nullptr; ++current) {
+    environment_storage.emplace_back(*current);
+  }
+  for (const auto& value : environment) {
+    const std::string prefix = value.first + "=";
+    environment_storage.erase(std::remove_if(environment_storage.begin(), environment_storage.end(),
+                                             [&prefix](const std::string& existing) {
+                                               return existing.rfind(prefix, 0) == 0;
+                                             }),
+                              environment_storage.end());
+    environment_storage.push_back(prefix + value.second);
+  }
+  std::vector<char*> envp;
+  envp.reserve(environment_storage.size() + 1U);
+  for (std::string& value : environment_storage) {
+    envp.push_back(value.data());
+  }
+  envp.push_back(nullptr);
+
+  posix_spawn_file_actions_t actions;
+  posix_spawnattr_t attributes;
+  const int actions_result = posix_spawn_file_actions_init(&actions);
+  if (actions_result != 0) {
     return -1;
   }
-  if (pid == 0) {
-    if (!directory.empty() && chdir(directory.c_str()) != 0) {
-      _exit(126);
-    }
-    for (const auto& value : environment) {
-      if (setenv(value.first.c_str(), value.second.c_str(), 1) != 0) {
-        _exit(126);
-      }
-    }
-    execv(arguments.front().c_str(), argv.data());
-    _exit(127);
+  if (posix_spawnattr_init(&attributes) != 0) {
+    posix_spawn_file_actions_destroy(&actions);
+    return -1;
+  }
+  bool spawn_configuration_ok = true;
+  if (!directory.empty()) {
+    spawn_configuration_ok = posix_spawn_file_actions_addchdir_np(&actions, directory.c_str()) == 0;
+  }
+  spawn_configuration_ok &= posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP) == 0 &&
+                            posix_spawnattr_setpgroup(&attributes, 0) == 0;
+
+  pid_t pid = 0;
+  const int spawn_result = spawn_configuration_ok
+                               ? posix_spawn(&pid, spawn_arguments.front().c_str(), &actions,
+                                             &attributes, argv.data(), envp.data())
+                               : EINVAL;
+  posix_spawnattr_destroy(&attributes);
+  posix_spawn_file_actions_destroy(&actions);
+  if (spawn_result != 0) {
+    return -1;
   }
 
+  const auto deadline = std::chrono::steady_clock::now() + timeout;
   int status = 0;
-  while (waitpid(pid, &status, 0) < 0) {
-    if (errno != EINTR) {
+  while (true) {
+    const pid_t wait_result = waitpid(pid, &status, WNOHANG);
+    if (wait_result == pid) {
+      return WIFEXITED(status) ? WEXITSTATUS(status)
+                               : (WIFSIGNALED(status) ? 128 + WTERMSIG(status) : -1);
+    }
+    if (wait_result < 0 && errno != EINTR) {
       return -1;
     }
+    const bool cancelled = running != nullptr && !running->load();
+    if (cancelled || std::chrono::steady_clock::now() >= deadline) {
+      kill(-pid, SIGTERM);
+      const auto termination_deadline = std::chrono::steady_clock::now() + kProcessTerminationGrace;
+      do {
+        const pid_t termination_result = waitpid(pid, &status, WNOHANG);
+        if (termination_result == pid) {
+          return cancelled ? -3 : -2;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      } while (std::chrono::steady_clock::now() < termination_deadline);
+      kill(-pid, SIGKILL);
+      while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {
+      }
+      return cancelled ? -3 : -2;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
-  return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 }
 
 bool WriteYaml(const std::filesystem::path& path, const YAML::Emitter& output, std::string* error) {
@@ -281,7 +502,8 @@ bool ReadUpgradePackageVersion(const std::filesystem::path& package_root, std::s
   }
 }
 
-bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result) {
+bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result,
+                    const std::atomic_bool* running) {
   if (result == nullptr) {
     return false;
   }
@@ -298,6 +520,18 @@ bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result) {
       result->error = "upgrade package is missing deploy/install.sh";
       return false;
     }
+    if (!std::filesystem::is_regular_file(request.public_key) ||
+        !std::filesystem::is_regular_file(package_root / "manifest/SHA256SUMS.sig")) {
+      result->error = "trusted OTA public key or manifest signature is missing";
+      return false;
+    }
+    if (RunProcess({"/usr/bin/openssl", "pkeyutl", "-verify", "-pubin", "-inkey",
+                    std::filesystem::absolute(request.public_key).string(), "-rawin", "-in",
+                    "manifest/SHA256SUMS", "-sigfile", "manifest/SHA256SUMS.sig"},
+                   package_root, {}, kChecksumTimeout, running) != 0) {
+      result->error = "package manifest signature verification failed";
+      return false;
+    }
     if (!ValidateChecksumManifest(package_root, &result->error)) {
       return false;
     }
@@ -310,7 +544,7 @@ bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result) {
       return false;
     }
     if (RunProcess({"/usr/bin/sha256sum", "--check", "--quiet", "--strict", "manifest/SHA256SUMS"},
-                   package_root, {}) != 0) {
+                   package_root, {}, kChecksumTimeout, running) != 0) {
       result->error = "package checksum verification failed";
       return false;
     }
@@ -331,6 +565,10 @@ bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result) {
         return false;
       }
     }
+    if (!CheckAntiRollback(install_root, result->previous_release, request.version,
+                           &result->error)) {
+      return false;
+    }
     if (std::filesystem::exists(
             std::filesystem::symlink_status(install_root / "releases" / request.version))) {
       result->error = "release already exists: " + request.version;
@@ -345,9 +583,12 @@ bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result) {
     }
 
     const std::filesystem::path installer = package_root / "deploy/install.sh";
-    const int install_result =
-        RunProcess({installer.string()}, installer.parent_path(),
-                   {{"COCKPIT_ROOT", install_root.string()}, {"INSTALL_SYSTEMD", "false"}});
+    const int install_result = RunProcess(
+        {installer.string()}, installer.parent_path(),
+        {{"COCKPIT_ROOT", install_root.string()},
+         {"COCKPIT_OTA_PUBLIC_KEY", std::filesystem::absolute(request.public_key).string()},
+         {"INSTALL_SYSTEMD", "false"}},
+        kInstallTimeout, running);
     if (install_result != 0) {
       std::string recovery_error;
       if (!RecoverInterruptedUpgrade(install_root, nullptr, &recovery_error)) {
@@ -461,6 +702,9 @@ bool RecoverInterruptedUpgrade(const std::filesystem::path& install_root, bool* 
           !std::filesystem::is_directory(root / candidate)) {
         return Fail(error, "confirmed upgrade transaction does not match current release");
       }
+      if (!PersistVersionFloor(root, transaction.version, error)) {
+        return false;
+      }
     } else if (!RollbackUpgrade(root, transaction.previous_release, error)) {
       return false;
     }
@@ -518,6 +762,9 @@ bool ConfirmUpgrade(const std::filesystem::path& install_root, const std::string
     if (!SaveTransaction(transaction_path, transaction, error)) {
       return false;
     }
+    if (!PersistVersionFloor(root, transaction.version, error)) {
+      return false;
+    }
     std::error_code filesystem_error;
     std::filesystem::remove(transaction_path, filesystem_error);
     if (filesystem_error) {
@@ -539,8 +786,16 @@ bool WaitForUpgradeHealth(const std::filesystem::path& command,
   }
   const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(timeout_seconds);
   do {
+    const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+        deadline - std::chrono::steady_clock::now());
+    if (remaining.count() <= 0) {
+      break;
+    }
+    const auto command_timeout = std::min(
+        remaining, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::seconds(30)));
     if (RunProcess({std::filesystem::absolute(command).string()}, command.parent_path(),
-                   {{"COCKPIT_ROOT", std::filesystem::absolute(install_root).string()}}) == 0) {
+                   {{"COCKPIT_ROOT", std::filesystem::absolute(install_root).string()}},
+                   command_timeout, nullptr) == 0) {
       return true;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -554,7 +809,8 @@ bool SaveUpgradeRequest(const std::filesystem::path& path, const UpgradeRequest&
   output << YAML::BeginMap << YAML::Key << "package_root" << YAML::Value
          << std::filesystem::absolute(request.package_root).string() << YAML::Key << "install_root"
          << YAML::Value << std::filesystem::absolute(request.install_root).string() << YAML::Key
-         << "version" << YAML::Value << request.version << YAML::EndMap;
+         << "public_key" << YAML::Value << std::filesystem::absolute(request.public_key).string()
+         << YAML::Key << "version" << YAML::Value << request.version << YAML::EndMap;
   return output.good() ? WriteYaml(path, output, error)
                        : Fail(error, "serialize upgrade request failed");
 }
@@ -568,13 +824,16 @@ bool LoadUpgradeRequest(const std::filesystem::path& path, UpgradeRequest* reque
     const YAML::Node root = YAML::LoadFile(path.string());
     std::string package_root;
     std::string install_root;
+    std::string public_key;
     if (!root.IsMap() || !ReadRequiredScalar(root, "package_root", &package_root, error) ||
         !ReadRequiredScalar(root, "install_root", &install_root, error) ||
+        !ReadRequiredScalar(root, "public_key", &public_key, error) ||
         !ReadRequiredScalar(root, "version", &request->version, error)) {
       return false;
     }
     request->package_root = package_root;
     request->install_root = install_root;
+    request->public_key = public_key;
     return true;
   } catch (const std::exception& exception) {
     return Fail(error, "load upgrade request failed: " + std::string(exception.what()));

@@ -1,6 +1,9 @@
 #include "cockpit/library/driver/camera/photo/camera_photo_service.h"
 
+#include <unistd.h>
+
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <exception>
 #include <utility>
@@ -12,6 +15,8 @@
 namespace cockpit {
 namespace camera {
 namespace {
+
+std::atomic<std::uint64_t> g_photo_sequence{0};
 
 void AssignError(std::string* error, const std::string& message) {
   if (error != nullptr) {
@@ -37,7 +42,9 @@ bool CameraPhotoService::TakePhoto(const std::string& filename, CameraPhotoResul
     return false;
   }
   const std::string resolved_filename =
-      filename.empty() ? "photo_" + std::to_string(time::NowMs()) + ".jpg" : filename;
+      filename.empty() ? "photo_" + std::to_string(time::NowMs()) + "_" + std::to_string(getpid()) +
+                             "_" + std::to_string(g_photo_sequence.fetch_add(1U)) + ".jpg"
+                       : filename;
   if (!IsSafeFilename(resolved_filename)) {
     AssignError(error,
                 "photo filename must contain only letters, digits, '-', '_' and end in .jpg");

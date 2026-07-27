@@ -45,9 +45,10 @@ std::string ConfigChecksum(const std::string& path) {
 class RecordingRuntime::Impl {
  public:
   Impl(std::filesystem::path directory, std::string vehicle_id, RecordingRetentionPolicy retention,
-       RecordingMetadata metadata, const std::string& vehicle_address, int stream_timeout_ms,
-       int retry_delay_ms)
-      : service(std::move(directory), std::move(vehicle_id), retention, std::move(metadata)),
+       RecordingMetadata metadata, RecordingSessionLimits limits,
+       const std::string& vehicle_address, int stream_timeout_ms, int retry_delay_ms)
+      : service(std::move(directory), std::move(vehicle_id), retention, std::move(metadata),
+                std::move(limits)),
         grpc(service),
         subscriber(vehicle_address, stream_timeout_ms, retry_delay_ms) {
   }
@@ -110,8 +111,14 @@ bool RecordingRuntime::Start(const std::string& config_path,
         directory, system_config.system().vehicle_id,
         RecordingRetentionPolicy{static_cast<std::size_t>(recording_config.max_sessions),
                                  recording_config.max_total_bytes},
-        std::move(metadata), recording_config.vehicle_data_address,
-        recording_config.stream_timeout_ms, recording_config.retry_delay_ms);
+        std::move(metadata),
+        RecordingSessionLimits{
+            recording_config.max_session_bytes, recording_config.max_total_bytes,
+            static_cast<std::uint64_t>(recording_config.max_session_duration_seconds) * 1000U,
+            recording_config.min_free_bytes,
+            std::filesystem::absolute(std::filesystem::path(system_config.paths().data_dir))},
+        recording_config.vehicle_data_address, recording_config.stream_timeout_ms,
+        recording_config.retry_delay_ms);
     std::string error;
     if (!impl_->service.Initialize(&error)) {
       LOG_ERROR("initialize recording catalog failed: " + error);

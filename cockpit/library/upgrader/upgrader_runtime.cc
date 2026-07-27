@@ -49,7 +49,7 @@ bool UpgraderRuntime::Start(const std::string& config_path) {
     result_.store(0);
     worker_ = std::thread([this, request] {
       UpgradeResult upgrade_result;
-      InstallUpgrade(request, &upgrade_result);
+      InstallUpgrade(request, &upgrade_result, &active_);
       std::string error;
       if (!SaveUpgradeResult(result_path_, upgrade_result, &error)) {
         LOG_ERROR(error);

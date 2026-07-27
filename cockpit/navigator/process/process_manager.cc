@@ -3,19 +3,24 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
+#include <spawn.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <cerrno>
 #include <chrono>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <thread>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "cockpit/core/logging/logger.h"
 #include "cockpit/core/time/time.h"
+
+extern char** environ;
 
 namespace cockpit {
 namespace navigator {
@@ -161,28 +166,53 @@ bool ProcessManager::StopModule(const std::string& name, std::string* error) {
     return true;
   }
 
-  kill(process->pid, SIGTERM);
+  const pid_t target_pid = process->pid;
+  if (kill(-target_pid, SIGTERM) < 0 && errno != ESRCH) {
+    *error = "failed to terminate module " + name + ": " + std::strerror(errno);
+    return false;
+  }
   const auto deadline =
       std::chrono::steady_clock::now() + std::chrono::milliseconds(config_.stop_timeout_ms);
   int wait_status = 0;
   while (std::chrono::steady_clock::now() < deadline) {
-    const pid_t result = waitpid(process->pid, &wait_status, WNOHANG);
-    if (result == process->pid || (result < 0 && errno == ECHILD)) {
-      const bool reaped = result == process->pid;
+    const pid_t result = waitpid(target_pid, &wait_status, WNOHANG);
+    if (result == target_pid) {
       process->pid = 0;
       process->state = ProcessState::kStopped;
-      process->last_exit_code = reaped ? ExitCode(wait_status) : 0;
+      process->last_exit_code = ExitCode(wait_status);
       return true;
+    }
+    if (result < 0 && errno == EINTR) {
+      continue;
+    }
+    if (result < 0 && errno == ECHILD && kill(target_pid, 0) < 0 && errno == ESRCH) {
+      process->pid = 0;
+      process->state = ProcessState::kStopped;
+      process->last_exit_code = 0;
+      return true;
+    }
+    if (result < 0) {
+      *error = "failed while waiting for module " + name + ": " + std::strerror(errno);
+      return false;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
-  kill(process->pid, SIGKILL);
-  while (waitpid(process->pid, &wait_status, 0) < 0 && errno == EINTR) {
+  if (kill(-target_pid, SIGKILL) < 0 && errno != ESRCH) {
+    *error = "failed to kill module " + name + ": " + std::strerror(errno);
+    return false;
+  }
+  pid_t wait_result = 0;
+  do {
+    wait_result = waitpid(target_pid, &wait_status, 0);
+  } while (wait_result < 0 && errno == EINTR);
+  if (wait_result < 0 && !(errno == ECHILD && kill(target_pid, 0) < 0 && errno == ESRCH)) {
+    *error = "module " + name + " termination state is unknown: " + std::strerror(errno);
+    return false;
   }
   process->pid = 0;
   process->state = ProcessState::kStopped;
-  process->last_exit_code = ExitCode(wait_status);
+  process->last_exit_code = wait_result == target_pid ? ExitCode(wait_status) : 0;
   return true;
 }
 
@@ -251,27 +281,51 @@ ProcessManager::ProcessRecord* ProcessManager::Find(const std::string& name) {
 bool ProcessManager::Start(ProcessRecord* process, std::string* error) {
   const std::string library_path = LibraryPath(process->config.library);
   int ready_pipe[2];
-  if (pipe2(ready_pipe, O_CLOEXEC) < 0) {
+  if (pipe2(ready_pipe, 0) < 0) {
     *error = "failed to create readiness pipe for " + process->config.name;
     process->state = ProcessState::kFailed;
     return false;
   }
-  const pid_t pid = fork();
-  if (pid < 0) {
+  const std::string ready_fd = std::to_string(ready_pipe[1]);
+  std::vector<std::string> arguments{
+      executable_path_, "--module-child",  "--module",          process->config.name, "--library",
+      library_path,     "--module-config", module_config_path_, "--ready-fd",         ready_fd,
+  };
+  std::vector<char*> argv;
+  argv.reserve(arguments.size() + 1U);
+  for (std::string& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  argv.push_back(nullptr);
+
+  posix_spawn_file_actions_t actions;
+  posix_spawnattr_t attributes;
+  const int actions_result = posix_spawn_file_actions_init(&actions);
+  const int attributes_result = actions_result == 0 ? posix_spawnattr_init(&attributes) : EINVAL;
+  bool spawn_configuration_ok = actions_result == 0 && attributes_result == 0;
+  if (spawn_configuration_ok) {
+    spawn_configuration_ok = posix_spawn_file_actions_addclose(&actions, ready_pipe[0]) == 0 &&
+                             posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP) == 0 &&
+                             posix_spawnattr_setpgroup(&attributes, 0) == 0;
+  }
+  pid_t pid = 0;
+  const int spawn_result =
+      spawn_configuration_ok
+          ? posix_spawn(&pid, executable_path_.c_str(), &actions, &attributes, argv.data(), environ)
+          : EINVAL;
+  if (attributes_result == 0) {
+    posix_spawnattr_destroy(&attributes);
+  }
+  if (actions_result == 0) {
+    posix_spawn_file_actions_destroy(&actions);
+  }
+  if (spawn_result != 0) {
     close(ready_pipe[0]);
     close(ready_pipe[1]);
-    *error = "failed to fork module " + process->config.name;
+    *error = "failed to spawn module " + process->config.name + ": " +
+             std::string(std::strerror(spawn_result));
     process->state = ProcessState::kFailed;
     return false;
-  }
-  if (pid == 0) {
-    close(ready_pipe[0]);
-    fcntl(ready_pipe[1], F_SETFD, 0);
-    const std::string ready_fd = std::to_string(ready_pipe[1]);
-    execl(executable_path_.c_str(), executable_path_.c_str(), "--module-child", "--module",
-          process->config.name.c_str(), "--library", library_path.c_str(), "--module-config",
-          module_config_path_.c_str(), "--ready-fd", ready_fd.c_str(), static_cast<char*>(nullptr));
-    _exit(127);
   }
 
   close(ready_pipe[1]);
@@ -281,7 +335,7 @@ bool ProcessManager::Start(ProcessRecord* process, std::string* error) {
   const ssize_t read_size = poll_result > 0 ? read(ready_pipe[0], &ready, 1) : -1;
   close(ready_pipe[0]);
   if (read_size != 1 || ready != '1') {
-    kill(pid, SIGKILL);
+    kill(-pid, SIGKILL);
     int wait_status = 0;
     while (waitpid(pid, &wait_status, 0) < 0 && errno == EINTR) {
     }

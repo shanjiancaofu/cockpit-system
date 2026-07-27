@@ -13,6 +13,20 @@ if [[ "${mode}" != "normal" && "${mode}" != "development" && "${mode}" != "cloud
 fi
 
 runtime_status="$("${ctl}" runtime status --socket "${socket_path}")"
+expected_release="$(readlink -f "${install_root}/current")"
+expected_version="$(tr -d '\r\n' <"${install_root}/current/manifest/VERSION")"
+runtime_header="${runtime_status%%$'\n'*}"
+runtime_version="$(sed -n 's/.* version=\([^ ]*\\).*/\1/p' <<<"${runtime_header}")"
+navigator_executable="$(sed -n 's/.* executable=\([^ ]*\\).*/\1/p' <<<"${runtime_header}")"
+if [[ "${runtime_version}" != "${expected_version}" ]]; then
+  echo "Navigator version mismatch: expected ${expected_version}, got ${runtime_version}" >&2
+  exit 1
+fi
+if [[ -z "${navigator_executable}" ||
+      "$(readlink -f "${navigator_executable}")" != "${expected_release}/bin/cockpit-navigator" ]]; then
+  echo "Navigator executable is not from the active release: ${navigator_executable}" >&2
+  exit 1
+fi
 case "${mode}" in
   normal)
     expected_modules=(transfer vehicle_driver audio_driver camera_driver agent)
@@ -29,8 +43,16 @@ if [[ ( "${mode}" == "normal" || "${mode}" == "development" ) &&
   expected_modules+=(hmi)
 fi
 for module in "${expected_modules[@]}"; do
-  if [[ "${runtime_status}" != *"module=${module} state=running"* ]]; then
+  module_status="$(grep -m1 "^module=${module} " <<<"${runtime_status}" || true)"
+  if [[ "${module_status}" != *"state=running"* ]]; then
     echo "Navigator module is not running: ${module}" >&2
+    exit 1
+  fi
+  module_pid="$(sed -n 's/.* pid=\([0-9][0-9]*\).*/\1/p' <<<"${module_status}")"
+  if [[ -z "${module_pid}" ||
+        "$(readlink -f "/proc/${module_pid}/exe" 2>/dev/null || true)" !=
+          "${expected_release}/bin/cockpit-navigator" ]]; then
+    echo "Navigator module is not from the active release: ${module}" >&2
     exit 1
   fi
 done

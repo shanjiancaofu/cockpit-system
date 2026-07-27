@@ -223,6 +223,7 @@ target_link_libraries(system_config_test PRIVATE config)
 target_compile_definitions(system_config_test
     PRIVATE
         VALID_CONFIG_PATH="${PROJECT_SOURCE_DIR}/configs/config.yaml"
+        PRODUCTION_CONFIG_PATH="${PROJECT_SOURCE_DIR}/configs/config.production.yaml"
         INVALID_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config.yaml"
         INVALID_CONFIG_TYPE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config_type.yaml"
         INVALID_CONFIG_KEY_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config_key.yaml"

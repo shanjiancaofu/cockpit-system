@@ -1,8 +1,10 @@
 #include "cockpit/library/driver/camera/control/camera_service.h"
 
+#include <atomic>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -280,6 +282,24 @@ int main() {
       !Check(list_calls >= 3, "camera service did not use injected device lister")) {
     return 1;
   }
+
+  std::atomic<bool> read_status{true};
+  std::thread status_reader([&service, &read_status]() {
+    while (read_status.load()) {
+      static_cast<void>(service.status());
+    }
+  });
+  for (int i = 0; i < 50; ++i) {
+    if (!service.StartPreview(request, &error)) {
+      read_status = false;
+      status_reader.join();
+      std::cerr << "concurrent camera lifecycle start failed: " << error << '\n';
+      return 1;
+    }
+    service.StopPreview();
+  }
+  read_status = false;
+  status_reader.join();
 
   std::cout << "camera service tests passed\n";
   return 0;

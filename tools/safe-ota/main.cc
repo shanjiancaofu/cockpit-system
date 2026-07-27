@@ -10,10 +10,11 @@
 namespace {
 
 void PrintUsage() {
-  std::cout << "Usage:\n"
-            << "  safe-ota --package PATH --confirm VERSION [--root PATH] [--socket PATH]\n"
-            << "           [--health-command PATH] [--timeout SEC] [--standalone]\n"
-            << "  safe-ota --recover [--root PATH]\n";
+  std::cout
+      << "Usage:\n"
+      << "  safe-ota --package PATH --confirm VERSION [--root PATH] [--socket PATH]\n"
+      << "           [--public-key PATH] [--health-command PATH] [--timeout SEC] [--standalone]\n"
+      << "  safe-ota --recover [--root PATH]\n";
 }
 
 }  // namespace
@@ -44,6 +45,8 @@ int main(int argc, char** argv) {
     options.recover_only = recover_only;
     if (!recover_only) {
       options.package_root = std::filesystem::canonical(package_argument);
+      options.public_key = std::filesystem::absolute(args.GetString(
+          "public-key", (options.install_root / "config/ota-public-key.pem").string()));
       options.confirmed_version = confirmed_version;
       options.health_command = std::filesystem::absolute(args.GetString(
           "health-command", (options.package_root / "deploy/healthcheck.sh").string()));

@@ -1,3 +1,5 @@
+#include <signal.h>
+#include <sys/prctl.h>
 #include <unistd.h>
 
 #include <filesystem>
@@ -52,6 +54,12 @@ int main(int argc, char** argv) {
         std::cerr << "module child requires --module and --library\n";
         return 64;
       }
+      const pid_t navigator_pid = getppid();
+      if (navigator_pid <= 1 || prctl(PR_SET_PDEATHSIG, SIGTERM) != 0 ||
+          getppid() != navigator_pid) {
+        std::cerr << "module child lost its Navigator parent\n";
+        return 1;
+      }
       return cockpit::navigator::RunModuleChild(name, library, args.GetString("module-config", ""),
                                                 args.GetInt("ready-fd", -1));
     }
@@ -93,7 +101,21 @@ int main(int argc, char** argv) {
     cockpit::navigator::Navigator navigator(std::move(config), executable.string(),
                                             args.GetString("module-dir", default_module_dir),
                                             config_path, crash_report_directory);
-    return navigator.Run();
+    const int result = navigator.Run();
+    if (result != 75 || navigator.reexec_mode().empty()) {
+      return result;
+    }
+
+    const std::filesystem::path install_root =
+        std::filesystem::absolute(config_path).parent_path().parent_path();
+    const std::string replacement = (install_root / "current/bin/cockpit-navigator").string();
+    const std::string replacement_modules = (install_root / "current/lib/cockpit/modules").string();
+    const std::string replacement_mode = navigator.reexec_mode();
+    execl(replacement.c_str(), replacement.c_str(), "--config", config_path.c_str(), "--module-dir",
+          replacement_modules.c_str(), "--socket", socket_path.c_str(), "--mode",
+          replacement_mode.c_str(), static_cast<char*>(nullptr));
+    std::cerr << "cockpit-navigator: failed to execute replacement " << replacement << '\n';
+    return 75;
   } catch (const std::exception& error) {
     std::cerr << "cockpit-navigator: " << error.what() << '\n';
     return 1;

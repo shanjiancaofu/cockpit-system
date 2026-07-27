@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <filesystem>
 #include <string>
 
@@ -9,6 +10,7 @@ namespace upgrader {
 struct UpgradeRequest {
   std::filesystem::path package_root;
   std::filesystem::path install_root;
+  std::filesystem::path public_key;
   std::string version;
 };
 
@@ -26,7 +28,8 @@ struct UpgradeResult {
 
 bool ReadUpgradePackageVersion(const std::filesystem::path& package_root, std::string* version,
                                std::string* error);
-bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result);
+bool InstallUpgrade(const UpgradeRequest& request, UpgradeResult* result,
+                    const std::atomic_bool* running = nullptr);
 bool RecoverInterruptedUpgrade(const std::filesystem::path& install_root, bool* recovered,
                                std::string* error);
 bool ConfirmUpgrade(const std::filesystem::path& install_root, const std::string& version,

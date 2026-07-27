@@ -1,9 +1,8 @@
 #include "cockpit/library/hmi/hmi_runtime.h"
 
-#include <fcntl.h>
 #include <limits.h>
 #include <signal.h>
-#include <sys/prctl.h>
+#include <spawn.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -14,9 +13,12 @@
 #include <filesystem>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "cockpit/core/config/system_config.h"
 #include "cockpit/core/logging/logger.h"
+
+extern char** environ;
 
 namespace cockpit {
 namespace hmi {
@@ -51,64 +53,19 @@ bool HmiRuntime::Start(const std::string& config_path) {
       return false;
     }
 
-    int exec_pipe[2];
-    if (pipe2(exec_pipe, O_CLOEXEC) != 0) {
-      LOG_ERROR("failed to create cockpit-ui exec pipe: " + std::string(std::strerror(errno)));
-      return false;
+    std::vector<std::string> arguments{"/usr/bin/setpriv", "--pdeathsig", "SIGTERM", "--", ui_path,
+                                       "--config",         config_path};
+    std::vector<char*> argv;
+    argv.reserve(arguments.size() + 1U);
+    for (std::string& argument : arguments) {
+      argv.push_back(argument.data());
     }
-
-    const pid_t pid = fork();
-    if (pid < 0) {
-      const int fork_error = errno;
-      close(exec_pipe[0]);
-      close(exec_pipe[1]);
-      LOG_ERROR("failed to fork cockpit-ui: " + std::string(std::strerror(fork_error)));
-      return false;
-    }
-    if (pid == 0) {
-      close(exec_pipe[0]);
-      const pid_t parent_pid = getppid();
-      if (prctl(PR_SET_PDEATHSIG, SIGTERM) != 0) {
-        const int child_error = errno;
-        const ssize_t write_result = write(exec_pipe[1], &child_error, sizeof(child_error));
-        (void)write_result;
-        _exit(126);
-      }
-      if (getppid() != parent_pid) {
-        const int child_error = ECHILD;
-        const ssize_t write_result = write(exec_pipe[1], &child_error, sizeof(child_error));
-        (void)write_result;
-        _exit(126);
-      }
-      execl(ui_path.c_str(), ui_path.c_str(), "--config", config_path.c_str(),
-            static_cast<char*>(nullptr));
-      const int exec_error = errno;
-      const ssize_t write_result = write(exec_pipe[1], &exec_error, sizeof(exec_error));
-      (void)write_result;
-      _exit(127);
-    }
-
-    close(exec_pipe[1]);
-    int exec_error = 0;
-    ssize_t read_size;
-    do {
-      read_size = read(exec_pipe[0], &exec_error, sizeof(exec_error));
-    } while (read_size < 0 && errno == EINTR);
-    const int read_error = errno;
-    close(exec_pipe[0]);
-    if (read_size != 0) {
-      if (read_size < 0) {
-        kill(pid, SIGKILL);
-      }
-      int wait_status = 0;
-      while (waitpid(pid, &wait_status, 0) < 0 && errno == EINTR) {
-      }
-      if (read_size > 0) {
-        LOG_ERROR("failed to execute cockpit-ui: " + std::string(std::strerror(exec_error)));
-      } else {
-        LOG_ERROR("failed to read cockpit-ui exec status: " +
-                  std::string(std::strerror(read_error)));
-      }
+    argv.push_back(nullptr);
+    pid_t pid = 0;
+    const int spawn_result =
+        posix_spawn(&pid, arguments.front().c_str(), nullptr, nullptr, argv.data(), environ);
+    if (spawn_result != 0) {
+      LOG_ERROR("failed to spawn cockpit-ui: " + std::string(std::strerror(spawn_result)));
       return false;
     }
 

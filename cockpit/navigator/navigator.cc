@@ -9,6 +9,7 @@
 #include <thread>
 #include <utility>
 
+#include "cockpit/core/build/build_info.h"
 #include "cockpit/core/logging/logger.h"
 #include "cockpit/navigator/dl_api/module_loader.h"
 
@@ -64,7 +65,7 @@ int Navigator::Run() {
   ipc_.Close();
   process_manager_.StopAll();
   LOG_INFO("navigator stopped");
-  return 0;
+  return reexec_mode_.empty() ? 0 : 75;
 }
 
 std::string Navigator::ExecuteCommand(const std::string& command) {
@@ -81,6 +82,14 @@ std::string Navigator::ExecuteCommand(const std::string& command) {
     return "OK mode=" + process_manager_.mode() + "\n";
   }
   if (operation == "shutdown" && !(input >> trailing)) {
+    stop_requested_ = true;
+    return "OK\n";
+  }
+  if (operation == "reexec" && (input >> argument) && !(input >> trailing)) {
+    if (config_.modes.find(argument) == config_.modes.end()) {
+      return "ERROR unknown mode: " + argument + "\n";
+    }
+    reexec_mode_ = argument;
     stop_requested_ = true;
     return "OK\n";
   }
@@ -109,8 +118,16 @@ std::string Navigator::ExecuteCommand(const std::string& command) {
 }
 
 std::string Navigator::StatusText() const {
+  char executable_path[4096];
+  const ssize_t executable_size =
+      readlink("/proc/self/exe", executable_path, sizeof(executable_path) - 1U);
+  const std::string executable =
+      executable_size > 0 ? std::string(executable_path, static_cast<std::size_t>(executable_size))
+                          : "unknown";
+  const build::BuildInfo build_info = build::GetBuildInfo();
   std::ostringstream output;
-  output << "OK mode=" << process_manager_.mode() << '\n';
+  output << "OK mode=" << process_manager_.mode() << " version=" << build_info.version
+         << " commit=" << build_info.git_commit << " executable=" << executable << '\n';
   for (const ProcessStatus& status : process_manager_.Status()) {
     output << "module=" << status.name << " state=" << ToString(status.state)
            << " pid=" << status.pid << " exit=" << status.last_exit_code

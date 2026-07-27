@@ -17,6 +17,7 @@
 | 语音专题 | [语音AI规划.md](语音AI规划.md) | ASR、TTS、LLM 和动作安全边界 |
 | 参考材料 | [参考项目.md](参考项目.md) | 旧项目可复用结论，不作为当前设计依据 |
 | 历史记录 | [变更记录.md](变更记录.md) | 已完成批次及验证结果 |
+| 静态审核 | [cockpit-system-code-review.md](cockpit-system-code-review.md) | 2026-07 全仓库问题清单和修复依据 |
 
 ## 目录放置速查
 

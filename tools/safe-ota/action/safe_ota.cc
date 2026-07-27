@@ -17,6 +17,7 @@ namespace safe_ota {
 namespace {
 
 constexpr int kRuntimeCommandTimeoutMs = 30000;
+constexpr int kUpgradeResultTimeoutSeconds = 600;
 
 bool SendRuntimeCommand(const std::string& socket_path, const std::string& command,
                         std::string* error) {
@@ -43,6 +44,34 @@ bool WaitForResult(const std::filesystem::path& path, int timeout_seconds,
   }
   *error = "upgrader did not publish a result before timeout";
   return false;
+}
+
+bool WaitForRuntime(const std::string& socket_path, const std::filesystem::path& install_root,
+                    const std::string& version, int timeout_seconds, std::string* error) {
+  const std::string expected_executable =
+      std::filesystem::weakly_canonical(install_root / "current/bin/cockpit-navigator").string();
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(timeout_seconds);
+  std::string last_error;
+  while (std::chrono::steady_clock::now() < deadline) {
+    std::string response;
+    if (navigator::IpcConnector::SendRequest(socket_path, "status", &response, &last_error, 500) &&
+        response.rfind("OK", 0) == 0 &&
+        response.find(" executable=" + expected_executable + "\n") != std::string::npos) {
+      return true;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  *error = "replacement Navigator did not become ready with version " + version;
+  if (!last_error.empty()) {
+    *error += ": " + last_error;
+  }
+  return false;
+}
+
+bool IsWithinDirectory(const std::filesystem::path& path, const std::filesystem::path& directory) {
+  const std::filesystem::path relative = path.lexically_relative(directory);
+  return !relative.empty() && relative != "." && !relative.is_absolute() &&
+         *relative.begin() != "..";
 }
 
 }  // namespace
@@ -75,6 +104,15 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
   if (options.recover_only) {
     return ExitCode::kSuccess;
   }
+  if (!options.standalone) {
+    const std::filesystem::path incoming_directory =
+        std::filesystem::weakly_canonical(options.install_root / "data/ota/incoming");
+    if (!std::filesystem::is_directory(incoming_directory) ||
+        !IsWithinDirectory(options.package_root, incoming_directory)) {
+      std::cerr << "online OTA package must be inside " << incoming_directory << '\n';
+      return ExitCode::kInvalidArguments;
+    }
+  }
 
   std::string package_version;
   if (!upgrader::ReadUpgradePackageVersion(options.package_root, &package_version, &error)) {
@@ -87,7 +125,7 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
   }
 
   const upgrader::UpgradeRequest request{options.package_root, options.install_root,
-                                         package_version};
+                                         options.public_key, package_version};
   upgrader::UpgradeResult result;
   if (options.standalone) {
     if (!upgrader::InstallUpgrade(request, &result)) {
@@ -112,7 +150,7 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
       std::filesystem::remove(request_path, filesystem_error);
       return ExitCode::kOperationFailed;
     }
-    if (!WaitForResult(result_path, options.timeout_seconds, &result, &error)) {
+    if (!WaitForResult(result_path, kUpgradeResultTimeoutSeconds, &result, &error)) {
       std::string switch_error;
       SendRuntimeCommand(options.socket_path, "switch normal", &switch_error);
       std::string recovery_error;
@@ -134,14 +172,14 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
       std::cerr << result.error << '\n';
       return ExitCode::kOperationFailed;
     }
-    if (!SendRuntimeCommand(options.socket_path, "switch normal", &error)) {
+    if (!SendRuntimeCommand(options.socket_path, "reexec normal", &error)) {
       std::string rollback_error;
       if (!upgrader::RecoverInterruptedUpgrade(options.install_root, nullptr, &rollback_error)) {
         std::cerr << error << "; " << rollback_error << '\n';
         return ExitCode::kOperationFailed;
       }
       std::string restore_error;
-      if (!SendRuntimeCommand(options.socket_path, "switch normal", &restore_error)) {
+      if (!SendRuntimeCommand(options.socket_path, "reexec normal", &restore_error)) {
         std::cerr << error
                   << "; rollback activated but normal mode restore failed: " << restore_error
                   << '\n';
@@ -152,7 +190,11 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
     }
   }
 
-  if (!upgrader::WaitForUpgradeHealth(options.health_command, options.install_root,
+  const bool runtime_ready =
+      options.standalone || WaitForRuntime(options.socket_path, options.install_root,
+                                           package_version, options.timeout_seconds, &error);
+  if (!runtime_ready ||
+      !upgrader::WaitForUpgradeHealth(options.health_command, options.install_root,
                                       options.timeout_seconds, &error)) {
     std::string rollback_error;
     if (!upgrader::RecoverInterruptedUpgrade(options.install_root, nullptr, &rollback_error)) {
@@ -161,9 +203,15 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
     }
     if (!options.standalone) {
       std::string reload_error;
-      if (!SendRuntimeCommand(options.socket_path, "reload", &reload_error)) {
-        std::cerr << error << "; rollback activated but runtime reload failed: " << reload_error
+      if (!SendRuntimeCommand(options.socket_path, "reexec normal", &reload_error)) {
+        std::cerr << error << "; rollback activated but runtime reexec failed: " << reload_error
                   << '\n';
+        return ExitCode::kOperationFailed;
+      }
+      if (!WaitForRuntime(options.socket_path, options.install_root,
+                          result.previous_release.filename().string(), options.timeout_seconds,
+                          &reload_error)) {
+        std::cerr << error << "; rollback Navigator did not become ready: " << reload_error << '\n';
         return ExitCode::kOperationFailed;
       }
     }
@@ -178,8 +226,12 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
     }
     if (!options.standalone) {
       std::string reload_error;
-      if (!SendRuntimeCommand(options.socket_path, "reload", &reload_error)) {
-        error += "; runtime reload failed: " + reload_error;
+      if (!SendRuntimeCommand(options.socket_path, "reexec normal", &reload_error)) {
+        error += "; runtime reexec failed: " + reload_error;
+      } else if (!WaitForRuntime(options.socket_path, options.install_root,
+                                 result.previous_release.filename().string(),
+                                 options.timeout_seconds, &reload_error)) {
+        error += "; rollback Navigator did not become ready: " + reload_error;
       }
     }
     std::cerr << error << '\n';

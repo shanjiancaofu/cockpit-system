@@ -3,9 +3,9 @@ system:
   vehicle_id: car_001
 
 paths:
-  data_dir: data
-  log_dir: logs
-  run_dir: run
+  data_dir: /cockpit-system/data
+  log_dir: /cockpit-system/logs
+  run_dir: /cockpit-system/run
 
 logging:
   level: info
@@ -16,20 +16,20 @@ logging:
 
 services:
   vehicle_data:
-    source: mock
+    source: socketcan
     publish_interval_ms: 200
     grpc:
-      listen_address: 127.0.0.1:50050
+      listen_address: unix:/cockpit-system/run/vehicle-data.grpc.sock
   gateway:
-    vehicle_data_address: 127.0.0.1:50050
+    vehicle_data_address: unix:/cockpit-system/run/vehicle-data.grpc.sock
     stream_timeout_ms: 10000
     retry_delay_ms: 200
     grpc:
-      listen_address: 127.0.0.1:50051
+      listen_address: unix:/cockpit-system/run/gateway.grpc.sock
   audio:
     auto_start: false
     grpc:
-      listen_address: 127.0.0.1:50052
+      listen_address: unix:/cockpit-system/run/audio.grpc.sock
     vad:
       enabled: true
       speech_threshold_dbfs: -40.0
@@ -49,18 +49,18 @@ services:
     photo_jpeg_quality: 90
     photo_max_frame_age_ms: 2000
     grpc:
-      listen_address: 127.0.0.1:50054
+      listen_address: unix:/cockpit-system/run/camera.grpc.sock
   voice_interaction:
-    audio_address: 127.0.0.1:50052
-    gateway_address: 127.0.0.1:50051
+    audio_address: unix:/cockpit-system/run/audio.grpc.sock
+    gateway_address: unix:/cockpit-system/run/gateway.grpc.sock
     stream_timeout_ms: 10000
     retry_delay_ms: 200
     grpc:
-      listen_address: 127.0.0.1:50053
+      listen_address: unix:/cockpit-system/run/voice.grpc.sock
   recording:
     auto_start: false
     directory: recordings
-    vehicle_data_address: 127.0.0.1:50050
+    vehicle_data_address: unix:/cockpit-system/run/vehicle-data.grpc.sock
     stream_timeout_ms: 10000
     retry_delay_ms: 200
     max_sessions: 100
@@ -69,12 +69,12 @@ services:
     max_session_duration_seconds: 14400
     min_free_bytes: 536870912
     grpc:
-      listen_address: 127.0.0.1:50055
+      listen_address: unix:/cockpit-system/run/recording.grpc.sock
 
 hardware:
   can:
-    interface: vcan0
-    simulator_backend: stdout
+    interface: can0
+    simulator_backend: socketcan
     simulator_interval_ms: 100
     receive_timeout_ms: 500
     max_idle_timeouts: 10
@@ -98,4 +98,4 @@ features:
 tools:
   topic:
     backend: file
-    dir: logs/topics
+    dir: /cockpit-system/logs/topics

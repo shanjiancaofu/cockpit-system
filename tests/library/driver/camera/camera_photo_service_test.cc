@@ -73,11 +73,22 @@ int main() {
   std::array<unsigned char, 2> signature{};
   jpeg.read(reinterpret_cast<char*>(signature.data()), signature.size());
   cockpit::camera::CameraPhotoResult invalid_result;
+  cockpit::camera::CameraPhotoResult duplicate_result;
+  cockpit::camera::CameraPhotoResult automatic_first;
+  cockpit::camera::CameraPhotoResult automatic_second;
   const bool test_result =
       Check(signature[0] == 0xFF && signature[1] == 0xD8, "JPEG signature mismatch") &&
       Check(result.frame_sequence == 7, "photo frame sequence mismatch") &&
       Check(result.width == 16 && result.height == 16, "photo dimensions mismatch") &&
       Check(result.size_bytes > 2, "photo file is empty") &&
+      Check(!service.TakePhoto("snapshot.jpg", &duplicate_result, &error),
+            "existing photo was overwritten") &&
+      Check(error.find("already exists") != std::string::npos,
+            "photo collision error was not diagnostic") &&
+      Check(service.TakePhoto("", &automatic_first, &error) &&
+                service.TakePhoto("", &automatic_second, &error),
+            "automatic photo filenames failed") &&
+      Check(automatic_first.path != automatic_second.path, "automatic photo filenames collided") &&
       Check(!service.TakePhoto("../escape.jpg", &invalid_result, &error),
             "unsafe photo filename was accepted");
   std::filesystem::remove_all(output_directory);

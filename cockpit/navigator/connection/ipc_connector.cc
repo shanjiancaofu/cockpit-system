@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <poll.h>
+#include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -9,6 +10,7 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <chrono>
 #include <cstring>
 #include <string>
 
@@ -17,6 +19,7 @@ namespace navigator {
 namespace {
 
 constexpr int kIoTimeoutMs = 1000;
+constexpr std::size_t kMaximumRequestBytes = std::size_t{64} * 1024U;
 
 bool FillAddress(const std::string& path, sockaddr_un* address, std::string* error) {
   if (path.empty() || path.size() >= sizeof(address->sun_path)) {
@@ -79,6 +82,26 @@ bool ReadToEnd(int fd, std::string* value, std::string* error) {
   }
 }
 
+bool ExistingSocketIsActive(const sockaddr_un& address, std::string* error) {
+  const int probe_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+  if (probe_fd < 0) {
+    *error = std::string("failed to create Unix socket probe: ") + std::strerror(errno);
+    return true;
+  }
+  if (connect(probe_fd, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) == 0) {
+    close(probe_fd);
+    *error = "Unix socket is already owned by a running Navigator";
+    return true;
+  }
+  const int connect_error = errno;
+  close(probe_fd);
+  if (connect_error == ECONNREFUSED || connect_error == ENOENT) {
+    return false;
+  }
+  *error = std::string("failed to probe existing Unix socket: ") + std::strerror(connect_error);
+  return true;
+}
+
 }  // namespace
 
 IpcConnector::~IpcConnector() {
@@ -89,6 +112,19 @@ bool IpcConnector::Open(const std::string& socket_path, std::string* error) {
   Close();
   sockaddr_un address;
   if (!FillAddress(socket_path, &address, error)) {
+    return false;
+  }
+
+  const std::string lock_path = socket_path + ".lock";
+  lock_fd_ = open(lock_path.c_str(), O_CREAT | O_RDWR | O_CLOEXEC, 0600);
+  if (lock_fd_ < 0) {
+    *error = "failed to open Navigator lock " + lock_path + ": " + std::strerror(errno);
+    return false;
+  }
+  if (flock(lock_fd_, LOCK_EX | LOCK_NB) < 0) {
+    *error = errno == EWOULDBLOCK ? "another Navigator already owns " + socket_path
+                                  : "failed to lock " + lock_path + ": " + std::strerror(errno);
+    Close();
     return false;
   }
 
@@ -104,6 +140,10 @@ bool IpcConnector::Open(const std::string& socket_path, std::string* error) {
       Close();
       return false;
     }
+    if (ExistingSocketIsActive(address, error)) {
+      Close();
+      return false;
+    }
     if (unlink(socket_path.c_str()) < 0) {
       *error = "failed to remove stale Unix socket " + socket_path + ": " + std::strerror(errno);
       Close();
@@ -114,13 +154,25 @@ bool IpcConnector::Open(const std::string& socket_path, std::string* error) {
     Close();
     return false;
   }
-  if (bind(socket_fd_, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) < 0 ||
-      listen(socket_fd_, 16) < 0) {
+  if (bind(socket_fd_, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) < 0) {
     *error = std::string("failed to bind Unix socket ") + socket_path + ": " + std::strerror(errno);
     Close();
     return false;
   }
   socket_path_ = socket_path;
+  struct stat created {};
+  if (lstat(socket_path.c_str(), &created) < 0 || !S_ISSOCK(created.st_mode)) {
+    *error = "failed to inspect created Unix socket " + socket_path + ": " + std::strerror(errno);
+    Close();
+    return false;
+  }
+  socket_device_ = static_cast<std::uint64_t>(created.st_dev);
+  socket_inode_ = static_cast<std::uint64_t>(created.st_ino);
+  if (listen(socket_fd_, 16) < 0) {
+    *error = "failed to listen on Unix socket " + socket_path + ": " + std::strerror(errno);
+    Close();
+    return false;
+  }
   return true;
 }
 
@@ -140,23 +192,48 @@ int IpcConnector::WaitForRequest(int timeout_ms, std::string* request) {
     close(client_fd);
     return -1;
   }
-  pollfd client{client_fd, POLLIN, 0};
-  if (poll(&client, 1, 1000) <= 0 || (client.revents & POLLIN) == 0) {
-    close(client_fd);
-    return -1;
+  request->clear();
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(kIoTimeoutMs);
+  while (true) {
+    const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+        deadline - std::chrono::steady_clock::now());
+    if (remaining.count() <= 0) {
+      close(client_fd);
+      return -1;
+    }
+    pollfd client{client_fd, POLLIN, 0};
+    const int client_ready = poll(&client, 1, static_cast<int>(remaining.count()));
+    if (client_ready < 0 && errno == EINTR) {
+      continue;
+    }
+    if (client_ready <= 0 || (client.revents & (POLLIN | POLLHUP)) == 0) {
+      close(client_fd);
+      return -1;
+    }
+    char buffer[1024];
+    const ssize_t size = read(client_fd, buffer, sizeof(buffer));
+    if (size < 0 && errno == EINTR) {
+      continue;
+    }
+    if (size <= 0) {
+      close(client_fd);
+      return -1;
+    }
+    request->append(buffer, static_cast<std::size_t>(size));
+    const std::size_t newline = request->find('\n');
+    if (newline != std::string::npos) {
+      if (newline > kMaximumRequestBytes) {
+        ReplyAndClose(client_fd, "ERROR request exceeds 64 KiB\n");
+        return -1;
+      }
+      request->resize(newline);
+      return client_fd;
+    }
+    if (request->size() > kMaximumRequestBytes) {
+      ReplyAndClose(client_fd, "ERROR request exceeds 64 KiB\n");
+      return -1;
+    }
   }
-  char buffer[4096];
-  const ssize_t size = read(client_fd, buffer, sizeof(buffer));
-  if (size <= 0) {
-    close(client_fd);
-    return -1;
-  }
-  request->assign(buffer, static_cast<std::size_t>(size));
-  const std::size_t newline = request->find('\n');
-  if (newline != std::string::npos) {
-    request->resize(newline);
-  }
-  return client_fd;
 }
 
 void IpcConnector::ReplyAndClose(int client_fd, const std::string& response) const {
@@ -172,10 +249,18 @@ void IpcConnector::Close() {
   }
   if (!socket_path_.empty()) {
     struct stat existing {};
-    if (lstat(socket_path_.c_str(), &existing) == 0 && S_ISSOCK(existing.st_mode)) {
+    if (lstat(socket_path_.c_str(), &existing) == 0 && S_ISSOCK(existing.st_mode) &&
+        static_cast<std::uint64_t>(existing.st_dev) == socket_device_ &&
+        static_cast<std::uint64_t>(existing.st_ino) == socket_inode_) {
       unlink(socket_path_.c_str());
     }
     socket_path_.clear();
+  }
+  socket_device_ = 0;
+  socket_inode_ = 0;
+  if (lock_fd_ >= 0) {
+    close(lock_fd_);
+    lock_fd_ = -1;
   }
 }
 

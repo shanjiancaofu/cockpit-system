@@ -11,6 +11,22 @@ ExecStartPre=/cockpit-system/current/bin/safe-ota --recover --root /cockpit-syst
 ExecStart=/cockpit-system/current/bin/cockpit-navigator --config /cockpit-system/config/config.yaml --module-dir /cockpit-system/current/lib/cockpit/modules --socket /cockpit-system/run/navigator.sock --mode %i
 Restart=on-failure
 RestartSec=2
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+AmbientCapabilities=CAP_DAC_READ_SEARCH
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK AF_CAN
+ReadWritePaths=/cockpit-system
 
 [Install]
 WantedBy=multi-user.target

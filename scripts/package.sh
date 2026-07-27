@@ -81,7 +81,7 @@ done < <(find "${protobuf_lib_dir}" -maxdepth 1 \( -type f -o -type l \) \
 protobuf_version="3.21.12"
 grpc_version="1.51.3"
 
-install -m 0644 "${root_dir}/configs/config.yaml" \
+install -m 0644 "${root_dir}/configs/config.production.yaml" \
   "${package_root}/config/config.example.yaml"
 install -m 0644 "${root_dir}/configs/environment.example" \
   "${package_root}/config/environment.example"
@@ -134,6 +134,13 @@ EOF
     ! -name SHA256SUMS -print0 \
     | sort -z | xargs -0 sha256sum >manifest/SHA256SUMS
 )
+if [[ -z "${OTA_SIGNING_KEY:-}" || ! -f "${OTA_SIGNING_KEY}" ]]; then
+  echo "OTA_SIGNING_KEY must point to the release Ed25519 private key" >&2
+  exit 1
+fi
+openssl pkeyutl -sign -rawin -inkey "${OTA_SIGNING_KEY}" \
+  -in "${package_root}/manifest/SHA256SUMS" \
+  -out "${package_root}/manifest/SHA256SUMS.sig"
 
 archive="${dist_dir}/${package_name}.tar.gz"
 tar -C "${stage_dir}" -czf "${archive}" "${package_name}"

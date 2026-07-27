@@ -1,16 +1,33 @@
 #include "cockpit/library/recording/recording_service.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "cockpit/core/logging/logger.h"
 
 namespace cockpit {
 namespace recording {
+namespace {
+
+RecordingSessionLimits NormalizeLimits(const std::filesystem::path& root_directory,
+                                       const RecordingRetentionPolicy& retention_policy,
+                                       RecordingSessionLimits limits) {
+  limits.max_total_bytes = retention_policy.max_total_bytes;
+  limits.max_session_bytes = std::min(limits.max_session_bytes, limits.max_total_bytes);
+  if (limits.allowed_data_root.empty()) {
+    limits.allowed_data_root = root_directory.parent_path();
+  }
+  return limits;
+}
+
+}  // namespace
 
 RecordingService::RecordingService(std::filesystem::path root_directory, std::string vehicle_id,
                                    RecordingRetentionPolicy retention_policy,
-                                   RecordingMetadata metadata)
-    : session_(root_directory, std::move(vehicle_id), std::move(metadata)),
+                                   RecordingMetadata metadata,
+                                   RecordingSessionLimits session_limits)
+    : session_(root_directory, std::move(vehicle_id), std::move(metadata),
+               NormalizeLimits(root_directory, retention_policy, std::move(session_limits))),
       catalog_(std::move(root_directory)),
       retention_policy_(retention_policy) {
 }
@@ -23,6 +40,7 @@ bool RecordingService::Start(const std::string& trigger, std::string* error) {
   if (!RefreshAndPrune(error)) {
     return false;
   }
+  session_.SetExistingBytes(catalog_.total_bytes());
   return session_.Start(trigger, error);
 }
 

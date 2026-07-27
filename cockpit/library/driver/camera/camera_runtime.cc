@@ -157,7 +157,7 @@ int CameraRuntime::Poll() {
     return 1;
   }
   impl_->service->CheckPreviewHealth();
-  return 0;
+  return impl_->service->status().state == CameraPreviewState::kFaulted ? 1 : 0;
 }
 
 }  // namespace camera

@@ -5,7 +5,6 @@
 
 #include <atomic>
 #include <cerrno>
-#include <csignal>
 #include <cstring>
 #include <limits>
 #include <new>
@@ -163,27 +162,6 @@ bool LockSlot(SharedSlot* slot, bool* owner_dead, std::string* error) {
   return false;
 }
 
-bool ProcessIsAlive(std::uint64_t process_id) {
-  if (process_id == 0 ||
-      process_id > static_cast<std::uint64_t>(std::numeric_limits<pid_t>::max())) {
-    return false;
-  }
-  if (kill(static_cast<pid_t>(process_id), 0) == 0) {
-    return true;
-  }
-  return errno == EPERM;
-}
-
-bool HasLiveWriter(const ipc::SharedMemoryRegion& region) {
-  if (region.size() < AlignUp(sizeof(SharedHeader))) {
-    return false;
-  }
-  const auto* header = Header(region.data());
-  return header->magic == kMagic && header->version == kVersion &&
-         header->initialized.load(std::memory_order_acquire) == 1U &&
-         ProcessIsAlive(header->writer_pid);
-}
-
 void InvalidateStaleMapping(ipc::SharedMemoryRegion* region) {
   if (region == nullptr || region->size() < AlignUp(sizeof(SharedHeader))) {
     return;
@@ -243,12 +221,6 @@ std::unique_ptr<SharedFrameWriter> SharedFrameWriter::Create(const SharedFrameBu
     }
     if (!stale_region->TryLockExclusive(&recovery_error)) {
       AssignError(error, "shared camera frame writer is already active: " + recovery_error);
-      return nullptr;
-    }
-    if (HasLiveWriter(*stale_region)) {
-      AssignError(error, "shared camera frame writer pid=" +
-                             std::to_string(Header(stale_region->data())->writer_pid) +
-                             " is still alive");
       return nullptr;
     }
     InvalidateStaleMapping(stale_region.get());

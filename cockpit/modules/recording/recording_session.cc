@@ -1,8 +1,15 @@
 #include "cockpit/modules/recording/recording_session.h"
 
+#include <fcntl.h>
+#include <linux/openat2.h>
+#include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 #include <atomic>
+#include <cerrno>
+#include <cstring>
 #include <exception>
 #include <limits>
 #include <sstream>
@@ -31,13 +38,36 @@ std::string MakeSessionId() {
          std::to_string(g_session_sequence.fetch_add(1U));
 }
 
+bool SyncPath(const std::filesystem::path& path, int flags, std::string* error) {
+  const int descriptor = open(path.c_str(), flags | O_CLOEXEC);
+  if (descriptor < 0) {
+    AssignError(error, "open recording path for sync failed: " + path.string() + ": " +
+                           std::strerror(errno));
+    return false;
+  }
+  if (fsync(descriptor) != 0) {
+    const int sync_error = errno;
+    close(descriptor);
+    AssignError(error,
+                "sync recording path failed: " + path.string() + ": " + std::strerror(sync_error));
+    return false;
+  }
+  if (close(descriptor) != 0) {
+    AssignError(error,
+                "close recording sync path failed: " + path.string() + ": " + std::strerror(errno));
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 RecordingSession::RecordingSession(std::filesystem::path root_directory, std::string vehicle_id,
-                                   RecordingMetadata metadata)
+                                   RecordingMetadata metadata, RecordingSessionLimits limits)
     : root_directory_(std::move(root_directory)),
       vehicle_id_(std::move(vehicle_id)),
-      metadata_(std::move(metadata)) {
+      metadata_(std::move(metadata)),
+      limits_(std::move(limits)) {
 }
 
 RecordingSession::~RecordingSession() {
@@ -64,6 +94,10 @@ bool RecordingSession::Start(const std::string& trigger, std::string* error) {
     status_.session_id = MakeSessionId();
     status_.trigger = trigger.empty() ? "manual" : trigger;
     status_.started_at_ms = time::NowMs();
+    active_bytes_ = 0;
+    vehicle_messages_since_flush_ = 0;
+    event_messages_since_flush_ = 0;
+    data_messages_since_flush_ = 0;
     temporary_directory_ = sessions_directory / (".recording_" + status_.session_id);
     final_directory_ = sessions_directory / status_.session_id;
     std::filesystem::create_directory(temporary_directory_);
@@ -103,19 +137,26 @@ bool RecordingSession::Append(const vehicle::VehicleState& state, std::string* e
     AssignError(error, "recording session is not active");
     return false;
   }
-  vehicle_state_file_ << state.ToJson() << '\n';
+  const std::string line = state.ToJson();
+  if (!EnsureCapacity(line.size() + 1U, error)) {
+    return false;
+  }
+  vehicle_state_file_ << line << '\n';
   if (!vehicle_state_file_) {
     SetError("write vehicle_state.jsonl failed");
     AssignError(error, status_.last_error);
     return false;
   }
+  active_bytes_ += line.size() + 1U;
   ++status_.messages_written;
+  ++vehicle_messages_since_flush_;
   if (status_.first_message_timestamp_ms == 0) {
     status_.first_message_timestamp_ms = state.timestamp_ms;
   }
   status_.last_message_timestamp_ms = state.timestamp_ms;
-  if (status_.messages_written % kFlushInterval == 0) {
+  if (vehicle_messages_since_flush_ >= kFlushInterval) {
     vehicle_state_file_.flush();
+    vehicle_messages_since_flush_ = 0;
   }
   return true;
 }
@@ -130,19 +171,26 @@ bool RecordingSession::AppendEvent(const RecordingEvent& event, std::string* err
     AssignError(error, "recording event is invalid");
     return false;
   }
-  event_file_ << event.ToJson() << '\n';
+  const std::string line = event.ToJson();
+  if (!EnsureCapacity(line.size() + 1U, error)) {
+    return false;
+  }
+  event_file_ << line << '\n';
   if (!event_file_) {
     SetError("write events.jsonl failed");
     AssignError(error, status_.last_error);
     return false;
   }
+  active_bytes_ += line.size() + 1U;
   ++status_.messages_written;
+  ++event_messages_since_flush_;
   if (status_.first_message_timestamp_ms == 0) {
     status_.first_message_timestamp_ms = event.timestamp_ms;
   }
   status_.last_message_timestamp_ms = event.timestamp_ms;
-  if (status_.messages_written % kFlushInterval == 0) {
+  if (event_messages_since_flush_ >= kFlushInterval) {
     event_file_.flush();
+    event_messages_since_flush_ = 0;
   }
   return true;
 }
@@ -161,20 +209,27 @@ bool RecordingSession::AppendDataFile(const RecordingDataFile& file, std::string
   if (recorded_file.copy_into_session && !CopyDataFile(&recorded_file, error)) {
     return false;
   }
-  data_file_index_ << recorded_file.ToJson() << '\n';
+  const std::string line = recorded_file.ToJson();
+  if (!EnsureCapacity(line.size() + 1U, error)) {
+    return false;
+  }
+  data_file_index_ << line << '\n';
   if (!data_file_index_) {
     SetError("write data_files.jsonl failed");
     AssignError(error, status_.last_error);
     return false;
   }
+  active_bytes_ += line.size() + 1U;
   ++status_.messages_written;
   ++status_.data_files_indexed;
+  ++data_messages_since_flush_;
   if (status_.first_message_timestamp_ms == 0) {
     status_.first_message_timestamp_ms = recorded_file.timestamp_ms;
   }
   status_.last_message_timestamp_ms = recorded_file.timestamp_ms;
-  if (status_.messages_written % kFlushInterval == 0) {
+  if (data_messages_since_flush_ >= kFlushInterval) {
     data_file_index_.flush();
+    data_messages_since_flush_ = 0;
   }
   return true;
 }
@@ -211,6 +266,13 @@ bool RecordingSession::Stop(std::string* error) {
       AssignError(error, status_.last_error);
       return false;
     }
+    for (const char* filename : {"vehicle_state.jsonl", "events.jsonl", "data_files.jsonl"}) {
+      if (!SyncPath(temporary_directory_ / filename, O_RDONLY, &close_error)) {
+        SetError(close_error);
+        AssignError(error, status_.last_error);
+        return false;
+      }
+    }
     status_.stopped_at_ms = time::NowMs();
     if (!WriteManifest(temporary_directory_, "complete", error)) {
       SetError(error == nullptr ? "write recording manifest failed" : *error);
@@ -220,7 +282,15 @@ bool RecordingSession::Stop(std::string* error) {
       SetError(error == nullptr ? "write COMPLETE marker failed" : *error);
       return false;
     }
+    if (!SyncPath(temporary_directory_, O_RDONLY | O_DIRECTORY, error)) {
+      SetError(error == nullptr ? "sync recording directory failed" : *error);
+      return false;
+    }
     std::filesystem::rename(temporary_directory_, final_directory_);
+    if (!SyncPath(final_directory_.parent_path(), O_RDONLY | O_DIRECTORY, error)) {
+      SetError(error == nullptr ? "sync recording parent directory failed" : *error);
+      return false;
+    }
     status_.state = RecordingState::kIdle;
     status_.directory = final_directory_.string();
     return true;
@@ -234,6 +304,13 @@ bool RecordingSession::Stop(std::string* error) {
 RecordingStatus RecordingSession::status() const {
   std::lock_guard<std::mutex> lock(mutex_);
   return status_;
+}
+
+void RecordingSession::SetExistingBytes(std::uint64_t existing_bytes) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (status_.state != RecordingState::kRecording) {
+    existing_bytes_ = existing_bytes;
+  }
 }
 
 std::size_t RecordingSession::RecoverInterrupted(const std::filesystem::path& root_directory,
@@ -257,6 +334,10 @@ std::size_t RecordingSession::RecoverInterrupted(const std::filesystem::path& ro
         return recovered;
       }
       std::filesystem::rename(entry.path(), destination);
+      if (!SyncPath(sessions_directory, O_RDONLY | O_DIRECTORY, &marker_error)) {
+        AssignError(error, marker_error);
+        return recovered;
+      }
       ++recovered;
     }
     return recovered;
@@ -266,22 +347,134 @@ std::size_t RecordingSession::RecoverInterrupted(const std::filesystem::path& ro
   }
 }
 
+bool RecordingSession::EnsureCapacity(std::uint64_t additional_bytes, std::string* error) {
+  const std::int64_t now_ms = time::NowMs();
+  if (limits_.max_duration_ms > 0 && status_.started_at_ms > 0 && now_ms > status_.started_at_ms &&
+      static_cast<std::uint64_t>(now_ms - status_.started_at_ms) > limits_.max_duration_ms) {
+    SetError("recording session duration limit reached");
+    AssignError(error, status_.last_error);
+    return false;
+  }
+  if (limits_.max_session_bytes > 0 &&
+      (active_bytes_ > limits_.max_session_bytes ||
+       additional_bytes > limits_.max_session_bytes - active_bytes_)) {
+    SetError("recording session byte limit reached");
+    AssignError(error, status_.last_error);
+    return false;
+  }
+  if (limits_.max_total_bytes > 0 &&
+      (existing_bytes_ > limits_.max_total_bytes ||
+       active_bytes_ > limits_.max_total_bytes - existing_bytes_ ||
+       additional_bytes > limits_.max_total_bytes - existing_bytes_ - active_bytes_)) {
+    SetError("recording total byte limit reached");
+    AssignError(error, status_.last_error);
+    return false;
+  }
+
+  struct statvfs filesystem_status {};
+  const std::filesystem::path capacity_path =
+      temporary_directory_.empty() ? root_directory_ : temporary_directory_;
+  if (statvfs(capacity_path.c_str(), &filesystem_status) != 0) {
+    SetError("read recording filesystem capacity failed: " + std::string(std::strerror(errno)));
+    AssignError(error, status_.last_error);
+    return false;
+  }
+  const std::uint64_t block_size = static_cast<std::uint64_t>(filesystem_status.f_frsize);
+  const std::uint64_t available_blocks = static_cast<std::uint64_t>(filesystem_status.f_bavail);
+  const std::uint64_t available_bytes =
+      block_size > 0 && available_blocks > std::numeric_limits<std::uint64_t>::max() / block_size
+          ? std::numeric_limits<std::uint64_t>::max()
+          : block_size * available_blocks;
+  if (available_bytes < additional_bytes ||
+      available_bytes - additional_bytes < limits_.min_free_bytes) {
+    SetError("recording filesystem free-space reserve reached");
+    AssignError(error, status_.last_error);
+    return false;
+  }
+  return true;
+}
+
+int RecordingSession::OpenAllowedDataFile(const std::filesystem::path& source, std::uint64_t* size,
+                                          std::string* error) const {
+  if (size == nullptr) {
+    AssignError(error, "recording data file size result must not be null");
+    return -1;
+  }
+  std::error_code filesystem_error;
+  const std::filesystem::path allowed_root = std::filesystem::canonical(
+      limits_.allowed_data_root.empty() ? root_directory_.parent_path() : limits_.allowed_data_root,
+      filesystem_error);
+  if (filesystem_error) {
+    AssignError(error,
+                "resolve recording data-file allowlist failed: " + filesystem_error.message());
+    return -1;
+  }
+  const std::filesystem::path absolute_source =
+      std::filesystem::absolute(source).lexically_normal();
+  const std::filesystem::path relative = absolute_source.lexically_relative(allowed_root);
+  if (relative.empty() || relative == "." || relative.is_absolute() || *relative.begin() == "..") {
+    AssignError(error, "recording data file is outside the allowed directory: " + source.string());
+    return -1;
+  }
+
+  const int root_fd = open(allowed_root.c_str(), O_PATH | O_DIRECTORY | O_CLOEXEC);
+  if (root_fd < 0) {
+    AssignError(error,
+                "open recording data-file allowlist failed: " + std::string(std::strerror(errno)));
+    return -1;
+  }
+  struct open_how how {};
+  how.flags = O_RDONLY | O_CLOEXEC;
+  how.resolve = RESOLVE_BENEATH | RESOLVE_NO_MAGICLINKS | RESOLVE_NO_SYMLINKS;
+  const int source_fd =
+      static_cast<int>(syscall(SYS_openat2, root_fd, relative.c_str(), &how, sizeof(how)));
+  const int open_error = errno;
+  close(root_fd);
+  if (source_fd < 0) {
+    AssignError(error, "open recording data file within allowlist failed: " +
+                           std::string(std::strerror(open_error)));
+    return -1;
+  }
+  struct stat source_status {};
+  if (fstat(source_fd, &source_status) != 0) {
+    const int status_error = errno;
+    close(source_fd);
+    AssignError(error, "read recording data file status failed: " +
+                           std::string(std::strerror(status_error)));
+    return -1;
+  }
+  if (!S_ISREG(source_status.st_mode) || source_status.st_size < 0) {
+    close(source_fd);
+    AssignError(error, "recording data file must be a regular file");
+    return -1;
+  }
+  *size = static_cast<std::uint64_t>(source_status.st_size);
+  return source_fd;
+}
+
 bool RecordingSession::CopyDataFile(RecordingDataFile* file, std::string* error) {
   const std::filesystem::path source(file->path);
-  std::error_code filesystem_error;
-  if (!std::filesystem::is_regular_file(source, filesystem_error) || filesystem_error) {
-    AssignError(error, "recording data file is not a readable regular file: " + file->path);
+  std::uint64_t source_size = 0;
+  const int source_fd = OpenAllowedDataFile(source, &source_size, error);
+  if (source_fd < 0) {
+    return false;
+  }
+  if (!EnsureCapacity(source_size, error)) {
+    close(source_fd);
     return false;
   }
   const std::string filename = source.filename().string();
   if (filename.empty() || filename == "." || filename == "..") {
+    close(source_fd);
     AssignError(error, "recording data file has an invalid filename: " + file->path);
     return false;
   }
 
+  std::error_code filesystem_error;
   const std::filesystem::path artifact_directory = temporary_directory_ / "artifacts";
   std::filesystem::create_directories(artifact_directory, filesystem_error);
   if (filesystem_error) {
+    close(source_fd);
     AssignError(error, "create recording artifact directory failed: " + filesystem_error.message());
     return false;
   }
@@ -289,29 +482,76 @@ bool RecordingSession::CopyDataFile(RecordingDataFile* file, std::string* error)
       std::filesystem::path("artifacts") /
       (std::to_string(status_.data_files_indexed + 1U) + "_" + filename);
   const std::filesystem::path destination = temporary_directory_ / relative_path;
-  const bool copied = std::filesystem::copy_file(
-      source, destination, std::filesystem::copy_options::none, filesystem_error);
-  if (!copied || filesystem_error) {
-    AssignError(error,
-                filesystem_error
-                    ? "copy recording data file failed: " + filesystem_error.message()
-                    : "recording artifact destination already exists: " + destination.string());
+  const int destination_fd =
+      open(destination.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+  if (destination_fd < 0) {
+    close(source_fd);
+    AssignError(error, "create recording artifact failed: " + std::string(std::strerror(errno)));
     return false;
   }
-  const std::uintmax_t size = std::filesystem::file_size(destination, filesystem_error);
-  if (filesystem_error || size > std::numeric_limits<std::uint64_t>::max()) {
+
+  bool copied = true;
+  std::string copy_failure;
+  std::uint64_t remaining = source_size;
+  char buffer[64 * 1024];
+  while (remaining > 0) {
+    const std::size_t requested =
+        static_cast<std::size_t>(std::min<std::uint64_t>(remaining, sizeof(buffer)));
+    ssize_t read_size = read(source_fd, buffer, requested);
+    if (read_size < 0 && errno == EINTR) {
+      continue;
+    }
+    if (read_size < 0) {
+      copy_failure = std::strerror(errno);
+      copied = false;
+      break;
+    }
+    if (read_size == 0) {
+      copy_failure = "source file changed during copy";
+      copied = false;
+      break;
+    }
+    ssize_t written = 0;
+    while (written < read_size) {
+      const ssize_t write_size =
+          write(destination_fd, buffer + written, static_cast<std::size_t>(read_size - written));
+      if (write_size < 0 && errno == EINTR) {
+        continue;
+      }
+      if (write_size <= 0) {
+        copy_failure = write_size < 0 ? std::strerror(errno) : "zero-byte artifact write";
+        copied = false;
+        break;
+      }
+      written += write_size;
+    }
+    if (!copied) {
+      break;
+    }
+    remaining -= static_cast<std::uint64_t>(read_size);
+  }
+  if (copied && fsync(destination_fd) != 0) {
+    copy_failure = std::strerror(errno);
+    copied = false;
+  }
+  close(source_fd);
+  if (close(destination_fd) != 0 && copied) {
+    copy_failure = std::strerror(errno);
+    copied = false;
+  }
+  if (!copied) {
     std::error_code remove_error;
     std::filesystem::remove(destination, remove_error);
-    AssignError(error, filesystem_error ? "read copied recording data file size failed: " +
-                                              filesystem_error.message()
-                                        : "copied recording data file is too large");
+    AssignError(error, "copy recording data file failed: " + copy_failure);
     return false;
   }
+  active_bytes_ += source_size;
   file->path = relative_path.generic_string();
-  file->size_bytes = static_cast<std::uint64_t>(size);
+  file->size_bytes = source_size;
   if (file->checksum.empty() && !ComputeFnv1a64(destination, &file->checksum, error)) {
     std::error_code remove_error;
     std::filesystem::remove(destination, remove_error);
+    active_bytes_ -= source_size;
     return false;
   }
   return true;
@@ -355,7 +595,7 @@ bool RecordingSession::WriteMarker(const std::filesystem::path& path, std::int64
     AssignError(error, "close recording marker failed: " + path.string());
     return false;
   }
-  return true;
+  return SyncPath(path, O_RDONLY, error);
 }
 
 bool RecordingSession::WriteManifest(const std::filesystem::path& directory,
@@ -409,7 +649,7 @@ bool RecordingSession::WriteManifest(const std::filesystem::path& directory,
     AssignError(error, "close manifest.json failed");
     return false;
   }
-  return true;
+  return SyncPath(directory / "manifest.json", O_RDONLY, error);
 }
 
 void RecordingSession::SetError(const std::string& error) {

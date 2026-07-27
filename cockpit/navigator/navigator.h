@@ -15,6 +15,9 @@ class Navigator {
             std::string module_config_path, std::string crash_report_directory);
 
   int Run();
+  const std::string& reexec_mode() const {
+    return reexec_mode_;
+  }
 
  private:
   std::string ExecuteCommand(const std::string& command);
@@ -24,6 +27,7 @@ class Navigator {
   ProcessManager process_manager_;
   IpcConnector ipc_;
   bool stop_requested_{false};
+  std::string reexec_mode_;
 };
 
 int RunModuleChild(const std::string& module_name, const std::string& library_path,

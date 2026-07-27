@@ -1,0 +1,88 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: debug
+            build_type: Debug
+            cmake_options: ""
+            test_regex: ""
+          - name: release
+            build_type: Release
+            cmake_options: ""
+            test_regex: ""
+          - name: asan-ubsan
+            build_type: Debug
+            cmake_options: "-DCOCKPIT_ENABLE_ASAN_UBSAN=ON"
+            test_regex: ""
+          - name: tsan-camera
+            build_type: Debug
+            cmake_options: "-DCOCKPIT_ENABLE_TSAN=ON"
+            test_regex: "^(camera_service_test|camera_synthetic_stability_test)$"
+
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake git libasound2-dev libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev libssl-dev libxkbcommon-dev \
+            libyaml-cpp-dev ninja-build openssl pkg-config qt6-base-dev \
+            qt6-declarative-dev qml6-module-qtqml-workerscript qml6-module-qtquick \
+            qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+            qml6-module-qtquick-templates qml6-module-qtquick-window
+
+      - name: Cache pinned third-party dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/../../third_party/cockpit-unified-deps/prefix
+            ${{ github.workspace }}/../../third_party/sherpa-onnx
+          key: third-party-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/bootstrap_third_party.sh') }}
+
+      - name: Bootstrap pinned third-party dependencies
+        run: scripts/bootstrap_third_party.sh
+
+      - name: Configure and build
+        env:
+          BUILD_DIR: _output/build/ci-${{ matrix.name }}
+        run: |
+          scripts/build.sh --arch x86_64 --type "${{ matrix.build_type }}" --no-test -- \
+            ${{ matrix.cmake_options }}
+
+      - name: Test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          if [[ -n "${{ matrix.test_regex }}" ]]; then
+            ctest --test-dir "_output/build/ci-${{ matrix.name }}" --output-on-failure \
+              -R "${{ matrix.test_regex }}"
+          else
+            ctest --test-dir "_output/build/ci-${{ matrix.name }}" --output-on-failure
+          fi
+
+      - name: Validate signed package
+        if: matrix.name == 'release'
+        env:
+          BUILD_DIR: _output/build/ci-release
+        run: |
+          openssl genpkey -algorithm ED25519 -out /tmp/cockpit-ota-ci-key.pem
+          OTA_SIGNING_KEY=/tmp/cockpit-ota-ci-key.pem scripts/package.sh

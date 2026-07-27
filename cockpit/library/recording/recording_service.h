@@ -33,7 +33,8 @@ class RecordingService {
   static constexpr std::size_t kMaximumReportIssueLimit = 1000;
 
   RecordingService(std::filesystem::path root_directory, std::string vehicle_id,
-                   RecordingRetentionPolicy retention_policy, RecordingMetadata metadata = {});
+                   RecordingRetentionPolicy retention_policy, RecordingMetadata metadata = {},
+                   RecordingSessionLimits session_limits = {});
 
   bool Initialize(std::string* error);
   bool Start(const std::string& trigger, std::string* error);

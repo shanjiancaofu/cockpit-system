@@ -89,6 +89,9 @@ struct RecordingServiceConfig {
   int retry_delay_ms = 200;
   int max_sessions = 100;
   std::uint64_t max_total_bytes = 5368709120ULL;
+  std::uint64_t max_session_bytes = 1073741824ULL;
+  int max_session_duration_seconds = 14400;
+  std::uint64_t min_free_bytes = 536870912ULL;
   GrpcServerConfig grpc{"127.0.0.1:50055"};
 };
 

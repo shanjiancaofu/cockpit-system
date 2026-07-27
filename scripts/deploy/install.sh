@@ -4,6 +4,21 @@ set -euo pipefail
 package_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 install_root="${COCKPIT_ROOT:-/cockpit-system}"
 install_systemd="${INSTALL_SYSTEMD:-true}"
+public_key="${COCKPIT_OTA_PUBLIC_KEY:-${install_root}/config/ota-public-key.pem}"
+if [[ ! -f "${public_key}" ]]; then
+  echo "trusted OTA public key is missing: ${public_key}" >&2
+  exit 1
+fi
+if [[ ! -f "${package_root}/manifest/SHA256SUMS.sig" ]]; then
+  echo "package manifest signature is missing" >&2
+  exit 1
+fi
+if ! openssl pkeyutl -verify -pubin -inkey "${public_key}" -rawin \
+     -in "${package_root}/manifest/SHA256SUMS" \
+     -sigfile "${package_root}/manifest/SHA256SUMS.sig" >/dev/null 2>&1; then
+  echo "package manifest signature verification failed" >&2
+  exit 1
+fi
 if [[ ! -f "${package_root}/manifest/SHA256SUMS" ]] ||
    ! (cd "${package_root}" && sha256sum --check --quiet manifest/SHA256SUMS); then
   echo "package checksum verification failed" >&2
@@ -24,6 +39,7 @@ fi
 install -d "${release_dir}" "${install_root}/config" "${install_root}/models/whisper" \
   "${install_root}/models/sensevoice" "${install_root}/data" "${install_root}/logs" \
   "${install_root}/run"
+install -d -m 0700 "${install_root}/data/ota/incoming"
 cp -a "${package_root}/release/." "${release_dir}/"
 
 if [[ ! -f "${install_root}/config/config.yaml" ]]; then

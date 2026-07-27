@@ -1,10 +1,14 @@
 #include "cockpit/modules/camera/photo/jpeg_encoder.h"
 
+#include <fcntl.h>
 #include <gst/app/gstappsrc.h>
 #include <gst/gst.h>
+#include <unistd.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdint>
+#include <cstring>
 #include <exception>
 #include <mutex>
 #include <vector>
@@ -84,8 +88,9 @@ bool JpegEncoder::Encode(const CameraFrame& frame, const std::filesystem::path& 
     return false;
   }
 
+  const std::filesystem::path parent_path =
+      output_path.parent_path().empty() ? std::filesystem::path(".") : output_path.parent_path();
   try {
-    const std::filesystem::path parent_path = output_path.parent_path();
     if (!parent_path.empty()) {
       std::filesystem::create_directories(parent_path);
     }
@@ -93,6 +98,22 @@ bool JpegEncoder::Encode(const CameraFrame& frame, const std::filesystem::path& 
     AssignError(error, exception.what());
     return false;
   }
+
+  std::string temporary_template =
+      (parent_path / ("." + output_path.filename().string() + ".tmp.XXXXXX")).string();
+  std::vector<char> temporary_name(temporary_template.begin(), temporary_template.end());
+  temporary_name.push_back('\0');
+  const int temporary_fd = mkstemp(temporary_name.data());
+  if (temporary_fd < 0) {
+    AssignError(error, "create temporary JPEG failed: " + std::string(std::strerror(errno)));
+    return false;
+  }
+  close(temporary_fd);
+  const std::filesystem::path temporary_path(temporary_name.data());
+  const auto remove_temporary = [&temporary_path]() {
+    std::error_code ignored;
+    std::filesystem::remove(temporary_path, ignored);
+  };
 
   std::vector<std::uint8_t> packed(tight_stride * frame.height);
   for (std::uint32_t row = 0; row < frame.height; ++row) {
@@ -113,13 +134,14 @@ bool JpegEncoder::Encode(const CameraFrame& frame, const std::filesystem::path& 
     UnrefElement(convert);
     UnrefElement(source);
     UnrefElement(pipeline);
+    remove_temporary();
     AssignError(error, "create GStreamer JPEG elements failed; install jpegenc plugin");
     return false;
   }
 
   const int normalized_quality = std::clamp(quality, 1, 100);
   g_object_set(encoder, "quality", normalized_quality, nullptr);
-  g_object_set(sink, "location", output_path.c_str(), nullptr);
+  g_object_set(sink, "location", temporary_path.c_str(), nullptr);
   GstCaps* caps = gst_caps_new_simple(
       "video/x-raw", "format", G_TYPE_STRING, GstreamerFormat(frame.format), "width", G_TYPE_INT,
       static_cast<int>(frame.width), "height", G_TYPE_INT, static_cast<int>(frame.height),
@@ -132,6 +154,7 @@ bool JpegEncoder::Encode(const CameraFrame& frame, const std::filesystem::path& 
       gst_element_set_state(pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
+    remove_temporary();
     AssignError(error, "start GStreamer JPEG pipeline failed");
     return false;
   }
@@ -159,7 +182,55 @@ bool JpegEncoder::Encode(const CameraFrame& frame, const std::filesystem::path& 
   gst_object_unref(bus);
   gst_element_set_state(pipeline, GST_STATE_NULL);
   gst_object_unref(pipeline);
-  return success;
+  if (!success) {
+    remove_temporary();
+    return false;
+  }
+
+  const int sync_fd = open(temporary_path.c_str(), O_RDONLY | O_CLOEXEC);
+  if (sync_fd < 0) {
+    remove_temporary();
+    AssignError(error, "open temporary JPEG for sync failed: " + std::string(std::strerror(errno)));
+    return false;
+  }
+  if (fsync(sync_fd) != 0) {
+    const int sync_error = errno;
+    close(sync_fd);
+    remove_temporary();
+    AssignError(error, "sync temporary JPEG failed: " + std::string(std::strerror(sync_error)));
+    return false;
+  }
+  if (close(sync_fd) != 0) {
+    const int close_error = errno;
+    remove_temporary();
+    AssignError(error, "close temporary JPEG failed: " + std::string(std::strerror(close_error)));
+    return false;
+  }
+  if (link(temporary_path.c_str(), output_path.c_str()) != 0) {
+    const int publish_error = errno;
+    remove_temporary();
+    AssignError(error, publish_error == EEXIST
+                           ? "photo destination already exists: " + output_path.string()
+                           : "publish JPEG failed: " + std::string(std::strerror(publish_error)));
+    return false;
+  }
+  remove_temporary();
+  const int directory_fd = open(parent_path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  if (directory_fd < 0) {
+    AssignError(error, "open JPEG directory for sync failed: " + std::string(std::strerror(errno)));
+    return false;
+  }
+  if (fsync(directory_fd) != 0) {
+    const int sync_error = errno;
+    close(directory_fd);
+    AssignError(error, "sync JPEG directory failed: " + std::string(std::strerror(sync_error)));
+    return false;
+  }
+  if (close(directory_fd) != 0) {
+    AssignError(error, "close JPEG directory failed: " + std::string(std::strerror(errno)));
+    return false;
+  }
+  return true;
 }
 
 }  // namespace camera

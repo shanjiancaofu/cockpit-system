@@ -69,6 +69,18 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 
 option(BUILD_WEB_DASHBOARD "Build web dashboard" OFF)
 option(BUILD_TESTS "Build unit tests" ON)
+option(COCKPIT_ENABLE_ASAN_UBSAN "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(COCKPIT_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
+if(COCKPIT_ENABLE_ASAN_UBSAN AND COCKPIT_ENABLE_TSAN)
+    message(FATAL_ERROR "ASan/UBSan and TSan cannot be enabled in the same build")
+endif()
+if(COCKPIT_ENABLE_ASAN_UBSAN)
+    add_compile_options(-fno-omit-frame-pointer -fsanitize=address,undefined)
+    add_link_options(-fno-omit-frame-pointer -fsanitize=address,undefined)
+elseif(COCKPIT_ENABLE_TSAN)
+    add_compile_options(-fno-omit-frame-pointer -fsanitize=thread)
+    add_link_options(-fno-omit-frame-pointer -fsanitize=thread)
+endif()
 get_filename_component(COCKPIT_WORKSPACE_DIR "${CMAKE_SOURCE_DIR}/../.." ABSOLUTE)
 set(COCKPIT_UNIFIED_DEPS_PREFIX
     "${COCKPIT_WORKSPACE_DIR}/third_party/cockpit-unified-deps/prefix"

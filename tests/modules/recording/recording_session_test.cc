@@ -103,6 +103,50 @@ int main() {
   const std::size_t recovered =
       cockpit::recording::RecordingSession::RecoverInterrupted(root, &error);
   const auto interrupted_directory = root / "sessions" / "interrupted_stale";
+  cockpit::recording::RecordingSessionLimits byte_limits;
+  byte_limits.max_session_bytes = 16;
+  byte_limits.max_total_bytes = 16;
+  byte_limits.min_free_bytes = 1;
+  byte_limits.allowed_data_root = root;
+  cockpit::recording::RecordingSession limited_session(root / "limited", "test_vehicle", {},
+                                                       byte_limits);
+  cockpit::recording::RecordingEvent oversized_event = event;
+  std::string limit_error;
+  const bool byte_limit_result =
+      Check(limited_session.Start("byte_limit", &limit_error),
+            "limited recording session did not start") &&
+      Check(!limited_session.AppendEvent(oversized_event, &limit_error),
+            "limited recording session accepted an oversized event") &&
+      Check(limited_session.status().state == cockpit::recording::RecordingState::kFaulted &&
+                limit_error.find("byte limit") != std::string::npos,
+            "limited recording session did not enter a diagnostic fault");
+
+  const auto allowed_root = root / "allowed";
+  std::filesystem::create_directories(allowed_root);
+  const auto blocked_source = root / "blocked.bin";
+  std::ofstream(blocked_source, std::ios::binary) << "blocked";
+  cockpit::recording::RecordingSessionLimits path_limits;
+  path_limits.min_free_bytes = 1;
+  path_limits.allowed_data_root = allowed_root;
+  cockpit::recording::RecordingSession restricted_session(root / "restricted", "test_vehicle", {},
+                                                          path_limits);
+  cockpit::recording::RecordingDataFile blocked_file = copied_data_file;
+  blocked_file.path = blocked_source.string();
+  const auto blocked_link = allowed_root / "blocked-link.bin";
+  std::filesystem::create_symlink(blocked_source, blocked_link);
+  cockpit::recording::RecordingDataFile linked_file = copied_data_file;
+  linked_file.path = blocked_link.string();
+  std::string path_error;
+  const bool path_limit_result =
+      Check(restricted_session.Start("path_limit", &path_error),
+            "restricted recording session did not start") &&
+      Check(!restricted_session.AppendDataFile(blocked_file, &path_error),
+            "recording copied a file outside the allowlist") &&
+      Check(path_error.find("outside the allowed directory") != std::string::npos,
+            "recording allowlist error was not diagnostic") &&
+      Check(!restricted_session.AppendDataFile(linked_file, &path_error),
+            "recording followed a symbolic link inside the allowlist") &&
+      Check(restricted_session.Stop(&path_error), "restricted recording session did not stop");
   const bool result =
       Check(status.state == cockpit::recording::RecordingState::kIdle,
             "recording session did not return to idle") &&
@@ -152,7 +196,8 @@ int main() {
       Check(ReadFile(copied_artifact) == "jpeg-test-data", "copied camera artifact mismatch") &&
       Check(recovered == 1, "interrupted recording recovery count mismatch") &&
       Check(std::filesystem::exists(interrupted_directory / "INTERRUPTED"),
-            "interrupted recording marker missing");
+            "interrupted recording marker missing") &&
+      byte_limit_result && path_limit_result;
   std::filesystem::remove_all(root);
   return result ? 0 : 1;
 }

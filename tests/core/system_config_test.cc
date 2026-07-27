@@ -22,6 +22,9 @@ int main() {
       config.services().camera.synthetic_fault_after_frames != 30 ||
       config.services().voice_interaction.grpc.listen_address != "127.0.0.1:50053" ||
       config.services().voice_interaction.gateway_address != "127.0.0.1:50051" ||
+      config.services().recording.max_session_bytes != 1073741824ULL ||
+      config.services().recording.max_session_duration_seconds != 14400 ||
+      config.services().recording.min_free_bytes != 536870912ULL ||
       config.hardware().can.interface != "vcan0" ||
       config.features().voice.asr_provider != "mock" ||
       config.features().voice.asr_language != "zh" || config.features().voice.asr_threads != 4 ||
@@ -38,6 +41,17 @@ int main() {
       development_config.paths().run_dir != "/tmp/cockpit-runtime/run" ||
       development_config.tools().topic.dir != "/tmp/cockpit-runtime/logs/topics") {
     std::cerr << "COCKPIT_RUNTIME_DIR did not override development output paths" << std::endl;
+    return 1;
+  }
+
+  const auto production_config =
+      cockpit::config::SystemConfig::LoadFromFile(PRODUCTION_CONFIG_PATH);
+  if (production_config.services().gateway.grpc.listen_address !=
+          "unix:/cockpit-system/run/gateway.grpc.sock" ||
+      production_config.services().camera.grpc.listen_address !=
+          "unix:/cockpit-system/run/camera.grpc.sock" ||
+      production_config.paths().run_dir != "/cockpit-system/run") {
+    std::cerr << "production Unix socket config was not parsed correctly" << std::endl;
     return 1;
   }
 

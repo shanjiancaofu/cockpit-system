@@ -1,9 +1,12 @@
 #include "cockpit/navigator/navigator.h"
 
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <chrono>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -85,6 +88,86 @@ int main(int argc, char** argv) {
   success &=
       Expect(std::filesystem::is_regular_file(socket_path), "navigator removed a non-socket path");
   std::filesystem::remove(socket_path);
+
+  success &= Expect(connector.Open(socket_path, &socket_error), "failed to open IPC connector");
+  cockpit::navigator::IpcConnector second_connector;
+  std::string second_error;
+  success &= Expect(!second_connector.Open(socket_path, &second_error) &&
+                        second_error.find("another Navigator") != std::string::npos,
+                    "second Navigator acquired the active socket");
+
+  std::string fragmented_response;
+  std::thread fragmented_client([&socket_path, &fragmented_response]() {
+    const int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    sockaddr_un address{};
+    address.sun_family = AF_UNIX;
+    std::memcpy(address.sun_path, socket_path.c_str(), socket_path.size() + 1);
+    if (fd < 0 || connect(fd, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
+      if (fd >= 0) {
+        close(fd);
+      }
+      return;
+    }
+    send(fd, "sta", 3, MSG_NOSIGNAL);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    send(fd, "tus\n", 4, MSG_NOSIGNAL);
+    shutdown(fd, SHUT_WR);
+    char buffer[32];
+    const ssize_t size = read(fd, buffer, sizeof(buffer));
+    if (size > 0) {
+      fragmented_response.assign(buffer, static_cast<std::size_t>(size));
+    }
+    close(fd);
+  });
+  std::string fragmented_request;
+  const int fragmented_fd = connector.WaitForRequest(1000, &fragmented_request);
+  success &= Expect(fragmented_fd >= 0 && fragmented_request == "status",
+                    "fragmented IPC request was not reassembled");
+  if (fragmented_fd >= 0) {
+    connector.ReplyAndClose(fragmented_fd, "OK\n");
+  }
+  fragmented_client.join();
+  success &= Expect(fragmented_response == "OK\n", "fragmented IPC client received no reply");
+
+  std::string oversized_response;
+  std::thread oversized_client([&socket_path, &oversized_response]() {
+    const int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    sockaddr_un address{};
+    address.sun_family = AF_UNIX;
+    std::memcpy(address.sun_path, socket_path.c_str(), socket_path.size() + 1);
+    if (fd < 0 || connect(fd, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
+      if (fd >= 0) {
+        close(fd);
+      }
+      return;
+    }
+    std::string request(64U * 1024U + 1U, 'x');
+    request.push_back('\n');
+    std::size_t offset = 0;
+    while (offset < request.size()) {
+      const ssize_t written =
+          send(fd, request.data() + offset, request.size() - offset, MSG_NOSIGNAL);
+      if (written <= 0) {
+        close(fd);
+        return;
+      }
+      offset += static_cast<std::size_t>(written);
+    }
+    shutdown(fd, SHUT_WR);
+    char buffer[128];
+    const ssize_t size = read(fd, buffer, sizeof(buffer));
+    if (size > 0) {
+      oversized_response.assign(buffer, static_cast<std::size_t>(size));
+    }
+    close(fd);
+  });
+  std::string oversized_request;
+  success &= Expect(connector.WaitForRequest(1000, &oversized_request) < 0,
+                    "oversized IPC request was accepted");
+  oversized_client.join();
+  success &= Expect(oversized_response == "ERROR request exceeds 64 KiB\n",
+                    "oversized IPC request did not receive an explicit error");
+  connector.Close();
 
   success &= Expect(connector.Open(socket_path, &socket_error), "failed to open stalled peer");
   std::thread stalled_peer([&connector]() {

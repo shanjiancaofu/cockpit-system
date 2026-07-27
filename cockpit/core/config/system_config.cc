@@ -71,6 +71,14 @@ void RequirePositive(int value, const std::string& path) {
 }
 
 void ValidateAddress(const std::string& value, const std::string& path) {
+  constexpr std::string_view unix_prefix = "unix:";
+  if (value.rfind(unix_prefix, 0) == 0) {
+    const std::filesystem::path socket_path(value.substr(unix_prefix.size()));
+    if (!socket_path.is_absolute() || socket_path.filename().empty()) {
+      throw std::runtime_error(path + " Unix socket must use unix:/absolute/path format");
+    }
+    return;
+  }
   const std::size_t separator = value.rfind(':');
   if (separator == std::string::npos || separator == 0 || separator + 1 >= value.size()) {
     throw std::runtime_error(path + " must use host:port format");
@@ -268,7 +276,8 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   const YAML::Node recording = ChildMap(services, "recording", "services.recording");
   ValidateKeys(recording, "services.recording",
                {"auto_start", "directory", "vehicle_data_address", "stream_timeout_ms",
-                "retry_delay_ms", "max_sessions", "max_total_bytes", "grpc"});
+                "retry_delay_ms", "max_sessions", "max_total_bytes", "max_session_bytes",
+                "max_session_duration_seconds", "min_free_bytes", "grpc"});
   config.services_.recording.auto_start =
       Read(recording, "auto_start", config.services_.recording.auto_start,
            "services.recording.auto_start");
@@ -289,6 +298,16 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.recording.max_total_bytes =
       Read(recording, "max_total_bytes", config.services_.recording.max_total_bytes,
            "services.recording.max_total_bytes");
+  config.services_.recording.max_session_bytes =
+      Read(recording, "max_session_bytes", config.services_.recording.max_session_bytes,
+           "services.recording.max_session_bytes");
+  config.services_.recording.max_session_duration_seconds =
+      Read(recording, "max_session_duration_seconds",
+           config.services_.recording.max_session_duration_seconds,
+           "services.recording.max_session_duration_seconds");
+  config.services_.recording.min_free_bytes =
+      Read(recording, "min_free_bytes", config.services_.recording.min_free_bytes,
+           "services.recording.min_free_bytes");
   const YAML::Node recording_grpc = ChildMap(recording, "grpc", "services.recording.grpc");
   ValidateKeys(recording_grpc, "services.recording.grpc", {"listen_address"});
   config.services_.recording.grpc.listen_address =
@@ -379,6 +398,7 @@ void SystemConfig::Validate() const {
   RequireNotEmpty(system_.vehicle_id, "system.vehicle_id");
   RequireNotEmpty(paths_.data_dir, "paths.data_dir");
   RequireNotEmpty(paths_.log_dir, "paths.log_dir");
+  RequireNotEmpty(paths_.run_dir, "paths.run_dir");
   RequirePositive(logging_.dump_time_secs, "logging.dump_time_secs");
   RequirePositive(logging_.cut_off_time_mins, "logging.cut_off_time_mins");
   RequirePositive(logging_.max_files, "logging.max_files");
@@ -447,8 +467,12 @@ void SystemConfig::Validate() const {
     throw std::runtime_error("services.camera.synthetic_fault_after_frames must not be negative");
   }
   RequireNotEmpty(services_.camera.shared_memory_name, "services.camera.shared_memory_name");
-  if (services_.camera.shared_memory_name.front() != '/') {
-    throw std::runtime_error("services.camera.shared_memory_name must begin with '/'");
+  if (services_.camera.shared_memory_name.front() != '/' ||
+      services_.camera.shared_memory_name.size() == 1 ||
+      services_.camera.shared_memory_name.find('/', 1) != std::string::npos ||
+      services_.camera.shared_memory_name.size() > 255) {
+    throw std::runtime_error(
+        "services.camera.shared_memory_name must be one POSIX shared-memory name");
   }
   RequirePositive(services_.camera.max_frame_bytes, "services.camera.max_frame_bytes");
   RequireNotEmpty(services_.camera.photo_directory, "services.camera.photo_directory");
@@ -477,6 +501,16 @@ void SystemConfig::Validate() const {
   RequirePositive(services_.recording.max_sessions, "services.recording.max_sessions");
   if (services_.recording.max_total_bytes == 0) {
     throw std::runtime_error("services.recording.max_total_bytes must be greater than zero");
+  }
+  if (services_.recording.max_session_bytes == 0 ||
+      services_.recording.max_session_bytes > services_.recording.max_total_bytes) {
+    throw std::runtime_error(
+        "services.recording.max_session_bytes must be positive and not exceed max_total_bytes");
+  }
+  RequirePositive(services_.recording.max_session_duration_seconds,
+                  "services.recording.max_session_duration_seconds");
+  if (services_.recording.min_free_bytes == 0) {
+    throw std::runtime_error("services.recording.min_free_bytes must be greater than zero");
   }
 
   RequireNotEmpty(hardware_.can.interface, "hardware.can.interface");

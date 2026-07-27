@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 namespace cockpit {
@@ -24,6 +25,9 @@ class IpcConnector {
 
  private:
   int socket_fd_{-1};
+  int lock_fd_{-1};
+  std::uint64_t socket_device_{0};
+  std::uint64_t socket_inode_{0};
   std::string socket_path_;
 };
 

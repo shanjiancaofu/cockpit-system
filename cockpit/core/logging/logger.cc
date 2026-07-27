@@ -86,7 +86,7 @@ class LoggerState {
     }
     buffer_ += line_text;
     has_entries_ = true;
-    if (mirror_stderr_) {
+    if (mirror_stderr_ || !output_.is_open()) {
       std::cerr << line_text;
     }
   }
@@ -150,6 +150,9 @@ class LoggerState {
       path = std::filesystem::path(log_dir_) / name.str();
     }
     output_.open(path, std::ios::out | std::ios::trunc);
+    if (!output_.is_open()) {
+      std::cerr << "failed to open log file " << path << "; logging to stderr\n";
+    }
     current_path_ = path;
     buffer_ = "--- log started " + FormatTime(system_now, "%Y-%m-%d %H:%M:%S") +
               " service=" + service_name_ + " ---\n";
@@ -165,6 +168,8 @@ class LoggerState {
     if (output_.is_open() && !buffer_.empty()) {
       output_ << buffer_;
       output_.flush();
+      buffer_.clear();
+    } else if (!output_.is_open()) {
       buffer_.clear();
     }
   }

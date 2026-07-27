@@ -9,6 +9,7 @@ namespace safe_ota {
 struct SafeOtaOptions {
   std::filesystem::path package_root;
   std::filesystem::path install_root;
+  std::filesystem::path public_key;
   std::filesystem::path health_command;
   std::string confirmed_version;
   std::string socket_path;

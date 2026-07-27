@@ -243,6 +243,7 @@ void CameraService::CheckPreviewHealth() {
 }
 
 CameraServiceStatus CameraService::status() const {
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
   std::lock_guard<std::mutex> lock(mutex_);
   CameraServiceStatus result = status_;
   result.modules = module_manager_.Status();
