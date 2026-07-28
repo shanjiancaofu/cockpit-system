@@ -4,6 +4,8 @@ set -euo pipefail
 package_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 install_root="${COCKPIT_ROOT:-/cockpit-system}"
 install_systemd="${INSTALL_SYSTEMD:-true}"
+service_user="cockpit"
+service_group="cockpit"
 public_key="${COCKPIT_OTA_PUBLIC_KEY:-${install_root}/config/ota-public-key.pem}"
 if [[ ! -f "${public_key}" ]]; then
   echo "trusted OTA public key is missing: ${public_key}" >&2
@@ -36,9 +38,24 @@ if [[ "${install_systemd}" == "true" && "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-install -d "${release_dir}" "${install_root}/config" "${install_root}/models/whisper" \
-  "${install_root}/models/sensevoice" "${install_root}/data" "${install_root}/logs" \
-  "${install_root}/run"
+if [[ "${install_systemd}" == "true" ]]; then
+  if ! getent group "${service_group}" >/dev/null; then
+    groupadd --system "${service_group}"
+  fi
+  if ! id -u "${service_user}" >/dev/null 2>&1; then
+    useradd --system --gid "${service_group}" --home-dir /nonexistent \
+      --shell /usr/sbin/nologin "${service_user}"
+  fi
+  for device_group in audio video render dialout; do
+    if getent group "${device_group}" >/dev/null; then
+      usermod --append --groups "${device_group}" "${service_user}"
+    fi
+  done
+fi
+
+install -d "${install_root}" "${install_root}/releases" "${release_dir}" \
+  "${install_root}/config" "${install_root}/models/sensevoice" "${install_root}/data" \
+  "${install_root}/logs" "${install_root}/run"
 install -d -m 0700 "${install_root}/data/ota/incoming"
 cp -a "${package_root}/release/." "${release_dir}/"
 
@@ -50,15 +67,14 @@ else
     "${install_root}/config/config.yaml.new"
   echo "kept config.yaml; new template written to config.yaml.new"
 fi
-if [[ ! -f "${install_root}/config/environment" ]]; then
-  install -m 0644 "${package_root}/config/environment.example" \
-    "${install_root}/config/environment"
-else
-  install -m 0644 "${package_root}/config/environment.example" \
-    "${install_root}/config/environment.new"
-  echo "kept environment; new template written to environment.new"
+if [[ "${install_systemd}" == "true" ]]; then
+  chown "${service_user}:${service_group}" "${install_root}" "${install_root}/releases"
+  chown -R "${service_user}:${service_group}" "${release_dir}" "${install_root}/data" \
+    "${install_root}/logs" "${install_root}/run"
+  chown -R root:"${service_group}" "${install_root}/config" "${install_root}/models"
+  chmod 0750 "${install_root}/config" "${install_root}/models" \
+    "${install_root}/models/sensevoice"
 fi
-
 # Make the candidate contents durable before publishing the new current link.
 sync -f "${install_root}"
 ln -sfn "releases/${version}" "${install_root}/current.new"

@@ -7,7 +7,8 @@ ctl="${install_root}/current/bin/cockpit-ctl"
 
 mode_output="$("${ctl}" runtime mode --socket "${socket_path}")"
 mode="${mode_output#OK mode=}"
-if [[ "${mode}" != "normal" && "${mode}" != "development" && "${mode}" != "cloud" ]]; then
+if [[ "${mode}" != "normal" && "${mode}" != "development" && "${mode}" != "ui" &&
+      "${mode}" != "cloud" ]]; then
   echo "unable to determine Navigator mode: ${mode_output}" >&2
   exit 1
 fi
@@ -34,14 +35,13 @@ case "${mode}" in
   development)
     expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording)
     ;;
+  ui)
+    expected_modules=(transfer vehicle_driver audio_driver camera_driver agent hmi)
+    ;;
   cloud)
     expected_modules=(transfer vehicle_driver carupload)
     ;;
 esac
-if [[ ( "${mode}" == "normal" || "${mode}" == "development" ) &&
-      -x "${install_root}/current/bin/cockpit-ui" ]]; then
-  expected_modules+=(hmi)
-fi
 for module in "${expected_modules[@]}"; do
   module_status="$(grep -m1 "^module=${module} " <<<"${runtime_status}" || true)"
   if [[ "${module_status}" != *"state=running"* ]]; then

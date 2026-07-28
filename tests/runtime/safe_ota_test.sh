@@ -42,8 +42,6 @@ make_package() {
   mkdir -p "${package_root}/release/lib/cockpit/modules"
   cp -a "${module_dir}/." "${package_root}/release/lib/cockpit/modules/"
   printf 'system:\n  name: test\n' >"${package_root}/config/config.example.yaml"
-  install -m 0644 "${source_root}/configs/environment.example" \
-    "${package_root}/config/environment.example"
   printf '%s\n' "${version}" >"${package_root}/manifest/VERSION"
   install -m 0755 "${source_root}/scripts/deploy/install.sh" \
     "${package_root}/deploy/install.sh"
@@ -79,6 +77,10 @@ wait "${lock_pid}"
 [[ "${lock_result}" -eq 1 ]]
 grep -Fq \
   'ExecStartPre=/cockpit-system/current/bin/safe-ota --recover --root /cockpit-system' \
+  "${source_root}/configs/systemd/cockpit-navigator@.service"
+grep -Fxq 'User=cockpit' \
+  "${source_root}/configs/systemd/cockpit-navigator@.service"
+grep -Fxq 'Group=cockpit' \
   "${source_root}/configs/systemd/cockpit-navigator@.service"
 
 package_two="${work_dir}/package-2"

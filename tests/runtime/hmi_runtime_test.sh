@@ -34,7 +34,7 @@ export QT_QPA_PLATFORM=offscreen
 (
   cd "${run_dir}"
   exec "${navigator_path}" --config "${config_path}" --module-dir "${module_dir}" \
-    --socket "${socket_path}" --mode normal
+    --socket "${socket_path}" --mode ui
 ) >"${navigator_log}" 2>&1 &
 navigator_pid=$!
 

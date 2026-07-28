@@ -101,10 +101,6 @@ if [[ "${mode}" == "development" ]]; then
 else
   expected_modules=(transfer vehicle_driver audio_driver camera_driver agent)
 fi
-if [[ -x "${bin_dir}/cockpit-ui" ]]; then
-  expected_modules+=(hmi)
-  export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
-fi
 module_expected=false
 for expected_module in "${expected_modules[@]}"; do
   if [[ "${fault_module}" == "${expected_module}" ]]; then

@@ -137,7 +137,7 @@ int Run(const config::SystemConfig& config, diagnostics::OutputFormat output_for
   std::vector<Target> targets = {
       {"gateway", &config.services().gateway.grpc.listen_address, CheckGateway},
   };
-  if (mode == "normal" || mode == "development") {
+  if (mode == "normal" || mode == "development" || mode == "ui") {
     targets.push_back({"audio", &config.services().audio.grpc.listen_address, CheckAudio});
     targets.push_back(
         {"voice", &config.services().voice_interaction.grpc.listen_address, CheckVoice});

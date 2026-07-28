@@ -27,11 +27,10 @@ RunConfig RunConfig::Default() {
       {"normal", {"transfer", "vehicle_driver", "audio_driver", "camera_driver", "agent"}},
       {"development",
        {"transfer", "vehicle_driver", "audio_driver", "camera_driver", "agent", "recording"}},
+      {"ui", {"transfer", "vehicle_driver", "audio_driver", "camera_driver", "agent", "hmi"}},
       {"cloud", {"transfer", "vehicle_driver", "carupload"}},
       {"upgrade", {"upgrader"}},
   };
-  config.modes.at("normal").push_back("hmi");
-  config.modes.at("development").push_back("hmi");
   return config;
 }
 

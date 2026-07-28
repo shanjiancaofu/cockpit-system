@@ -64,10 +64,10 @@ tests/                     单元测试与 smoke test
 `carupload` 可在 cloud mode 加载，但当前只验证模块生命周期，没有 broker 连接、TLS、设备身份或
 发布确认，因此仍属于 ABI 占位，不计为已实现的云端传输。
 
-UI 构建中，`normal` 启动 transfer、三类 driver、agent 和 hmi；`development` 在此基础上增加 recording；`cloud`
+`normal` 启动 transfer、三类 driver 和 agent；`development` 在此基础上增加 recording；`cloud`
 启动 transfer、vehicle_driver 和 carupload；`upgrade` 只启动 upgrader，避免安装期间继续占用业务
-资源。headless 构建不把 hmi 加入 mode；`debugger/calibration/watchdog` 只保留 ABI 骨架，不进入可运行
-mode，手动启动会明确失败。
+资源。HMI 仅在显式 `ui` mode 中启动，不进入 systemd 默认启动路径；`debugger/calibration/watchdog`
+只保留 ABI 骨架，不进入可运行 mode，手动启动会明确失败。
 
 三个 systemd target 分别启动一个 `cockpit-navigator@<mode>.service` 实例，target 之间互斥。
 旧独立 service 二进制不再构建或打包；详细 smoke、UI 联调和 vcan smoke 都通过 Navigator 选择模块

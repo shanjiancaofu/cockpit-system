@@ -5,16 +5,15 @@ StopWhenUnneeded=yes
 
 [Service]
 Type=simple
+User=cockpit
+Group=cockpit
 WorkingDirectory=/cockpit-system
-EnvironmentFile=-/cockpit-system/config/environment
 ExecStartPre=/cockpit-system/current/bin/safe-ota --recover --root /cockpit-system
 ExecStart=/cockpit-system/current/bin/cockpit-navigator --config /cockpit-system/config/config.yaml --module-dir /cockpit-system/current/lib/cockpit/modules --socket /cockpit-system/run/navigator.sock --mode %i
 Restart=on-failure
 RestartSec=2
 UMask=0077
 NoNewPrivileges=yes
-CapabilityBoundingSet=CAP_DAC_READ_SEARCH
-AmbientCapabilities=CAP_DAC_READ_SEARCH
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=yes

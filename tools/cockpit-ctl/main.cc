@@ -15,7 +15,7 @@ void PrintUsage() {
   std::cout << "Usage:\n"
             << "  cockpit-ctl status [--config configs/config.yaml]\n"
             << "  cockpit-ctl status --watch [--interval SEC] [--config configs/config.yaml]\n"
-            << "  cockpit-ctl health [--mode normal|development|cloud]"
+            << "  cockpit-ctl health [--mode normal|development|ui|cloud]"
                " [--config configs/config.yaml]\n"
             << "  cockpit-ctl snapshot [--directory PATH] [--max-log-bytes N]"
                " [--max-snapshots N] [--max-total-bytes N] [--socket PATH]\n"
@@ -69,8 +69,8 @@ int main(int argc, char** argv) {
 
   if (command == "health") {
     const std::string mode = args.GetString("mode", "normal");
-    if (mode != "normal" && mode != "development" && mode != "cloud") {
-      std::cerr << "mode must be normal, development, or cloud\n";
+    if (mode != "normal" && mode != "development" && mode != "ui" && mode != "cloud") {
+      std::cerr << "mode must be normal, development, ui, or cloud\n";
       return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
     }
     return cockpit::ctl::health::Run(config, output_format, mode);

@@ -59,7 +59,7 @@ trap cleanup EXIT INT TERM
 (
   cd "${run_dir}"
   exec "${bin_dir}/cockpit-navigator" --config "${config_path}" --module-dir "${module_dir}" \
-    --socket "${socket_path}" --mode normal
+    --socket "${socket_path}" --mode ui
 ) >"${navigator_log}" 2>&1 &
 navigator_pid=$!
 
@@ -78,7 +78,7 @@ for _ in $(seq 1 100); do
   sleep 0.1
 done
 if [[ "${runtime_ready}" != true ]]; then
-  echo "Navigator normal mode did not become ready; see ${navigator_log}" >&2
+  echo "Navigator ui mode did not become ready; see ${navigator_log}" >&2
   exit 1
 fi
 runtime_status="$("${bin_dir}/cockpit-ctl" runtime status --socket "${socket_path}")"

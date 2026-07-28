@@ -1,4 +1,0 @@
-# Optional environment inherited by cockpit-navigator and its HMI child.
-# Configure these values when the system service renders into an existing Xorg session.
-# DISPLAY=:0
-# XAUTHORITY=/run/user/1000/gdm/Xauthority

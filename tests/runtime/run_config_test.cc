@@ -32,8 +32,14 @@ int main() {
         std::find(normal->second.begin(), normal->second.end(), "transfer") != normal->second.end(),
         "normal mode does not contain transfer");
     success &= Expect(
-        std::find(normal->second.begin(), normal->second.end(), "hmi") != normal->second.end(),
-        "normal mode does not contain hmi");
+        std::find(normal->second.begin(), normal->second.end(), "hmi") == normal->second.end(),
+        "normal mode unexpectedly contains hmi");
+  }
+  const auto ui = config.modes.find("ui");
+  success &= Expect(ui != config.modes.end(), "ui mode is missing");
+  if (ui != config.modes.end()) {
+    success &= Expect(std::find(ui->second.begin(), ui->second.end(), "hmi") != ui->second.end(),
+                      "ui mode does not contain hmi");
   }
   const auto cloud = config.modes.find("cloud");
   success &= Expect(cloud != config.modes.end(), "cloud mode is missing");
