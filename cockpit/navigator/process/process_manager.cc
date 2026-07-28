@@ -281,7 +281,7 @@ ProcessManager::ProcessRecord* ProcessManager::Find(const std::string& name) {
 bool ProcessManager::Start(ProcessRecord* process, std::string* error) {
   const std::string library_path = LibraryPath(process->config.library);
   int ready_pipe[2];
-  if (pipe2(ready_pipe, 0) < 0) {
+  if (pipe2(ready_pipe, O_CLOEXEC) < 0) {
     *error = "failed to create readiness pipe for " + process->config.name;
     process->state = ProcessState::kFailed;
     return false;
@@ -304,9 +304,11 @@ bool ProcessManager::Start(ProcessRecord* process, std::string* error) {
   const int attributes_result = actions_result == 0 ? posix_spawnattr_init(&attributes) : EINVAL;
   bool spawn_configuration_ok = actions_result == 0 && attributes_result == 0;
   if (spawn_configuration_ok) {
-    spawn_configuration_ok = posix_spawn_file_actions_addclose(&actions, ready_pipe[0]) == 0 &&
-                             posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP) == 0 &&
-                             posix_spawnattr_setpgroup(&attributes, 0) == 0;
+    spawn_configuration_ok =
+        posix_spawn_file_actions_addclose(&actions, ready_pipe[0]) == 0 &&
+        posix_spawn_file_actions_adddup2(&actions, ready_pipe[1], ready_pipe[1]) == 0 &&
+        posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP) == 0 &&
+        posix_spawnattr_setpgroup(&attributes, 0) == 0;
   }
   pid_t pid = 0;
   const int spawn_result =

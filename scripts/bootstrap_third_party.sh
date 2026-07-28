@@ -27,7 +27,10 @@ checkout_revision() {
     fi
     return
   fi
-  git clone --filter=blob:none --no-checkout "${url}" "${destination}"
+
+  mkdir -p "${destination}"
+  git -C "${destination}" init
+  git -C "${destination}" remote add origin "${url}"
   git -C "${destination}" fetch --depth 1 origin "${revision}"
   git -C "${destination}" checkout --detach FETCH_HEAD
   [[ "$(git -C "${destination}" rev-parse HEAD)" == "${revision}" ]]
@@ -38,8 +41,10 @@ sherpa_source="${third_party_dir}/sherpa-onnx"
 if [[ -f "${revision_marker}" &&
       "$(<"${revision_marker}")" == "${expected_revisions}" &&
       -x "${prefix}/bin/protoc" &&
+      -x "${prefix}/bin/grpc_cpp_plugin" &&
       -d "${sherpa_source}/.git" &&
-      "$(git -C "${sherpa_source}" rev-parse HEAD)" == "${sherpa_revision}" ]]; then
+      "$(git -C "${sherpa_source}" rev-parse HEAD)" == "${sherpa_revision}" ]] &&
+   "${prefix}/bin/grpc_cpp_plugin" </dev/null; then
   echo "pinned third-party dependencies are already ready in ${third_party_dir}"
   exit 0
 fi
@@ -57,10 +62,16 @@ cmake --install "${deps_root}/build-protobuf"
 
 grpc_source="${deps_root}/grpc"
 checkout_revision https://github.com/grpc/grpc.git "${grpc_revision}" "${grpc_source}"
-git -C "${grpc_source}" submodule update --init --recursive --depth 1
+git -C "${grpc_source}" submodule update --init --depth 1 \
+  third_party/abseil-cpp \
+  third_party/boringssl-with-bazel \
+  third_party/cares/cares \
+  third_party/re2 \
+  third_party/zlib
 cmake -S "${grpc_source}" -B "${deps_root}/build-grpc" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="${prefix}" \
+  '-DCMAKE_INSTALL_RPATH=$ORIGIN/../lib' \
   -DCMAKE_PREFIX_PATH="${prefix}" \
   -DBUILD_SHARED_LIBS=ON \
   -DgRPC_BUILD_TESTS=OFF \
@@ -74,6 +85,7 @@ checkout_revision https://github.com/k2-fsa/sherpa-onnx.git \
 git -C "${sherpa_source}" submodule update --init --recursive --depth 1
 
 "${prefix}/bin/protoc" --version
+"${prefix}/bin/grpc_cpp_plugin" </dev/null
 PKG_CONFIG_PATH="${prefix}/lib/pkgconfig" pkg-config --modversion grpc++
 printf '%s\n' "${expected_revisions}" >"${revision_marker}"
 echo "third-party dependencies are ready in ${third_party_dir}"

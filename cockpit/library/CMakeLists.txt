@@ -1,19 +1,3 @@
-include(GNUInstallDirs)
-
-function(add_cockpit_module target_name module_name source)
-    add_library(${target_name} MODULE ${source})
-    target_include_directories(${target_name} PRIVATE ${PROJECT_SOURCE_DIR})
-    set_target_properties(${target_name} PROPERTIES
-        OUTPUT_NAME ${module_name}
-        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/cockpit/modules
-        INSTALL_RPATH "$ORIGIN/../.."
-    )
-    install(TARGETS ${target_name}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/cockpit/modules
-        COMPONENT Runtime
-    )
-endfunction()
-
 add_library(transfer_runtime STATIC
     transfer/gateway_grpc_service.cc
     transfer/transfer_runtime.cc
@@ -22,9 +6,6 @@ add_library(transfer_runtime STATIC
 target_include_directories(transfer_runtime PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(transfer_runtime PUBLIC config contracts logging time_util)
 
-add_cockpit_module(cockpit_module_transfer transfer transfer/entry.cc)
-target_link_libraries(cockpit_module_transfer PRIVATE transfer_runtime)
-
 add_library(vehicle_runtime STATIC
     driver/vehicle/vehicle_data_service.cc
     driver/vehicle/vehicle_grpc_service.cc
@@ -32,9 +13,6 @@ add_library(vehicle_runtime STATIC
 )
 target_include_directories(vehicle_runtime PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(vehicle_runtime PUBLIC config contracts logging socketcan vehicle)
-
-add_cockpit_module(cockpit_module_vehicle_driver vehicle_driver driver/vehicle/entry.cc)
-target_link_libraries(cockpit_module_vehicle_driver PRIVATE vehicle_runtime)
 
 add_cockpit_library(audio_capture_module driver/audio/capture/audio_capture_module.cc)
 target_link_libraries(audio_capture_module PUBLIC audio_capture runtime)
@@ -63,9 +41,6 @@ target_link_libraries(audio_runtime PUBLIC
     sherpa_onnx_asr
     speech_output
 )
-
-add_cockpit_module(cockpit_module_audio_driver audio_driver driver/audio/entry.cc)
-target_link_libraries(cockpit_module_audio_driver PRIVATE audio_runtime)
 
 add_cockpit_library(camera_preview driver/camera/preview/camera_preview_module.cc)
 target_link_libraries(camera_preview PUBLIC camera_capture runtime)
@@ -106,9 +81,6 @@ target_link_libraries(camera_runtime PUBLIC
     synthetic_camera
 )
 
-add_cockpit_module(cockpit_module_camera_driver camera_driver driver/camera/entry.cc)
-target_link_libraries(cockpit_module_camera_driver PRIVATE camera_runtime)
-
 add_cockpit_library(voice_interaction agent/interaction/voice_interaction_service.cc)
 target_link_libraries(voice_interaction PUBLIC event voice)
 
@@ -143,22 +115,13 @@ target_link_libraries(agent_runtime PUBLIC
     voice_vehicle_client
 )
 
-add_cockpit_module(cockpit_module_agent agent agent/entry.cc)
-target_link_libraries(cockpit_module_agent PRIVATE agent_runtime)
-
 add_library(hmi_runtime STATIC hmi/hmi_runtime.cc)
 target_include_directories(hmi_runtime PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(hmi_runtime PUBLIC config logging)
 
-add_cockpit_module(cockpit_module_hmi hmi hmi/entry.cc)
-target_link_libraries(cockpit_module_hmi PRIVATE hmi_runtime)
-
 add_library(carupload_runtime STATIC carupload/carupload_runtime.cc)
 target_include_directories(carupload_runtime PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(carupload_runtime PUBLIC config logging vehicle)
-
-add_cockpit_module(cockpit_module_carupload carupload carupload/entry.cc)
-target_link_libraries(cockpit_module_carupload PRIVATE carupload_runtime)
 
 add_cockpit_library(recording_service recording/recording_service.cc)
 target_link_libraries(recording_service PUBLIC contracts logging recording)
@@ -178,18 +141,9 @@ target_link_libraries(recording_runtime PUBLIC
     time_util
 )
 
-add_cockpit_module(cockpit_module_recording recording recording/entry.cc)
-target_link_libraries(cockpit_module_recording PRIVATE recording_runtime)
-
 add_library(upgrader_runtime STATIC
     upgrader/upgrade_transaction.cc
     upgrader/upgrader_runtime.cc
 )
 target_include_directories(upgrader_runtime PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(upgrader_runtime PUBLIC config logging)
-
-add_cockpit_module(cockpit_module_upgrader upgrader upgrader/entry.cc)
-target_link_libraries(cockpit_module_upgrader PRIVATE upgrader_runtime)
-add_cockpit_module(cockpit_module_debugger debugger debugger/entry.cc)
-add_cockpit_module(cockpit_module_calibration calibration calibration/entry.cc)
-add_cockpit_module(cockpit_module_watchdog watchdog watchdog/entry.cc)

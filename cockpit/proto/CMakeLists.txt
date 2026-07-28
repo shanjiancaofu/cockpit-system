@@ -1,3 +1,5 @@
+include(GNUInstallDirs)
+
 find_package(Protobuf 3.21.12 CONFIG REQUIRED)
 if(NOT Protobuf_VERSION VERSION_EQUAL 3.21.12)
     message(FATAL_ERROR "cockpit-system requires Protobuf 3.21.12; found ${Protobuf_VERSION}")
@@ -54,13 +56,21 @@ foreach(proto_file IN LISTS proto_files)
     )
 endforeach()
 
-add_library(contracts STATIC
+add_library(contracts SHARED
     ${generated_sources}
     ${generated_headers}
+)
+set_target_properties(contracts PROPERTIES
+    VERSION 1.0.0
+    SOVERSION 1
 )
 target_include_directories(contracts PUBLIC "${generated_dir}")
 target_link_libraries(contracts
     PUBLIC
         protobuf::libprotobuf
         ${COCKPIT_GRPCPP_TARGET}
+)
+install(TARGETS contracts
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT Runtime
 )
