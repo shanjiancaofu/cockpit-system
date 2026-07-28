@@ -1,5 +1,3 @@
-find_package(Threads REQUIRED)
-
 add_cockpit_library(audio_frames frames/audio_frame.cc frames/pcm_format.cc)
 
 add_cockpit_library(audio_capture capture/audio_capture_stream.cc)

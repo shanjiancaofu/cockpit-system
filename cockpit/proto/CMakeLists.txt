@@ -1,14 +1,3 @@
-include(GNUInstallDirs)
-
-find_package(Protobuf 3.21.12 CONFIG REQUIRED)
-if(NOT Protobuf_VERSION VERSION_EQUAL 3.21.12)
-    message(FATAL_ERROR "cockpit-system requires Protobuf 3.21.12; found ${Protobuf_VERSION}")
-endif()
-find_package(gRPC 1.51.3 EXACT CONFIG REQUIRED)
-set(COCKPIT_PROTOC protobuf::protoc)
-set(COCKPIT_GRPC_CPP_PLUGIN "$<TARGET_FILE:gRPC::grpc_cpp_plugin>")
-set(COCKPIT_GRPCPP_TARGET gRPC::grpc++)
-
 set(proto_files
     audio.proto
     camera.proto
@@ -42,12 +31,12 @@ foreach(proto_file IN LISTS proto_files)
             "${generated_dir}/${proto_name}.pb.h"
             "${generated_dir}/${proto_name}.grpc.pb.cc"
             "${generated_dir}/${proto_name}.grpc.pb.h"
-        COMMAND ${COCKPIT_PROTOC}
+        COMMAND protobuf::protoc
         ARGS
             "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}"
             "--cpp_out=${generated_dir}"
             "--grpc_out=${generated_dir}"
-            "--plugin=protoc-gen-grpc=${COCKPIT_GRPC_CPP_PLUGIN}"
+            "--plugin=protoc-gen-grpc=${COCKPIT_GRPC_CPP_PLUGIN_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/${proto_file}"
         DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/${proto_file}"
@@ -68,9 +57,5 @@ target_include_directories(contracts PUBLIC "${generated_dir}")
 target_link_libraries(contracts
     PUBLIC
         protobuf::libprotobuf
-        ${COCKPIT_GRPCPP_TARGET}
-)
-install(TARGETS contracts
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    COMPONENT Runtime
+        PkgConfig::GRPCPP
 )

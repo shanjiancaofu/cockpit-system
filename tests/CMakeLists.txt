@@ -1,5 +1,3 @@
-find_package(Threads REQUIRED)
-
 add_executable(cockpit_smoke_test integration/smoke_test.cc)
 target_link_libraries(cockpit_smoke_test PRIVATE can vehicle)
 add_test(NAME cockpit_smoke_test COMMAND cockpit_smoke_test)

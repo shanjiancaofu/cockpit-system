@@ -1,7 +1,3 @@
-include(GNUInstallDirs)
-
-find_package(Threads REQUIRED)
-
 add_library(navigator_core STATIC
     connection/ipc_connector.cc
     diagnostics/crash_reporter.cc
@@ -38,10 +34,6 @@ function(add_navigator_module target_name module_name entry_source)
         OUTPUT_NAME ${module_name}
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/cockpit/modules
         INSTALL_RPATH "$ORIGIN/../.."
-    )
-    install(TARGETS ${target_name}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/cockpit/modules
-        COMPONENT Runtime
     )
 endfunction()
 

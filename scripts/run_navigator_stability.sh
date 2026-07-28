@@ -208,7 +208,9 @@ write_report() {
   local injections_json
   ended_at_ms="$(date +%s%3N)"
   config_sha256="$(sha256sum "${config_path}" | awk '{print $1}')"
-  project_version="$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' "${build_dir}/CMakeCache.txt")"
+  # shellcheck disable=SC1090
+  source "${build_dir}/package-info.env"
+  project_version="${COCKPIT_VERSION}"
   git_revision="$(git -C "${root_dir}" rev-parse HEAD 2>/dev/null || echo unknown)"
   git_dirty=false
   if [[ -n "$(git -C "${root_dir}" status --porcelain)" ]]; then

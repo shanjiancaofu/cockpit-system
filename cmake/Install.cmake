@@ -1,6 +1,6 @@
-include(GNUInstallDirs)
+include_guard(GLOBAL)
 
-set(cockpit_runtime_targets
+set(cockpit_runtime_target_candidates
     cockpit-navigator
     audio-probe
     camera-ctl
@@ -12,40 +12,51 @@ set(cockpit_runtime_targets
     safe-ota
     topic
     voice-ctl
+    cockpit-ui
 )
-
-if(TARGET cockpit-ui)
-    list(APPEND cockpit_runtime_targets cockpit-ui)
-endif()
-
-foreach(target_name IN LISTS cockpit_runtime_targets)
+set(cockpit_runtime_targets)
+foreach(target_name IN LISTS cockpit_runtime_target_candidates)
     if(TARGET ${target_name})
-        install(TARGETS ${target_name}
-            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-            COMPONENT Runtime
+        list(APPEND cockpit_runtime_targets ${target_name})
+        set_target_properties(${target_name} PROPERTIES
+            INSTALL_RPATH "$ORIGIN/../lib"
         )
     endif()
 endforeach()
 
-set(cockpit_bundled_library_targets
-    whisper
-    ggml
-    ggml-base
-    ggml-cpu
-    ggml-cuda
+set(cockpit_module_targets
+    cockpit_module_transfer
+    cockpit_module_vehicle_driver
+    cockpit_module_audio_driver
+    cockpit_module_camera_driver
+    cockpit_module_agent
+    cockpit_module_hmi
+    cockpit_module_carupload
+    cockpit_module_recording
+    cockpit_module_upgrader
+    cockpit_module_debugger
+    cockpit_module_calibration
+    cockpit_module_watchdog
 )
-
-foreach(target_name IN LISTS cockpit_bundled_library_targets)
-    if(TARGET ${target_name})
-        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "$ORIGIN")
-        install(TARGETS ${target_name}
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            COMPONENT Runtime
-            PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-            COMPONENT Development
-        )
-    endif()
+foreach(target_name IN LISTS cockpit_module_targets)
+    set_target_properties(${target_name} PROPERTIES
+        INSTALL_RPATH "$ORIGIN/../.."
+    )
 endforeach()
+set_target_properties(contracts PROPERTIES INSTALL_RPATH "$ORIGIN")
+
+install(TARGETS ${cockpit_runtime_targets}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT Runtime
+)
+install(TARGETS contracts
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT Runtime
+)
+install(TARGETS ${cockpit_module_targets}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/cockpit/modules
+    COMPONENT Runtime
+)
 
 install(FILES README.md
     DESTINATION ${CMAKE_INSTALL_DATADIR}/cockpit-system

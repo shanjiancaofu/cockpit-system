@@ -128,7 +128,7 @@ if [[ "${target_arch}" != "${machine_arch}" ]]; then
   cmake_options+=(
     "-DCMAKE_TOOLCHAIN_FILE=${toolchain_file}"
     "-DJETSON_SYSROOT=${JETSON_SYSROOT}"
-    "-DBUILD_TESTS=OFF"
+    "-DBUILD_TESTING=OFF"
   )
 fi
 
@@ -157,15 +157,19 @@ cmake_args=(
 )
 cmake "${cmake_args[@]}"
 
-configured_build_type="$(sed -n 's/^CMAKE_BUILD_TYPE:STRING=//p' "${build_dir}/CMakeCache.txt")"
-configured_compiler_id="$(sed -n 's/^COCKPIT_COMPILER_ID:STRING=//p' "${build_dir}/CMakeCache.txt")"
+# shellcheck disable=SC1090
+source "${build_dir}/package-info.env"
+configured_build_type="${COCKPIT_BUILD_TYPE}"
+configured_compiler_id="${COCKPIT_COMPILER_ID}"
 expected_compiler_id="GNU"
 if [[ "${configured_build_type}" != "${build_type}" ||
       "${configured_compiler_id}" != "${expected_compiler_id}" ]]; then
   echo "CMake reset cached options while changing compilers; applying the requested configuration again"
   cmake "${cmake_args[@]}"
-  configured_build_type="$(sed -n 's/^CMAKE_BUILD_TYPE:STRING=//p' "${build_dir}/CMakeCache.txt")"
-  configured_compiler_id="$(sed -n 's/^COCKPIT_COMPILER_ID:STRING=//p' "${build_dir}/CMakeCache.txt")"
+  # shellcheck disable=SC1090
+  source "${build_dir}/package-info.env"
+  configured_build_type="${COCKPIT_BUILD_TYPE}"
+  configured_compiler_id="${COCKPIT_COMPILER_ID}"
 fi
 if [[ "${configured_build_type}" != "${build_type}" ||
       "${configured_compiler_id}" != "${expected_compiler_id}" ]]; then

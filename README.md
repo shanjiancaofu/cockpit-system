@@ -157,8 +157,9 @@ ctest --test-dir _output/build/arm64-release \
 ```
 
 `model.int8.onnx` 与同包的 `tokens.txt` 放在同一目录；模型文件不提交仓库，也不进入程序包。
-构建固定使用工作区 `third_party/` 下的 sherpa-onnx、Protobuf 3.21.12 和 gRPC 1.51.3；路径变化时
-可通过 `SHERPA_ONNX_DIR` 和 `COCKPIT_UNIFIED_DEPS_PREFIX` 覆盖。
+Ubuntu 22.04 构建使用系统安装的 Protobuf 3.12.4 和 gRPC；Sherpa-ONNX 源码默认位于工作区
+`third_party/sherpa-onnx`，路径变化时可通过 `COCKPIT_SHERPA_ONNX_SOURCE_DIR` 覆盖。项目协议与 gRPC
+共用系统 Protobuf，Sherpa-ONNX 内部的 ONNX Runtime 及其 Protobuf 保持私有隔离。
 
 ## 提交规范
 

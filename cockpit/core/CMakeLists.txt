@@ -1,6 +1,3 @@
-find_package(yaml-cpp REQUIRED)
-find_package(Threads REQUIRED)
-
 configure_file(build/build_info_config.h.in generated/build_info_config.h @ONLY)
 
 add_library(base INTERFACE)

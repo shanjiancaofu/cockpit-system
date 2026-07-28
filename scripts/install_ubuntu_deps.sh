@@ -38,5 +38,3 @@ sudo apt-get install -y \
 cmake --version
 g++ --version
 ninja --version
-protoc --version
-command -v grpc_cpp_plugin

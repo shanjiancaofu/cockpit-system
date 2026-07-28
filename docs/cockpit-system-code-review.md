@@ -24,7 +24,7 @@
 
 本次对全部文件完成了目录清点、文件类型统计、敏感信息扫描、构建引用扫描和静态检索；对 Navigator、进程管理、IPC、共享内存、Camera、Recording、Upgrader/OTA、systemd、配置及测试进行了逐文件重点审查。
 
-本报告是**静态审核**。没有执行仓库脚本、没有修改仓库，也没有完成构建和动态测试。ZIP 不包含 `.git` 历史，同时构建依赖 `third_party/cockpit-unified-deps/prefix` 和 `third_party/sherpa-onnx`，因此无法仅凭该 ZIP 复现完整构建。
+本报告是**静态审核**。没有执行仓库脚本、没有修改仓库，也没有完成构建和动态测试。ZIP 不包含 `.git` 历史，同时构建依赖系统 gRPC/Protobuf 开发包和 `third_party/sherpa-onnx`，因此无法仅凭该 ZIP 复现完整构建。
 
 ---
 
