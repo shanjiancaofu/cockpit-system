@@ -16,6 +16,8 @@ if [[ ! -f "${package_info}" ]]; then
   exit 1
 fi
 
+cmake -S "${root_dir}" -B "${build_dir}"
+
 # shellcheck disable=SC1090
 source "${package_info}"
 
