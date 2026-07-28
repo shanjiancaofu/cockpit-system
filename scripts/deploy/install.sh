@@ -6,9 +6,15 @@ install_root="${COCKPIT_ROOT:-/cockpit-system}"
 install_systemd="${INSTALL_SYSTEMD:-true}"
 service_user="cockpit"
 service_group="cockpit"
-public_key="${COCKPIT_OTA_PUBLIC_KEY:-${install_root}/config/ota-public-key.pem}"
+trusted_public_key="${install_root}/config/ota-public-key.pem"
+if [[ -f "${trusted_public_key}" ]]; then
+  public_key="${trusted_public_key}"
+else
+  public_key="${COCKPIT_OTA_PUBLIC_KEY:-}"
+fi
 if [[ ! -f "${public_key}" ]]; then
-  echo "trusted OTA public key is missing: ${public_key}" >&2
+  echo "trusted OTA public key is missing" >&2
+  echo "first install: sudo COCKPIT_OTA_PUBLIC_KEY=/path/to/ota-public-key.pem bash deploy/install.sh" >&2
   exit 1
 fi
 if [[ ! -f "${package_root}/manifest/SHA256SUMS.sig" ]]; then
@@ -66,6 +72,9 @@ else
   install -m 0644 "${package_root}/config/config.example.yaml" \
     "${install_root}/config/config.yaml.new"
   echo "kept config.yaml; new template written to config.yaml.new"
+fi
+if [[ ! -f "${trusted_public_key}" ]]; then
+  install -m 0444 "${public_key}" "${trusted_public_key}"
 fi
 if [[ "${install_systemd}" == "true" ]]; then
   chown "${service_user}:${service_group}" "${install_root}" "${install_root}/releases"
