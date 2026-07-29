@@ -54,6 +54,11 @@ int main(int argc, char** argv) {
         std::cerr << "module child requires --module and --library\n";
         return 64;
       }
+      const std::string process_name = name.substr(0, 15);
+      if (prctl(PR_SET_NAME, process_name.c_str()) != 0) {
+        std::cerr << "failed to set module process name\n";
+        return 1;
+      }
       const pid_t navigator_pid = getppid();
       if (navigator_pid <= 1 || prctl(PR_SET_PDEATHSIG, SIGTERM) != 0 ||
           getppid() != navigator_pid) {
@@ -88,10 +93,12 @@ int main(int argc, char** argv) {
     config.socket_path = socket_path;
     const std::string mode = args.GetString("mode", "");
     if (!mode.empty()) {
-      config.initial_mode = mode;
-      if (config.modes.find(mode) == config.modes.end()) {
+      cockpit::navigator::RunMode parsed_mode;
+      if (!cockpit::navigator::ParseRunMode(mode, &parsed_mode) ||
+          config.FindMode(parsed_mode) == nullptr) {
         throw std::runtime_error("unknown mode: " + mode);
       }
+      config.initial_mode = parsed_mode;
     }
     const std::filesystem::path executable = ExecutablePath();
     const std::string default_module_dir =

@@ -43,6 +43,10 @@ if [[ "${install_systemd}" == "true" && "${EUID}" -ne 0 ]]; then
   echo "systemd installation requires root; run with sudo or set INSTALL_SYSTEMD=false" >&2
   exit 1
 fi
+if [[ "${install_systemd}" == "true" && "${install_root}" != "/cockpit-system" ]]; then
+  echo "systemd installation requires COCKPIT_ROOT=/cockpit-system" >&2
+  exit 1
+fi
 
 if [[ "${install_systemd}" == "true" ]]; then
   if ! getent group "${service_group}" >/dev/null; then
@@ -94,6 +98,12 @@ sync -f "${install_root}"
 
 if [[ "${install_systemd}" == "true" ]]; then
   legacy_units=(
+    cockpit.target
+    cockpit-development.target
+    cockpit-cloud.target
+    cockpit-navigator@normal.service
+    cockpit-navigator@development.service
+    cockpit-navigator@cloud.service
     audio-service.service
     camera-service.service
     cloud-uplink-service.service
@@ -103,13 +113,30 @@ if [[ "${install_systemd}" == "true" ]]; then
     vehicle-data-service.service
     voice-interaction-service.service
   )
+  legacy_enabled=false
+  legacy_active=false
+  for unit in "${legacy_units[@]}"; do
+    if systemctl is-enabled --quiet "${unit}" 2>/dev/null; then
+      legacy_enabled=true
+    fi
+    if systemctl is-active --quiet "${unit}" 2>/dev/null; then
+      legacy_active=true
+    fi
+  done
   systemctl disable --now "${legacy_units[@]}" >/dev/null 2>&1 || true
   for unit in "${legacy_units[@]}"; do
     rm -f "/etc/systemd/system/${unit}"
   done
-  install -m 0644 "${package_root}"/systemd/*.service /etc/systemd/system/
-  install -m 0644 "${package_root}"/systemd/*.target /etc/systemd/system/
+  rm -f /etc/systemd/system/cockpit-navigator@.service
+  install -m 0644 "${package_root}/systemd/cockpit-navigator.service" \
+    /etc/systemd/system/cockpit-navigator.service
   systemctl daemon-reload
+  if [[ "${legacy_enabled}" == "true" ]]; then
+    systemctl enable cockpit-navigator.service
+  fi
+  if [[ "${legacy_active}" == "true" ]]; then
+    systemctl restart cockpit-navigator.service
+  fi
 fi
 
 echo "installed cockpit-system ${version} to ${install_root}"

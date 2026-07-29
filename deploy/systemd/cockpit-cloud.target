@@ -1,8 +1,0 @@
-[Unit]
-Description=cockpit-system Cloud Mode
-Wants=cockpit-navigator@cloud.service
-Conflicts=cockpit.target cockpit-development.target
-After=network-online.target
-
-[Install]
-WantedBy=multi-user.target

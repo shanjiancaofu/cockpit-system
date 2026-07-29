@@ -1,11 +1,13 @@
 #include "cockpit/navigator/navigator.h"
 
+#include <signal.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -45,6 +47,34 @@ bool WaitFor(const std::string& socket_path, const std::string& expected,
   return false;
 }
 
+pid_t ModulePid(const std::string& status, const std::string& module) {
+  const std::string prefix = "module=" + module + " ";
+  const std::size_t module_position = status.find(prefix);
+  if (module_position == std::string::npos) {
+    return 0;
+  }
+  const std::size_t pid_position = status.find("pid=", module_position + prefix.size());
+  if (pid_position == std::string::npos) {
+    return 0;
+  }
+  return static_cast<pid_t>(std::strtol(status.c_str() + pid_position + 4, nullptr, 10));
+}
+
+bool WaitForExit(pid_t pid, int* status) {
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+  while (std::chrono::steady_clock::now() < deadline) {
+    const pid_t result = waitpid(pid, status, WNOHANG);
+    if (result == pid) {
+      return true;
+    }
+    if (result < 0) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+  return false;
+}
+
 int RunModuleChild(const std::string& navigator_path, const std::string& module_path) {
   const pid_t pid = fork();
   if (pid == 0) {
@@ -72,6 +102,11 @@ int main(int argc, char** argv) {
   const std::string crash_module = argv[3];
   const std::string incompatible_module = argv[4];
   const std::string cockpit_ctl_path = argv[5];
+  const std::filesystem::path module_directory = std::filesystem::path(good_module).parent_path();
+  const std::string good_library = std::filesystem::path(good_module).filename().string();
+  const std::string crash_library = std::filesystem::path(crash_module).filename().string();
+  const std::string incompatible_library =
+      std::filesystem::path(incompatible_module).filename().string();
   const std::filesystem::path test_dir = std::filesystem::temp_directory_path() /
                                          ("cockpit-navigator-test-" + std::to_string(getpid()));
   std::filesystem::create_directories(test_dir);
@@ -189,33 +224,43 @@ int main(int argc, char** argv) {
   connector.Close();
 
   cockpit::navigator::RunConfig config;
-  config.initial_mode = "normal";
+  config.initial_mode = cockpit::navigator::RunMode::kNormal;
   config.socket_path = socket_path;
   config.startup_timeout_ms = 500;
   config.stop_timeout_ms = 500;
-  config.max_restarts = 2;
   config.restart_window_seconds = 10;
   config.modules = {
-      {"transfer", good_module},
-      {"crash", crash_module},
-      {"incompatible", incompatible_module},
+      {cockpit::navigator::ModuleId::kTransfer, good_library},
+      {cockpit::navigator::ModuleId::kDebugger, crash_library, false, 2, 20},
+      {cockpit::navigator::ModuleId::kCalibration, incompatible_library},
   };
   config.modes = {
-      {"normal", {"transfer"}},
-      {"development", {"transfer", "crash"}},
-      {"broken", {"incompatible"}},
+      {cockpit::navigator::RunMode::kNormal, {cockpit::navigator::ModuleId::kTransfer}},
+      {cockpit::navigator::RunMode::kDevelopment,
+       {cockpit::navigator::ModuleId::kTransfer, cockpit::navigator::ModuleId::kDebugger}},
+      {cockpit::navigator::RunMode::kUpgrade, {cockpit::navigator::ModuleId::kCalibration}},
   };
 
   const pid_t navigator_pid = fork();
   if (navigator_pid == 0) {
-    cockpit::navigator::Navigator navigator(std::move(config), navigator_path, test_dir.string(),
-                                            "", (test_dir / "crashes").string());
+    cockpit::navigator::Navigator navigator(std::move(config), navigator_path,
+                                            module_directory.string(), "",
+                                            (test_dir / "crashes").string());
     _exit(navigator.Run());
   }
 
   std::string response;
   success &= Expect(WaitFor(socket_path, "module=transfer state=running", &response),
                     "normal mode did not start transfer module");
+  success &= Expect(response.find("starts=1") != std::string::npos &&
+                        response.find("uptime_ms=") != std::string::npos,
+                    "module lifecycle fields are missing");
+  const pid_t transfer_pid = ModulePid(response, "transfer");
+  std::ifstream process_name("/proc/" + std::to_string(transfer_pid) + "/comm");
+  std::string process_name_value;
+  std::getline(process_name, process_name_value);
+  success &= Expect(transfer_pid > 0 && process_name_value == "transfer",
+                    "module process name is not observable");
   success &= Expect(Send(socket_path, "reload", &response) && response == "OK\n",
                     "failed to reload active mode");
   success &= Expect(WaitFor(socket_path, "module=transfer state=running", &response),
@@ -233,10 +278,13 @@ int main(int argc, char** argv) {
                     "cockpit-ctl runtime mode failed");
   success &= Expect(Send(socket_path, "switch development", &response) && response == "OK\n",
                     "failed to switch to development mode");
-  success &= Expect(WaitFor(socket_path, "module=crash state=failed", &response),
+  success &= Expect(WaitFor(socket_path, "module=debugger state=failed", &response),
                     "crashing module did not reach failed state");
   success &= Expect(response.find("restarts=2") != std::string::npos,
                     "crashing module restart count mismatch");
+  success &= Expect(response.find("starts=3") != std::string::npos &&
+                        response.find("last_signal=11") != std::string::npos,
+                    "crashing module lifecycle counters mismatch");
   std::size_t crash_report_count = 0;
   bool found_restart_success = false;
   bool found_restart_limit = false;
@@ -253,7 +301,7 @@ int main(int argc, char** argv) {
       const std::string report((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
       success &= Expect(cockpit::json::IsValidValue(report), "crash report is not valid JSON");
-      success &= Expect(report.find("\"module\":\"crash\"") != std::string::npos,
+      success &= Expect(report.find("\"module\":\"debugger\"") != std::string::npos,
                         "crash report module mismatch");
       success &= Expect(report.find("\"termination\":\"signal\"") != std::string::npos &&
                             report.find("\"signal\":11") != std::string::npos,
@@ -272,10 +320,10 @@ int main(int argc, char** argv) {
                     "restarted module is not running");
   success &= Expect(Send(socket_path, "switch normal", &response) && response == "OK\n",
                     "failed to return to normal mode");
-  success &= Expect(WaitFor(socket_path, "module=crash state=stopped", &response),
+  success &= Expect(WaitFor(socket_path, "module=debugger state=stopped", &response),
                     "mode switch did not stop crash module");
-  success &= Expect(Send(socket_path, "switch broken", &response) &&
-                        response.find("ERROR module incompatible failed before ready") == 0,
+  success &= Expect(Send(socket_path, "switch upgrade", &response) &&
+                        response.find("ERROR module calibration failed before ready") == 0,
                     "pre-ready module failure was not reported");
   success &= Expect(WaitFor(socket_path, "module=transfer state=running", &response),
                     "failed mode switch did not restore previous modules");
@@ -302,6 +350,36 @@ int main(int argc, char** argv) {
   }
   success &= Expect(final_crash_report_count == crash_report_count,
                     "clean shutdown unexpectedly created a crash report");
+
+  cockpit::navigator::RunConfig critical_config;
+  critical_config.initial_mode = cockpit::navigator::RunMode::kNormal;
+  critical_config.socket_path = (test_dir / "critical.sock").string();
+  critical_config.startup_timeout_ms = 500;
+  critical_config.stop_timeout_ms = 500;
+  critical_config.restart_window_seconds = 10;
+  critical_config.modules = {
+      {cockpit::navigator::ModuleId::kDebugger, crash_library, true, 0, 0},
+  };
+  critical_config.modes = {
+      {cockpit::navigator::RunMode::kNormal, {cockpit::navigator::ModuleId::kDebugger}},
+  };
+  const pid_t critical_pid = fork();
+  if (critical_pid == 0) {
+    cockpit::navigator::Navigator navigator(std::move(critical_config), navigator_path,
+                                            module_directory.string(), "",
+                                            (test_dir / "critical-crashes").string());
+    _exit(navigator.Run());
+  }
+  int critical_status = 0;
+  const bool critical_exited = WaitForExit(critical_pid, &critical_status);
+  if (!critical_exited) {
+    kill(critical_pid, SIGKILL);
+    waitpid(critical_pid, &critical_status, 0);
+  }
+  success &=
+      Expect(critical_exited && WIFEXITED(critical_status) && WEXITSTATUS(critical_status) == 1,
+             "critical module failure did not stop Navigator");
+
   std::filesystem::remove_all(test_dir);
   return success ? 0 : 1;
 }

@@ -1,4 +1,6 @@
 add_library(navigator_core STATIC
+    common/module_id.cc
+    common/run_mode.cc
     connection/ipc_connector.cc
     diagnostics/crash_reporter.cc
     dl_api/module_loader.cc

@@ -1,8 +1,0 @@
-[Unit]
-Description=cockpit-system Development Mode
-Wants=cockpit-navigator@development.service
-Conflicts=cockpit.target cockpit-cloud.target
-After=network.target sound.target
-
-[Install]
-WantedBy=multi-user.target

@@ -69,9 +69,11 @@ tests/                     单元测试与 smoke test
 资源。HMI 仅在显式 `ui` mode 中启动，不进入 systemd 默认启动路径；`debugger/calibration/watchdog`
 只保留 ABI 骨架，不进入可运行 mode，手动启动会明确失败。
 
-三个 systemd target 分别启动一个 `cockpit-navigator@<mode>.service` 实例，target 之间互斥。
-旧独立 service 二进制不再构建或打包；详细 smoke、UI 联调和 vcan smoke 都通过 Navigator 选择模块
-组合。`ProcessRuntime` 只服务于诊断工具等独立可执行程序，不再管理长运行的产品业务资源。
+量产启动只安装一个固定的 `cockpit-navigator.service`，并始终从 `normal` mode 启动。systemd 只负责
+账号、权限、进程守护和开机拉起，不表达业务模块组合；临时的 development/ui 切换及独占 upgrade
+流程由 Navigator 控制面完成，未实现的 cloud 不暴露为开机单元。旧独立 service 二进制不再构建或
+打包；详细 smoke、UI 联调和 vcan smoke 都通过 Navigator 选择模块组合。`ProcessRuntime` 只服务于
+诊断工具等独立可执行程序，不再管理长运行的产品业务资源。
 
 HMI module child 不在 ABI `poll()` 中模拟 Qt event loop，而是启动同目录的 `cockpit-ui`。Qt 仍在自己的
 主线程执行 `QGuiApplication::exec()`；UI 退出会通过 HMI `Poll()` 触发 Navigator 的重启限制，HMI

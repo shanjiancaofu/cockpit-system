@@ -60,6 +60,8 @@ const char* ToString(ProcessState state) {
   switch (state) {
     case ProcessState::kStopped:
       return "stopped";
+    case ProcessState::kRestarting:
+      return "restarting";
     case ProcessState::kRunning:
       return "running";
     case ProcessState::kFailed:
@@ -77,7 +79,7 @@ ProcessManager::ProcessManager(RunConfig config, std::string executable_path,
       module_config_path_(std::move(module_config_path)),
       crash_reporter_(std::move(crash_report_directory)) {
   for (const ModuleConfig& module : config_.modules) {
-    processes_.push_back(ProcessRecord{module});
+    processes_.emplace_back(module);
   }
 }
 
@@ -86,47 +88,56 @@ ProcessManager::~ProcessManager() {
 }
 
 bool ProcessManager::SwitchMode(const std::string& mode, std::string* error) {
-  const auto mode_it = config_.modes.find(mode);
-  if (mode_it == config_.modes.end()) {
+  RunMode parsed_mode;
+  if (!ParseRunMode(mode, &parsed_mode)) {
     *error = "unknown mode: " + mode;
     return false;
   }
-  const std::unordered_set<std::string> desired(mode_it->second.begin(), mode_it->second.end());
-  std::unordered_set<std::string> previous;
-  std::vector<std::string> previous_order;
+  return SwitchMode(parsed_mode, error);
+}
+
+bool ProcessManager::SwitchMode(RunMode mode, std::string* error) {
+  const std::vector<ModuleId>* mode_modules = config_.FindMode(mode);
+  if (mode_modules == nullptr) {
+    *error = "unknown mode: " + std::string(RunModeName(mode));
+    return false;
+  }
+  const std::unordered_set<ModuleId> desired(mode_modules->begin(), mode_modules->end());
+  std::unordered_set<ModuleId> previous;
+  std::vector<ModuleId> previous_order;
   for (const ProcessRecord& process : processes_) {
     if (process.desired) {
-      previous.insert(process.config.name);
-      previous_order.push_back(process.config.name);
+      previous.insert(process.config.id);
+      previous_order.push_back(process.config.id);
     }
   }
 
   for (auto process = processes_.rbegin(); process != processes_.rend(); ++process) {
-    if (process->desired && desired.find(process->config.name) == desired.end()) {
+    if (process->desired && desired.find(process->config.id) == desired.end()) {
       std::string stop_error;
-      if (!StopModule(process->config.name, &stop_error)) {
+      if (!StopModule(process->config.id, &stop_error)) {
         *error = stop_error;
         return false;
       }
     }
   }
-  for (const std::string& name : mode_it->second) {
-    ProcessRecord* process = Find(name);
+  for (ModuleId module : *mode_modules) {
+    ProcessRecord* process = Find(module);
     if (!process->desired || process->state != ProcessState::kRunning) {
-      if (!StartModule(name, error)) {
+      if (!StartModule(module, error)) {
         const std::string switch_error = *error;
         bool rollback_ok = true;
         for (auto current = processes_.rbegin(); current != processes_.rend(); ++current) {
-          if (current->desired && previous.find(current->config.name) == previous.end()) {
+          if (current->desired && previous.find(current->config.id) == previous.end()) {
             std::string rollback_error;
-            rollback_ok &= StopModule(current->config.name, &rollback_error);
+            rollback_ok &= StopModule(current->config.id, &rollback_error);
           }
         }
-        for (const std::string& previous_name : previous_order) {
-          ProcessRecord* previous_process = Find(previous_name);
+        for (ModuleId previous_module : previous_order) {
+          ProcessRecord* previous_process = Find(previous_module);
           if (previous_process->state != ProcessState::kRunning) {
             std::string rollback_error;
-            rollback_ok &= StartModule(previous_name, &rollback_error);
+            rollback_ok &= StartModule(previous_module, &rollback_error);
           }
         }
         *error = switch_error + (rollback_ok ? "" : "; rollback failed");
@@ -134,14 +145,24 @@ bool ProcessManager::SwitchMode(const std::string& mode, std::string* error) {
       }
     }
   }
-  mode_ = mode;
+  mode_ = RunModeName(mode);
+  critical_failure_ = false;
   return true;
 }
 
 bool ProcessManager::StartModule(const std::string& name, std::string* error) {
-  ProcessRecord* process = Find(name);
-  if (process == nullptr) {
+  ModuleId module;
+  if (!ParseModuleId(name, &module)) {
     *error = "unknown module: " + name;
+    return false;
+  }
+  return StartModule(module, error);
+}
+
+bool ProcessManager::StartModule(ModuleId module, std::string* error) {
+  ProcessRecord* process = Find(module);
+  if (process == nullptr) {
+    *error = "module is not configured: " + std::string(ModuleName(module));
     return false;
   }
   if (process->state == ProcessState::kRunning) {
@@ -149,17 +170,29 @@ bool ProcessManager::StartModule(const std::string& name, std::string* error) {
     return true;
   }
   process->desired = true;
+  process->restart_pending = false;
   process->restart_times.clear();
   return Start(process, error);
 }
 
 bool ProcessManager::StopModule(const std::string& name, std::string* error) {
-  ProcessRecord* process = Find(name);
-  if (process == nullptr) {
+  ModuleId module;
+  if (!ParseModuleId(name, &module)) {
     *error = "unknown module: " + name;
     return false;
   }
+  return StopModule(module, error);
+}
+
+bool ProcessManager::StopModule(ModuleId module, std::string* error) {
+  ProcessRecord* process = Find(module);
+  const std::string name = ModuleName(module);
+  if (process == nullptr) {
+    *error = "module is not configured: " + name;
+    return false;
+  }
   process->desired = false;
+  process->restart_pending = false;
   process->restart_times.clear();
   if (process->pid == 0) {
     process->state = ProcessState::kStopped;
@@ -238,7 +271,7 @@ void ProcessManager::ReapExited() {
   while (true) {
     const pid_t pid = waitpid(-1, &wait_status, WNOHANG);
     if (pid <= 0) {
-      return;
+      break;
     }
     for (ProcessRecord& process : processes_) {
       if (process.pid == pid) {
@@ -247,31 +280,41 @@ void ProcessManager::ReapExited() {
       }
     }
   }
+  RestartPending();
 }
 
 void ProcessManager::StopAll() {
   for (auto process = processes_.rbegin(); process != processes_.rend(); ++process) {
-    if (process->pid != 0) {
+    if (process->pid != 0 || process->desired || process->restart_pending) {
       std::string error;
-      StopModule(process->config.name, &error);
+      StopModule(process->config.id, &error);
     }
   }
   mode_.clear();
+  critical_failure_ = false;
 }
 
 std::vector<ProcessStatus> ProcessManager::Status() const {
+  const auto now = std::chrono::steady_clock::now();
   std::vector<ProcessStatus> status;
   status.reserve(processes_.size());
   for (const ProcessRecord& process : processes_) {
-    status.push_back({process.config.name, process.state, process.pid, process.last_exit_code,
-                      static_cast<int>(process.restart_times.size())});
+    const std::int64_t uptime_ms =
+        process.state == ProcessState::kRunning
+            ? std::chrono::duration_cast<std::chrono::milliseconds>(now - process.started_at)
+                  .count()
+            : 0;
+    status.push_back({ModuleName(process.config.id), process.state, process.pid,
+                      process.last_exit_code, static_cast<int>(process.restart_times.size()),
+                      process.start_count, uptime_ms, process.last_failure_ms,
+                      process.last_signal});
   }
   return status;
 }
 
-ProcessManager::ProcessRecord* ProcessManager::Find(const std::string& name) {
+ProcessManager::ProcessRecord* ProcessManager::Find(ModuleId module) {
   for (ProcessRecord& process : processes_) {
-    if (process.config.name == name) {
+    if (process.config.id == module) {
       return &process;
     }
   }
@@ -279,17 +322,18 @@ ProcessManager::ProcessRecord* ProcessManager::Find(const std::string& name) {
 }
 
 bool ProcessManager::Start(ProcessRecord* process, std::string* error) {
+  const std::string module_name = ModuleName(process->config.id);
   const std::string library_path = LibraryPath(process->config.library);
   int ready_pipe[2];
   if (pipe2(ready_pipe, O_CLOEXEC) < 0) {
-    *error = "failed to create readiness pipe for " + process->config.name;
+    *error = "failed to create readiness pipe for " + module_name;
     process->state = ProcessState::kFailed;
     return false;
   }
   const std::string ready_fd = std::to_string(ready_pipe[1]);
   std::vector<std::string> arguments{
-      executable_path_, "--module-child",  "--module",          process->config.name, "--library",
-      library_path,     "--module-config", module_config_path_, "--ready-fd",         ready_fd,
+      executable_path_, "--module-child",  "--module",          module_name,  "--library",
+      library_path,     "--module-config", module_config_path_, "--ready-fd", ready_fd,
   };
   std::vector<char*> argv;
   argv.reserve(arguments.size() + 1U);
@@ -324,8 +368,8 @@ bool ProcessManager::Start(ProcessRecord* process, std::string* error) {
   if (spawn_result != 0) {
     close(ready_pipe[0]);
     close(ready_pipe[1]);
-    *error = "failed to spawn module " + process->config.name + ": " +
-             std::string(std::strerror(spawn_result));
+    *error =
+        "failed to spawn module " + module_name + ": " + std::string(std::strerror(spawn_result));
     process->state = ProcessState::kFailed;
     return false;
   }
@@ -344,20 +388,24 @@ bool ProcessManager::Start(ProcessRecord* process, std::string* error) {
     process->pid = 0;
     process->state = ProcessState::kFailed;
     process->last_exit_code = ExitCode(wait_status);
-    *error = "module " + process->config.name + " failed before ready";
+    *error = "module " + module_name + " failed before ready";
     return false;
   }
 
   process->pid = pid;
   process->state = ProcessState::kRunning;
   process->last_exit_code = 0;
-  LOG_INFO("started module " + process->config.name + " pid=" + std::to_string(pid));
+  process->started_at = std::chrono::steady_clock::now();
+  ++process->start_count;
+  LOG_INFO("started module " + module_name + " pid=" + std::to_string(pid));
   return true;
 }
 
 void ProcessManager::HandleExit(ProcessRecord* process, pid_t exited_pid, int wait_status) {
   process->pid = 0;
   process->last_exit_code = ExitCode(wait_status);
+  process->last_failure_ms = time::NowMs();
+  process->last_signal = TerminationSignal(wait_status);
   if (!process->desired) {
     process->state = ProcessState::kStopped;
     return;
@@ -368,29 +416,57 @@ void ProcessManager::HandleExit(ProcessRecord* process, pid_t exited_pid, int wa
   while (!process->restart_times.empty() && now - process->restart_times.front() > window) {
     process->restart_times.pop_front();
   }
-  if (static_cast<int>(process->restart_times.size()) >= config_.max_restarts) {
-    process->state = ProcessState::kFailed;
+  if (static_cast<int>(process->restart_times.size()) >= process->config.restart_limit) {
+    MarkFailed(process);
     RecordCrash(*process, exited_pid, wait_status, "limit_exceeded");
-    LOG_ERROR("module " + process->config.name + " exceeded restart limit");
+    LOG_ERROR("module " + std::string(ModuleName(process->config.id)) + " exceeded restart limit");
     return;
   }
 
   process->restart_times.push_back(now);
-  std::string error;
-  if (!Start(process, &error)) {
-    process->state = ProcessState::kFailed;
-    RecordCrash(*process, exited_pid, wait_status, "failed");
-    LOG_ERROR(error);
-    return;
+  process->state = ProcessState::kRestarting;
+  process->restart_pending = true;
+  process->restart_at = now + std::chrono::milliseconds(process->config.restart_delay_ms);
+  process->failed_pid = exited_pid;
+  process->failed_wait_status = wait_status;
+}
+
+void ProcessManager::RestartPending() {
+  const auto now = std::chrono::steady_clock::now();
+  for (ProcessRecord& process : processes_) {
+    if (!process.restart_pending || now < process.restart_at) {
+      continue;
+    }
+    process.restart_pending = false;
+    const pid_t failed_pid = process.failed_pid;
+    const int failed_wait_status = process.failed_wait_status;
+    process.failed_pid = 0;
+    process.failed_wait_status = 0;
+
+    std::string error;
+    if (!Start(&process, &error)) {
+      MarkFailed(&process);
+      RecordCrash(process, failed_pid, failed_wait_status, "failed");
+      LOG_ERROR(error);
+      continue;
+    }
+    RecordCrash(process, failed_pid, failed_wait_status, "succeeded");
   }
-  RecordCrash(*process, exited_pid, wait_status, "succeeded");
+}
+
+void ProcessManager::MarkFailed(ProcessRecord* process) {
+  process->state = ProcessState::kFailed;
+  process->restart_pending = false;
+  if (process->config.critical) {
+    critical_failure_ = true;
+  }
 }
 
 void ProcessManager::RecordCrash(const ProcessRecord& process, pid_t exited_pid, int wait_status,
                                  const std::string& restart_result) {
   CrashReport report;
   report.timestamp_ms = time::NowMs();
-  report.module = process.config.name;
+  report.module = ModuleName(process.config.id);
   report.mode = mode_;
   report.pid = exited_pid;
   report.termination = TerminationKind(wait_status);

@@ -1,8 +1,0 @@
-[Unit]
-Description=cockpit-system Normal Mode
-Wants=cockpit-navigator@normal.service
-Conflicts=cockpit-development.target cockpit-cloud.target
-After=network.target sound.target
-
-[Install]
-WantedBy=multi-user.target

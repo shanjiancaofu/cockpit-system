@@ -43,6 +43,10 @@ Navigator::Navigator(RunConfig config, std::string executable_path, std::string 
 int Navigator::Run() {
   InstallSignalHandlers();
   std::string error;
+  if (!config_.Validate(&error)) {
+    LOG_ERROR(error);
+    return 1;
+  }
   if (!ipc_.Open(config_.socket_path, &error)) {
     LOG_ERROR(error);
     return 1;
@@ -51,8 +55,9 @@ int Navigator::Run() {
     LOG_ERROR(error);
     return 1;
   }
-  LOG_INFO("navigator started in mode " + config_.initial_mode);
+  LOG_INFO("navigator started in mode " + std::string(RunModeName(config_.initial_mode)));
 
+  bool critical_failure = false;
   while (!stop_requested_ && signal_received == 0) {
     std::string request;
     const int client_fd = ipc_.WaitForRequest(100, &request);
@@ -60,11 +65,19 @@ int Navigator::Run() {
       ipc_.ReplyAndClose(client_fd, ExecuteCommand(request));
     }
     process_manager_.ReapExited();
+    if (process_manager_.HasCriticalFailure()) {
+      LOG_ERROR("critical Navigator module failed");
+      critical_failure = true;
+      break;
+    }
   }
 
   ipc_.Close();
   process_manager_.StopAll();
   LOG_INFO("navigator stopped");
+  if (critical_failure) {
+    return 1;
+  }
   return reexec_mode_.empty() ? 0 : 75;
 }
 
@@ -86,7 +99,8 @@ std::string Navigator::ExecuteCommand(const std::string& command) {
     return "OK\n";
   }
   if (operation == "reexec" && (input >> argument) && !(input >> trailing)) {
-    if (config_.modes.find(argument) == config_.modes.end()) {
+    RunMode mode;
+    if (!ParseRunMode(argument, &mode) || config_.FindMode(mode) == nullptr) {
       return "ERROR unknown mode: " + argument + "\n";
     }
     reexec_mode_ = argument;
@@ -131,7 +145,9 @@ std::string Navigator::StatusText() const {
   for (const ProcessStatus& status : process_manager_.Status()) {
     output << "module=" << status.name << " state=" << ToString(status.state)
            << " pid=" << status.pid << " exit=" << status.last_exit_code
-           << " restarts=" << status.restart_count << '\n';
+           << " restarts=" << status.restart_count << " starts=" << status.start_count
+           << " uptime_ms=" << status.uptime_ms << " last_failure_ms=" << status.last_failure_ms
+           << " last_signal=" << status.last_signal << '\n';
   }
   return output.str();
 }

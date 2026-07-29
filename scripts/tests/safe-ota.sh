@@ -77,11 +77,13 @@ wait "${lock_pid}"
 [[ "${lock_result}" -eq 1 ]]
 grep -Fq \
   'ExecStartPre=/cockpit-system/current/bin/safe-ota --recover --root /cockpit-system' \
-  "${source_root}/deploy/systemd/cockpit-navigator@.service"
+  "${source_root}/deploy/systemd/cockpit-navigator.service"
+grep -Fq -- '--mode normal' \
+  "${source_root}/deploy/systemd/cockpit-navigator.service"
 grep -Fxq 'User=cockpit' \
-  "${source_root}/deploy/systemd/cockpit-navigator@.service"
+  "${source_root}/deploy/systemd/cockpit-navigator.service"
 grep -Fxq 'Group=cockpit' \
-  "${source_root}/deploy/systemd/cockpit-navigator@.service"
+  "${source_root}/deploy/systemd/cockpit-navigator.service"
 
 package_two="${work_dir}/package-2"
 make_package "${package_two}" 2.0.0
