@@ -31,10 +31,7 @@ services:
     grpc:
       listen_address: 127.0.0.1:50052
     vad:
-      enabled: true
-      speech_threshold_dbfs: -40.0
-      speech_start_frames: 3
-      speech_end_frames: 10
+      provider: disabled
     speech_segment:
       pre_roll_ms: 100
       max_segment_ms: 15000

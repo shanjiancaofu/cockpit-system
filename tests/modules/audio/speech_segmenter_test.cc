@@ -16,7 +16,7 @@ cockpit::audio::AudioFrame MakeFrame(
 
 cockpit::audio::VoiceActivityResult Activity(cockpit::audio::VoiceActivityState state,
                                              bool changed = false) {
-  return {state, state == cockpit::audio::VoiceActivityState::kSpeech ? -10.0 : -120.0, changed};
+  return {state, state == cockpit::audio::VoiceActivityState::kSpeech ? 1.0F : 0.0F, changed};
 }
 
 bool TestPreRollAndEndpoint() {

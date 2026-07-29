@@ -1,4 +1,5 @@
 services:
   audio:
     vad:
-      speech_threshold_dbfs: 1.0
+      provider: plugin
+      plugin_path: relative/libcockpit-vad.so

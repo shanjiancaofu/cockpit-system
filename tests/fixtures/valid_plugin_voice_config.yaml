@@ -1,3 +1,10 @@
+services:
+  audio:
+    vad:
+      provider: plugin
+      plugin_path: /usr/lib/cockpit/speech/libcockpit-speech-sherpa.so
+      plugin_config_path: /etc/cockpit/speech.yaml
+
 features:
   voice:
     enabled: true

@@ -12,7 +12,7 @@ enum class VoiceActivityState {
 
 struct VoiceActivityResult {
   VoiceActivityState state = VoiceActivityState::kSilence;
-  double level_dbfs = -120.0;
+  float speech_probability = 0.0F;
   bool state_changed = false;
 };
 

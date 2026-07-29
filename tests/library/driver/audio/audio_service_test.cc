@@ -46,6 +46,22 @@ class FakeCaptureSource final : public cockpit::audio::AudioCaptureSource {
   std::shared_ptr<FakeState> state_;
 };
 
+class AlwaysSpeechDetector final : public cockpit::audio::VoiceActivityDetector {
+ public:
+  cockpit::audio::VoiceActivityResult Analyze(const cockpit::audio::AudioFrame&) override {
+    const bool changed = !speech_started_;
+    speech_started_ = true;
+    return {cockpit::audio::VoiceActivityState::kSpeech, 1.0F, changed};
+  }
+
+  void Reset() override {
+    speech_started_ = false;
+  }
+
+ private:
+  bool speech_started_{false};
+};
+
 template <typename Predicate>
 bool WaitUntil(const Predicate& predicate) {
   const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
@@ -63,18 +79,16 @@ bool WaitUntil(const Predicate& predicate) {
 int main() {
   cockpit::config::AudioConfig config;
   config.input_device = "fake-input";
-  cockpit::config::VadConfig vad_config;
-  vad_config.speech_threshold_dbfs = -60.0;
-  vad_config.speech_start_frames = 1;
   cockpit::config::SpeechSegmentConfig segment_config;
   segment_config.pre_roll_ms = 0;
   segment_config.max_segment_ms = 100;
   auto fake_state = std::make_shared<FakeState>();
   cockpit::audio::AudioService service(
-      config, vad_config, segment_config,
+      config, segment_config,
       [fake_state](const std::string&, const cockpit::audio::PcmFormat&) {
         return std::make_unique<FakeCaptureSource>(fake_state);
-      });
+      },
+      std::make_unique<AlwaysSpeechDetector>(), nullptr);
 
   std::string error;
   if (!service.StartCapture("", &error)) {
@@ -120,6 +134,26 @@ int main() {
     std::cerr << "audio service stopped status is invalid\n";
     return 1;
   }
+
+  auto diagnostic_state = std::make_shared<FakeState>();
+  cockpit::audio::AudioService diagnostic_service(
+      config, [diagnostic_state](const std::string&, const cockpit::audio::PcmFormat&) {
+        return std::make_unique<FakeCaptureSource>(diagnostic_state);
+      });
+  if (!diagnostic_service.StartCapture("", &error) || !WaitUntil([&diagnostic_service] {
+        return diagnostic_service.status().input_level_dbfs > -120.0;
+      })) {
+    std::cerr << "audio diagnostics did not consume frames without VAD\n";
+    return 1;
+  }
+  diagnostic_service.StopCapture();
+  const auto diagnostic_status = diagnostic_service.status();
+  if (diagnostic_status.vad_enabled || diagnostic_status.vad_frames_processed != 0 ||
+      !diagnostic_state->opened.load() || !diagnostic_state->closed.load()) {
+    std::cerr << "audio diagnostics status without VAD is invalid\n";
+    return 1;
+  }
+
   std::cout << "audio service tests passed\n";
   return 0;
 }

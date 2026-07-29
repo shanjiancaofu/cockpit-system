@@ -14,7 +14,7 @@ int main() {
       config.services().vehicle_data.grpc.listen_address != "127.0.0.1:50050" ||
       config.services().gateway.stream_timeout_ms != 10000 ||
       config.services().audio.grpc.listen_address != "127.0.0.1:50052" ||
-      config.services().audio.vad.speech_start_frames != 3 ||
+      config.services().audio.vad.provider != "disabled" ||
       config.services().audio.speech_segment.max_segment_ms != 15000 ||
       config.services().camera.capture_backend != "gstreamer" ||
       config.services().camera.preview_stale_timeout_ms != 2000 ||
@@ -109,7 +109,7 @@ int main() {
     return 1;
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
-    if (message.find("services.audio.vad.speech_threshold_dbfs") == std::string::npos) {
+    if (message.find("services.audio.vad.plugin_path") == std::string::npos) {
       std::cerr << "invalid VAD error did not identify YAML path: " << message << std::endl;
       return 1;
     }
@@ -131,6 +131,9 @@ int main() {
   const auto plugin_config =
       cockpit::config::SystemConfig::LoadFromFile(VALID_PLUGIN_VOICE_CONFIG_PATH);
   if (!plugin_config.features().voice.enabled ||
+      plugin_config.services().audio.vad.provider != "plugin" ||
+      plugin_config.services().audio.vad.plugin_path !=
+          "/usr/lib/cockpit/speech/libcockpit-speech-sherpa.so" ||
       plugin_config.features().voice.asr.provider != "plugin" ||
       plugin_config.features().voice.asr.plugin_path != "/usr/lib/cockpit/asr/libcockpit-asr.so" ||
       plugin_config.features().voice.asr.plugin_config_path != "/etc/cockpit/asr.yaml") {

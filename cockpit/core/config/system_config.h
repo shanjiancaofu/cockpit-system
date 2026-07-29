@@ -42,10 +42,9 @@ struct GatewayConfig {
 };
 
 struct VadConfig {
-  bool enabled = true;
-  double speech_threshold_dbfs = -40.0;
-  int speech_start_frames = 3;
-  int speech_end_frames = 10;
+  std::string provider = "disabled";
+  std::string plugin_path;
+  std::string plugin_config_path;
 };
 
 struct SpeechSegmentConfig {

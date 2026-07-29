@@ -188,19 +188,14 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(audio_grpc, "listen_address", config.services_.audio.grpc.listen_address,
            "services.audio.grpc.listen_address");
   const YAML::Node vad = ChildMap(audio_service, "vad", "services.audio.vad");
-  ValidateKeys(vad, "services.audio.vad",
-               {"enabled", "speech_threshold_dbfs", "speech_start_frames", "speech_end_frames"});
-  config.services_.audio.vad.enabled =
-      Read(vad, "enabled", config.services_.audio.vad.enabled, "services.audio.vad.enabled");
-  config.services_.audio.vad.speech_threshold_dbfs =
-      Read(vad, "speech_threshold_dbfs", config.services_.audio.vad.speech_threshold_dbfs,
-           "services.audio.vad.speech_threshold_dbfs");
-  config.services_.audio.vad.speech_start_frames =
-      Read(vad, "speech_start_frames", config.services_.audio.vad.speech_start_frames,
-           "services.audio.vad.speech_start_frames");
-  config.services_.audio.vad.speech_end_frames =
-      Read(vad, "speech_end_frames", config.services_.audio.vad.speech_end_frames,
-           "services.audio.vad.speech_end_frames");
+  ValidateKeys(vad, "services.audio.vad", {"provider", "plugin_path", "plugin_config_path"});
+  config.services_.audio.vad.provider =
+      Read(vad, "provider", config.services_.audio.vad.provider, "services.audio.vad.provider");
+  config.services_.audio.vad.plugin_path = Read(
+      vad, "plugin_path", config.services_.audio.vad.plugin_path, "services.audio.vad.plugin_path");
+  config.services_.audio.vad.plugin_config_path =
+      Read(vad, "plugin_config_path", config.services_.audio.vad.plugin_config_path,
+           "services.audio.vad.plugin_config_path");
   const YAML::Node speech_segment =
       ChildMap(audio_service, "speech_segment", "services.audio.speech_segment");
   ValidateKeys(speech_segment, "services.audio.speech_segment", {"pre_roll_ms", "max_segment_ms"});
@@ -427,13 +422,24 @@ void SystemConfig::Validate() const {
   RequirePositive(services_.gateway.stream_timeout_ms, "services.gateway.stream_timeout_ms");
   RequirePositive(services_.gateway.retry_delay_ms, "services.gateway.retry_delay_ms");
   ValidateAddress(services_.audio.grpc.listen_address, "services.audio.grpc.listen_address");
-  if (services_.audio.vad.speech_threshold_dbfs < -100.0 ||
-      services_.audio.vad.speech_threshold_dbfs > 0.0) {
-    throw std::runtime_error("services.audio.vad.speech_threshold_dbfs must be between -100 and 0");
+  if (!IsOneOf(services_.audio.vad.provider, "disabled", "plugin")) {
+    throw std::runtime_error("services.audio.vad.provider must be disabled or plugin");
   }
-  RequirePositive(services_.audio.vad.speech_start_frames,
-                  "services.audio.vad.speech_start_frames");
-  RequirePositive(services_.audio.vad.speech_end_frames, "services.audio.vad.speech_end_frames");
+  if (services_.audio.vad.provider == "disabled") {
+    if (!services_.audio.vad.plugin_path.empty() ||
+        !services_.audio.vad.plugin_config_path.empty()) {
+      throw std::runtime_error("services.audio.vad disabled provider does not accept plugin paths");
+    }
+  } else {
+    const std::filesystem::path plugin_path(services_.audio.vad.plugin_path);
+    if (!plugin_path.is_absolute() || plugin_path.extension() != ".so") {
+      throw std::runtime_error("services.audio.vad.plugin_path must be an absolute .so path");
+    }
+    if (!services_.audio.vad.plugin_config_path.empty() &&
+        !std::filesystem::path(services_.audio.vad.plugin_config_path).is_absolute()) {
+      throw std::runtime_error("services.audio.vad.plugin_config_path must be absolute when set");
+    }
+  }
   if (services_.audio.speech_segment.pre_roll_ms < 0) {
     throw std::runtime_error("services.audio.speech_segment.pre_roll_ms must not be negative");
   }
@@ -559,6 +565,10 @@ void SystemConfig::Validate() const {
         !std::filesystem::path(features_.voice.asr.plugin_config_path).is_absolute()) {
       throw std::runtime_error("features.voice.asr.plugin_config_path must be absolute when set");
     }
+  }
+  if (features_.voice.enabled && services_.audio.vad.provider == "disabled") {
+    throw std::runtime_error(
+        "services.audio.vad.provider must be plugin when features.voice.enabled is true");
   }
   if (!IsOneOf(tools_.topic.backend, "file", "grpc")) {
     throw std::runtime_error("tools.topic.backend must be file or grpc");

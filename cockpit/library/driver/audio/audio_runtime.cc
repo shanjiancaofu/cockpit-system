@@ -11,6 +11,7 @@
 #include "cockpit/library/driver/audio/grpc/audio_grpc_service.h"
 #include "cockpit/library/driver/audio/playback/speech_output.h"
 #include "cockpit/library/driver/audio/processing/audio_service.h"
+#include "cockpit/modules/audio/vad/plugin_voice_activity_detector.h"
 #include "cockpit/modules/voice/asr/mock_speech_recognizer.h"
 #include "cockpit/modules/voice/asr/plugin_speech_recognizer.h"
 #include "cockpit/modules/voice/tts/mock_speech_synthesizer.h"
@@ -42,6 +43,17 @@ bool AudioRuntime::Start(const std::string& config_path,
                         logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
                         config.logging().dump_time_secs, config.logging().cut_off_time_mins,
                         config.logging().max_files);
+    std::unique_ptr<VoiceActivityDetector> vad;
+    const config::VadConfig& vad_config = config.services().audio.vad;
+    if (vad_config.provider == "plugin") {
+      std::string plugin_error;
+      vad = PluginVoiceActivityDetector::Load(vad_config.plugin_path, vad_config.plugin_config_path,
+                                              &plugin_error);
+      if (vad == nullptr) {
+        LOG_ERROR(plugin_error);
+        return false;
+      }
+    }
     std::unique_ptr<voice::SpeechRecognizer> recognizer;
     if (config.features().voice.enabled) {
       const config::AsrConfig& asr = config.features().voice.asr;
@@ -59,9 +71,9 @@ bool AudioRuntime::Start(const std::string& config_path,
     }
 
     impl_ = std::make_unique<Impl>();
-    impl_->service = std::make_unique<AudioService>(
-        config.hardware().audio, config.services().audio.vad,
-        config.services().audio.speech_segment, std::move(recognizer));
+    impl_->service = std::make_unique<AudioService>(config.hardware().audio,
+                                                    config.services().audio.speech_segment,
+                                                    std::move(vad), std::move(recognizer));
     const std::string output_device = output_device_override.empty()
                                           ? config.hardware().audio.output_device
                                           : output_device_override;

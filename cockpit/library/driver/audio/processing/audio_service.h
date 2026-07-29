@@ -42,6 +42,7 @@ struct AudioServiceStatus {
   std::uint64_t vad_speech_frames = 0;
   std::uint64_t vad_speech_events = 0;
   std::uint64_t vad_silence_events = 0;
+  std::uint64_t vad_errors = 0;
   std::uint64_t speech_segments_completed = 0;
   std::uint64_t speech_segments_truncated = 0;
   std::uint64_t speech_segments_dropped = 0;
@@ -63,18 +64,11 @@ class AudioService {
 
   explicit AudioService(config::AudioConfig config);
   AudioService(config::AudioConfig config, SourceFactory source_factory);
-  AudioService(config::AudioConfig config, config::VadConfig vad_config);
-  AudioService(config::AudioConfig config, config::VadConfig vad_config,
-               SourceFactory source_factory);
-  AudioService(config::AudioConfig config, config::VadConfig vad_config,
-               config::SpeechSegmentConfig segment_config);
-  AudioService(config::AudioConfig config, config::VadConfig vad_config,
-               config::SpeechSegmentConfig segment_config,
+  AudioService(config::AudioConfig config, config::SpeechSegmentConfig segment_config,
+               std::unique_ptr<VoiceActivityDetector> vad,
                std::unique_ptr<voice::SpeechRecognizer> recognizer);
-  AudioService(config::AudioConfig config, config::VadConfig vad_config,
-               config::SpeechSegmentConfig segment_config, SourceFactory source_factory);
-  AudioService(config::AudioConfig config, config::VadConfig vad_config,
-               config::SpeechSegmentConfig segment_config, SourceFactory source_factory,
+  AudioService(config::AudioConfig config, config::SpeechSegmentConfig segment_config,
+               SourceFactory source_factory, std::unique_ptr<VoiceActivityDetector> vad,
                std::unique_ptr<voice::SpeechRecognizer> recognizer);
   ~AudioService();
 
@@ -90,7 +84,7 @@ class AudioService {
  private:
   void StopCaptureLocked();
   AudioCaptureState CaptureStateLocked() const;
-  void ProcessVoiceActivity();
+  void ProcessCapturedAudio();
   void ResetVadMetrics();
   void PublishSpeechSegment(SpeechSegment segment);
   void ProcessSpeechSegments();
@@ -99,7 +93,6 @@ class AudioService {
   void ResetAsrMetrics();
 
   const config::AudioConfig config_;
-  const config::VadConfig vad_config_;
   const config::SpeechSegmentConfig segment_config_;
   const SourceFactory source_factory_;
   mutable std::mutex mutex_;
@@ -110,8 +103,8 @@ class AudioService {
   std::unique_ptr<voice::SpeechRecognizer> recognizer_;
   SpscRingBuffer<SpeechSegment, 8> speech_segments_;
   std::string input_device_;
-  std::atomic_bool vad_stop_{false};
-  std::thread vad_worker_;
+  std::atomic_bool processing_stop_{false};
+  std::thread processing_worker_;
   std::atomic_bool asr_stop_{false};
   std::thread asr_worker_;
   std::atomic<VoiceActivityState> voice_activity_state_{VoiceActivityState::kSilence};
@@ -120,6 +113,9 @@ class AudioService {
   std::atomic<std::uint64_t> vad_speech_frames_{0};
   std::atomic<std::uint64_t> vad_speech_events_{0};
   std::atomic<std::uint64_t> vad_silence_events_{0};
+  std::atomic<std::uint64_t> vad_errors_{0};
+  mutable std::mutex vad_error_mutex_;
+  std::string last_vad_error_;
   std::atomic<std::uint64_t> speech_segments_completed_{0};
   std::atomic<std::uint64_t> speech_segments_truncated_{0};
   std::atomic<std::uint64_t> last_segment_duration_ms_{0};

@@ -33,22 +33,36 @@ class SpeechCaptureSource final : public cockpit::audio::AudioCaptureSource {
   }
 };
 
+class AlwaysSpeechDetector final : public cockpit::audio::VoiceActivityDetector {
+ public:
+  cockpit::audio::VoiceActivityResult Analyze(const cockpit::audio::AudioFrame&) override {
+    const bool changed = !speech_started_;
+    speech_started_ = true;
+    return {cockpit::audio::VoiceActivityState::kSpeech, 1.0F, changed};
+  }
+
+  void Reset() override {
+    speech_started_ = false;
+  }
+
+ private:
+  bool speech_started_{false};
+};
+
 }  // namespace
 
 int main() {
   cockpit::config::AudioConfig audio_config;
-  cockpit::config::VadConfig vad_config;
-  vad_config.speech_threshold_dbfs = -40.0;
-  vad_config.speech_start_frames = 1;
   cockpit::config::SpeechSegmentConfig segment_config;
   segment_config.pre_roll_ms = 0;
   segment_config.max_segment_ms = 100;
 
   cockpit::audio::AudioService service(
-      audio_config, vad_config, segment_config,
+      audio_config, segment_config,
       [](const std::string&, const cockpit::audio::PcmFormat&) {
         return std::make_unique<SpeechCaptureSource>();
       },
+      std::make_unique<AlwaysSpeechDetector>(),
       std::make_unique<cockpit::voice::MockSpeechRecognizer>());
   std::string error;
   if (!service.StartCapture("fake", &error)) {

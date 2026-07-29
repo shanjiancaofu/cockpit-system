@@ -3,11 +3,12 @@
 #include <algorithm>
 #include <chrono>
 #include <exception>
+#include <stdexcept>
 #include <thread>
 #include <utility>
 
 #include "cockpit/drivers/alsa/alsa_capture_source.h"
-#include "cockpit/modules/audio/vad/energy_vad.h"
+#include "cockpit/modules/audio/analysis/audio_level_meter.h"
 
 namespace cockpit {
 namespace audio {
@@ -30,63 +31,38 @@ AudioService::SourceFactory DefaultSourceFactory() {
 }  // namespace
 
 AudioService::AudioService(config::AudioConfig config)
-    : AudioService(std::move(config), config::VadConfig{}, config::SpeechSegmentConfig{},
-                   DefaultSourceFactory()) {
+    : AudioService(std::move(config), config::SpeechSegmentConfig{}, DefaultSourceFactory(),
+                   nullptr, nullptr) {
 }
 
 AudioService::AudioService(config::AudioConfig config, SourceFactory source_factory)
-    : AudioService(std::move(config), config::VadConfig{}, config::SpeechSegmentConfig{},
-                   std::move(source_factory)) {
+    : AudioService(std::move(config), config::SpeechSegmentConfig{}, std::move(source_factory),
+                   nullptr, nullptr) {
 }
 
-AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config)
-    : AudioService(std::move(config), std::move(vad_config), config::SpeechSegmentConfig{},
-                   DefaultSourceFactory()) {
-}
-
-AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
-                           SourceFactory source_factory)
-    : AudioService(std::move(config), std::move(vad_config), config::SpeechSegmentConfig{},
-                   std::move(source_factory)) {
-}
-
-AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
-                           config::SpeechSegmentConfig segment_config)
-    : AudioService(std::move(config), std::move(vad_config), segment_config,
-                   DefaultSourceFactory()) {
-}
-
-AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
-                           config::SpeechSegmentConfig segment_config,
+AudioService::AudioService(config::AudioConfig config, config::SpeechSegmentConfig segment_config,
+                           std::unique_ptr<VoiceActivityDetector> vad,
                            std::unique_ptr<voice::SpeechRecognizer> recognizer)
-    : AudioService(std::move(config), std::move(vad_config), segment_config, DefaultSourceFactory(),
+    : AudioService(std::move(config), segment_config, DefaultSourceFactory(), std::move(vad),
                    std::move(recognizer)) {
 }
 
-AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
-                           config::SpeechSegmentConfig segment_config, SourceFactory source_factory)
-    : AudioService(std::move(config), std::move(vad_config), segment_config,
-                   std::move(source_factory), nullptr) {
-}
-
-AudioService::AudioService(config::AudioConfig config, config::VadConfig vad_config,
-                           config::SpeechSegmentConfig segment_config, SourceFactory source_factory,
+AudioService::AudioService(config::AudioConfig config, config::SpeechSegmentConfig segment_config,
+                           SourceFactory source_factory, std::unique_ptr<VoiceActivityDetector> vad,
                            std::unique_ptr<voice::SpeechRecognizer> recognizer)
     : config_(std::move(config)),
-      vad_config_(std::move(vad_config)),
       segment_config_(segment_config),
       source_factory_(std::move(source_factory)),
+      vad_(std::move(vad)),
       recognizer_(std::move(recognizer)) {
+  if (recognizer_ != nullptr && vad_ == nullptr) {
+    throw std::invalid_argument("speech recognition requires a voice activity detector");
+  }
   auto capture_module = std::make_unique<AudioCaptureModule>();
   capture_module_ = capture_module.get();
   module_manager_.Add(std::move(capture_module));
 
-  if (vad_config_.enabled) {
-    EnergyVadConfig energy_config;
-    energy_config.speech_threshold_dbfs = vad_config_.speech_threshold_dbfs;
-    energy_config.speech_start_frames = static_cast<std::uint32_t>(vad_config_.speech_start_frames);
-    energy_config.speech_end_frames = static_cast<std::uint32_t>(vad_config_.speech_end_frames);
-    vad_ = std::make_unique<EnergyVad>(energy_config);
+  if (vad_ != nullptr) {
     SpeechSegmenterConfig segmenter_config;
     segmenter_config.pre_roll_frames =
         static_cast<std::size_t>(segment_config_.pre_roll_ms / config_.frame_ms);
@@ -156,20 +132,20 @@ bool AudioService::StartCapture(const std::string& input_device, std::string* er
   if (vad_ != nullptr) {
     vad_->Reset();
     segmenter_->Reset();
-    vad_stop_.store(false);
-    try {
-      vad_worker_ = std::thread(&AudioService::ProcessVoiceActivity, this);
-    } catch (const std::exception& exception) {
-      module_manager_.StopAll();
-      asr_stop_.store(true);
-      if (asr_worker_.joinable()) {
-        asr_worker_.join();
-      }
-      if (error != nullptr) {
-        *error = exception.what();
-      }
-      return false;
+  }
+  processing_stop_.store(false);
+  try {
+    processing_worker_ = std::thread(&AudioService::ProcessCapturedAudio, this);
+  } catch (const std::exception& exception) {
+    module_manager_.StopAll();
+    asr_stop_.store(true);
+    if (asr_worker_.joinable()) {
+      asr_worker_.join();
     }
+    if (error != nullptr) {
+      *error = exception.what();
+    }
+    return false;
   }
   return true;
 }
@@ -219,6 +195,7 @@ AudioServiceStatus AudioService::status() const {
   result.vad_speech_frames = vad_speech_frames_.load();
   result.vad_speech_events = vad_speech_events_.load();
   result.vad_silence_events = vad_silence_events_.load();
+  result.vad_errors = vad_errors_.load();
   result.speech_segments_completed = speech_segments_completed_.load();
   result.speech_segments_truncated = speech_segments_truncated_.load();
   result.speech_segments_dropped = speech_segments_.DropCount();
@@ -233,14 +210,18 @@ AudioServiceStatus AudioService::status() const {
     result.metrics = capture_module_->metrics();
     result.last_error = capture_module_->last_error();
   }
+  if (result.last_error.empty()) {
+    std::lock_guard<std::mutex> vad_error_lock(vad_error_mutex_);
+    result.last_error = last_vad_error_;
+  }
   return result;
 }
 
 void AudioService::StopCaptureLocked() {
   module_manager_.StopAll();
-  vad_stop_.store(true);
-  if (vad_worker_.joinable()) {
-    vad_worker_.join();
+  processing_stop_.store(true);
+  if (processing_worker_.joinable()) {
+    processing_worker_.join();
   }
   asr_stop_.store(true);
   if (asr_worker_.joinable()) {
@@ -254,19 +235,36 @@ AudioCaptureState AudioService::CaptureStateLocked() const {
                                     : capture_module_->capture_state();
 }
 
-void AudioService::ProcessVoiceActivity() {
+void AudioService::ProcessCapturedAudio() {
   while (true) {
     auto frame = capture_module_->TryPop();
     if (!frame.has_value()) {
-      if (vad_stop_.load()) {
+      if (processing_stop_.load()) {
         break;
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
       continue;
     }
-    const VoiceActivityResult result = vad_->Analyze(*frame);
+    const AudioLevel level = MeasureAudioLevel(*frame);
+    input_level_millidbfs_.store(static_cast<std::int32_t>(level.rms_dbfs * 1000.0));
+    if (vad_ == nullptr) {
+      continue;
+    }
+    VoiceActivityResult result;
+    try {
+      result = vad_->Analyze(*frame);
+    } catch (const std::exception& error) {
+      vad_errors_.fetch_add(1U);
+      voice_activity_state_.store(VoiceActivityState::kSilence);
+      {
+        std::lock_guard<std::mutex> lock(vad_error_mutex_);
+        last_vad_error_ = error.what();
+      }
+      vad_->Reset();
+      segmenter_->Reset();
+      continue;
+    }
     voice_activity_state_.store(result.state);
-    input_level_millidbfs_.store(static_cast<std::int32_t>(result.level_dbfs * 1000.0));
     vad_frames_processed_.fetch_add(1U);
     if (result.state == VoiceActivityState::kSpeech) {
       vad_speech_frames_.fetch_add(1U);
@@ -283,9 +281,11 @@ void AudioService::ProcessVoiceActivity() {
       PublishSpeechSegment(std::move(*segment));
     }
   }
-  auto final_segment = segmenter_->Flush();
-  if (final_segment.has_value()) {
-    PublishSpeechSegment(std::move(*final_segment));
+  if (segmenter_ != nullptr) {
+    auto final_segment = segmenter_->Flush();
+    if (final_segment.has_value()) {
+      PublishSpeechSegment(std::move(*final_segment));
+    }
   }
 }
 
@@ -296,9 +296,12 @@ void AudioService::ResetVadMetrics() {
   vad_speech_frames_.store(0);
   vad_speech_events_.store(0);
   vad_silence_events_.store(0);
+  vad_errors_.store(0);
   speech_segments_completed_.store(0);
   speech_segments_truncated_.store(0);
   last_segment_duration_ms_.store(0);
+  std::lock_guard<std::mutex> lock(vad_error_mutex_);
+  last_vad_error_.clear();
 }
 
 void AudioService::PublishSpeechSegment(SpeechSegment segment) {

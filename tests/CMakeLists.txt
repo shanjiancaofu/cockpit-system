@@ -164,9 +164,22 @@ add_executable(audio_capture_stream_test modules/audio/audio_capture_stream_test
 target_link_libraries(audio_capture_stream_test PRIVATE audio)
 add_test(NAME audio_capture_stream_test COMMAND audio_capture_stream_test)
 
-add_executable(energy_vad_test modules/audio/energy_vad_test.cc)
-target_link_libraries(energy_vad_test PRIVATE audio)
-add_test(NAME energy_vad_test COMMAND energy_vad_test)
+add_executable(audio_level_meter_test modules/audio/audio_level_meter_test.cc)
+target_link_libraries(audio_level_meter_test PRIVATE audio)
+add_test(NAME audio_level_meter_test COMMAND audio_level_meter_test)
+
+add_library(vad_test_plugin MODULE modules/audio/vad_test_plugin.c)
+target_include_directories(vad_test_plugin PRIVATE ${PROJECT_SOURCE_DIR})
+
+add_library(vad_invalid_plugin MODULE modules/audio/vad_invalid_plugin.c)
+target_include_directories(vad_invalid_plugin PRIVATE ${PROJECT_SOURCE_DIR})
+
+add_executable(vad_plugin_test modules/audio/vad_plugin_test.cc)
+target_link_libraries(vad_plugin_test PRIVATE audio_vad)
+add_test(NAME vad_plugin_test COMMAND vad_plugin_test
+    $<TARGET_FILE:vad_test_plugin>
+    $<TARGET_FILE:vad_invalid_plugin>
+)
 
 add_executable(speech_segmenter_test modules/audio/speech_segmenter_test.cc)
 target_link_libraries(speech_segmenter_test PRIVATE audio)
