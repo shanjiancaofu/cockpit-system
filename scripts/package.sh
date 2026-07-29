@@ -64,6 +64,7 @@ cat >"${package_root}/manifest/BUILD_INFO.json" <<EOF
 {
   "project": "cockpit-system",
   "version": "${version}",
+  "binary_version": "${COCKPIT_VERSION}",
   "git_revision": "${COCKPIT_GIT_REVISION}",
   "git_short": "${COCKPIT_GIT_SHORT}",
   "git_dirty": ${COCKPIT_GIT_DIRTY},

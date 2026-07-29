@@ -8,9 +8,9 @@ debug_build_dir="${DEBUG_BUILD_DIR:-$(cockpit_default_debug_build_dir)}"
 release_build_dir="${RELEASE_BUILD_DIR:-$(cockpit_default_release_build_dir)}"
 output_dir="$(cockpit_output_dir)"
 report_path="${REPORT_PATH:-${output_dir}/runtime/reports/wsl-matrix.json}"
-work_parent="${output_dir}/runtime/run"
+work_parent="${WSL_MATRIX_WORK_PARENT:-${TMPDIR:-/tmp}}"
 mkdir -p "${work_parent}"
-work_dir="$(mktemp -d "${work_parent}/wsl-matrix-XXXXXX")"
+work_dir="$(mktemp -d "${work_parent%/}/cockpit-wsl-matrix-XXXXXX")"
 
 configuration_status="not_run"
 deployment_status="not_run"
@@ -30,11 +30,12 @@ finish() {
       --socket "${socket_path:-}" >/dev/null 2>&1 || kill "${navigator_pid}" >/dev/null 2>&1
     wait "${navigator_pid}" >/dev/null 2>&1
   fi
-  rm -rf "${work_dir}"
-
   local overall="failed"
   if [[ "${result}" -eq 0 ]]; then
     overall="passed"
+    rm -rf "${work_dir}"
+  else
+    echo "WSL matrix work directory preserved: ${work_dir}" >&2
   fi
   mkdir -p "$(dirname -- "${report_path}")"
   cat >"${report_path}" <<EOF
@@ -136,7 +137,10 @@ if [[ "$(readlink "${install_root}/current")" != "releases/${version_a}" ]]; the
   echo "first package was not activated" >&2
   exit 1
 fi
-sed -i 's/vehicle_id: car_001/vehicle_id: matrix_vehicle/' \
+sed -i \
+  -e "s|/cockpit-system|${install_root}|g" \
+  -e 's/vehicle_id: car_001/vehicle_id: matrix_vehicle/' \
+  -e 's/source: socketcan/source: mock/' \
   "${install_root}/config/config.yaml"
 
 COCKPIT_ROOT="${install_root}" INSTALL_SYSTEMD=false bash "${package_b}/deploy/install.sh"

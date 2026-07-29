@@ -64,6 +64,8 @@ install -d "${install_root}" "${install_root}/releases" "${release_dir}" \
   "${install_root}/logs" "${install_root}/run"
 install -d -m 0700 "${install_root}/data/ota/incoming"
 cp -a "${package_root}/release/." "${release_dir}/"
+install -d "${release_dir}/manifest"
+cp -a "${package_root}/manifest/." "${release_dir}/manifest/"
 
 if [[ ! -f "${install_root}/config/config.yaml" ]]; then
   install -m 0644 "${package_root}/config/config.example.yaml" \

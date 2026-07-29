@@ -15,10 +15,17 @@ fi
 
 runtime_status="$("${ctl}" runtime status --socket "${socket_path}")"
 expected_release="$(readlink -f "${install_root}/current")"
-expected_version="$(tr -d '\r\n' <"${install_root}/current/manifest/VERSION")"
+expected_version="$(
+  sed -n 's/^[[:space:]]*"binary_version": "\([^"]*\)",[[:space:]]*$/\1/p' \
+    "${install_root}/current/manifest/BUILD_INFO.json"
+)"
+if [[ -z "${expected_version}" ]]; then
+  echo "active release does not declare binary_version" >&2
+  exit 1
+fi
 runtime_header="${runtime_status%%$'\n'*}"
-runtime_version="$(sed -n 's/.* version=\([^ ]*\\).*/\1/p' <<<"${runtime_header}")"
-navigator_executable="$(sed -n 's/.* executable=\([^ ]*\\).*/\1/p' <<<"${runtime_header}")"
+runtime_version="$(sed -n 's/.* version=\([^ ]*\).*/\1/p' <<<"${runtime_header}")"
+navigator_executable="$(sed -n 's/.* executable=\([^ ]*\).*/\1/p' <<<"${runtime_header}")"
 if [[ "${runtime_version}" != "${expected_version}" ]]; then
   echo "Navigator version mismatch: expected ${expected_version}, got ${runtime_version}" >&2
   exit 1

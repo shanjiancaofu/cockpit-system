@@ -141,6 +141,7 @@ if [[ "${cross_compiling}" == false ]]; then
   cmake_options+=(
     "-DCMAKE_C_COMPILER=${c_compiler}"
     "-DCMAKE_CXX_COMPILER=${cxx_compiler}"
+    "-DBUILD_TESTING=ON"
   )
 fi
 
@@ -185,7 +186,7 @@ fi
 cmake --build "${build_dir}"
 
 if [[ "${run_tests}" == true ]]; then
-  ctest --test-dir "${build_dir}" --output-on-failure
+  ctest --test-dir "${build_dir}" --output-on-failure --no-tests=error
 elif [[ "${cross_compiling}" == true ]]; then
   echo "tests skipped: ARM64 binaries cannot run on the x86_64 build machine"
 else
