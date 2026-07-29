@@ -302,7 +302,7 @@ int Speak(const cockpit::runtime::ProcessRuntime& runtime, const std::string& te
 
 void PrintUsage() {
   std::cout << "usage:\n"
-            << "  audio-probe --list [--config configs/config.yaml]\n"
+            << "  audio-probe --list [--config configs/development.yaml]\n"
             << "  audio-probe --capture output.wav [--seconds N] [--device NAME]\n"
             << "  audio-probe --play input.wav [--device NAME]\n"
             << "  audio-probe --start [--device NAME] [--address HOST:PORT]\n"

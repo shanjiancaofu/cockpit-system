@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-source "${root_dir}/scripts/lib/build_paths.sh"
+source "${root_dir}/scripts/common.sh"
 
 usage() {
   cat <<'EOF'
@@ -43,7 +43,6 @@ case "${BUILD_TYPE:-Debug}" in
     ;;
 esac
 run_tests=true
-compiler_family="gcc"
 cmake_options=()
 
 while [[ $# -gt 0 ]]; do
@@ -116,7 +115,7 @@ if [[ "${target_arch}" != "${machine_arch}" ]]; then
 
   cross_compiling=true
   run_tests=false
-  toolchain_file="${TOOLCHAIN_FILE:-cmake/toolchains/jetson-aarch64.cmake}"
+  toolchain_file="${TOOLCHAIN_FILE:-${root_dir}/cmake/toolchains/jetson-aarch64.cmake}"
   [[ -f "${toolchain_file}" ]] || {
     echo "toolchain file not found: ${toolchain_file}" >&2
     exit 1
@@ -136,7 +135,7 @@ if [[ "${cross_compiling}" == false ]]; then
   c_compiler="$(command -v gcc || true)"
   cxx_compiler="$(command -v g++ || true)"
   if [[ -z "${c_compiler:-}" || -z "${cxx_compiler:-}" ]]; then
-    echo "${compiler_family} C/C++ compilers not found" >&2
+    echo "GCC C/C++ compilers not found" >&2
     exit 1
   fi
   cmake_options+=(
@@ -145,10 +144,10 @@ if [[ "${cross_compiling}" == false ]]; then
   )
 fi
 
-echo "Configuring ${build_type} with ${compiler_family} in ${build_dir}"
+echo "Configuring ${build_type} with GCC in ${build_dir}"
 
 cmake_args=(
-  -S .
+  -S "${root_dir}"
   -B "${build_dir}"
   -G Ninja
   -DCMAKE_BUILD_TYPE="${build_type}"
@@ -157,8 +156,14 @@ cmake_args=(
 )
 cmake "${cmake_args[@]}"
 
+package_info="${build_dir}/package-info.env"
+if [[ ! -f "${package_info}" ]]; then
+  echo "CMake did not generate package metadata: ${package_info}" >&2
+  exit 1
+fi
+
 # shellcheck disable=SC1090
-source "${build_dir}/package-info.env"
+source "${package_info}"
 configured_build_type="${COCKPIT_BUILD_TYPE}"
 configured_compiler_id="${COCKPIT_COMPILER_ID}"
 expected_compiler_id="GNU"
@@ -167,7 +172,7 @@ if [[ "${configured_build_type}" != "${build_type}" ||
   echo "CMake reset cached options while changing compilers; applying the requested configuration again"
   cmake "${cmake_args[@]}"
   # shellcheck disable=SC1090
-  source "${build_dir}/package-info.env"
+  source "${package_info}"
   configured_build_type="${COCKPIT_BUILD_TYPE}"
   configured_compiler_id="${COCKPIT_COMPILER_ID}"
 fi

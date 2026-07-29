@@ -1,4 +1,4 @@
-add_cockpit_library(recording
+add_library(recording STATIC
     recording_catalog.cc
     recording_data_file.cc
     recording_event.cc
@@ -8,6 +8,6 @@ add_cockpit_library(recording
     file_checksum.cc
 )
 
-add_cockpit_library(recording_event_client client/recording_event_publisher.cc)
+add_library(recording_event_client STATIC client/recording_event_publisher.cc)
 target_link_libraries(recording_event_client PUBLIC contracts logging Threads::Threads)
 target_link_libraries(recording PUBLIC base json_util time_util vehicle yaml-cpp)

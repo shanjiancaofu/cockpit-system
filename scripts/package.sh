@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-source "${root_dir}/scripts/lib/build_paths.sh"
+source "${root_dir}/scripts/common.sh"
 
 output_dir="$(cockpit_output_dir)"
 build_dir="${BUILD_DIR:-$(cockpit_default_release_build_dir)}"
@@ -10,13 +10,18 @@ stage_dir="${STAGE_DIR:-${output_dir}/install/stage}"
 dist_dir="${DIST_DIR:-${output_dir}/install/dist}"
 package_info="${build_dir}/package-info.env"
 
-if [[ ! -f "${package_info}" ]]; then
-  echo "package metadata not found: ${package_info}" >&2
-  echo "configure the build directory with the current CMake files first" >&2
+if [[ ! -f "${build_dir}/CMakeCache.txt" ]]; then
+  echo "configured build directory not found: ${build_dir}" >&2
+  echo "create it first with: bash ${root_dir}/scripts/build.sh --type release" >&2
   exit 1
 fi
 
 cmake -S "${root_dir}" -B "${build_dir}"
+
+if [[ ! -f "${package_info}" ]]; then
+  echo "CMake did not generate package metadata: ${package_info}" >&2
+  exit 1
+fi
 
 # shellcheck disable=SC1090
 source "${package_info}"
@@ -32,6 +37,10 @@ if [[ "${COCKPIT_COMPILER_ID}" != "GNU" ]]; then
 fi
 
 version="${VERSION:-${COCKPIT_VERSION}}"
+if [[ ! "${version}" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+  echo "VERSION contains unsupported characters: '${version}'" >&2
+  exit 2
+fi
 package_name="cockpit-system-${version}-${COCKPIT_PACKAGE_SYSTEM}-${COCKPIT_TARGET_ARCH}"
 package_root="${stage_dir}/${package_name}"
 
@@ -42,11 +51,11 @@ mkdir -p "${package_root}/release" "${package_root}/config" \
 cmake --build "${build_dir}"
 cmake --install "${build_dir}" --prefix "${package_root}/release" --component Runtime
 
-install -m 0644 "${root_dir}/configs/config.production.yaml" \
+install -m 0644 "${root_dir}/configs/production.yaml" \
   "${package_root}/config/config.example.yaml"
-cp -a "${root_dir}/configs/systemd/." "${package_root}/systemd/"
-install -m 0755 "${root_dir}"/scripts/deploy/*.sh "${package_root}/deploy/"
-install -m 0644 "${root_dir}/scripts/deploy/THIRD_PARTY_NOTICES.md" \
+cp -a "${root_dir}/deploy/systemd/." "${package_root}/systemd/"
+install -m 0755 "${root_dir}"/deploy/*.sh "${package_root}/deploy/"
+install -m 0644 "${root_dir}/deploy/THIRD_PARTY_NOTICES.md" \
   "${package_root}/manifest/THIRD_PARTY_NOTICES.md"
 
 printf '%s\n' "${version}" >"${package_root}/manifest/VERSION"

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-source "${root_dir}/scripts/lib/build_paths.sh"
+root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${root_dir}/scripts/common.sh"
 
 build_dir="$(cockpit_default_debug_build_dir)"
-config_path="${root_dir}/configs/config.yaml"
+config_path="${root_dir}/configs/development.yaml"
 runtime_dir="${COCKPIT_RUNTIME_DIR:-$(cockpit_default_runtime_dir)}"
 export COCKPIT_RUNTIME_DIR="${runtime_dir}"
 duration_seconds=30
@@ -20,7 +20,7 @@ snapshot_max_total_bytes=104857600
 
 usage() {
   echo "Usage:"
-  echo "  run_navigator_stability.sh [--duration SEC] [--interval SEC]"
+  echo "  scripts/tests/navigator-stability.sh [--duration SEC] [--interval SEC]"
   echo "      [--mode normal|development] [--fault none|restart|crash]"
   echo "      [--module NAME] [--fault-count N] [--output PATH]"
   echo "      [--build-dir PATH] [--config PATH]"

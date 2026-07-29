@@ -12,7 +12,7 @@ cockpit_native_arch() {
 }
 
 cockpit_repo_root() {
-  cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd
+  cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd
 }
 
 cockpit_output_dir() {

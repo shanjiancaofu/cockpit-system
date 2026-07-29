@@ -31,7 +31,7 @@ target_link_libraries(run_config_test PRIVATE navigator_core)
 add_test(NAME run_config_test COMMAND run_config_test)
 
 add_test(NAME safe_ota_test COMMAND bash
-    ${CMAKE_CURRENT_SOURCE_DIR}/runtime/safe_ota_test.sh
+    ${PROJECT_SOURCE_DIR}/scripts/tests/safe-ota.sh
     $<TARGET_FILE:safe-ota>
     $<TARGET_FILE:cockpit-navigator>
     ${CMAKE_BINARY_DIR}/lib/cockpit/modules
@@ -39,9 +39,9 @@ add_test(NAME safe_ota_test COMMAND bash
 )
 
 add_test(NAME navigator_stability_test COMMAND bash
-    ${PROJECT_SOURCE_DIR}/scripts/run_navigator_stability.sh
+    ${PROJECT_SOURCE_DIR}/scripts/tests/navigator-stability.sh
     --build-dir ${CMAKE_BINARY_DIR}
-    --config ${PROJECT_SOURCE_DIR}/configs/config.yaml
+    --config ${PROJECT_SOURCE_DIR}/configs/development.yaml
     --duration 3
     --interval 1
     --fault crash
@@ -52,11 +52,11 @@ add_test(NAME navigator_stability_test COMMAND bash
 set_tests_properties(navigator_stability_test PROPERTIES TIMEOUT 30)
 
 add_test(NAME hmi_runtime_test COMMAND bash
-    ${CMAKE_CURRENT_SOURCE_DIR}/runtime/hmi_runtime_test.sh
+    ${PROJECT_SOURCE_DIR}/scripts/tests/hmi-runtime.sh
     $<TARGET_FILE:cockpit-navigator>
     $<TARGET_FILE:cockpit-ctl>
     ${CMAKE_BINARY_DIR}/lib/cockpit/modules
-    ${PROJECT_SOURCE_DIR}/configs/config.yaml
+    ${PROJECT_SOURCE_DIR}/configs/development.yaml
 )
 set_tests_properties(hmi_runtime_test PROPERTIES TIMEOUT 30)
 
@@ -101,9 +101,9 @@ target_link_libraries(cli_output_test PRIVATE diagnostic_cli json_util)
 add_test(NAME cli_output_test COMMAND cli_output_test)
 
 add_test(NAME diagnostic_snapshot_test COMMAND bash
-    ${CMAKE_CURRENT_SOURCE_DIR}/tools/diagnostic_snapshot_test.sh
+    ${PROJECT_SOURCE_DIR}/scripts/tests/diagnostic-snapshot.sh
     $<TARGET_FILE:cockpit-ctl>
-    ${PROJECT_SOURCE_DIR}/configs/config.yaml
+    ${PROJECT_SOURCE_DIR}/configs/development.yaml
 )
 
 add_executable(gateway_grpc_service_test library/transfer/gateway_grpc_service_test.cc)
@@ -220,8 +220,8 @@ add_executable(system_config_test core/system_config_test.cc)
 target_link_libraries(system_config_test PRIVATE config)
 target_compile_definitions(system_config_test
     PRIVATE
-        VALID_CONFIG_PATH="${PROJECT_SOURCE_DIR}/configs/config.yaml"
-        PRODUCTION_CONFIG_PATH="${PROJECT_SOURCE_DIR}/configs/config.production.yaml"
+        VALID_CONFIG_PATH="${PROJECT_SOURCE_DIR}/configs/development.yaml"
+        PRODUCTION_CONFIG_PATH="${PROJECT_SOURCE_DIR}/configs/production.yaml"
         INVALID_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config.yaml"
         INVALID_CONFIG_TYPE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config_type.yaml"
         INVALID_CONFIG_KEY_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config_key.yaml"

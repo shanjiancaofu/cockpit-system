@@ -6,11 +6,10 @@ project(cockpit-system
     LANGUAGES C CXX
 )
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(cmake/project_options.cmake)
+include(cmake/dependencies.cmake)
 
-include(ProjectSettings)
-include(Dependencies)
-include(AddCockpitLibrary)
+link_libraries(cockpit_project_options)
 
 add_subdirectory(cockpit)
 add_subdirectory(tools)
@@ -20,4 +19,4 @@ if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
-include(Install)
+include(cmake/install.cmake)

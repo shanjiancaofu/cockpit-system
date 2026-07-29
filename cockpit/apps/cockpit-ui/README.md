@@ -17,19 +17,19 @@ Jetson 车机端 Qt 6/QML 应用。
 ## 运行
 
 ```bash
-bash scripts/run_cockpit_ui.sh
+bash scripts/run-cockpit-ui.sh
 ```
 
 WSL 无显示环境：
 
 ```bash
-bash scripts/run_cockpit_ui.sh --offscreen
+bash scripts/run-cockpit-ui.sh --offscreen
 ```
 
 脚本只启动 Navigator；normal mode 中的 HMI Runtime 负责启动和监管 `cockpit-ui`。有
 `/dev/video0` 时脚本会尝试启动预览，Ctrl+C 会由 Navigator 统一回收 UI 和业务模块。
 
-真实 USB 摄像头联调使用 `bash scripts/run_camera_ui.sh`。该入口要求 `CAMERA_DEVICE` 存在，
+真实 USB 摄像头联调使用 `bash scripts/run-camera-ui.sh`。该入口要求 `CAMERA_DEVICE` 存在，
 并在启动 UI 前确认 `camera_driver` 已收到真实帧。
 
 UI 不直接访问 ALSA、V4L2 或 SocketCAN，所有硬件能力由对应 driver module 持有。

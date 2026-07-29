@@ -17,7 +17,7 @@ camera/
 ```bash
 export COCKPIT_RUNTIME_DIR="$PWD/_output/runtime"
 _output/build/x86_64-debug/bin/camera-preview-probe \
-  --device /dev/video0 --frames 30 --config configs/config.yaml
+  --device /dev/video0 --frames 30 --config configs/development.yaml
 ```
 
 Jetson CSI 通过 Argus/NVMM 获取 ISP 处理后的帧，不把 V4L2 暴露的 Bayer `RG10` 当作普通
@@ -25,7 +25,7 @@ Jetson CSI 通过 Argus/NVMM 获取 ISP 处理后的帧，不把 V4L2 暴露的 
 
 ```bash
 _output/build/arm64-debug/bin/camera-preview-probe \
-  --device nvargus://0 --frames 30 --config configs/config.yaml
+  --device nvargus://0 --frames 30 --config configs/development.yaml
 ```
 
 `SyntheticPreviewSource` 提供不依赖摄像头硬件的 BGRx 帧，并支持 no-frames、stall 和 disconnect

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-source "${root_dir}/scripts/lib/build_paths.sh"
+root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${root_dir}/scripts/common.sh"
 
 debug_build_dir="${DEBUG_BUILD_DIR:-$(cockpit_default_debug_build_dir)}"
 release_build_dir="${RELEASE_BUILD_DIR:-$(cockpit_default_release_build_dir)}"
@@ -61,17 +61,23 @@ EOF
 }
 trap finish EXIT
 
-if [[ ! -f "${debug_build_dir}/CMakeCache.txt" ]]; then
+debug_package_info="${debug_build_dir}/package-info.env"
+release_package_info="${release_build_dir}/package-info.env"
+if [[ ! -f "${debug_package_info}" ]]; then
   echo "Debug build directory not found: ${debug_build_dir}" >&2
   exit 2
 fi
-if [[ ! -f "${release_build_dir}/CMakeCache.txt" ]]; then
+if [[ ! -f "${release_package_info}" ]]; then
   echo "Release build directory not found: ${release_build_dir}" >&2
   exit 2
 fi
 
-debug_compiler_id="$(sed -n 's/^COCKPIT_COMPILER_ID:STRING=//p' "${debug_build_dir}/CMakeCache.txt")"
-release_compiler_id="$(sed -n 's/^COCKPIT_COMPILER_ID:STRING=//p' "${release_build_dir}/CMakeCache.txt")"
+# shellcheck disable=SC1090
+source "${debug_package_info}"
+debug_compiler_id="${COCKPIT_COMPILER_ID}"
+# shellcheck disable=SC1090
+source "${release_package_info}"
+release_compiler_id="${COCKPIT_COMPILER_ID}"
 if [[ "${debug_compiler_id}" != "GNU" ]]; then
   echo "WSL matrix requires a GCC Debug build; found '${debug_compiler_id:-unknown}'" >&2
   exit 2

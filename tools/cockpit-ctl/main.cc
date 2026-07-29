@@ -13,17 +13,18 @@ namespace {
 
 void PrintUsage() {
   std::cout << "Usage:\n"
-            << "  cockpit-ctl status [--config configs/config.yaml]\n"
-            << "  cockpit-ctl status --watch [--interval SEC] [--config configs/config.yaml]\n"
+            << "  cockpit-ctl status [--config configs/development.yaml]\n"
+            << "  cockpit-ctl status --watch [--interval SEC]"
+               " [--config configs/development.yaml]\n"
             << "  cockpit-ctl health [--mode normal|development|ui|cloud]"
-               " [--config configs/config.yaml]\n"
+               " [--config configs/development.yaml]\n"
             << "  cockpit-ctl snapshot [--directory PATH] [--max-log-bytes N]"
                " [--max-snapshots N] [--max-total-bytes N] [--socket PATH]\n"
             << "  cockpit-ctl runtime status|mode|reload [--socket PATH]\n"
             << "  cockpit-ctl runtime switch MODE [--socket PATH]\n"
             << "  cockpit-ctl runtime start|stop|restart MODULE [--socket PATH]\n"
             << "\nOptions:\n"
-            << "  --config PATH    config file path (default: configs/config.yaml)\n"
+            << "  --config PATH    config file path (default: configs/development.yaml)\n"
             << "  --socket PATH    Navigator Unix Socket path\n"
             << "  --mode MODE      health target mode (default: normal)\n"
             << "  --directory PATH diagnostic snapshot output directory\n"
@@ -54,8 +55,8 @@ int main(int argc, char** argv) {
     return cockpit::ctl::runtime_command::Run(argc, argv, args);
   }
 
-  const auto config =
-      cockpit::config::SystemConfig::LoadFromFile(args.GetString("config", "configs/config.yaml"));
+  const auto config = cockpit::config::SystemConfig::LoadFromFile(
+      args.GetString("config", "configs/development.yaml"));
   if (command == "snapshot") {
     return cockpit::ctl::snapshot::Run(config, args);
   }

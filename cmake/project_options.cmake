@@ -11,7 +11,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 
-option(BUILD_WEB_DASHBOARD "Build web dashboard" OFF)
 option(COCKPIT_ENABLE_ASAN_UBSAN "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 option(COCKPIT_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 
@@ -75,3 +74,19 @@ set(COCKPIT_TARGET_SYSTEM "${CMAKE_SYSTEM_NAME}" CACHE STRING
 set(COCKPIT_COMPILER_ID "${CMAKE_CXX_COMPILER_ID}")
 set(COCKPIT_COMPILER_VERSION "${CMAKE_CXX_COMPILER_VERSION}")
 set(COCKPIT_COMPILER_PATH "${CMAKE_CXX_COMPILER}")
+
+add_library(cockpit_project_options INTERFACE)
+target_include_directories(cockpit_project_options
+    INTERFACE
+        "${PROJECT_SOURCE_DIR}"
+)
+if(MSVC)
+    target_compile_options(cockpit_project_options INTERFACE /W4)
+else()
+    target_compile_options(cockpit_project_options
+        INTERFACE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+endif()

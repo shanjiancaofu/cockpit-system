@@ -39,7 +39,7 @@ repos:
 
       - id: clang-tidy
         name: clang-tidy
-        entry: bash scripts/run_tidy.sh
+        entry: bash scripts/lint.sh
         language: system
         pass_filenames: false
         stages: [manual]

@@ -1,7 +1,7 @@
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
 
-add_cockpit_library(alsa_audio
+add_library(alsa_audio STATIC
     alsa_audio_player.cc
     alsa_capture_source.cc
     alsa_pcm.cc

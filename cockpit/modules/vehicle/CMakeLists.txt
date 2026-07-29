@@ -1,4 +1,4 @@
-add_cockpit_library(vehicle
+add_library(vehicle STATIC
     vehicle_state.cc
     vehicle_can_codec.cc
 )

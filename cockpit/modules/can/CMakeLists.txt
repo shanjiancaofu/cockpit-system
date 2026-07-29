@@ -1,3 +1,3 @@
-add_cockpit_library(can
+add_library(can STATIC
     can_frame.cc
 )

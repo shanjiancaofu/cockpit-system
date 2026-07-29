@@ -14,7 +14,7 @@ void PrintUsage() {
   std::cout << "camera-ctl [--list|--status|--start|--stop|--photo] "
                "[--device /dev/video0|nvargus://0] [--width 640] [--height 480] [--fps 30] "
                "[--filename snapshot.jpg] "
-               "[--output text|json] [--config configs/config.yaml]\n";
+               "[--output text|json] [--config configs/development.yaml]\n";
 }
 
 const char* StateName(cockpit::proto::camera::CameraPreviewState state) {

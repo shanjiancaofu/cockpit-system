@@ -225,24 +225,24 @@ int Run(const config::SystemConfig& config, const runtime::Args& args) {
 
     const build::BuildInfo build_info = build::GetBuildInfo();
     std::ostringstream manifest;
-    manifest
-        << "{\"schema_version\":1,\"generated_at_ms\":" << generated_at_ms
-        << ",\"system\":{\"name\":\"" << json::EscapeString(config.system().name)
-        << "\",\"vehicle_id\":\"" << json::EscapeString(config.system().vehicle_id)
-        << "\"},\"build\":{\"version\":\"" << json::EscapeString(build_info.version)
-        << "\",\"build_type\":\"" << json::EscapeString(build_info.build_type)
-        << "\",\"git_commit\":\"" << json::EscapeString(build_info.git_commit)
-        << "\",\"git_dirty\":" << (build_info.git_dirty ? "true" : "false")
-        << "},\"config_path\":\""
-        << json::EscapeString(
-               std::filesystem::absolute(args.GetString("config", "configs/config.yaml")).string())
-        << "\",\"runtime\":{\"available\":" << (runtime_available ? "true" : "false")
-        << ",\"socket\":\"" << json::EscapeString(socket_path) << "\",\"error\":\""
-        << json::EscapeString(runtime_error) << "\"},\"max_log_bytes\":" << max_log_bytes
-        << ",\"retention\":{\"max_snapshots\":" << max_snapshots
-        << ",\"max_total_bytes\":" << max_total_bytes << "}"
-        << ",\"logs_omitted\":" << logs_omitted << ",\"logs_failed\":" << logs_failed
-        << ",\"logs\":[";
+    manifest << "{\"schema_version\":1,\"generated_at_ms\":" << generated_at_ms
+             << ",\"system\":{\"name\":\"" << json::EscapeString(config.system().name)
+             << "\",\"vehicle_id\":\"" << json::EscapeString(config.system().vehicle_id)
+             << "\"},\"build\":{\"version\":\"" << json::EscapeString(build_info.version)
+             << "\",\"build_type\":\"" << json::EscapeString(build_info.build_type)
+             << "\",\"git_commit\":\"" << json::EscapeString(build_info.git_commit)
+             << "\",\"git_dirty\":" << (build_info.git_dirty ? "true" : "false")
+             << "},\"config_path\":\""
+             << json::EscapeString(
+                    std::filesystem::absolute(args.GetString("config", "configs/development.yaml"))
+                        .string())
+             << "\",\"runtime\":{\"available\":" << (runtime_available ? "true" : "false")
+             << ",\"socket\":\"" << json::EscapeString(socket_path) << "\",\"error\":\""
+             << json::EscapeString(runtime_error) << "\"},\"max_log_bytes\":" << max_log_bytes
+             << ",\"retention\":{\"max_snapshots\":" << max_snapshots
+             << ",\"max_total_bytes\":" << max_total_bytes << "}"
+             << ",\"logs_omitted\":" << logs_omitted << ",\"logs_failed\":" << logs_failed
+             << ",\"logs\":[";
     for (std::size_t index = 0; index < included_logs.size(); ++index) {
       if (index != 0) {
         manifest << ',';

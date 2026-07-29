@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-source "${root_dir}/scripts/lib/build_paths.sh"
+root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${root_dir}/scripts/common.sh"
 
 build_dir="$(realpath -m "${BUILD_DIR:-$(cockpit_default_debug_build_dir)}")"
 runtime_dir="${COCKPIT_RUNTIME_DIR:-$(cockpit_default_runtime_dir)}"
 bin_dir="${build_dir}/bin"
 module_dir="${build_dir}/lib/cockpit/modules"
-source_config="$(realpath "${CONFIG_PATH:-${root_dir}/configs/config.yaml}")"
+source_config="$(realpath "${CONFIG_PATH:-${root_dir}/configs/development.yaml}")"
 run_dir="${runtime_dir}/run/smoke-${BASHPID}"
 export COCKPIT_RUNTIME_DIR="${run_dir}"
 config_path="${run_dir}/config.yaml"

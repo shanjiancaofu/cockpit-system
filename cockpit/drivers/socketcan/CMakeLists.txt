@@ -1,5 +1,5 @@
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    add_cockpit_library(socketcan
+    add_library(socketcan STATIC
         socket_can.cc
     )
 

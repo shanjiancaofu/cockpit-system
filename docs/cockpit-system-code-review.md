@@ -34,15 +34,15 @@
 
 **位置：**
 
-- `configs/systemd/cockpit-navigator@.service:10-11`
+- `deploy/systemd/cockpit-navigator@.service:10-11`
 - `cockpit/navigator/main.cc:73-95`
 - `cockpit/navigator/process/process_manager.cc:66-73`
 - `cockpit/navigator/process/process_manager.cc:251-274`
 - `cockpit/navigator/process/process_manager.cc:354-360`
 - `cockpit/library/hmi/hmi_runtime.cc:39-49`
-- `scripts/deploy/install.sh:46-50`
+- `deploy/install.sh:46-50`
 - `tools/safe-ota/action/safe_ota.cc:110-175`
-- `scripts/deploy/healthcheck.sh:8-38`
+- `deploy/healthcheck.sh:8-38`
 
 **问题：**
 
@@ -195,7 +195,7 @@ IPC server 创建前无条件 unlink 已存在的 socket 文件，没有先探�
 
 **位置：**
 
-- `configs/config.yaml:60-69`
+- `configs/development.yaml:60-69`
 - `cockpit/library/recording/recording_service.cc:18-34`
 - `cockpit/library/recording/recording_service.cc:175-217`
 - `cockpit/modules/recording/recording_catalog.cc:98-124`
@@ -268,8 +268,8 @@ Camera Start/Stop/健康检查在 `lifecycle_mutex_` 保护下修改 `ModuleMana
 
 **位置：**
 
-- `configs/systemd/cockpit-navigator@.service:6-13`
-- `configs/config.yaml:17-69`
+- `deploy/systemd/cockpit-navigator@.service:6-13`
+- `configs/development.yaml:17-69`
 - `cockpit/library/recording/recording_grpc_service.cc:90-100`
 - `cockpit/library/driver/camera/grpc/camera_grpc_service.cc:93-103`
 - `cockpit/library/driver/audio/grpc/audio_grpc_service.cc:84-94`

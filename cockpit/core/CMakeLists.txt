@@ -3,25 +3,25 @@ configure_file(build/build_info_config.h.in generated/build_info_config.h @ONLY)
 add_library(base INTERFACE)
 target_include_directories(base INTERFACE ${PROJECT_SOURCE_DIR})
 
-add_cockpit_library(build_info build/build_info.cc)
+add_library(build_info STATIC build/build_info.cc)
 target_include_directories(build_info PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/generated)
 
-add_cockpit_library(config config/system_config.cc)
+add_library(config STATIC config/system_config.cc)
 target_link_libraries(config PUBLIC yaml-cpp)
 
-add_cockpit_library(event event/event_queue.cc event/message_bus.cc)
+add_library(event STATIC event/event_queue.cc event/message_bus.cc)
 target_link_libraries(event PUBLIC base time_util)
 
-add_cockpit_library(service_health health/service_health.cc)
+add_library(service_health STATIC health/service_health.cc)
 target_link_libraries(service_health PUBLIC contracts)
 
-add_cockpit_library(ipc ipc/shared_memory_region.cc)
-add_cockpit_library(json_util json/json.cc)
-add_cockpit_library(logging logging/logger.cc)
+add_library(ipc STATIC ipc/shared_memory_region.cc)
+add_library(json_util STATIC json/json.cc)
+add_library(logging STATIC logging/logger.cc)
 target_link_libraries(logging PUBLIC Threads::Threads)
-add_cockpit_library(time_util time/time.cc)
+add_library(time_util STATIC time/time.cc)
 
-add_cockpit_library(runtime
+add_library(runtime STATIC
     runtime/args.cc
     runtime/module.cc
     runtime/module_manager.cc

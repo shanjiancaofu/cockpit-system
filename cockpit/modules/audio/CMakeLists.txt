@@ -1,12 +1,12 @@
-add_cockpit_library(audio_frames frames/audio_frame.cc frames/pcm_format.cc)
+add_library(audio_frames STATIC frames/audio_frame.cc frames/pcm_format.cc)
 
-add_cockpit_library(audio_capture capture/audio_capture_stream.cc)
+add_library(audio_capture STATIC capture/audio_capture_stream.cc)
 target_link_libraries(audio_capture PUBLIC audio_frames Threads::Threads)
 
-add_cockpit_library(audio_vad vad/energy_vad.cc vad/speech_segmenter.cc)
+add_library(audio_vad STATIC vad/energy_vad.cc vad/speech_segmenter.cc)
 target_link_libraries(audio_vad PUBLIC audio_frames)
 
-add_cockpit_library(audio_wav wav/wav_file.cc)
+add_library(audio_wav STATIC wav/wav_file.cc)
 target_link_libraries(audio_wav PUBLIC audio_frames)
 
 add_library(audio_playback INTERFACE)

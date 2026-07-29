@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     return line.command.empty() ? 2 : 0;
   }
 
-  const std::string config_path = Option(line, "config", "configs/config.yaml");
+  const std::string config_path = Option(line, "config", "configs/development.yaml");
   auto config = cockpit::config::SystemConfig::LoadFromFile(config_path);
 
   if (line.command == "list") {

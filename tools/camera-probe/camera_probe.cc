@@ -11,7 +11,7 @@ namespace {
 
 void PrintUsage() {
   std::cout << "camera-probe [--list] [--device /dev/video0 --formats] "
-               "[--config configs/config.yaml]\n";
+               "[--config configs/development.yaml]\n";
 }
 
 void PrintDevice(const cockpit::camera::VideoDeviceInfo& device) {

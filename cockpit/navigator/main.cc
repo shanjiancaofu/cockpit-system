@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
       return response.rfind("OK", 0) == 0 ? 0 : 1;
     }
 
-    const std::string config_path = args.GetString("config", "configs/config.yaml");
+    const std::string config_path = args.GetString("config", "configs/development.yaml");
     const auto system_config = cockpit::config::SystemConfig::LoadFromFile(config_path);
     cockpit::logging::InitLogger(
         "cockpit-navigator", system_config.paths().log_dir,

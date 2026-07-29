@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${root_dir}/scripts/common.sh"
+
 usage() {
   cat <<'EOF'
-Usage: scripts/prepare_jetson_sysroot.sh --source USER@JETSON [options]
+Usage: scripts/prepare-jetson-sysroot.sh --source USER@JETSON [options]
 
 Options:
   --source USER@JETSON  SSH destination for the Jetson
-  --output DIRECTORY    Local sysroot directory (default: toolchains/jetson-sysroot)
+  --output DIRECTORY    Local sysroot directory (default: _output/sysroots/jetson)
   --with-cuda           Also copy /usr/local/cuda
   -h, --help            Show this help
 
@@ -16,7 +19,7 @@ EOF
 }
 
 source_host=""
-output_dir="toolchains/jetson-sysroot"
+output_dir="$(cockpit_output_dir)/sysroots/jetson"
 with_cuda=false
 
 while [[ $# -gt 0 ]]; do

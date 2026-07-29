@@ -43,7 +43,7 @@ make_package() {
   cp -a "${module_dir}/." "${package_root}/release/lib/cockpit/modules/"
   printf 'system:\n  name: test\n' >"${package_root}/config/config.example.yaml"
   printf '%s\n' "${version}" >"${package_root}/manifest/VERSION"
-  install -m 0755 "${source_root}/scripts/deploy/install.sh" \
+  install -m 0755 "${source_root}/deploy/install.sh" \
     "${package_root}/deploy/install.sh"
   (
     cd "${package_root}"
@@ -77,11 +77,11 @@ wait "${lock_pid}"
 [[ "${lock_result}" -eq 1 ]]
 grep -Fq \
   'ExecStartPre=/cockpit-system/current/bin/safe-ota --recover --root /cockpit-system' \
-  "${source_root}/configs/systemd/cockpit-navigator@.service"
+  "${source_root}/deploy/systemd/cockpit-navigator@.service"
 grep -Fxq 'User=cockpit' \
-  "${source_root}/configs/systemd/cockpit-navigator@.service"
+  "${source_root}/deploy/systemd/cockpit-navigator@.service"
 grep -Fxq 'Group=cockpit' \
-  "${source_root}/configs/systemd/cockpit-navigator@.service"
+  "${source_root}/deploy/systemd/cockpit-navigator@.service"
 
 package_two="${work_dir}/package-2"
 make_package "${package_two}" 2.0.0
@@ -205,7 +205,8 @@ elapsed="$(( $(date +%s) - started_at ))"
 mkdir -p "${install_root}/data/ota/incoming"
 package_four="${install_root}/data/ota/incoming/package-4"
 make_package "${package_four}" 4.0.0
-install -m 0644 "${source_root}/configs/config.yaml" "${install_root}/config/config.yaml"
+install -m 0644 "${source_root}/configs/development.yaml" \
+  "${install_root}/config/config.yaml"
 sed -i "s|shared_memory_name: /cockpit_camera_preview|shared_memory_name: /cockpit_camera_ota_${$}|" \
   "${install_root}/config/config.yaml"
 socket_path="${install_root}/run/navigator.sock"

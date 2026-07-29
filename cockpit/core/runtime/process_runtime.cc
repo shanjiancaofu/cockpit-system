@@ -31,7 +31,7 @@ void InstallSignalHandlers() {
 ProcessRuntime ProcessRuntime::Create(int argc, char** argv, const std::string& process_name) {
   InstallSignalHandlers();
   Args args = Args::Parse(argc, argv);
-  const std::string config_path = args.GetString("config", "configs/config.yaml");
+  const std::string config_path = args.GetString("config", "configs/development.yaml");
   auto config = config::SystemConfig::LoadFromFile(config_path);
 
   const std::string& log_dir = config.paths().log_dir;

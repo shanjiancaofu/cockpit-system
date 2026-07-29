@@ -48,10 +48,11 @@ cockpit-system/
 ├── _output/   WSL 构建、打包和运行输出（不入库）
 ├── cockpit/   产品源码
 ├── tools/     诊断与模拟器
-├── tests/     测试
-├── configs/   运行配置
+├── tests/     C++ 测试源码与测试夹具
+├── configs/   开发与生产运行配置
 ├── cmake/     构建模块
-├── scripts/   构建与部署脚本
+├── deploy/    安装、回滚、systemd 和发布声明
+├── scripts/   构建、打包、环境准备、本地运行和测试脚本
 └── docs/      文档
 ```
 
@@ -68,7 +69,7 @@ cockpit-system/
 WSL2/Ubuntu 22.04：
 
 ```bash
-bash scripts/install_ubuntu_deps.sh
+bash scripts/install-dependencies.sh
 ```
 
 ## 构建和测试
@@ -76,8 +77,8 @@ bash scripts/install_ubuntu_deps.sh
 ```bash
 bash scripts/build.sh                         # GCC Debug 开发构建和 CTest
 bash scripts/build.sh --type release          # GCC Release 正式 Linux 构建
-bash scripts/run_smoke.sh
-bash scripts/run_navigator_stability.sh --duration 300 --interval 5 --fault crash --fault-count 3
+bash scripts/tests/smoke.sh
+bash scripts/tests/navigator-stability.sh --duration 300 --interval 5 --fault crash --fault-count 3
 ```
 
 `build.sh` 统一使用 GCC：Debug 用于开发、CTest 和 smoke，Release 用于正式构建和发布包。
@@ -98,12 +99,13 @@ WSL 生成物统一放在 `_output/{build,install,runtime}`。可通过 `COCKPIT
 
 ```bash
 export COCKPIT_RUNTIME_DIR="$PWD/_output/runtime"
-_output/build/x86_64-debug/bin/topic list --config configs/config.yaml
-_output/build/x86_64-debug/bin/audio-probe --list --config configs/config.yaml
-_output/build/x86_64-debug/bin/camera-probe --list --config configs/config.yaml
-_output/build/x86_64-debug/bin/recording-ctl --start --trigger manual --config configs/config.yaml
-_output/build/x86_64-debug/bin/cockpit-ctl status --config configs/config.yaml
-_output/build/x86_64-debug/bin/cockpit-ctl health --config configs/config.yaml
+_output/build/x86_64-debug/bin/topic list --config configs/development.yaml
+_output/build/x86_64-debug/bin/audio-probe --list --config configs/development.yaml
+_output/build/x86_64-debug/bin/camera-probe --list --config configs/development.yaml
+_output/build/x86_64-debug/bin/recording-ctl --start --trigger manual \
+  --config configs/development.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl status --config configs/development.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl health --config configs/development.yaml
 _output/build/x86_64-debug/bin/cockpit-ctl runtime status --socket /tmp/cockpit-navigator.sock
 ```
 
@@ -111,21 +113,21 @@ _output/build/x86_64-debug/bin/cockpit-ctl runtime status --socket /tmp/cockpit-
 
 ```bash
 _output/build/x86_64-debug/bin/cockpit-navigator \
-  --config configs/config.yaml \
+  --config configs/development.yaml \
   --module-dir _output/build/x86_64-debug/lib/cockpit/modules
 ```
 
 运行 Qt UI：
 
 ```bash
-bash scripts/run_cockpit_ui.sh
-bash scripts/run_camera_ui.sh
+bash scripts/run-cockpit-ui.sh
+bash scripts/run-camera-ui.sh
 ```
 
 Jetson CSI 默认使用 `nvargus://0`。USB 摄像头可显式指定：
 
 ```bash
-CAMERA_DEVICE=/dev/video0 bash scripts/run_camera_ui.sh
+CAMERA_DEVICE=/dev/video0 bash scripts/run-camera-ui.sh
 ```
 
 ## USB 摄像头权限
@@ -139,7 +141,7 @@ newgrp video
 
 ```bash
 _output/build/x86_64-debug/bin/camera-preview-probe \
-  --device /dev/video0 --frames 30 --config configs/config.yaml
+  --device /dev/video0 --frames 30 --config configs/development.yaml
 ```
 
 ## ASR

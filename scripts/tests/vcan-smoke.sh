@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-source "${root_dir}/scripts/lib/build_paths.sh"
+root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${root_dir}/scripts/common.sh"
 
 build_dir="$(realpath -m "${BUILD_DIR:-$(cockpit_default_debug_build_dir)}")"
 export COCKPIT_RUNTIME_DIR="${COCKPIT_RUNTIME_DIR:-$(cockpit_default_runtime_dir)}"
 bin_dir="${build_dir}/bin"
 module_dir="${build_dir}/lib/cockpit/modules"
-source_config="$(realpath "${CONFIG_PATH:-${root_dir}/configs/config.yaml}")"
+source_config="$(realpath "${CONFIG_PATH:-${root_dir}/configs/development.yaml}")"
 interface_name="${CAN_INTERFACE:-vcan0}"
 run_dir="${COCKPIT_RUNTIME_DIR}/run/vcan-${BASHPID}"
 config_path="${run_dir}/config.yaml"
@@ -33,7 +33,7 @@ if [[ "${skip_interface_setup}" == true ]]; then
     exit 1
   fi
 else
-  bash "${root_dir}/scripts/setup_vcan.sh" "${interface_name}"
+  bash "${root_dir}/scripts/setup-vcan.sh" "${interface_name}"
 fi
 mkdir -p "${run_dir}"
 awk -v interface_name="${interface_name}" '

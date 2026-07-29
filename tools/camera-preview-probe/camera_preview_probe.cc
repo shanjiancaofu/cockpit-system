@@ -15,7 +15,7 @@ namespace {
 void PrintUsage() {
   std::cout << "camera-preview-probe --device /dev/video0 [--frames 30] "
                "[--width 640] [--height 480] [--fps 30] "
-               "[--timeout-ms 5000] [--config configs/config.yaml]\n";
+               "[--timeout-ms 5000] [--config configs/development.yaml]\n";
 }
 
 struct ProbeState {

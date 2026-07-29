@@ -5,25 +5,25 @@ pkg_check_modules(GSTREAMER REQUIRED
     gstreamer-video-1.0
 )
 
-add_cockpit_library(camera_frames frames/camera_frame.cc frames/latest_frame_buffer.cc)
+add_library(camera_frames STATIC frames/camera_frame.cc frames/latest_frame_buffer.cc)
 
 add_library(camera_capture INTERFACE)
 target_include_directories(camera_capture INTERFACE ${PROJECT_SOURCE_DIR})
 target_link_libraries(camera_capture INTERFACE camera_frames)
 
-add_cockpit_library(synthetic_camera capture/synthetic_preview_source.cc)
+add_library(synthetic_camera STATIC capture/synthetic_preview_source.cc)
 target_link_libraries(synthetic_camera PUBLIC camera_capture time_util Threads::Threads)
 
-add_cockpit_library(gstreamer_camera capture/gstreamer_preview_pipeline.cc)
+add_library(gstreamer_camera STATIC capture/gstreamer_preview_pipeline.cc)
 target_include_directories(gstreamer_camera PUBLIC ${GSTREAMER_INCLUDE_DIRS})
 target_link_directories(gstreamer_camera PUBLIC ${GSTREAMER_LIBRARY_DIRS})
 target_link_libraries(gstreamer_camera PUBLIC camera_capture time_util ${GSTREAMER_LIBRARIES})
 target_compile_options(gstreamer_camera PRIVATE ${GSTREAMER_CFLAGS_OTHER})
 
-add_cockpit_library(camera_shm shared_memory/shared_frame_buffer.cc)
+add_library(camera_shm STATIC shared_memory/shared_frame_buffer.cc)
 target_link_libraries(camera_shm PUBLIC camera_frames ipc Threads::Threads)
 
-add_cockpit_library(camera_photo photo/jpeg_encoder.cc)
+add_library(camera_photo STATIC photo/jpeg_encoder.cc)
 target_link_libraries(camera_photo PUBLIC camera_frames)
 target_include_directories(camera_photo PRIVATE ${GSTREAMER_INCLUDE_DIRS})
 target_link_directories(camera_photo PRIVATE ${GSTREAMER_LIBRARY_DIRS})

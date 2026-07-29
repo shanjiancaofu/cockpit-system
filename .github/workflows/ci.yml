@@ -56,10 +56,10 @@ jobs:
         with:
           path: |
             ${{ github.workspace }}/../../third_party/sherpa-onnx
-          key: third-party-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/bootstrap_third_party.sh') }}
+          key: third-party-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/bootstrap-third-party.sh') }}
 
       - name: Bootstrap pinned third-party dependencies
-        run: scripts/bootstrap_third_party.sh
+        run: scripts/bootstrap-third-party.sh
 
       - name: Configure and build
         env:

@@ -32,9 +32,11 @@ cockpit/             产品源码根目录
   apps/              Qt/QML 车机应用
   proto/             服务间接口契约
 tools/               调试工具、仿真器和 probe
-configs/             运行配置和 systemd 示例
-scripts/deploy/       发布包安装、健康检查和回滚脚本
-tests/                按 runtime/core/library/modules/apps/tools 分组的测试
+configs/             开发与生产应用配置
+cmake/               工程选项、依赖、安装规则和 Jetson 工具链
+deploy/              随发布包交付的安装、回滚、systemd 和许可证资产
+scripts/             工程自动化命令；tests/ 统一保存 Shell 测试入口
+tests/               按领域组织的 C++ 测试源码和测试夹具
 ```
 
 ## 当前仓库策略

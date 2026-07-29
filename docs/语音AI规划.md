@@ -62,7 +62,7 @@ LLM 应位于 `agent` 的 Assistant provider 边界，输入是 transcript 和�
 当前活动配置只保留已有 consumer 的 `features.voice.enabled`、ASR 参数和
 `features.ai.request_timeout_ms`。`features.voice.mode`、`features.voice.tts_provider`、
 `features.ai.provider` 与 `features.ai.model` 是未来候选契约；在对应的第二种真实实现和可切换
-装配逻辑落地前，不进入 `configs/config.yaml`，避免配置看似可选而实际始终运行 mock。
+装配逻辑落地前，不进入 `configs/development.yaml`，避免配置看似可选而实际始终运行 mock。
 
 ## 动作安全
 

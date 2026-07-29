@@ -49,9 +49,9 @@ for module in "${expected_modules[@]}"; do
     exit 1
   fi
   module_pid="$(sed -n 's/.* pid=\([0-9][0-9]*\).*/\1/p' <<<"${module_status}")"
+  module_executable="$(readlink -f "/proc/${module_pid}/exe" 2>/dev/null || true)"
   if [[ -z "${module_pid}" ||
-        "$(readlink -f "/proc/${module_pid}/exe" 2>/dev/null || true)" !=
-          "${expected_release}/bin/cockpit-navigator" ]]; then
+        "${module_executable}" != "${expected_release}/bin/cockpit-navigator" ]]; then
     echo "Navigator module is not from the active release: ${module}" >&2
     exit 1
   fi

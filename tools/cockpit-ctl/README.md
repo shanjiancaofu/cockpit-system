@@ -4,15 +4,18 @@
 
 ```bash
 export COCKPIT_RUNTIME_DIR="$PWD/_output/runtime"
-_output/build/x86_64-debug/bin/cockpit-ctl status --config configs/config.yaml
-_output/build/x86_64-debug/bin/cockpit-ctl status --watch --interval 2 --config configs/config.yaml
-_output/build/x86_64-debug/bin/cockpit-ctl health --config configs/config.yaml
-_output/build/x86_64-debug/bin/cockpit-ctl status --output json --config configs/config.yaml
-_output/build/x86_64-debug/bin/cockpit-ctl health --output json --config configs/config.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl status --config configs/development.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl status --watch --interval 2 \
+  --config configs/development.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl health --config configs/development.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl status --output json \
+  --config configs/development.yaml
+_output/build/x86_64-debug/bin/cockpit-ctl health --output json \
+  --config configs/development.yaml
 _output/build/x86_64-debug/bin/cockpit-ctl runtime status --socket /tmp/cockpit-navigator.sock
 _output/build/x86_64-debug/bin/cockpit-ctl runtime restart camera_driver --socket /tmp/cockpit-navigator.sock
 _output/build/x86_64-debug/bin/cockpit-ctl snapshot \
-  --socket /tmp/cockpit-navigator.sock --config configs/config.yaml \
+  --socket /tmp/cockpit-navigator.sock --config configs/development.yaml \
   --max-snapshots 10 --max-total-bytes 104857600
 ```
 
