@@ -26,6 +26,7 @@ int main() {
       config.services().recording.max_session_duration_seconds != 14400 ||
       config.services().recording.min_free_bytes != 536870912ULL ||
       config.hardware().can.interface != "vcan0" ||
+      config.features().voice.asr.provider != "mock" ||
       config.features().ai.request_timeout_ms != 10000 || config.tools().topic.backend != "file") {
     std::cerr << "typed config fields do not match config.yaml" << std::endl;
     return 1;
@@ -122,6 +123,28 @@ int main() {
     const std::string message = error.what();
     if (message.find("hardware.audio.sample_rate_hz") == std::string::npos) {
       std::cerr << "invalid audio format error did not identify config path: " << message
+                << std::endl;
+      return 1;
+    }
+  }
+
+  const auto plugin_config =
+      cockpit::config::SystemConfig::LoadFromFile(VALID_PLUGIN_VOICE_CONFIG_PATH);
+  if (!plugin_config.features().voice.enabled ||
+      plugin_config.features().voice.asr.provider != "plugin" ||
+      plugin_config.features().voice.asr.plugin_path != "/usr/lib/cockpit/asr/libcockpit-asr.so" ||
+      plugin_config.features().voice.asr.plugin_config_path != "/etc/cockpit/asr.yaml") {
+    std::cerr << "generic ASR plugin config was not parsed correctly" << std::endl;
+    return 1;
+  }
+
+  try {
+    cockpit::config::SystemConfig::LoadFromFile(INVALID_PLUGIN_VOICE_CONFIG_PATH);
+    std::cerr << "relative ASR plugin path was accepted" << std::endl;
+    return 1;
+  } catch (const std::runtime_error& error) {
+    if (std::string(error.what()).find("features.voice.asr.plugin_path") == std::string::npos) {
+      std::cerr << "invalid ASR plugin error did not identify config path: " << error.what()
                 << std::endl;
       return 1;
     }

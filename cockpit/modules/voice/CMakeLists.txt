@@ -7,8 +7,11 @@ add_library(voice_actions STATIC
 )
 target_link_libraries(voice_actions PUBLIC voice_assistant)
 
-add_library(voice_asr STATIC asr/mock_speech_recognizer.cc)
-target_link_libraries(voice_asr PUBLIC audio)
+add_library(voice_asr STATIC
+    asr/mock_speech_recognizer.cc
+    asr/plugin_speech_recognizer.cc
+)
+target_link_libraries(voice_asr PUBLIC audio PRIVATE ${CMAKE_DL_LIBS})
 
 add_library(voice_responses STATIC responses/async_voice_response_sink.cc)
 

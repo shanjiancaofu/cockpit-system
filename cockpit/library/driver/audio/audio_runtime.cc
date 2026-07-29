@@ -12,6 +12,7 @@
 #include "cockpit/library/driver/audio/playback/speech_output.h"
 #include "cockpit/library/driver/audio/processing/audio_service.h"
 #include "cockpit/modules/voice/asr/mock_speech_recognizer.h"
+#include "cockpit/modules/voice/asr/plugin_speech_recognizer.h"
 #include "cockpit/modules/voice/tts/mock_speech_synthesizer.h"
 
 namespace cockpit {
@@ -43,7 +44,18 @@ bool AudioRuntime::Start(const std::string& config_path,
                         config.logging().max_files);
     std::unique_ptr<voice::SpeechRecognizer> recognizer;
     if (config.features().voice.enabled) {
-      recognizer = std::make_unique<voice::MockSpeechRecognizer>();
+      const config::AsrConfig& asr = config.features().voice.asr;
+      if (asr.provider == "mock") {
+        recognizer = std::make_unique<voice::MockSpeechRecognizer>();
+      } else {
+        std::string plugin_error;
+        recognizer = voice::PluginSpeechRecognizer::Load(asr.plugin_path, asr.plugin_config_path,
+                                                         &plugin_error);
+        if (recognizer == nullptr) {
+          LOG_ERROR(plugin_error);
+          return false;
+        }
+      }
     }
 
     impl_ = std::make_unique<Impl>();

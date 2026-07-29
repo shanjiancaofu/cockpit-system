@@ -176,6 +176,19 @@ add_executable(mock_speech_recognizer_test modules/voice/mock_speech_recognizer_
 target_link_libraries(mock_speech_recognizer_test PRIVATE voice)
 add_test(NAME mock_speech_recognizer_test COMMAND mock_speech_recognizer_test)
 
+add_library(asr_test_plugin MODULE modules/voice/asr_test_plugin.c)
+target_include_directories(asr_test_plugin PRIVATE ${PROJECT_SOURCE_DIR})
+
+add_library(asr_invalid_plugin MODULE modules/voice/asr_invalid_plugin.c)
+target_include_directories(asr_invalid_plugin PRIVATE ${PROJECT_SOURCE_DIR})
+
+add_executable(asr_plugin_test modules/voice/asr_plugin_test.cc)
+target_link_libraries(asr_plugin_test PRIVATE voice_asr)
+add_test(NAME asr_plugin_test COMMAND asr_plugin_test
+    $<TARGET_FILE:asr_test_plugin>
+    $<TARGET_FILE:asr_invalid_plugin>
+)
+
 add_executable(mock_voice_assistant_test modules/voice/mock_voice_assistant_test.cc)
 target_link_libraries(mock_voice_assistant_test PRIVATE voice)
 add_test(NAME mock_voice_assistant_test COMMAND mock_voice_assistant_test)
@@ -216,6 +229,8 @@ target_compile_definitions(system_config_test
         INVALID_AUDIO_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_config.yaml"
         INVALID_AUDIO_FORMAT_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_format_config.yaml"
         INVALID_VAD_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_vad_config.yaml"
+        VALID_PLUGIN_VOICE_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/valid_plugin_voice_config.yaml"
+        INVALID_PLUGIN_VOICE_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_plugin_voice_config.yaml"
 )
 add_test(NAME system_config_test COMMAND system_config_test)
 

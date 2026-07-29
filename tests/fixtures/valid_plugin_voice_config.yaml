@@ -1,0 +1,7 @@
+features:
+  voice:
+    enabled: true
+    asr:
+      provider: plugin
+      plugin_path: /usr/lib/cockpit/asr/libcockpit-asr.so
+      plugin_config_path: /etc/cockpit/asr.yaml

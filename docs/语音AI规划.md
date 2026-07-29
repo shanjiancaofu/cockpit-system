@@ -12,7 +12,7 @@
   → audio_driver
   → VAD
   → SpeechSegmenter
-  → mock ASR
+  → mock ASR / external ASR plugin
   → transcript gRPC stream
   → agent
   → intent / action
@@ -26,7 +26,7 @@
 
 - ALSA 采集和播放。
 - 20 ms PCM frame、SPSC ring、VAD 和语音分段。
-- mock ASR。
+- mock ASR 和通用外部插件加载边界。
 - transcript 订阅、重连、历史重放。
 - 白名单意图和类型化 ActionDispatcher。
 - 车辆状态查询通过 gateway gRPC 真实执行。
@@ -41,9 +41,11 @@
 统一实现 `SpeechRecognizer`：
 
 - `mock`：测试和 smoke 默认实现。
-- 后续可选：Qwen ASR、TensorRT adapter。
+- `plugin`：通过稳定 C ABI 加载独立发布的 ASR 动态库。
 
-ASR 在 `audio_driver` module child 内运行，避免语音 PCM 跨进程传输。
+ASR 在 `audio_driver` module child 内运行，避免语音 PCM 跨进程传输。插件 ABI 只传递定宽整数、
+PCM 指针和调用方拥有的字符缓冲区，不跨边界传递 C++ 类型或内存所有权。插件使用 `RTLD_LOCAL`
+加载，成功调用后不执行 `dlclose()`，避免第三方线程、TLS 和静态析构状态失效。
 
 ### TTS
 
@@ -58,7 +60,7 @@ ASR 在 `audio_driver` module child 内运行，避免语音 PCM 跨进程传输
 LLM 应位于 `agent` 的 Assistant provider 边界，输入是 transcript 和结构化上下文，输出是回复文本或受控
 工具调用。LLM 不直接访问 ALSA、CAN、摄像头或 shell。
 
-当前活动配置只保留已有 consumer 的 `features.voice.enabled` 和
+当前活动配置只保留已有 consumer 的 `features.voice.enabled`、`features.voice.asr` 和
 `features.ai.request_timeout_ms`。`features.voice.mode`、`features.voice.tts_provider`、
 `features.ai.provider` 与 `features.ai.model` 是未来候选契约；在对应的第二种真实实现和可切换
 装配逻辑落地前，不进入 `configs/development.yaml`，避免配置看似可选而实际始终运行 mock。

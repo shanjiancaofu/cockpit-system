@@ -125,8 +125,15 @@ struct HardwareConfig {
   AudioConfig audio;
 };
 
+struct AsrConfig {
+  std::string provider = "mock";
+  std::string plugin_path;
+  std::string plugin_config_path;
+};
+
 struct VoiceConfig {
   bool enabled = false;
+  AsrConfig asr;
 };
 
 struct AiConfig {

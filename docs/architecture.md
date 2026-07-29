@@ -118,7 +118,7 @@ ALSA microphone
     → SPSC RingBuffer
     → Energy VAD
     → SpeechSegmenter
-    → mock ASR
+    → mock ASR / external ASR C ABI plugin
     → agent
     → intent / action
     → mock TTS
@@ -250,6 +250,8 @@ mock/null backend，以及 shared memory 的 name/layout/version/capacity 校验
 ## AI 安全边界
 
 语音链路保持 `Audio -> VAD -> ASR provider -> Assistant -> typed ActionDispatcher -> TTS`。
+外部 ASR 通过 `RTLD_LOCAL` 加载的稳定 C ABI 留在 `audio_driver` 进程内，PCM 不跨进程；插件内部
+依赖不进入主项目 CMake 依赖图。
 车辆动作必须经过 allowlist 和类型校验；LLM 文本不能直接生成 CAN frame 或 shell command；网络失败
 需要明确的本地 fallback；录音、文本和云端请求必须有隐私策略。mock provider 只用于链路验证。
 

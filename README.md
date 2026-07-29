@@ -146,7 +146,8 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 
 ## ASR
 
-当前产品构建只包含 mock ASR。Ubuntu 22.04 构建依赖由系统包提供。
+当前仓库包含 mock ASR，以及与具体实现无关的 ASR 插件 C ABI 和加载器。外部 ASR 以独立动态库
+交付，主项目不下载、编译或链接其内部推理运行时。Ubuntu apt 只提供操作系统和平台依赖。
 
 ## 提交规范
 

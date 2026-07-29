@@ -88,6 +88,8 @@ hardware:
 features:
   voice:
     enabled: false
+    asr:
+      provider: mock
   ai:
     request_timeout_ms: 10000
 

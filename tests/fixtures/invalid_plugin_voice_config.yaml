@@ -1,0 +1,6 @@
+features:
+  voice:
+    enabled: true
+    asr:
+      provider: plugin
+      plugin_path: relative/libcockpit-asr.so

@@ -353,9 +353,18 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   const YAML::Node features = ChildMap(root, "features", "features");
   ValidateKeys(features, "features", {"voice", "ai"});
   const YAML::Node voice = ChildMap(features, "voice", "features.voice");
-  ValidateKeys(voice, "features.voice", {"enabled"});
+  ValidateKeys(voice, "features.voice", {"enabled", "asr"});
   config.features_.voice.enabled =
       Read(voice, "enabled", config.features_.voice.enabled, "features.voice.enabled");
+  const YAML::Node asr = ChildMap(voice, "asr", "features.voice.asr");
+  ValidateKeys(asr, "features.voice.asr", {"provider", "plugin_path", "plugin_config_path"});
+  config.features_.voice.asr.provider =
+      Read(asr, "provider", config.features_.voice.asr.provider, "features.voice.asr.provider");
+  config.features_.voice.asr.plugin_path = Read(
+      asr, "plugin_path", config.features_.voice.asr.plugin_path, "features.voice.asr.plugin_path");
+  config.features_.voice.asr.plugin_config_path =
+      Read(asr, "plugin_config_path", config.features_.voice.asr.plugin_config_path,
+           "features.voice.asr.plugin_config_path");
   const YAML::Node ai = ChildMap(features, "ai", "features.ai");
   ValidateKeys(ai, "features.ai", {"request_timeout_ms"});
   config.features_.ai.request_timeout_ms =
@@ -533,6 +542,24 @@ void SystemConfig::Validate() const {
   RequireNotEmpty(hardware_.audio.input_device, "hardware.audio.input_device");
   RequireNotEmpty(hardware_.audio.output_device, "hardware.audio.output_device");
   RequirePositive(features_.ai.request_timeout_ms, "features.ai.request_timeout_ms");
+  if (!IsOneOf(features_.voice.asr.provider, "mock", "plugin")) {
+    throw std::runtime_error("features.voice.asr.provider must be mock or plugin");
+  }
+  if (features_.voice.asr.provider == "mock") {
+    if (!features_.voice.asr.plugin_path.empty() ||
+        !features_.voice.asr.plugin_config_path.empty()) {
+      throw std::runtime_error("features.voice.asr mock provider does not accept plugin paths");
+    }
+  } else {
+    const std::filesystem::path plugin_path(features_.voice.asr.plugin_path);
+    if (!plugin_path.is_absolute() || plugin_path.extension() != ".so") {
+      throw std::runtime_error("features.voice.asr.plugin_path must be an absolute .so path");
+    }
+    if (!features_.voice.asr.plugin_config_path.empty() &&
+        !std::filesystem::path(features_.voice.asr.plugin_config_path).is_absolute()) {
+      throw std::runtime_error("features.voice.asr.plugin_config_path must be absolute when set");
+    }
+  }
   if (!IsOneOf(tools_.topic.backend, "file", "grpc")) {
     throw std::runtime_error("tools.topic.backend must be file or grpc");
   }
