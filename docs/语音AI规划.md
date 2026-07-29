@@ -12,7 +12,7 @@
   → audio_driver
   → VAD
   → SpeechSegmenter
-  → mock ASR / sherpa-onnx + SenseVoice
+  → mock ASR
   → transcript gRPC stream
   → agent
   → intent / action
@@ -26,7 +26,7 @@
 
 - ALSA 采集和播放。
 - 20 ms PCM frame、SPSC ring、VAD 和语音分段。
-- mock 和 sherpa-onnx + SenseVoice adapter；后者已在 Jetson 完成 INT8 真实模型基线并进入固定构建。
+- mock ASR。
 - transcript 订阅、重连、历史重放。
 - 白名单意图和类型化 ActionDispatcher。
 - 车辆状态查询通过 gateway gRPC 真实执行。
@@ -41,7 +41,6 @@
 统一实现 `SpeechRecognizer`：
 
 - `mock`：测试和 smoke 默认实现。
-- `sherpa_onnx_sense_voice`：Jetson 固定实现，CPU 上运行 SenseVoice INT8。
 - 后续可选：Qwen ASR、TensorRT adapter。
 
 ASR 在 `audio_driver` module child 内运行，避免语音 PCM 跨进程传输。
@@ -59,7 +58,7 @@ ASR 在 `audio_driver` module child 内运行，避免语音 PCM 跨进程传输
 LLM 应位于 `agent` 的 Assistant provider 边界，输入是 transcript 和结构化上下文，输出是回复文本或受控
 工具调用。LLM 不直接访问 ALSA、CAN、摄像头或 shell。
 
-当前活动配置只保留已有 consumer 的 `features.voice.enabled`、ASR 参数和
+当前活动配置只保留已有 consumer 的 `features.voice.enabled` 和
 `features.ai.request_timeout_ms`。`features.voice.mode`、`features.voice.tts_provider`、
 `features.ai.provider` 与 `features.ai.model` 是未来候选契约；在对应的第二种真实实现和可切换
 装配逻辑落地前，不进入 `configs/development.yaml`，避免配置看似可选而实际始终运行 mock。
@@ -92,9 +91,7 @@ transcript
 1. 已完成：mock 打断、连续命令、队列丢弃、超时和 provider 失败恢复。
 2. 已完成 WSL-R4 历史对照：whisper.cpp `6fc7c33b` 与 `ggml-small.bin` 在 GCC Release 下识别
    16 kHz mono JFK WAV，耗时 4.39 秒、CPU 393%、峰值 RSS 649232 KiB；该实现不再进入产品构建。
-3. 已完成 Jetson CPU 基线：sherpa-onnx `13d0ae6c` + SenseVoice INT8 识别 5.59 秒中文 WAV；
-   初始化 2.49 秒、识别 0.41 秒、RTF 约 0.074、采样峰值 RSS 344644 KiB，Release CTest 46/46。
-4. 接入 Jetson USB 麦克风和扬声器，完成 AEC、增益和唤醒/打断标定。
-5. 播放器责任边界明确后补 Qt/Android 媒体动作和 push-to-talk UI。
-6. 根据真实声学测试决定是否继续做 TensorRT 或 Qwen ASR 对照。
-7. 后端 provider 合同明确后引入可取消、有 deadline 的 LLM 和受控工具调用。
+3. 接入 Jetson USB 麦克风和扬声器，完成 AEC、增益和唤醒/打断标定。
+4. 播放器责任边界明确后补 Qt/Android 媒体动作和 push-to-talk UI。
+5. 根据真实声学测试决定是否做 TensorRT 或 Qwen ASR 对照。
+6. 后端 provider 合同明确后引入可取消、有 deadline 的 LLM 和受控工具调用。

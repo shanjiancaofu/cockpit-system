@@ -1,7 +1,0 @@
-features:
-  voice:
-    enabled: true
-    asr_provider: sherpa_onnx_sense_voice
-    asr_model_path: /models/sensevoice/model.int8.onnx
-    asr_language: zh
-    asr_threads: 2

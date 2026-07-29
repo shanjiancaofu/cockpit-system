@@ -9,7 +9,7 @@ namespace {
 int Start(const char*) {
   std::thread([] {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    raise(SIGSEGV);
+    raise(SIGKILL);
   }).detach();
   return 0;
 }

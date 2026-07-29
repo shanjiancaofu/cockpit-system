@@ -64,8 +64,7 @@ if [[ "${install_systemd}" == "true" ]]; then
 fi
 
 install -d "${install_root}" "${install_root}/releases" "${release_dir}" \
-  "${install_root}/config" "${install_root}/models/sensevoice" "${install_root}/data" \
-  "${install_root}/logs" "${install_root}/run"
+  "${install_root}/config" "${install_root}/data" "${install_root}/logs" "${install_root}/run"
 install -d -m 0700 "${install_root}/data/ota/incoming"
 cp -a "${package_root}/release/." "${release_dir}/"
 install -d "${release_dir}/manifest"
@@ -86,9 +85,8 @@ if [[ "${install_systemd}" == "true" ]]; then
   chown "${service_user}:${service_group}" "${install_root}" "${install_root}/releases"
   chown -R "${service_user}:${service_group}" "${release_dir}" "${install_root}/data" \
     "${install_root}/logs" "${install_root}/run"
-  chown -R root:"${service_group}" "${install_root}/config" "${install_root}/models"
-  chmod 0750 "${install_root}/config" "${install_root}/models" \
-    "${install_root}/models/sensevoice"
+  chown -R root:"${service_group}" "${install_root}/config"
+  chmod 0750 "${install_root}/config"
 fi
 # Make the candidate contents durable before publishing the new current link.
 sync -f "${install_root}"

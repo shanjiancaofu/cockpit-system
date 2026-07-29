@@ -353,19 +353,9 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   const YAML::Node features = ChildMap(root, "features", "features");
   ValidateKeys(features, "features", {"voice", "ai"});
   const YAML::Node voice = ChildMap(features, "voice", "features.voice");
-  ValidateKeys(voice, "features.voice",
-               {"enabled", "asr_provider", "asr_model_path", "asr_language", "asr_threads"});
+  ValidateKeys(voice, "features.voice", {"enabled"});
   config.features_.voice.enabled =
       Read(voice, "enabled", config.features_.voice.enabled, "features.voice.enabled");
-  config.features_.voice.asr_provider = Read(
-      voice, "asr_provider", config.features_.voice.asr_provider, "features.voice.asr_provider");
-  config.features_.voice.asr_model_path =
-      Read(voice, "asr_model_path", config.features_.voice.asr_model_path,
-           "features.voice.asr_model_path");
-  config.features_.voice.asr_language = Read(
-      voice, "asr_language", config.features_.voice.asr_language, "features.voice.asr_language");
-  config.features_.voice.asr_threads =
-      Read(voice, "asr_threads", config.features_.voice.asr_threads, "features.voice.asr_threads");
   const YAML::Node ai = ChildMap(features, "ai", "features.ai");
   ValidateKeys(ai, "features.ai", {"request_timeout_ms"});
   config.features_.ai.request_timeout_ms =
@@ -543,20 +533,6 @@ void SystemConfig::Validate() const {
   RequireNotEmpty(hardware_.audio.input_device, "hardware.audio.input_device");
   RequireNotEmpty(hardware_.audio.output_device, "hardware.audio.output_device");
   RequirePositive(features_.ai.request_timeout_ms, "features.ai.request_timeout_ms");
-  if (features_.voice.asr_provider != "mock" &&
-      features_.voice.asr_provider != "sherpa_onnx_sense_voice") {
-    throw std::runtime_error("features.voice.asr_provider must be mock or sherpa_onnx_sense_voice");
-  }
-  if (features_.voice.asr_provider == "sherpa_onnx_sense_voice" &&
-      features_.voice.asr_model_path.empty()) {
-    throw std::runtime_error("features.voice.asr_model_path is required for selected ASR provider");
-  }
-  if (features_.voice.asr_language.empty()) {
-    throw std::runtime_error("features.voice.asr_language must not be empty");
-  }
-  if (features_.voice.asr_threads <= 0) {
-    throw std::runtime_error("features.voice.asr_threads must be positive");
-  }
   if (!IsOneOf(tools_.topic.backend, "file", "grpc")) {
     throw std::runtime_error("tools.topic.backend must be file or grpc");
   }

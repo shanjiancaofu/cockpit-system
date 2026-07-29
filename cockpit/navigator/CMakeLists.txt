@@ -20,9 +20,7 @@ function(add_navigator_module target_name module_name entry_source)
     target_include_directories(${target_name} PRIVATE ${PROJECT_SOURCE_DIR})
     if(UNIX AND NOT APPLE)
         # A Navigator module communicates exclusively through CockpitModuleGetApi.
-        # Keep symbols from static dependencies local to prevent bundled
-        # implementations (for example ONNX Runtime's Protobuf) from interposing
-        # process-wide shared libraries during dlopen().
+        # Keep module implementation symbols out of the process-wide namespace.
         target_link_options(${target_name} PRIVATE
             "LINKER:--exclude-libs,ALL"
             "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/common/module.exports"

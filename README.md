@@ -10,7 +10,7 @@
 - SocketCAN/mock 车辆数据和 VehicleState gRPC streaming。
 - ROS 风格 `topic list/info/echo/hz` 调试。
 - ALSA 录音/播放、AudioFrame、SPSC ring、VAD 和语音分段。
-- mock ASR/TTS，以及 sherpa-onnx + SenseVoice ASR。
+- mock ASR/TTS 语音链路。
 - 语音意图、动作分发、车辆状态查询和 Qt 相机页面控制。
 - V4L2/GStreamer USB 摄像头和 Jetson Argus CSI 摄像头预览。
 - 相机帧 POSIX shared memory 双缓冲。
@@ -146,22 +146,7 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 
 ## ASR
 
-项目固定构建 sherpa-onnx，运行时可在 `mock` 和 `sherpa_onnx_sense_voice` 之间选择。模型不提交到
-仓库。需要执行真实模型测试时：
-
-```bash
-bash scripts/build.sh --arch arm64 --type release --no-test -- \
-  -DSHERPA_ONNX_SENSEVOICE_MODEL_PATH=/path/to/model.int8.onnx \
-  -DSHERPA_ONNX_SENSEVOICE_TEST_WAV_PATH=/path/to/16k-mono.wav
-
-ctest --test-dir _output/build/arm64-release \
-  --output-on-failure -R '^sherpa_onnx_speech_recognizer_test$'
-```
-
-`model.int8.onnx` 与同包的 `tokens.txt` 放在同一目录；模型文件不提交仓库，也不进入程序包。
-Ubuntu 22.04 构建使用系统安装的 Protobuf 3.12.4 和 gRPC；Sherpa-ONNX 源码默认位于工作区
-`third_party/sherpa-onnx`，路径变化时可通过 `COCKPIT_SHERPA_ONNX_SOURCE_DIR` 覆盖。项目协议与 gRPC
-共用系统 Protobuf，Sherpa-ONNX 内部的 ONNX Runtime 及其 Protobuf 保持私有隔离。
+当前产品构建只包含 mock ASR。Ubuntu 22.04 构建依赖由系统包提供。
 
 ## 提交规范
 

@@ -77,9 +77,7 @@ cat >"${package_root}/manifest/BUILD_INFO.json" <<EOF
   "compiler_id": "${COCKPIT_COMPILER_ID}",
   "compiler_version": "${COCKPIT_COMPILER_VERSION}",
   "protobuf_version": "${COCKPIT_PROTOBUF_VERSION}",
-  "grpc_version": "${COCKPIT_GRPC_VERSION}",
-  "sherpa_onnx_revision": "${COCKPIT_SHERPA_REVISION}",
-  "sensevoice_model_sha256": "${COCKPIT_SENSEVOICE_MODEL_SHA256}"
+  "grpc_version": "${COCKPIT_GRPC_VERSION}"
 }
 EOF
 

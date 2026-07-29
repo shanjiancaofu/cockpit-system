@@ -38,7 +38,6 @@ target_link_libraries(audio_runtime PUBLIC
     audio_processing
     config
     logging
-    sherpa_onnx_asr
     speech_output
 )
 

@@ -88,10 +88,6 @@ hardware:
 features:
   voice:
     enabled: false
-    asr_provider: mock
-    asr_model_path: ""
-    asr_language: zh
-    asr_threads: 4
   ai:
     request_timeout_ms: 10000
 

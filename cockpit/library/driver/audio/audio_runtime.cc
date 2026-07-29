@@ -12,7 +12,6 @@
 #include "cockpit/library/driver/audio/playback/speech_output.h"
 #include "cockpit/library/driver/audio/processing/audio_service.h"
 #include "cockpit/modules/voice/asr/mock_speech_recognizer.h"
-#include "cockpit/modules/voice/asr/sherpa_onnx_speech_recognizer.h"
 #include "cockpit/modules/voice/tts/mock_speech_synthesizer.h"
 
 namespace cockpit {
@@ -44,22 +43,7 @@ bool AudioRuntime::Start(const std::string& config_path,
                         config.logging().max_files);
     std::unique_ptr<voice::SpeechRecognizer> recognizer;
     if (config.features().voice.enabled) {
-      const auto& voice_config = config.features().voice;
-      if (voice_config.asr_provider == "mock") {
-        recognizer = std::make_unique<voice::MockSpeechRecognizer>();
-      } else if (voice_config.asr_provider == "sherpa_onnx_sense_voice") {
-        voice::SherpaOnnxRecognizerConfig sherpa_config;
-        sherpa_config.model_path = voice_config.asr_model_path;
-        sherpa_config.language = voice_config.asr_language;
-        sherpa_config.threads = voice_config.asr_threads;
-        auto sherpa_recognizer =
-            std::make_unique<voice::SherpaOnnxSpeechRecognizer>(std::move(sherpa_config));
-        if (!sherpa_recognizer->IsReady()) {
-          LOG_ERROR(sherpa_recognizer->initialization_error());
-          return false;
-        }
-        recognizer = std::move(sherpa_recognizer);
-      }
+      recognizer = std::make_unique<voice::MockSpeechRecognizer>();
     }
 
     impl_ = std::make_unique<Impl>();

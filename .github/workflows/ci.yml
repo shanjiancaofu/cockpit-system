@@ -22,18 +22,22 @@ jobs:
             build_type: Debug
             cmake_options: ""
             test_regex: ""
+            test_label_exclude: ""
           - name: release
             build_type: Release
             cmake_options: ""
             test_regex: ""
+            test_label_exclude: ""
           - name: asan-ubsan
             build_type: Debug
             cmake_options: "-DCOCKPIT_ENABLE_ASAN_UBSAN=ON"
             test_regex: ""
+            test_label_exclude: "system-grpc"
           - name: tsan-camera
             build_type: Debug
             cmake_options: "-DCOCKPIT_ENABLE_TSAN=ON"
             test_regex: "^(camera_service_test|camera_synthetic_stability_test)$"
+            test_label_exclude: ""
 
     name: ${{ matrix.name }}
     steps:
@@ -51,16 +55,6 @@ jobs:
             qml6-module-qtquick-controls qml6-module-qtquick-layouts \
             qml6-module-qtquick-templates qml6-module-qtquick-window
 
-      - name: Cache pinned third-party dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ github.workspace }}/../../third_party/sherpa-onnx
-          key: third-party-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/bootstrap-third-party.sh') }}
-
-      - name: Bootstrap pinned third-party dependencies
-        run: scripts/bootstrap-third-party.sh
-
       - name: Configure and build
         env:
           BUILD_DIR: _output/build/ci-${{ matrix.name }}
@@ -72,12 +66,17 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
+          test_args=(
+            --test-dir "_output/build/ci-${{ matrix.name }}"
+            --output-on-failure
+          )
           if [[ -n "${{ matrix.test_regex }}" ]]; then
-            ctest --test-dir "_output/build/ci-${{ matrix.name }}" --output-on-failure \
-              -R "${{ matrix.test_regex }}"
-          else
-            ctest --test-dir "_output/build/ci-${{ matrix.name }}" --output-on-failure
+            test_args+=(-R "${{ matrix.test_regex }}")
           fi
+          if [[ -n "${{ matrix.test_label_exclude }}" ]]; then
+            test_args+=(-LE "${{ matrix.test_label_exclude }}")
+          fi
+          ctest "${test_args[@]}"
 
       - name: Validate signed package
         if: matrix.name == 'release'

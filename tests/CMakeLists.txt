@@ -37,6 +37,7 @@ add_test(NAME safe_ota_test COMMAND bash
     ${CMAKE_BINARY_DIR}/lib/cockpit/modules
     ${PROJECT_SOURCE_DIR}
 )
+set_tests_properties(safe_ota_test PROPERTIES LABELS "system-grpc")
 
 add_test(NAME navigator_stability_test COMMAND bash
     ${PROJECT_SOURCE_DIR}/scripts/tests/navigator-stability.sh
@@ -50,6 +51,7 @@ add_test(NAME navigator_stability_test COMMAND bash
     --output ${CMAKE_BINARY_DIR}/navigator-stability-test.json
 )
 set_tests_properties(navigator_stability_test PROPERTIES TIMEOUT 30)
+set_tests_properties(navigator_stability_test PROPERTIES LABELS "system-grpc")
 
 add_test(NAME hmi_runtime_test COMMAND bash
     ${PROJECT_SOURCE_DIR}/scripts/tests/hmi-runtime.sh
@@ -105,10 +107,12 @@ add_test(NAME diagnostic_snapshot_test COMMAND bash
     $<TARGET_FILE:cockpit-ctl>
     ${PROJECT_SOURCE_DIR}/configs/development.yaml
 )
+set_tests_properties(diagnostic_snapshot_test PROPERTIES LABELS "system-grpc")
 
 add_executable(gateway_grpc_service_test library/transfer/gateway_grpc_service_test.cc)
 target_link_libraries(gateway_grpc_service_test PRIVATE transfer_runtime)
 add_test(NAME gateway_grpc_service_test COMMAND gateway_grpc_service_test)
+set_tests_properties(gateway_grpc_service_test PROPERTIES LABELS "system-grpc")
 
 add_executable(recording_session_test modules/recording/recording_session_test.cc)
 target_link_libraries(recording_session_test PRIVATE recording)
@@ -172,22 +176,6 @@ add_executable(mock_speech_recognizer_test modules/voice/mock_speech_recognizer_
 target_link_libraries(mock_speech_recognizer_test PRIVATE voice)
 add_test(NAME mock_speech_recognizer_test COMMAND mock_speech_recognizer_test)
 
-if(SHERPA_ONNX_SENSEVOICE_MODEL_PATH AND
-   EXISTS "${SHERPA_ONNX_SENSEVOICE_MODEL_PATH}" AND
-   SHERPA_ONNX_SENSEVOICE_TEST_WAV_PATH AND
-   EXISTS "${SHERPA_ONNX_SENSEVOICE_TEST_WAV_PATH}")
-    add_executable(sherpa_onnx_speech_recognizer_test
-        modules/voice/sherpa_onnx_speech_recognizer_test.cc)
-    target_link_libraries(sherpa_onnx_speech_recognizer_test PRIVATE audio sherpa_onnx_asr)
-    target_compile_definitions(sherpa_onnx_speech_recognizer_test
-        PRIVATE
-            SHERPA_ONNX_TEST_MODEL_PATH="${SHERPA_ONNX_SENSEVOICE_MODEL_PATH}"
-            SHERPA_ONNX_TEST_WAV_PATH="${SHERPA_ONNX_SENSEVOICE_TEST_WAV_PATH}"
-    )
-    add_test(NAME sherpa_onnx_speech_recognizer_test
-        COMMAND sherpa_onnx_speech_recognizer_test)
-endif()
-
 add_executable(mock_voice_assistant_test modules/voice/mock_voice_assistant_test.cc)
 target_link_libraries(mock_voice_assistant_test PRIVATE voice)
 add_test(NAME mock_voice_assistant_test COMMAND mock_voice_assistant_test)
@@ -228,8 +216,6 @@ target_compile_definitions(system_config_test
         INVALID_AUDIO_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_config.yaml"
         INVALID_AUDIO_FORMAT_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_format_config.yaml"
         INVALID_VAD_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_vad_config.yaml"
-        INVALID_VOICE_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_voice_config.yaml"
-        VALID_SHERPA_VOICE_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/valid_sherpa_voice_config.yaml"
 )
 add_test(NAME system_config_test COMMAND system_config_test)
 
@@ -254,4 +240,5 @@ if(TARGET ui_model)
     set_target_properties(hmi_control_test PROPERTIES AUTOMOC ON)
     target_link_libraries(hmi_control_test PRIVATE Qt6::Test ui_hmi voice_hmi)
     add_test(NAME hmi_control_test COMMAND hmi_control_test)
+    set_tests_properties(hmi_control_test PROPERTIES LABELS "system-grpc")
 endif()

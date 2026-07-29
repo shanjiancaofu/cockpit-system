@@ -283,7 +283,7 @@ int main(int argc, char** argv) {
   success &= Expect(response.find("restarts=2") != std::string::npos,
                     "crashing module restart count mismatch");
   success &= Expect(response.find("starts=3") != std::string::npos &&
-                        response.find("last_signal=11") != std::string::npos,
+                        response.find("last_signal=9") != std::string::npos,
                     "crashing module lifecycle counters mismatch");
   std::size_t crash_report_count = 0;
   bool found_restart_success = false;
@@ -304,7 +304,7 @@ int main(int argc, char** argv) {
       success &= Expect(report.find("\"module\":\"debugger\"") != std::string::npos,
                         "crash report module mismatch");
       success &= Expect(report.find("\"termination\":\"signal\"") != std::string::npos &&
-                            report.find("\"signal\":11") != std::string::npos,
+                            report.find("\"signal\":9") != std::string::npos,
                         "crash report signal mismatch");
       found_restart_success |= report.find("\"restart_result\":\"succeeded\"") != std::string::npos;
       found_restart_limit |=

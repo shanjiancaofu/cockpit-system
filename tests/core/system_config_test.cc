@@ -26,8 +26,6 @@ int main() {
       config.services().recording.max_session_duration_seconds != 14400 ||
       config.services().recording.min_free_bytes != 536870912ULL ||
       config.hardware().can.interface != "vcan0" ||
-      config.features().voice.asr_provider != "mock" ||
-      config.features().voice.asr_language != "zh" || config.features().voice.asr_threads != 4 ||
       config.features().ai.request_timeout_ms != 10000 || config.tools().topic.backend != "file") {
     std::cerr << "typed config fields do not match config.yaml" << std::endl;
     return 1;
@@ -129,27 +127,5 @@ int main() {
     }
   }
 
-  try {
-    cockpit::config::SystemConfig::LoadFromFile(INVALID_VOICE_CONFIG_PATH);
-    std::cerr << "invalid voice config was accepted" << std::endl;
-    return 1;
-  } catch (const std::runtime_error& error) {
-    const std::string message = error.what();
-    if (message.find("features.voice.asr_provider") == std::string::npos) {
-      std::cerr << "invalid voice error did not identify config path: " << message << std::endl;
-      return 1;
-    }
-  }
-
-  const auto sherpa_config =
-      cockpit::config::SystemConfig::LoadFromFile(VALID_SHERPA_VOICE_CONFIG_PATH);
-  if (!sherpa_config.features().voice.enabled ||
-      sherpa_config.features().voice.asr_provider != "sherpa_onnx_sense_voice" ||
-      sherpa_config.features().voice.asr_model_path != "/models/sensevoice/model.int8.onnx" ||
-      sherpa_config.features().voice.asr_language != "zh" ||
-      sherpa_config.features().voice.asr_threads != 2) {
-    std::cerr << "valid sherpa-onnx voice config was not parsed correctly" << std::endl;
-    return 1;
-  }
   return 0;
 }
