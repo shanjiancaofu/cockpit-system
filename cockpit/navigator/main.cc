@@ -2,6 +2,8 @@
 #include <sys/prctl.h>
 #include <unistd.h>
 
+#include <cerrno>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -25,6 +27,13 @@ std::string ExecutablePath() {
   }
   path[size] = '\0';
   return path;
+}
+
+void EnableChildSubreaper() {
+  if (prctl(PR_SET_CHILD_SUBREAPER, 1) != 0) {
+    throw std::runtime_error("failed to enable Navigator child subreaper: " +
+                             std::string(std::strerror(errno)));
+  }
 }
 
 void PrintUsage() {
@@ -83,6 +92,7 @@ int main(int argc, char** argv) {
       return response.rfind("OK", 0) == 0 ? 0 : 1;
     }
 
+    EnableChildSubreaper();
     const std::string config_path = args.GetString("config", "configs/development.yaml");
     const auto system_config = cockpit::config::SystemConfig::LoadFromFile(config_path);
     cockpit::logging::InitLogger(

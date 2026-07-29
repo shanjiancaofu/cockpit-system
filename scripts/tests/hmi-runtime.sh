@@ -15,6 +15,15 @@ socket_path="${run_dir}/navigator.sock"
 navigator_log="${run_dir}/navigator.log"
 navigator_pid=""
 
+fail() {
+  printf '%s\n' "$1" >&2
+  if [[ -r "${navigator_log}" ]]; then
+    printf '%s\n' "Navigator log:" >&2
+    tail -n 200 "${navigator_log}" >&2
+  fi
+  exit 1
+}
+
 find_cockpit_ui_child() {
   local parent_pid="$1"
   pgrep -P "${parent_pid}" -x cockpit-ui 2>/dev/null | head -n 1 || true
@@ -56,8 +65,7 @@ for _ in $(seq 1 100); do
   sleep 0.1
 done
 if [[ -z "${first_ui_pid}" ]]; then
-  echo "HMI did not start cockpit-ui; see ${navigator_log}" >&2
-  exit 1
+  fail "HMI did not start cockpit-ui"
 fi
 
 kill -KILL "${first_ui_pid}"
@@ -77,8 +85,7 @@ for _ in $(seq 1 100); do
   sleep 0.1
 done
 if [[ -z "${second_hmi_pid}" ]]; then
-  echo "Navigator did not recover HMI after cockpit-ui crashed; see ${navigator_log}" >&2
-  exit 1
+  fail "Navigator did not recover HMI after cockpit-ui crashed"
 fi
 
 second_ui_pid=""
@@ -94,8 +101,7 @@ for _ in $(seq 1 100); do
   sleep 0.1
 done
 if [[ -z "${second_ui_pid}" ]]; then
-  echo "restarted HMI did not start cockpit-ui; see ${navigator_log}" >&2
-  exit 1
+  fail "restarted HMI did not start cockpit-ui"
 fi
 
 kill -KILL "${second_hmi_pid}"
@@ -115,8 +121,7 @@ for _ in $(seq 1 100); do
   sleep 0.1
 done
 if [[ -z "${third_hmi_pid}" || -e "/proc/${second_ui_pid}" ]]; then
-  echo "HMI module crash left cockpit-ui running or did not recover; see ${navigator_log}" >&2
-  exit 1
+  fail "HMI module crash left cockpit-ui running or did not recover"
 fi
 
 "${navigator_path}" --command shutdown --socket "${socket_path}" >/dev/null

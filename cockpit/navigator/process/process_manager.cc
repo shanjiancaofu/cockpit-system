@@ -54,6 +54,16 @@ const char* TerminationKind(int wait_status) {
   return "unknown";
 }
 
+void TerminateRemainingProcessGroup(pid_t leader_pid) {
+  if (leader_pid <= 0) {
+    return;
+  }
+  if (kill(-leader_pid, SIGKILL) < 0 && errno != ESRCH) {
+    LOG_ERROR("failed to terminate descendants of module pid=" + std::to_string(leader_pid) + ": " +
+              std::strerror(errno));
+  }
+}
+
 }  // namespace
 
 const char* ToString(ProcessState state) {
@@ -402,6 +412,7 @@ bool ProcessManager::Start(ProcessRecord* process, std::string* error) {
 }
 
 void ProcessManager::HandleExit(ProcessRecord* process, pid_t exited_pid, int wait_status) {
+  TerminateRemainingProcessGroup(exited_pid);
   process->pid = 0;
   process->last_exit_code = ExitCode(wait_status);
   process->last_failure_ms = time::NowMs();
