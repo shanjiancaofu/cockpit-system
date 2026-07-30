@@ -78,20 +78,6 @@ const char* CaptureStateName(proto::audio::CaptureState state) {
   }
 }
 
-const char* VoiceActivityName(proto::audio::VoiceActivityState state) {
-  switch (state) {
-    case proto::audio::VOICE_ACTIVITY_STATE_DISABLED:
-      return "disabled";
-    case proto::audio::VOICE_ACTIVITY_STATE_SILENCE:
-      return "silence";
-    case proto::audio::VOICE_ACTIVITY_STATE_SPEECH:
-      return "speech";
-    case proto::audio::VOICE_ACTIVITY_STATE_UNSPECIFIED:
-    default:
-      return "unspecified";
-  }
-}
-
 const char* CameraStateName(proto::camera::CameraPreviewState state) {
   switch (state) {
     case proto::camera::CAMERA_PREVIEW_STATE_STOPPED:
@@ -244,11 +230,13 @@ void PrintAudioStatus(const std::string& address) {
             << "  capture: " << CaptureStateName(audio.capture_state())
             << " device=" << audio.input_device() << " format=" << audio.sample_rate_hz() << "Hz/"
             << audio.channels() << "ch/" << audio.frame_ms() << "ms\n"
-            << "  vad: " << VoiceActivityName(audio.voice_activity_state())
-            << " level=" << audio.input_level_dbfs()
-            << " dBFS frames=" << audio.metrics().vad_frames_processed() << "\n"
-            << "  asr: " << (audio.asr_enabled() ? "enabled" : "disabled")
-            << " transcripts=" << audio.metrics().transcripts_published() << "\n";
+            << "  input_level: " << audio.input_level_dbfs() << " dBFS\n"
+            << "  stream: clients=" << audio.metrics().stream_clients_accepted()
+            << " sent=" << audio.metrics().stream_frames_sent()
+            << " dropped=" << audio.metrics().stream_frames_dropped() << "\n"
+            << "  playback: queued=" << audio.metrics().playback_queued()
+            << " played=" << audio.metrics().playback_played()
+            << " failed=" << audio.metrics().playback_failed() << "\n";
   PrintHealth(audio.health());
   PrintModules(audio.modules());
   if (!audio.last_error().empty()) {

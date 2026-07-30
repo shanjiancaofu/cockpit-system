@@ -1,6 +1,7 @@
 #include "cockpit/library/driver/audio/audio_runtime.h"
 
 #include <exception>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <utility>
@@ -8,22 +9,20 @@
 #include "cockpit/core/config/system_config.h"
 #include "cockpit/core/logging/logger.h"
 #include "cockpit/drivers/alsa/alsa_audio_player.h"
-#include "cockpit/library/driver/audio/grpc/audio_grpc_service.h"
-#include "cockpit/library/driver/audio/playback/speech_output.h"
-#include "cockpit/library/driver/audio/processing/audio_service.h"
-#include "cockpit/modules/audio/vad/plugin_voice_activity_detector.h"
-#include "cockpit/modules/voice/asr/mock_speech_recognizer.h"
-#include "cockpit/modules/voice/asr/plugin_speech_recognizer.h"
-#include "cockpit/modules/voice/tts/mock_speech_synthesizer.h"
+#include "cockpit/library/driver/audio/capture/audio_capture_controller.h"
+#include "cockpit/library/driver/audio/grpc/audio_grpc_server.h"
+#include "cockpit/library/driver/audio/playback/audio_playback.h"
+#include "cockpit/library/driver/audio/transport/audio_stream_publisher.h"
 
 namespace cockpit {
 namespace audio {
 
 class AudioRuntime::Impl {
  public:
-  std::unique_ptr<AudioService> service;
-  std::unique_ptr<SpeechOutput> speech_output;
-  std::unique_ptr<AudioGrpcService> grpc;
+  std::unique_ptr<AudioCaptureController> capture;
+  std::unique_ptr<AudioStreamPublisher> stream_publisher;
+  std::unique_ptr<AudioPlayback> playback;
+  std::unique_ptr<AudioGrpcServer> grpc;
 };
 
 AudioRuntime::AudioRuntime() = default;
@@ -43,55 +42,41 @@ bool AudioRuntime::Start(const std::string& config_path,
                         logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
                         config.logging().dump_time_secs, config.logging().cut_off_time_mins,
                         config.logging().max_files);
-    std::unique_ptr<VoiceActivityDetector> vad;
-    const config::VadConfig& vad_config = config.services().audio.vad;
-    if (vad_config.provider == "plugin") {
-      std::string plugin_error;
-      vad = PluginVoiceActivityDetector::Load(vad_config.plugin_path, vad_config.plugin_config_path,
-                                              &plugin_error);
-      if (vad == nullptr) {
-        LOG_ERROR(plugin_error);
-        return false;
-      }
-    }
-    std::unique_ptr<voice::SpeechRecognizer> recognizer;
-    if (config.features().voice.enabled) {
-      const config::AsrConfig& asr = config.features().voice.asr;
-      if (asr.provider == "mock") {
-        recognizer = std::make_unique<voice::MockSpeechRecognizer>();
-      } else {
-        std::string plugin_error;
-        recognizer = voice::PluginSpeechRecognizer::Load(asr.plugin_path, asr.plugin_config_path,
-                                                         &plugin_error);
-        if (recognizer == nullptr) {
-          LOG_ERROR(plugin_error);
-          return false;
-        }
-      }
-    }
-
     impl_ = std::make_unique<Impl>();
-    impl_->service = std::make_unique<AudioService>(config.hardware().audio,
-                                                    config.services().audio.speech_segment,
-                                                    std::move(vad), std::move(recognizer));
-    const std::string output_device = output_device_override.empty()
-                                          ? config.hardware().audio.output_device
-                                          : output_device_override;
-    impl_->speech_output = std::make_unique<SpeechOutput>(
-        output_device, std::make_unique<voice::MockSpeechSynthesizer>(),
-        std::make_unique<AlsaAudioPlayer>());
-    std::string error;
-    if (!impl_->speech_output->Start(&error)) {
-      LOG_ERROR("failed to start speech output: " + error);
+    impl_->stream_publisher = std::make_unique<AudioStreamPublisher>();
+    const std::filesystem::path run_dir = std::filesystem::absolute(config.paths().run_dir);
+    std::error_code directory_error;
+    std::filesystem::create_directories(run_dir, directory_error);
+    if (directory_error) {
+      LOG_ERROR("failed to create audio runtime directory: " + directory_error.message());
       impl_.reset();
       return false;
     }
-    impl_->grpc = std::make_unique<AudioGrpcService>(*impl_->service, *impl_->speech_output);
+    const std::string stream_socket = (run_dir / "audio-capture.sock").string();
+    std::string error;
+    if (!impl_->stream_publisher->Start(stream_socket, &error)) {
+      LOG_ERROR("failed to start audio stream publisher: " + error);
+      impl_.reset();
+      return false;
+    }
+    impl_->capture =
+        std::make_unique<AudioCaptureController>(config.hardware().audio, *impl_->stream_publisher);
+    const std::string output_device = output_device_override.empty()
+                                          ? config.hardware().audio.output_device
+                                          : output_device_override;
+    impl_->playback =
+        std::make_unique<AudioPlayback>(output_device, std::make_unique<AlsaAudioPlayer>());
+    if (!impl_->playback->Start(&error)) {
+      LOG_ERROR("failed to start audio playback: " + error);
+      impl_.reset();
+      return false;
+    }
+    impl_->grpc = std::make_unique<AudioGrpcServer>(*impl_->capture, *impl_->playback);
     if (!impl_->grpc->Start(config.services().audio.grpc.listen_address)) {
       impl_.reset();
       return false;
     }
-    if (config.services().audio.auto_start && !impl_->service->StartCapture("", &error)) {
+    if (config.services().audio.auto_start && !impl_->capture->Start("", &error)) {
       LOG_ERROR("failed to auto-start audio capture: " + error);
       impl_.reset();
       return false;
@@ -109,8 +94,9 @@ void AudioRuntime::Stop() {
     return;
   }
   impl_->grpc->Shutdown();
-  impl_->service->StopCapture();
-  impl_->speech_output->Stop();
+  impl_->capture->Stop();
+  impl_->stream_publisher->Stop();
+  impl_->playback->Stop();
   impl_.reset();
 }
 

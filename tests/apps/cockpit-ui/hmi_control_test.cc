@@ -10,7 +10,7 @@
 #include <string>
 #include <thread>
 
-#include "cockpit/library/agent/hmi/local_hmi_command_provider.h"
+#include "agent/hmi/local_hmi_command_provider.h"
 
 int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);

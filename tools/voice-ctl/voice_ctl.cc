@@ -39,6 +39,15 @@ void PrintResponseText(const cockpit::proto::voice::VoiceResponseEvent& response
             << " action_message=\"" << response.action_message() << "\"\n";
 }
 
+void PrintTranscriptText(const cockpit::proto::voice::TranscriptEvent& transcript) {
+  std::cout << "transcript id=" << transcript.id() << " provider=" << transcript.provider()
+            << " confidence=" << transcript.confidence()
+            << " duration_ms=" << transcript.duration_ms()
+            << " truncated=" << (transcript.truncated() ? "true" : "false")
+            << " discontinuous=" << (transcript.discontinuous() ? "true" : "false") << " text=\""
+            << transcript.text() << "\"\n";
+}
+
 void PrintStatusText(const cockpit::proto::voice::VoiceInteractionStatus& status) {
   const auto& metrics = status.metrics();
   std::cout << "state: " << StateName(status.state()) << '\n'
@@ -57,13 +66,13 @@ void PrintStatusText(const cockpit::proto::voice::VoiceInteractionStatus& status
   std::cout << "speech requests accepted: " << metrics.speech_requests_accepted() << '\n'
             << "speech requests failed: " << metrics.speech_requests_failed() << '\n'
             << "speech requests dropped: " << metrics.speech_requests_dropped() << '\n'
-            << "speech output available: " << (metrics.speech_output_available() ? "yes" : "no")
+            << "audio playback available: " << (metrics.audio_playback_available() ? "yes" : "no")
             << '\n'
-            << "speech output reconnects: " << metrics.speech_output_reconnects() << '\n'
-            << "speech output consecutive failures: "
-            << metrics.speech_output_consecutive_failures() << '\n'
-            << "speech output last success ms: "
-            << metrics.speech_output_last_success_timestamp_ms() << '\n';
+            << "audio playback reconnects: " << metrics.audio_playback_reconnects() << '\n'
+            << "audio playback consecutive failures: "
+            << metrics.audio_playback_consecutive_failures() << '\n'
+            << "audio playback last success ms: "
+            << metrics.audio_playback_last_success_timestamp_ms() << '\n';
   if (status.has_latest_response()) {
     PrintResponseText(status.latest_response());
   }
@@ -77,6 +86,8 @@ void PrintUsage() {
             << "  voice-ctl --status [--address HOST:PORT]\n"
             << "  voice-ctl --process TEXT [--address HOST:PORT]\n"
             << "  voice-ctl --interrupt [--address HOST:PORT]\n"
+            << "  voice-ctl --transcripts [--after-id N] [--count N] "
+               "[--timeout-ms N]\n"
             << "  voice-ctl --responses [--after-id N] [--count N] "
                "[--timeout-ms N]\n"
             << "  all commands accept [--output text|json]\n";
@@ -101,12 +112,14 @@ int cockpit::voice_ctl::ControlVoice(const cockpit::runtime::ProcessRuntime& run
     return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
   }
   const std::string text = runtime.args().GetString("process", "");
+  const bool transcripts = runtime.args().HasFlag("transcripts");
   const bool responses = runtime.args().HasFlag("responses");
   const bool interrupt = runtime.args().HasFlag("interrupt");
-  const bool status =
-      runtime.args().HasFlag("status") || (text.empty() && !responses && !interrupt);
+  const bool status = runtime.args().HasFlag("status") ||
+                      (text.empty() && !transcripts && !responses && !interrupt);
   const int command_count = static_cast<int>(status) + static_cast<int>(!text.empty()) +
-                            static_cast<int>(responses) + static_cast<int>(interrupt);
+                            static_cast<int>(transcripts) + static_cast<int>(responses) +
+                            static_cast<int>(interrupt);
   if (command_count != 1) {
     PrintUsage();
     return 2;
@@ -146,7 +159,7 @@ int cockpit::voice_ctl::ControlVoice(const cockpit::runtime::ProcessRuntime& run
                   << '\n';
       }
     }
-  } else {
+  } else if (responses) {
     const int count = std::clamp(runtime.args().GetInt("count", 1), 1, 100);
     const int timeout_ms = std::clamp(runtime.args().GetInt("timeout-ms", 10000), 100, 60000);
     const int after_id = std::max(runtime.args().GetInt("after-id", 0), 0);
@@ -161,6 +174,24 @@ int cockpit::voice_ctl::ControlVoice(const cockpit::runtime::ProcessRuntime& run
             }
           } else {
             PrintResponseText(response);
+          }
+        },
+        &error);
+  } else {
+    const int count = std::clamp(runtime.args().GetInt("count", 1), 1, 100);
+    const int timeout_ms = std::clamp(runtime.args().GetInt("timeout-ms", 10000), 100, 60000);
+    const int after_id = std::max(runtime.args().GetInt("after-id", 0), 0);
+    success = client.SubscribeTranscripts(
+        static_cast<std::uint64_t>(after_id), static_cast<std::uint32_t>(count), timeout_ms,
+        [output_format](const cockpit::proto::voice::TranscriptEvent& transcript) {
+          if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
+            std::string serialization_error;
+            if (!cockpit::diagnostics::WriteJson(transcript, &std::cout, &serialization_error)) {
+              cockpit::diagnostics::WriteJsonError("serialization_failed", serialization_error,
+                                                   &std::cerr);
+            }
+          } else {
+            PrintTranscriptText(transcript);
           }
         },
         &error);

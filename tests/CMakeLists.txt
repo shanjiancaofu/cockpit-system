@@ -70,6 +70,14 @@ add_executable(audio_frame_buffer_test modules/audio/audio_frame_buffer_test.cc)
 target_link_libraries(audio_frame_buffer_test PRIVATE audio Threads::Threads)
 add_test(NAME audio_frame_buffer_test COMMAND audio_frame_buffer_test)
 
+add_executable(audio_stream_transport_test modules/audio/audio_stream_transport_test.cc)
+target_link_libraries(audio_stream_transport_test PRIVATE
+    agent_audio_stream
+    audio_stream_protocol
+    audio_stream_publisher
+)
+add_test(NAME audio_stream_transport_test COMMAND audio_stream_transport_test)
+
 add_executable(event_queue_test core/event_queue_test.cc)
 target_link_libraries(event_queue_test PRIVATE event Threads::Threads)
 add_test(NAME event_queue_test COMMAND event_queue_test)
@@ -168,39 +176,13 @@ add_executable(audio_level_meter_test modules/audio/audio_level_meter_test.cc)
 target_link_libraries(audio_level_meter_test PRIVATE audio)
 add_test(NAME audio_level_meter_test COMMAND audio_level_meter_test)
 
-add_library(vad_test_plugin MODULE modules/audio/vad_test_plugin.c)
-target_include_directories(vad_test_plugin PRIVATE ${PROJECT_SOURCE_DIR})
-
-add_library(vad_invalid_plugin MODULE modules/audio/vad_invalid_plugin.c)
-target_include_directories(vad_invalid_plugin PRIVATE ${PROJECT_SOURCE_DIR})
-
-add_executable(vad_plugin_test modules/audio/vad_plugin_test.cc)
-target_link_libraries(vad_plugin_test PRIVATE audio_vad)
-add_test(NAME vad_plugin_test COMMAND vad_plugin_test
-    $<TARGET_FILE:vad_test_plugin>
-    $<TARGET_FILE:vad_invalid_plugin>
-)
-
-add_executable(speech_segmenter_test modules/audio/speech_segmenter_test.cc)
-target_link_libraries(speech_segmenter_test PRIVATE audio)
+add_executable(speech_segmenter_test agent/speech_segmenter_test.cc)
+target_link_libraries(speech_segmenter_test PRIVATE agent_speech)
 add_test(NAME speech_segmenter_test COMMAND speech_segmenter_test)
 
-add_executable(mock_speech_recognizer_test modules/voice/mock_speech_recognizer_test.cc)
-target_link_libraries(mock_speech_recognizer_test PRIVATE voice)
+add_executable(mock_speech_recognizer_test agent/mock_speech_recognizer_test.cc)
+target_link_libraries(mock_speech_recognizer_test PRIVATE agent_speech)
 add_test(NAME mock_speech_recognizer_test COMMAND mock_speech_recognizer_test)
-
-add_library(asr_test_plugin MODULE modules/voice/asr_test_plugin.c)
-target_include_directories(asr_test_plugin PRIVATE ${PROJECT_SOURCE_DIR})
-
-add_library(asr_invalid_plugin MODULE modules/voice/asr_invalid_plugin.c)
-target_include_directories(asr_invalid_plugin PRIVATE ${PROJECT_SOURCE_DIR})
-
-add_executable(asr_plugin_test modules/voice/asr_plugin_test.cc)
-target_link_libraries(asr_plugin_test PRIVATE voice_asr)
-add_test(NAME asr_plugin_test COMMAND asr_plugin_test
-    $<TARGET_FILE:asr_test_plugin>
-    $<TARGET_FILE:asr_invalid_plugin>
-)
 
 add_executable(mock_voice_assistant_test modules/voice/mock_voice_assistant_test.cc)
 target_link_libraries(mock_voice_assistant_test PRIVATE voice)
@@ -214,21 +196,23 @@ add_executable(cockpit_action_dispatcher_test modules/voice/cockpit_action_dispa
 target_link_libraries(cockpit_action_dispatcher_test PRIVATE voice)
 add_test(NAME cockpit_action_dispatcher_test COMMAND cockpit_action_dispatcher_test)
 
-add_executable(audio_service_test library/driver/audio/audio_service_test.cc)
-target_link_libraries(audio_service_test PRIVATE audio_processing)
-add_test(NAME audio_service_test COMMAND audio_service_test)
+add_executable(audio_capture_controller_test
+    library/driver/audio/audio_capture_controller_test.cc
+)
+target_link_libraries(audio_capture_controller_test PRIVATE audio_capture_controller)
+add_test(NAME audio_capture_controller_test COMMAND audio_capture_controller_test)
 
-add_executable(audio_asr_pipeline_test library/driver/audio/audio_asr_pipeline_test.cc)
-target_link_libraries(audio_asr_pipeline_test PRIVATE audio_processing voice)
-add_test(NAME audio_asr_pipeline_test COMMAND audio_asr_pipeline_test)
+add_executable(speech_pipeline_test agent/speech_pipeline_test.cc)
+target_link_libraries(speech_pipeline_test PRIVATE agent_speech)
+add_test(NAME speech_pipeline_test COMMAND speech_pipeline_test)
 
-add_executable(voice_interaction_service_test library/agent/voice_interaction_service_test.cc)
+add_executable(voice_interaction_service_test agent/voice_interaction_service_test.cc)
 target_link_libraries(voice_interaction_service_test PRIVATE voice_interaction)
 add_test(NAME voice_interaction_service_test COMMAND voice_interaction_service_test)
 
-add_executable(speech_output_test library/driver/audio/speech_output_test.cc)
-target_link_libraries(speech_output_test PRIVATE speech_output)
-add_test(NAME speech_output_test COMMAND speech_output_test)
+add_executable(audio_playback_test library/driver/audio/audio_playback_test.cc)
+target_link_libraries(audio_playback_test PRIVATE agent_speech audio_device_playback)
+add_test(NAME audio_playback_test COMMAND audio_playback_test)
 
 add_executable(system_config_test core/system_config_test.cc)
 target_link_libraries(system_config_test PRIVATE config)
@@ -241,9 +225,6 @@ target_compile_definitions(system_config_test
         INVALID_CONFIG_KEY_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config_key.yaml"
         INVALID_AUDIO_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_config.yaml"
         INVALID_AUDIO_FORMAT_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_format_config.yaml"
-        INVALID_VAD_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_vad_config.yaml"
-        VALID_PLUGIN_VOICE_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/valid_plugin_voice_config.yaml"
-        INVALID_PLUGIN_VOICE_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_plugin_voice_config.yaml"
 )
 add_test(NAME system_config_test COMMAND system_config_test)
 

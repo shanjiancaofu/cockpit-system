@@ -15,11 +15,15 @@
 1. 所有语音和 LLM 能力默认本地离线运行。
 2. 车控命令走确定性匹配和类型化白名单，不交给 LLM 决策。
 3. LLM 只生成回复文本，不持有 `ActionDispatcher`，不能执行 Shell、任意 RPC 或车辆动作。
-4. Sherpa-ONNX、ONNX Runtime、llama.cpp 和模型不进入主项目 CMake。
-5. 第三方语音运行时通过稳定 C ABI 插件接入，使用 `RTLD_NOW | RTLD_LOCAL`。
-6. `cockpit-system` 只安装一个 systemd service；外部推理进程由 Navigator 模块启动和监管。
-7. 模型、运行时和配置均固定版本，设备启动时不联网下载或自动升级。
-8. 第一阶段采用半双工：TTS 播放期间暂停 KWS、VAD 和 ASR。
+4. `cockpit/drivers` 只负责硬件适配，`cockpit/library/driver` 只负责驱动模块组装和数据传输。
+5. 顶层 `agent/` 负责 VAD、语音分段、ASR、LLM、工具调用和 TTS。
+6. Navigator 只动态加载顶层模块，Agent 内部算法使用普通 C++ target 和接口注入，不再逐个
+   设计为运行时插件。
+7. Sherpa-ONNX、ONNX Runtime、llama.cpp 和模型只进入 Agent 产品构建，不进入基础系统的
+   默认构建和 CI。
+8. `cockpit-system` 只安装一个 systemd service；外部推理进程由 Navigator 模块启动和监管。
+9. 模型、运行时和配置均固定版本，设备启动时不联网下载或自动升级。
+10. 第一阶段采用半双工：TTS 播放期间暂停 KWS、VAD 和 ASR。
 
 ## 3. 当前实现
 
@@ -30,42 +34,48 @@
 | 音频环形缓冲 | 已实现 |
 | RMS、峰值和削波诊断 | 已实现 |
 | `SpeechSegmenter` | 已实现 |
-| VAD C ABI 和插件加载器 | 已实现 |
-| ASR C ABI 和插件加载器 | 已实现 |
+| PCM 线协议 | 已实现第一版 |
+| Driver 侧 PCM Publisher | 已实现并接入采集链路 |
+| Agent 侧 PCM Client | 已实现并接入语音流水线 |
+| VAD/ASR 插件加载器 | 已删除 |
 | Energy VAD | 已移除 |
 | Sherpa-ONNX/SenseVoice | 主仓库中不存在 |
 | KWS | 未实现 |
-| 真实 VAD 插件 | 未实现 |
-| 真实 ASR 插件 | 未实现 |
-| TTS | 只有 mock |
+| 真实 VAD 实现 | 未实现 |
+| 真实 ASR 实现 | 未实现 |
+| TTS 与 PCM 回放 | mock TTS 已在 Agent，Driver 只播放 PCM |
 | 本地 LLM client | 未实现 |
 | 完整语音会话状态机 | 未实现 |
 
 默认配置保持：
 
 ```yaml
-services:
-  audio:
-    vad:
-      provider: disabled
-
 features:
   voice:
     enabled: false
+    vad:
+      provider: mock
+    speech_segment:
+      pre_roll_ms: 100
+      max_segment_ms: 15000
     asr:
       provider: mock
 ```
 
-未安装真实 VAD 插件时，不得通过配置伪装成生产语音链路。
+未接入真实 VAD 和 ASR 时，不得通过配置伪装成生产语音链路。
 
 ## 4. 目标数据流
 
 ```text
 ALSA 采集
   ↓
-格式校验 / 重采样 / 单声道转换
+Audio Driver 格式校验 / 单声道 PCM
   ↓
-有界音频缓冲
+有界发送队列
+  ↓
+Unix SOCK_SEQPACKET PCM Stream
+  ↓
+Agent 有界音频缓冲
   ↓
 KWS（流式）
   ↓
@@ -94,11 +104,16 @@ CommandMatcher
 cockpit-system.service
 └── cockpit-navigator
     ├── audio_driver
-    │   └── dlopen(libcockpit-speech-sherpa.so, RTLD_LOCAL)
+    │   ├── ALSA Capture/Playback
+    │   └── PCM Stream Publisher
     ├── agent
+    │   ├── VAD / Segmenter / ASR / TTS
     │   └── llama-server 子进程
     └── 其他 Navigator 模块
 ```
+
+`audio_driver` 不认识 VAD、Transcript、ASR、TTS 或 LLM。它只发布采集 PCM、接收播放 PCM
+并维护设备健康状态。`agent` 通过中立音频线协议消费 PCM，算法不反向依赖驱动实现。
 
 `llama-server` 不增加独立 systemd service。`agent` 模块负责：
 
@@ -110,93 +125,65 @@ cockpit-system.service
 
 Navigator 的 child subreaper 和进程组清理能力继续作为兜底。
 
-## 6. 语音插件
+## 6. Driver 与 Agent 音频协议
 
-目标包与主项目独立发布：
-
-```text
-/cockpit-system/plugins/speech/
-├── releases/
-│   └── 1.0.0/
-│       ├── lib/
-│       │   ├── libcockpit-speech-sherpa.so
-│       │   ├── libsherpa-onnx-c-api.so
-│       │   └── libonnxruntime.so
-│       ├── config/
-│       │   └── speech.yaml
-│       ├── manifest.yaml
-│       └── checksums.sha256
-├── current -> releases/1.0.0
-└── previous -> releases/0.9.0
-```
-
-同一个 `libcockpit-speech-sherpa.so` 可以导出多个 API 表，但主项目按能力分别加载：
-
-```c
-CockpitVadPluginGetApi();
-CockpitAsrPluginGetApi();
-```
-
-KWS 和 TTS ABI 在出现第二个真实实现、完成调用语义设计后再增加，当前不预先冻结。
-
-### 6.1 ABI 约束
-
-- ABI 使用 C 类型，不跨边界传递 STL、C++ 异常或所有权不清晰的内存。
-- API 表包含 `abi_version` 和 `struct_size`，未来字段只能追加。
-- 输入缓冲区由 host 持有，仅在当前调用期间有效。
-- 插件写入 host 提供的输出和错误缓冲区。
-- 插件必须声明实例是否允许并发调用；第一阶段按单线程实例使用。
-- 成功初始化的插件不执行 `dlclose()`，但模型实例仍可 `destroy()`。
-- 编译使用 `-fvisibility=hidden`、version script 和 `$ORIGIN` 相对 RPATH。
-- 静态第三方符号使用 `--exclude-libs,ALL` 隐藏。
-
-### 6.2 当前 VAD ABI
-
-VAD 插件接收任意长度 PCM chunk，可以在内部缓冲。20 ms host frame 与 Silero 推荐窗口不一致时，
-由插件负责拼接，不得把模型窗口要求泄漏进 `AudioService`。
-
-VAD 输出：
+第一版使用 Unix `SOCK_SEQPACKET`：
 
 ```text
-silence / speech
-speech_probability [0, 1]
-status
-error
+audio_driver
+  └── /cockpit-system/run/audio-capture.sock
+          ↓ PCM16 / 16 kHz / mono / 20 ms
+agent
 ```
 
-状态跳变由 host adapter 计算，`SpeechSegmenter` 继续负责 pre-roll、最大句长、截断和 discontinuity。
+协议使用固定长度、显式小端序字段，包含：
 
-### 6.3 当前 ASR ABI
+```text
+magic
+protocol version
+message type
+packet size
+frame flags
+sequence
+monotonic capture timestamp
+sample rate / channels / sample count
+PCM samples
+```
 
-ASR 接收 VAD 切出的完整语音段。`recognize()` 当前是同步调用：
+采集线程不直接执行 socket I/O。Driver 使用有界队列和独立 Publisher 线程；队列满时丢弃旧帧，
+下一帧携带 `discontinuity` 和 `dropped-before`。socket 文件权限为 `0600`，停止时只删除自身
+创建且 inode 匹配的 socket。
 
-- 交互层超时只能丢弃迟到结果，属于软超时；
-- 不能声称可以中断正在执行的 ONNX Runtime 推理；
-- 如果后续必须提供硬超时和崩溃隔离，应升级成受监管的独立语音进程。
+播放方向使用 Audio gRPC 的有界 `PlayPcm` 请求。文本合成在 Agent 内完成，Audio Driver
+只校验 PCM16/16 kHz/mono 和负载大小并异步播放，不接收 `Speak(text)`，也不持有 TTS 实现。
 
 ## 7. 依赖隔离
 
 ```text
-cockpit-system
-└── Ubuntu 系统 Protobuf/gRPC
+audio_driver 进程
+└── Ubuntu 系统 Protobuf/gRPC + ALSA
 
-libcockpit-speech-sherpa.so
-└── Sherpa-ONNX
-    └── 私有 ONNX Runtime 及其内部依赖
+agent 进程
+├── 应用 Protobuf/gRPC
+├── Sherpa-ONNX
+└── 私有 ONNX Runtime 及其内部依赖
 
 llama-server
 └── llama.cpp + CUDA + GGUF
 ```
 
-主仓库禁止出现：
+基础系统默认构建禁止出现：
 
 ```text
 find_package(ONNXRuntime)
 add_subdirectory(sherpa-onnx)
 SHERPA_ONNX_ENABLE_*
-SenseVoice/Qwen 模型下载逻辑
-llama.cpp 源码或模型下载逻辑
+启动时模型下载逻辑
 ```
+
+Agent 产品 target 使用普通 C++ 接口链接具体实现，并通过模块进程边界、hidden visibility、
+version script 和 `--exclude-libs,ALL` 限制第三方符号。只有出现外部供应商独立交付且必须
+运行时替换的需求时，才重新评估算法插件 ABI。
 
 ## 8. 模型候选
 
@@ -366,11 +353,11 @@ LLM 未命中的请求只能进入回复通道。即使模型产生工具调用�
 
 ## 12. 版本、升级和回滚
 
-语音插件与模型分开版本化：
+Agent 运行时与模型分开版本化：
 
 ```text
-/cockpit-system/plugins/speech/current
-/cockpit-system/plugins/speech/previous
+/cockpit-system/agent/current
+/cockpit-system/agent/previous
 /cockpit-system/models/speech/current
 /cockpit-system/models/speech/previous
 /cockpit-system/models/llm/current
@@ -389,7 +376,6 @@ model_file: ""
 quantization: ""
 sha256: ""
 license: ""
-abi_version: 1
 config_version: 1
 ```
 
@@ -416,7 +402,7 @@ config_version: 1
 - “打开/不要打开”“停止/不要停止”等否定词；
 - 数字、单位和中英混读；
 - 平均/P95 延迟、冷启动和峰值内存；
-- 迟到结果丢弃和插件异常恢复。
+- 迟到结果丢弃和算法异常恢复。
 
 ### LLM
 
@@ -430,13 +416,15 @@ config_version: 1
 
 ## 14. 实施顺序
 
-1. **主仓库边界**：移除 Energy VAD，落地 VAD C ABI、插件加载器和音频诊断。
-2. **独立语音包**：固定 Sherpa-ONNX/ONNX Runtime，先实现 Silero VAD。
-3. **ASR 对比**：SenseVoice 与 Qwen3-ASR 在 Jetson 上做固定数据集验收。
-4. **KWS 与会话**：接入 Zipformer KWS、半双工状态机和预录提示音。
-5. **命令安全链**：实现 normalizer、matcher、typed action 和 validator。
-6. **本地 LLM**：由 agent 模块监管 llama-server，先接 Qwen3-4B-Instruct-2507。
-7. **动态 TTS**：验证 Kokoro INT8 的延迟和内存后接入句级流水线。
+1. **分层边界**：切断 Driver 对 VAD/Voice 聚合 target 的依赖，建立顶层 `agent/`。
+2. **PCM 传输**：完成 Driver Publisher、Agent Client、重连、丢帧和健康指标。
+3. **职责迁移**：把 VAD、SpeechSegmenter、ASR、Transcript 和 TTS 从 Audio Driver 移入 Agent。
+4. **接口清理**：Audio RPC 只保留设备控制，Voice RPC 负责 Transcript、响应和打断。
+5. **真实语音**：固定 Sherpa-ONNX/ONNX Runtime，先接 Silero VAD，再做 ASR 对比。
+6. **KWS 与会话**：接入 KWS、半双工状态机和预录提示音。
+7. **命令安全链**：实现 normalizer、matcher、typed action 和 validator。
+8. **本地 LLM**：由 agent 模块监管 llama-server。
+9. **动态 TTS**：验证 TTS 延迟和内存后接入 PCM playback 通道。
 
 每一步单独提交、测试和验收，不把模型下载或第三方构建重新塞回主项目。
 

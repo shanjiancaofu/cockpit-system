@@ -13,42 +13,18 @@ enum CaptureState {
   CAPTURE_STATE_FAULTED = 5;
 }
 
-enum VoiceActivityState {
-  VOICE_ACTIVITY_STATE_UNSPECIFIED = 0;
-  VOICE_ACTIVITY_STATE_DISABLED = 1;
-  VOICE_ACTIVITY_STATE_SILENCE = 2;
-  VOICE_ACTIVITY_STATE_SPEECH = 3;
-}
-
 message StartCaptureRequest {
   string input_device = 1;
 }
 
-message SpeakRequest {
-  string text = 1;
+message PlayPcmRequest {
+  uint32 sample_rate_hz = 1;
+  uint32 channels = 2;
+  bytes samples_s16le = 3;
 }
 
-message SpeakResponse {
+message PlayPcmResponse {
   bool accepted = 1;
-}
-
-message SubscribeTranscriptsRequest {
-  string client_id = 1;
-  uint64 after_id = 2;
-  uint32 max_events = 3;
-}
-
-message TranscriptEvent {
-  uint64 id = 1;
-  uint64 timestamp_ms = 2;
-  uint64 start_sequence = 3;
-  uint64 end_sequence = 4;
-  uint64 duration_ms = 5;
-  bool truncated = 6;
-  bool discontinuous = 7;
-  string text = 8;
-  string provider = 9;
-  float confidence = 10;
 }
 
 message AudioMetrics {
@@ -58,21 +34,15 @@ message AudioMetrics {
   uint64 timeouts = 4;
   uint64 xruns = 5;
   uint64 device_errors = 6;
-  uint64 vad_frames_processed = 7;
-  uint64 vad_speech_frames = 8;
-  uint64 vad_speech_events = 9;
-  uint64 vad_silence_events = 10;
-  uint64 speech_segments_completed = 11;
-  uint64 speech_segments_truncated = 12;
-  uint64 speech_segments_dropped = 13;
-  uint64 last_segment_duration_ms = 14;
-  uint64 asr_segments_processed = 15;
-  uint64 transcripts_published = 16;
-  uint64 asr_errors = 17;
-  uint64 tts_queued = 18;
-  uint64 tts_played = 19;
-  uint64 tts_failed = 20;
-  uint64 tts_dropped = 21;
+  uint64 stream_clients_accepted = 7;
+  uint64 stream_frames_queued = 8;
+  uint64 stream_frames_sent = 9;
+  uint64 stream_frames_dropped = 10;
+  uint64 stream_client_disconnects = 11;
+  uint64 playback_queued = 12;
+  uint64 playback_played = 13;
+  uint64 playback_failed = 14;
+  uint64 playback_dropped = 15;
 }
 
 message AudioStatus {
@@ -83,10 +53,8 @@ message AudioStatus {
   uint32 frame_ms = 5;
   AudioMetrics metrics = 6;
   string last_error = 7;
-  VoiceActivityState voice_activity_state = 8;
-  double input_level_dbfs = 9;
-  bool asr_enabled = 10;
-  repeated cockpit.proto.common.RuntimeModuleStatus modules = 11;
+  double input_level_dbfs = 8;
+  repeated cockpit.proto.common.RuntimeModuleStatus modules = 9;
   cockpit.proto.common.ServiceHealth health = 100;
 }
 
@@ -94,7 +62,5 @@ service AudioControl {
   rpc StartCapture(StartCaptureRequest) returns (AudioStatus);
   rpc StopCapture(cockpit.proto.common.Empty) returns (AudioStatus);
   rpc GetStatus(cockpit.proto.common.Empty) returns (AudioStatus);
-  rpc Speak(SpeakRequest) returns (SpeakResponse);
-  rpc SubscribeTranscripts(SubscribeTranscriptsRequest)
-      returns (stream TranscriptEvent);
+  rpc PlayPcm(PlayPcmRequest) returns (PlayPcmResponse);
 }

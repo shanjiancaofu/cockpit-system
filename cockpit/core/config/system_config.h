@@ -42,9 +42,7 @@ struct GatewayConfig {
 };
 
 struct VadConfig {
-  std::string provider = "disabled";
-  std::string plugin_path;
-  std::string plugin_config_path;
+  std::string provider = "mock";
 };
 
 struct SpeechSegmentConfig {
@@ -52,11 +50,9 @@ struct SpeechSegmentConfig {
   int max_segment_ms = 15000;
 };
 
-struct AudioServiceConfig {
+struct AudioDriverConfig {
   bool auto_start = false;
   GrpcServerConfig grpc{"127.0.0.1:50052"};
-  VadConfig vad;
-  SpeechSegmentConfig speech_segment;
 };
 
 struct CameraServiceConfig {
@@ -97,7 +93,7 @@ struct RecordingServiceConfig {
 struct ServicesConfig {
   VehicleDataConfig vehicle_data;
   GatewayConfig gateway;
-  AudioServiceConfig audio;
+  AudioDriverConfig audio;
   CameraServiceConfig camera;
   VoiceInteractionServiceConfig voice_interaction;
   RecordingServiceConfig recording;
@@ -126,12 +122,12 @@ struct HardwareConfig {
 
 struct AsrConfig {
   std::string provider = "mock";
-  std::string plugin_path;
-  std::string plugin_config_path;
 };
 
 struct VoiceConfig {
   bool enabled = false;
+  VadConfig vad;
+  SpeechSegmentConfig speech_segment;
   AsrConfig asr;
 };
 

@@ -15,6 +15,7 @@ namespace voice {
 class VoiceControlClient {
  public:
   using ResponseHandler = std::function<void(const proto::voice::VoiceResponseEvent&)>;
+  using TranscriptHandler = std::function<void(const proto::voice::TranscriptEvent&)>;
 
   explicit VoiceControlClient(const std::string& address);
 
@@ -24,6 +25,8 @@ class VoiceControlClient {
   bool Interrupt(proto::voice::InterruptVoiceResponse* response, std::string* error);
   bool SubscribeResponses(std::uint64_t after_id, std::uint32_t count, int timeout_ms,
                           const ResponseHandler& handler, std::string* error);
+  bool SubscribeTranscripts(std::uint64_t after_id, std::uint32_t count, int timeout_ms,
+                            const TranscriptHandler& handler, std::string* error);
 
  private:
   static void SetDeadline(grpc::ClientContext* context);

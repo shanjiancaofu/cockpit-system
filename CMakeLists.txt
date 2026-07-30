@@ -12,6 +12,7 @@ include(cmake/dependencies.cmake)
 link_libraries(cockpit_project_options)
 
 add_subdirectory(cockpit)
+add_subdirectory(agent)
 add_subdirectory(tools)
 
 include(CTest)

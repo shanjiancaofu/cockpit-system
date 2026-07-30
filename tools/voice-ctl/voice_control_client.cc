@@ -71,6 +71,24 @@ bool VoiceControlClient::SubscribeResponses(std::uint64_t after_id, std::uint32_
   return FinishRpc(reader->Finish(), error);
 }
 
+bool VoiceControlClient::SubscribeTranscripts(std::uint64_t after_id, std::uint32_t count,
+                                              int timeout_ms, const TranscriptHandler& handler,
+                                              std::string* error) {
+  proto::voice::SubscribeTranscriptsRequest request;
+  request.set_client_id("voice-ctl");
+  request.set_after_id(after_id);
+  request.set_max_events(count);
+  grpc::ClientContext context;
+  context.set_wait_for_ready(true);
+  context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(timeout_ms));
+  auto reader = stub_->SubscribeTranscripts(&context, request);
+  proto::voice::TranscriptEvent transcript;
+  while (reader->Read(&transcript)) {
+    handler(transcript);
+  }
+  return FinishRpc(reader->Finish(), error);
+}
+
 void VoiceControlClient::SetDeadline(grpc::ClientContext* context) {
   context->set_wait_for_ready(true);
   context->set_deadline(std::chrono::system_clock::now() + kControlDeadline);

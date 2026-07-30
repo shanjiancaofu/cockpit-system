@@ -165,21 +165,6 @@ const char* CaptureStateName(cockpit::proto::audio::CaptureState state) {
   }
 }
 
-const char* VoiceActivityStateName(cockpit::proto::audio::VoiceActivityState state) {
-  switch (state) {
-    case cockpit::proto::audio::VOICE_ACTIVITY_STATE_DISABLED:
-      return "disabled";
-    case cockpit::proto::audio::VOICE_ACTIVITY_STATE_SILENCE:
-      return "silence";
-    case cockpit::proto::audio::VOICE_ACTIVITY_STATE_SPEECH:
-      return "speech";
-    case cockpit::proto::audio::VOICE_ACTIVITY_STATE_UNSPECIFIED:
-      return "unspecified";
-    default:
-      return "unknown";
-  }
-}
-
 void PrintStatusText(const cockpit::proto::audio::AudioStatus& status) {
   const auto& metrics = status.metrics();
   std::cout << "state: " << CaptureStateName(status.capture_state()) << '\n'
@@ -189,24 +174,16 @@ void PrintStatusText(const cockpit::proto::audio::AudioStatus& status) {
             << "frames read: " << metrics.pcm_frames_read() << '\n'
             << "frames published: " << metrics.audio_frames_published() << '\n'
             << "frames dropped: " << metrics.audio_frames_dropped() << '\n'
-            << "voice activity: " << VoiceActivityStateName(status.voice_activity_state()) << '\n'
             << "input level: " << status.input_level_dbfs() << " dBFS\n"
-            << "VAD frames: " << metrics.vad_frames_processed() << '\n'
-            << "VAD speech frames: " << metrics.vad_speech_frames() << '\n'
-            << "VAD speech events: " << metrics.vad_speech_events() << '\n'
-            << "VAD silence events: " << metrics.vad_silence_events() << '\n'
-            << "speech segments: " << metrics.speech_segments_completed() << '\n'
-            << "segments truncated: " << metrics.speech_segments_truncated() << '\n'
-            << "segments dropped: " << metrics.speech_segments_dropped() << '\n'
-            << "last segment: " << metrics.last_segment_duration_ms() << " ms\n"
-            << "ASR enabled: " << (status.asr_enabled() ? "true" : "false") << '\n'
-            << "ASR segments: " << metrics.asr_segments_processed() << '\n'
-            << "transcripts: " << metrics.transcripts_published() << '\n'
-            << "ASR errors: " << metrics.asr_errors() << '\n'
-            << "TTS queued: " << metrics.tts_queued() << '\n'
-            << "TTS played: " << metrics.tts_played() << '\n'
-            << "TTS failed: " << metrics.tts_failed() << '\n'
-            << "TTS dropped: " << metrics.tts_dropped() << '\n'
+            << "stream clients: " << metrics.stream_clients_accepted() << '\n'
+            << "stream frames queued: " << metrics.stream_frames_queued() << '\n'
+            << "stream frames sent: " << metrics.stream_frames_sent() << '\n'
+            << "stream frames dropped: " << metrics.stream_frames_dropped() << '\n'
+            << "stream disconnects: " << metrics.stream_client_disconnects() << '\n'
+            << "playback queued: " << metrics.playback_queued() << '\n'
+            << "playback played: " << metrics.playback_played() << '\n'
+            << "playback failed: " << metrics.playback_failed() << '\n'
+            << "playback dropped: " << metrics.playback_dropped() << '\n'
             << "timeouts: " << metrics.timeouts() << '\n'
             << "xruns: " << metrics.xruns() << '\n'
             << "device errors: " << metrics.device_errors() << '\n';
@@ -249,57 +226,6 @@ int Control(const cockpit::runtime::ProcessRuntime& runtime, const std::string& 
   return 0;
 }
 
-int Transcripts(const cockpit::runtime::ProcessRuntime& runtime,
-                cockpit::diagnostics::OutputFormat output_format) {
-  const std::string address =
-      runtime.args().GetString("address", runtime.config().services().audio.grpc.listen_address);
-  const int count = std::clamp(runtime.args().GetInt("count", 1), 1, 100);
-  const int timeout_ms = std::clamp(runtime.args().GetInt("timeout-ms", 10000), 100, 60000);
-  cockpit::audio::AudioControlClient client(address);
-  std::string error;
-  const bool success = client.SubscribeTranscripts(
-      static_cast<std::uint32_t>(count), timeout_ms,
-      [output_format](const cockpit::proto::audio::TranscriptEvent& event) {
-        if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
-          std::string serialization_error;
-          if (!cockpit::diagnostics::WriteJson(event, &std::cout, &serialization_error)) {
-            cockpit::diagnostics::WriteJsonError("serialization_failed", serialization_error,
-                                                 &std::cerr);
-          }
-        } else {
-          std::cout << "transcript id=" << event.id() << " provider=" << event.provider()
-                    << " confidence=" << event.confidence()
-                    << " duration_ms=" << event.duration_ms()
-                    << " truncated=" << (event.truncated() ? "true" : "false")
-                    << " discontinuous=" << (event.discontinuous() ? "true" : "false") << " text=\""
-                    << event.text() << "\"\n";
-        }
-      },
-      &error);
-  if (!success) {
-    if (output_format == cockpit::diagnostics::OutputFormat::kJson) {
-      cockpit::diagnostics::WriteJsonError("operation_failed", error, &std::cerr);
-    } else {
-      LOG_ERROR("transcript stream failed address=" + address + " error=" + error);
-    }
-    return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kOperationFailed);
-  }
-  return 0;
-}
-
-int Speak(const cockpit::runtime::ProcessRuntime& runtime, const std::string& text) {
-  const std::string address =
-      runtime.args().GetString("address", runtime.config().services().audio.grpc.listen_address);
-  cockpit::audio::AudioControlClient client(address);
-  std::string error;
-  if (!client.Speak(text, &error)) {
-    LOG_ERROR("audio speak RPC failed address=" + address + " error=" + error);
-    return 1;
-  }
-  std::cout << "speech queued\n";
-  return 0;
-}
-
 void PrintUsage() {
   std::cout << "usage:\n"
             << "  audio-probe --list [--config configs/development.yaml]\n"
@@ -307,10 +233,8 @@ void PrintUsage() {
             << "  audio-probe --play input.wav [--device NAME]\n"
             << "  audio-probe --start [--device NAME] [--address HOST:PORT]\n"
             << "  audio-probe --stop [--address HOST:PORT]\n"
-            << "  audio-probe --status [--address HOST:PORT]\n"
-            << "  audio-probe --speak TEXT [--address HOST:PORT]\n"
-            << "  audio-probe --transcripts [--count N] [--timeout-ms N]\n";
-  std::cout << "  control and transcript commands accept [--output text|json]\n";
+            << "  audio-probe --status [--address HOST:PORT]\n";
+  std::cout << "  control commands accept [--output text|json]\n";
 }
 
 }  // namespace
@@ -328,24 +252,19 @@ int cockpit::audio_probe::ProbeAudio(const cockpit::runtime::ProcessRuntime& run
   const bool start = runtime.args().HasFlag("start");
   const bool stop = runtime.args().HasFlag("stop");
   const bool status = runtime.args().HasFlag("status");
-  const bool transcripts = runtime.args().HasFlag("transcripts");
-  const std::string speak_text = runtime.args().GetString("speak", "");
-  const bool no_command = capture_path.empty() && play_path.empty() && !start && !stop && !status &&
-                          !transcripts && speak_text.empty();
+  const bool no_command = capture_path.empty() && play_path.empty() && !start && !stop && !status;
   const bool list = runtime.args().HasFlag("list") || no_command;
   const int command_count = static_cast<int>(list) + static_cast<int>(!capture_path.empty()) +
                             static_cast<int>(!play_path.empty()) + static_cast<int>(start) +
-                            static_cast<int>(stop) + static_cast<int>(status) +
-                            static_cast<int>(transcripts) + static_cast<int>(!speak_text.empty());
+                            static_cast<int>(stop) + static_cast<int>(status);
   if (command_count != 1) {
     PrintUsage();
     return 2;
   }
   if (output_format == cockpit::diagnostics::OutputFormat::kJson &&
-      (list || !capture_path.empty() || !play_path.empty() || !speak_text.empty())) {
-    cockpit::diagnostics::WriteJsonError(
-        "invalid_arguments", "JSON output is supported for control status and transcripts",
-        &std::cerr);
+      (list || !capture_path.empty() || !play_path.empty())) {
+    cockpit::diagnostics::WriteJsonError("invalid_arguments",
+                                         "JSON output is supported for control status", &std::cerr);
     return cockpit::diagnostics::ToInt(cockpit::diagnostics::ExitCode::kInvalidArguments);
   }
   if (list) {
@@ -356,12 +275,6 @@ int cockpit::audio_probe::ProbeAudio(const cockpit::runtime::ProcessRuntime& run
   }
   if (!play_path.empty()) {
     return Play(runtime, play_path);
-  }
-  if (transcripts) {
-    return Transcripts(runtime, output_format);
-  }
-  if (!speak_text.empty()) {
-    return Speak(runtime, speak_text);
   }
   return Control(runtime, start ? "start" : (stop ? "stop" : "status"), output_format);
 }

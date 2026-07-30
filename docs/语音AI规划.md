@@ -1,99 +1,66 @@
 # 语音与 AI 规划
 
-## 当前目标
-
-先完成可靠的本地语音交互闭环，再增加大模型能力。语音功能属于用户交互；录像、录包和研发数据
-采集属于独立 diagnostics/recording 边界，不混入语音动作。
-
 ## 当前链路
 
 ```text
-麦克风
-  → audio_driver
-  → VAD
-  → SpeechSegmenter
-  → mock ASR / external ASR plugin
-  → transcript gRPC stream
-  → agent
-  → intent / action
-  → response text
-  → audio_driver Speak RPC
-  → mock TTS
-  → 扬声器
+ALSA 麦克风
+  → audio_driver（采集并发布 PCM）
+  → Unix SOCK_SEQPACKET
+  → agent（VAD → SpeechSegmenter → ASR）
+  → transcript / intent / typed action
+  → response text → TTS
+  → AudioControl.PlayPcm
+  → audio_driver（只播放 PCM）
+  → ALSA 扬声器
 ```
 
-当前已完成：
+当前基础仓库已完成 PCM 线协议、Driver Publisher、Agent Client、mock VAD/ASR/TTS、语音分段、
+类型化动作和响应输出。`AudioControl` 不再提供文本 `Speak` 或 transcript stream；transcript
+属于 Agent，并由 `VoiceInteractionControl.SubscribeTranscripts` 对外发布。
 
-- ALSA 采集和播放。
-- 20 ms PCM frame、SPSC ring、VAD 和语音分段。
-- mock ASR 和通用外部插件加载边界。
-- transcript 订阅、重连、历史重放。
-- 白名单意图和类型化 ActionDispatcher。
-- 车辆状态查询通过 gateway gRPC 真实执行。
-- 打开相机通过本地 HMI gRPC 切换 Qt Camera 页面，并返回真实执行结果。
-- 播放音乐已进入同一类型化合同，但媒体未接入时明确返回失败。
-- 异步 TTS 队列、取消和健康指标。
+## 实现边界
 
-## Provider 边界
+- `cockpit/drivers/alsa`：ALSA 硬件适配。
+- `cockpit/library/driver/audio`：采集、PCM 发布、PCM 播放和设备状态。
+- `agent/speech`：VAD、分段、ASR、TTS 和语音流水线。
+- `agent/interaction`：transcript、意图、动作和回复生命周期。
+- `cockpit/modules/voice`：不依赖硬件的交互模型、动作合同和响应接口。
 
-### ASR
+VAD、ASR 和 TTS 是 Agent 进程内普通 C++ 组件，不分别做运行时动态插件。Navigator 的
+`libagent.so` 仍是进程级动态加载边界。
 
-统一实现 `SpeechRecognizer`：
+## 真实算法接入
 
-- `mock`：测试和 smoke 默认实现。
-- `plugin`：通过稳定 C ABI 加载独立发布的 ASR 动态库。
+基础构建和 CI 不包含 Sherpa-ONNX、ONNX Runtime、llama.cpp 或模型。Jetson 产品构建按固定版本
+增加 Agent 实现 target：
 
-ASR 在 `audio_driver` module child 内运行，避免语音 PCM 跨进程传输。插件 ABI 只传递定宽整数、
-PCM 指针和调用方拥有的字符缓冲区，不跨边界传递 C++ 类型或内存所有权。插件使用 `RTLD_LOCAL`
-加载，成功调用后不执行 `dlclose()`，避免第三方线程、TLS 和静态析构状态失效。
+```text
+Agent
+├── Sherpa-ONNX KWS / Silero VAD / ASR / TTS
+├── 私有 ONNX Runtime 及内部依赖
+└── llama.cpp llama-server client
+```
 
-### TTS
-
-统一实现 `SpeechSynthesizer`。当前 mock 只生成测试音频，后续可接：
-
-- 本地轻量中文 TTS。
-- Jetson TensorRT/ONNX provider。
-- 远程云 TTS。
-
-### LLM
-
-LLM 应位于 `agent` 的 Assistant provider 边界，输入是 transcript 和结构化上下文，输出是回复文本或受控
-工具调用。LLM 不直接访问 ALSA、CAN、摄像头或 shell。
-
-当前活动配置只保留已有 consumer 的 `features.voice.enabled`、`features.voice.asr` 和
-`features.ai.request_timeout_ms`。`features.voice.mode`、`features.voice.tts_provider`、
-`features.ai.provider` 与 `features.ai.model` 是未来候选契约；在对应的第二种真实实现和可切换
-装配逻辑落地前，不进入 `configs/development.yaml`，避免配置看似可选而实际始终运行 mock。
+项目 Protobuf/gRPC 使用系统依赖；ONNX Runtime 的 Protobuf 保持私有隔离。不得为强行统一版本
+增加 Provider、Find 模块或兼容层。
 
 ## 动作安全
 
 ```text
 transcript
-  → intent / LLM tool proposal
+  → deterministic command matcher / LLM proposal
   → allowlist validation
   → typed ActionDispatcher
-  → gateway / HMI bridge
+  → Gateway / HMI
 ```
 
-- 查询类动作可直接执行。
-- 车控类动作需要权限、状态条件和确认机制。
-- 禁止模型生成任意 shell 命令。
-- 所有动作保留结果状态和可诊断消息。
-
-## Android 与媒体
-
-音乐播放通常由 Android/Qt 媒体应用负责。C++ Runtime 只产生 `play_music`、`pause_music` 等 HMI
-命令，未来通过明确的 bridge 交给 UI/Android，不在 voice module 内实现完整播放器。
-
-当前 `LocalHmiCommandProvider` 通过本地 Unix-socket gRPC 调用 cockpit-ui。`open_camera` 只有在 Qt
-主线程完成页面状态切换后才成功；媒体命令继续等待播放器责任边界明确，不在 voice module 内实现。
+车控命令必须经过确定性白名单和状态校验。LLM 不直接访问 ALSA、CAN、摄像头、Shell 或任意 RPC。
 
 ## 演进顺序
 
-1. 已完成：mock 打断、连续命令、队列丢弃、超时和 provider 失败恢复。
-2. 已完成 WSL-R4 历史对照：whisper.cpp `6fc7c33b` 与 `ggml-small.bin` 在 GCC Release 下识别
-   16 kHz mono JFK WAV，耗时 4.39 秒、CPU 393%、峰值 RSS 649232 KiB；该实现不再进入产品构建。
-3. 接入 Jetson USB 麦克风和扬声器，完成 AEC、增益和唤醒/打断标定。
-4. 播放器责任边界明确后补 Qt/Android 媒体动作和 push-to-talk UI。
-5. 根据真实声学测试决定是否做 TensorRT 或 Qwen ASR 对照。
-6. 后端 provider 合同明确后引入可取消、有 deadline 的 LLM 和受控工具调用。
+1. 在 WSL 保持 Debug、Release、ASan/UBSan 和 CI 通过。
+2. 在 Jetson 验证 USB 麦克风、扬声器和 PCM 端到端延迟。
+3. 固定 Sherpa-ONNX/ONNX Runtime 版本，接入真实 KWS、Silero VAD 和 ASR。
+4. 完成车内风噪、音乐、TTS 回放和远场声学测试。
+5. 接入固定版本 llama.cpp，增加 deadline、内存上限和子进程监管。
+6. 接入真实 TTS，并补齐打断、半双工和播放取消策略。

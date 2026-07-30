@@ -146,8 +146,9 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 
 ## ASR
 
-当前仓库包含 mock ASR，以及与具体实现无关的 ASR 插件 C ABI 和加载器。外部 ASR 以独立动态库
-交付，主项目不下载、编译或链接其内部推理运行时。Ubuntu apt 只提供操作系统和平台依赖。
+当前仓库包含 Agent 内的 mock VAD/ASR/TTS 和完整 PCM 流水线。真实 ASR 作为 Agent 产品构建
+的一部分交付，基础构建不下载、编译或链接其内部推理运行时。Ubuntu apt 只提供操作系统和平台
+依赖。
 
 ## 提交规范
 

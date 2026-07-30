@@ -6,4 +6,10 @@ add_library(alsa_audio STATIC
     alsa_capture_source.cc
     alsa_pcm.cc
 )
-target_link_libraries(alsa_audio PUBLIC audio PkgConfig::ALSA)
+target_link_libraries(alsa_audio
+    PUBLIC
+        audio_capture
+        audio_frames
+        audio_playback
+        PkgConfig::ALSA
+)

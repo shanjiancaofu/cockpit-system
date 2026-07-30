@@ -1,5 +1,0 @@
-services:
-  audio:
-    vad:
-      provider: plugin
-      plugin_path: relative/libcockpit-vad.so

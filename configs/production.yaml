@@ -30,11 +30,6 @@ services:
     auto_start: false
     grpc:
       listen_address: unix:/cockpit-system/run/audio.grpc.sock
-    vad:
-      provider: disabled
-    speech_segment:
-      pre_roll_ms: 100
-      max_segment_ms: 15000
   camera:
     capture_backend: gstreamer
     preview_stale_timeout_ms: 2000
@@ -85,6 +80,11 @@ hardware:
 features:
   voice:
     enabled: false
+    vad:
+      provider: mock
+    speech_segment:
+      pre_roll_ms: 100
+      max_segment_ms: 15000
     asr:
       provider: mock
   ai:

@@ -1,7 +1,7 @@
 #include <memory>
 #include <utility>
 
-#include "cockpit/library/agent/agent_runtime.h"
+#include "agent/runtime/agent_runtime.h"
 #include "cockpit/navigator/common/module_api.h"
 
 namespace {
