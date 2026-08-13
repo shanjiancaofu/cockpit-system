@@ -22,15 +22,30 @@ struct AudioPlaybackSubmitResult {
   std::string error;
 };
 
+enum class AudioPlaybackWaitStatus {
+  kCompleted,
+  kFailed,
+  kCancelled,
+  kDropped,
+  kTimeout,
+  kNotFound,
+  kTransportError,
+};
+
+struct AudioPlaybackWaitResult {
+  AudioPlaybackWaitStatus status = AudioPlaybackWaitStatus::kTransportError;
+  std::string error;
+};
+
 class AudioPlaybackTransport {
  public:
   virtual ~AudioPlaybackTransport() = default;
 
   virtual AudioPlaybackSubmitResult Submit(std::uint64_t playback_id,
                                            const audio::PcmBuffer& audio) = 0;
-  virtual VoiceOutputResult Wait(std::uint64_t request_id, std::uint64_t playback_id,
-                                 std::chrono::milliseconds timeout) = 0;
-  virtual void Cancel(std::uint64_t playback_id) = 0;
+  virtual AudioPlaybackWaitResult Wait(std::uint64_t playback_id,
+                                       std::chrono::milliseconds timeout) = 0;
+  virtual bool Cancel(std::uint64_t playback_id) = 0;
 };
 
 }  // namespace voice

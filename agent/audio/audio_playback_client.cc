@@ -77,8 +77,8 @@ class GrpcAudioPlaybackTransport final : public AudioPlaybackTransport {
     return {AudioPlaybackSubmitStatus::kFailed, status.error_message()};
   }
 
-  VoiceOutputResult Wait(std::uint64_t request_id, std::uint64_t playback_id,
-                         std::chrono::milliseconds timeout) override {
+  AudioPlaybackWaitResult Wait(std::uint64_t playback_id,
+                               std::chrono::milliseconds timeout) override {
     proto::audio::PlaybackRequest request;
     request.set_playback_id(playback_id);
     request.set_wait_timeout_ms(static_cast<std::uint32_t>(timeout.count()));
@@ -88,46 +88,50 @@ class GrpcAudioPlaybackTransport final : public AudioPlaybackTransport {
     context.set_wait_for_ready(true);
     context.set_deadline(std::chrono::system_clock::now() + timeout + std::chrono::seconds(1));
     const grpc::Status status = stub_->WaitPlayback(&context, request, &response);
-    VoiceOutputResult result;
-    result.request_id = request_id;
+    AudioPlaybackWaitResult result;
     result.error = status.ok() ? response.error() : status.error_message();
     if (!status.ok()) {
-      result.status = status.error_code() == grpc::StatusCode::CANCELLED
-                          ? VoiceOutputStatus::kCancelled
-                          : VoiceOutputStatus::kFailed;
+      result.status = AudioPlaybackWaitStatus::kTransportError;
       return result;
     }
     switch (response.status()) {
       case proto::audio::PLAYBACK_STATUS_COMPLETED:
-        result.status = VoiceOutputStatus::kCompleted;
+        result.status = AudioPlaybackWaitStatus::kCompleted;
         break;
       case proto::audio::PLAYBACK_STATUS_CANCELLED:
-        result.status = VoiceOutputStatus::kCancelled;
+        result.status = AudioPlaybackWaitStatus::kCancelled;
         break;
       case proto::audio::PLAYBACK_STATUS_DROPPED:
-        result.status = VoiceOutputStatus::kDropped;
+        result.status = AudioPlaybackWaitStatus::kDropped;
+        break;
+      case proto::audio::PLAYBACK_STATUS_FAILED:
+        result.status = AudioPlaybackWaitStatus::kFailed;
+        break;
+      case proto::audio::PLAYBACK_STATUS_PENDING:
+        result.status = AudioPlaybackWaitStatus::kTimeout;
+        break;
+      case proto::audio::PLAYBACK_STATUS_NOT_FOUND:
+        result.status = AudioPlaybackWaitStatus::kNotFound;
         break;
       case proto::audio::PLAYBACK_STATUS_UNSPECIFIED:
-      case proto::audio::PLAYBACK_STATUS_PENDING:
-      case proto::audio::PLAYBACK_STATUS_FAILED:
-      case proto::audio::PLAYBACK_STATUS_NOT_FOUND:
-        result.status = VoiceOutputStatus::kFailed;
+        result.status = AudioPlaybackWaitStatus::kTransportError;
         break;
       default:
-        result.status = VoiceOutputStatus::kFailed;
+        result.status = AudioPlaybackWaitStatus::kTransportError;
         break;
     }
     return result;
   }
 
-  void Cancel(std::uint64_t playback_id) override {
+  bool Cancel(std::uint64_t playback_id) override {
     proto::audio::CancelPlaybackRequest request;
     request.set_playback_id(playback_id);
     proto::audio::CancelPlaybackResponse response;
     grpc::ClientContext context;
     context.set_initial_metadata_corked(false);
     context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(1));
-    cancel_stub_->CancelPlayback(&context, request, &response);
+    const grpc::Status status = cancel_stub_->CancelPlayback(&context, request, &response);
+    return status.ok() && response.accepted();
   }
 
  private:
@@ -164,6 +168,13 @@ AudioPlaybackClient::AudioPlaybackClient(std::unique_ptr<AudioPlaybackTransport>
 
 bool AudioPlaybackClient::Submit(std::uint64_t request_id, std::string text,
                                  VoiceOutputCompletion completion) {
+  return SubmitCancellable(request_id, std::move(text), nullptr, std::move(completion));
+}
+
+bool AudioPlaybackClient::SubmitCancellable(
+    std::uint64_t request_id, std::string text,
+    const std::shared_ptr<const VoiceOutputCancellation>& cancellation,
+    VoiceOutputCompletion completion) {
   if (request_id == 0U || !completion) {
     dropped_.fetch_add(1U);
     return false;
@@ -171,11 +182,13 @@ bool AudioPlaybackClient::Submit(std::uint64_t request_id, std::string text,
   const std::uint64_t request_generation = interrupt_generation_.load();
   {
     std::lock_guard<std::mutex> lock(state_mutex_);
-    if (stopping_ || active_request_id_ != 0U) {
+    if (stopping_ || active_request_id_ != 0U ||
+        (cancellation != nullptr && cancellation->IsCancellationRequested())) {
       dropped_.fetch_add(1U);
       return false;
     }
     active_request_id_ = request_id;
+    active_cancellation_requested_ = false;
   }
   if (synthesizer_ == nullptr) {
     failed_.fetch_add(1U);
@@ -220,19 +233,22 @@ bool AudioPlaybackClient::Submit(std::uint64_t request_id, std::string text,
     ClearActiveRequest(request_id);
     return false;
   }
-  if (request_generation != interrupt_generation_.load()) {
+  if (request_generation != interrupt_generation_.load() ||
+      (cancellation != nullptr && cancellation->IsCancellationRequested())) {
     ClearActiveRequest(request_id);
     return false;
   }
   const std::uint64_t playback_id = next_playback_id_.fetch_add(1U);
   {
     std::lock_guard<std::mutex> lock(state_mutex_);
-    if (stopping_) {
+    if (stopping_ || request_generation != interrupt_generation_.load() ||
+        (cancellation != nullptr && cancellation->IsCancellationRequested())) {
       dropped_.fetch_add(1U);
       active_request_id_ = 0U;
       return false;
     }
     active_playback_id_ = playback_id;
+    active_cancellation_requested_ = false;
   }
   const AudioPlaybackSubmitResult submission = transport_->Submit(playback_id, synthesis.audio);
   if (submission.status == AudioPlaybackSubmitStatus::kAccepted) {
@@ -264,21 +280,55 @@ bool AudioPlaybackClient::Submit(std::uint64_t request_id, std::string text,
   bool cancel_before_wait = false;
   {
     std::lock_guard<std::mutex> lock(state_mutex_);
-    if (stopping_ || request_generation != interrupt_generation_.load()) {
+    if (stopping_ || request_generation != interrupt_generation_.load() ||
+        (cancellation != nullptr && cancellation->IsCancellationRequested())) {
       cancel_before_wait = true;
     }
   }
   if (cancel_before_wait) {
-    transport_->Cancel(playback_id);
-    ClearActiveRequest(request_id);
-    completion({request_id, VoiceOutputStatus::kCancelled, "voice output interrupted"});
-    return true;
+    RequestPlaybackCancellation(request_id, playback_id);
   }
-  VoiceOutputResult result = transport_->Wait(request_id, playback_id, wait_timeout);
+  constexpr auto kCancellationConfirmationTimeout = std::chrono::seconds(1);
+  AudioPlaybackWaitResult wait_result = transport_->Wait(
+      playback_id, cancel_before_wait ? kCancellationConfirmationTimeout : wait_timeout);
+  const bool playback_timed_out = wait_result.status == AudioPlaybackWaitStatus::kTimeout;
+  if (playback_timed_out) {
+    RequestPlaybackCancellation(request_id, playback_id);
+    wait_result = transport_->Wait(playback_id, kCancellationConfirmationTimeout);
+  }
   ClearActiveRequest(request_id);
 
-  if (request_generation != interrupt_generation_.load()) {
+  VoiceOutputResult result;
+  result.request_id = request_id;
+  result.error = std::move(wait_result.error);
+  const bool interrupted = request_generation != interrupt_generation_.load() ||
+                           (cancellation != nullptr && cancellation->IsCancellationRequested());
+  if (interrupted) {
     result.status = VoiceOutputStatus::kCancelled;
+    if (result.error.empty()) {
+      result.error = "voice output interrupted";
+    }
+  } else if (playback_timed_out) {
+    result.status = VoiceOutputStatus::kFailed;
+    result.error = "audio playback wait timed out; cancellation was requested";
+  } else {
+    switch (wait_result.status) {
+      case AudioPlaybackWaitStatus::kCompleted:
+        result.status = VoiceOutputStatus::kCompleted;
+        break;
+      case AudioPlaybackWaitStatus::kCancelled:
+        result.status = VoiceOutputStatus::kCancelled;
+        break;
+      case AudioPlaybackWaitStatus::kDropped:
+        result.status = VoiceOutputStatus::kDropped;
+        break;
+      case AudioPlaybackWaitStatus::kFailed:
+      case AudioPlaybackWaitStatus::kTimeout:
+      case AudioPlaybackWaitStatus::kNotFound:
+      case AudioPlaybackWaitStatus::kTransportError:
+        result.status = VoiceOutputStatus::kFailed;
+        break;
+    }
   }
   if (result.status == VoiceOutputStatus::kCompleted) {
     played_.fetch_add(1U);
@@ -331,7 +381,7 @@ void AudioPlaybackClient::Interrupt() {
     synthesizer_->Cancel();
   }
   if (playback_id != 0U) {
-    transport_->Cancel(playback_id);
+    RequestPlaybackCancellation(0U, playback_id);
   }
 }
 
@@ -349,7 +399,22 @@ void AudioPlaybackClient::ClearActiveRequest(std::uint64_t request_id) {
   if (active_request_id_ == request_id) {
     active_request_id_ = 0U;
     active_playback_id_ = 0U;
+    active_cancellation_requested_ = false;
   }
+}
+
+bool AudioPlaybackClient::RequestPlaybackCancellation(std::uint64_t request_id,
+                                                      std::uint64_t playback_id) {
+  {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    if (active_playback_id_ != playback_id || active_cancellation_requested_ ||
+        (request_id != 0U && active_request_id_ != request_id)) {
+      return false;
+    }
+    active_cancellation_requested_ = true;
+  }
+  transport_->Cancel(playback_id);
+  return true;
 }
 
 }  // namespace voice

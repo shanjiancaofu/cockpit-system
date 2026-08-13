@@ -61,6 +61,85 @@ class BlockingSink final : public cockpit::voice::VoiceResponseSink {
   const std::shared_ptr<BlockingState> state_;
 };
 
+struct DispatchGateState {
+  std::mutex mutex;
+  std::condition_variable changed;
+  bool before_submit = false;
+  bool released = false;
+  std::uint64_t submit_calls = 0U;
+};
+
+class DispatchGateSink final : public cockpit::voice::VoiceResponseSink {
+ public:
+  explicit DispatchGateSink(std::shared_ptr<DispatchGateState> state) : state_(std::move(state)) {
+  }
+
+  bool Submit(std::uint64_t request_id, std::string,
+              cockpit::voice::VoiceOutputCompletion completion) override {
+    {
+      std::lock_guard<std::mutex> lock(state_->mutex);
+      ++state_->submit_calls;
+    }
+    completion({request_id, cockpit::voice::VoiceOutputStatus::kCompleted, {}});
+    return true;
+  }
+
+  bool SubmitCancellable(
+      std::uint64_t request_id, std::string text,
+      const std::shared_ptr<const cockpit::voice::VoiceOutputCancellation>& cancellation,
+      cockpit::voice::VoiceOutputCompletion completion) override {
+    {
+      std::unique_lock<std::mutex> lock(state_->mutex);
+      state_->before_submit = true;
+      state_->changed.notify_all();
+      state_->changed.wait(lock, [this] {
+        return state_->released;
+      });
+    }
+    if (cancellation != nullptr && cancellation->IsCancellationRequested()) {
+      return false;
+    }
+    return Submit(request_id, std::move(text), std::move(completion));
+  }
+
+  cockpit::voice::VoiceOutputMetrics metrics() const override {
+    return {};
+  }
+
+  void Interrupt() override {
+    {
+      std::lock_guard<std::mutex> lock(state_->mutex);
+      state_->released = true;
+    }
+    state_->changed.notify_all();
+  }
+
+  void Stop() override {
+    Interrupt();
+  }
+
+ private:
+  const std::shared_ptr<DispatchGateState> state_;
+};
+
+class ImmediateFailureSink final : public cockpit::voice::VoiceResponseSink {
+ public:
+  bool Submit(std::uint64_t request_id, std::string,
+              cockpit::voice::VoiceOutputCompletion completion) override {
+    completion({request_id, cockpit::voice::VoiceOutputStatus::kFailed, "injected failure"});
+    return true;
+  }
+
+  cockpit::voice::VoiceOutputMetrics metrics() const override {
+    cockpit::voice::VoiceOutputMetrics metrics;
+    metrics.played = 17U;
+    metrics.failed = 19U;
+    metrics.dropped = 23U;
+    metrics.available = true;
+    return metrics;
+  }
+};
+
 }  // namespace
 
 int main() {
@@ -167,6 +246,90 @@ int main() {
     std::cerr << "async sink cancellation took too long\n";
     return 1;
   }
+
+  auto dispatch_state = std::make_shared<DispatchGateState>();
+  std::mutex dispatch_completion_mutex;
+  std::condition_variable dispatch_completion_changed;
+  std::uint64_t dispatch_completions = 0U;
+  {
+    cockpit::voice::AsyncVoiceResponseSink dispatch_guarded(
+        std::make_unique<DispatchGateSink>(dispatch_state));
+    if (!dispatch_guarded.Submit(
+            5U, "cancel before dispatch", [&](cockpit::voice::VoiceOutputResult result) {
+              std::lock_guard<std::mutex> lock(dispatch_completion_mutex);
+              if (result.status == cockpit::voice::VoiceOutputStatus::kCancelled) {
+                ++dispatch_completions;
+              }
+              dispatch_completion_changed.notify_all();
+            })) {
+      std::cerr << "dispatch-race response was rejected\n";
+      return 1;
+    }
+    {
+      std::unique_lock<std::mutex> lock(dispatch_state->mutex);
+      if (!dispatch_state->changed.wait_until(
+              lock, std::chrono::system_clock::now() + std::chrono::milliseconds(500),
+              [dispatch_state] {
+                return dispatch_state->before_submit;
+              })) {
+        std::cerr << "async worker did not reach the pre-dispatch gate\n";
+        return 1;
+      }
+    }
+    dispatch_guarded.Interrupt();
+    {
+      std::unique_lock<std::mutex> lock(dispatch_completion_mutex);
+      if (!dispatch_completion_changed.wait_until(
+              lock, std::chrono::system_clock::now() + std::chrono::milliseconds(500), [&] {
+                return dispatch_completions == 1U;
+              })) {
+        std::cerr << "pre-dispatch cancellation did not complete\n";
+        return 1;
+      }
+    }
+    const auto dispatch_metrics = dispatch_guarded.metrics();
+    std::lock_guard<std::mutex> lock(dispatch_state->mutex);
+    if (dispatch_state->submit_calls != 0U || dispatch_metrics.queued != 1U ||
+        dispatch_metrics.played != 0U || dispatch_metrics.failed != 0U ||
+        dispatch_metrics.dropped != 1U) {
+      std::cerr << "interrupted output crossed the downstream Submit boundary\n";
+      return 1;
+    }
+  }
+  if (dispatch_completions != 1U) {
+    std::cerr << "pre-dispatch cancellation completed more than once\n";
+    return 1;
+  }
+
+  std::mutex failure_mutex;
+  std::condition_variable failure_changed;
+  bool failure_completed = false;
+  cockpit::voice::AsyncVoiceResponseSink failing(std::make_unique<ImmediateFailureSink>());
+  if (!failing.Submit(6U, "fail asynchronously", [&](cockpit::voice::VoiceOutputResult result) {
+        std::lock_guard<std::mutex> lock(failure_mutex);
+        failure_completed = result.status == cockpit::voice::VoiceOutputStatus::kFailed;
+        failure_changed.notify_all();
+      })) {
+    std::cerr << "failure metrics response was rejected\n";
+    return 1;
+  }
+  {
+    std::unique_lock<std::mutex> lock(failure_mutex);
+    if (!failure_changed.wait_until(
+            lock, std::chrono::system_clock::now() + std::chrono::milliseconds(500), [&] {
+              return failure_completed;
+            })) {
+      std::cerr << "asynchronous playback failure was not completed\n";
+      return 1;
+    }
+  }
+  const auto failure_metrics = failing.metrics();
+  if (failure_metrics.queued != 1U || failure_metrics.played != 0U ||
+      failure_metrics.failed != 1U || failure_metrics.dropped != 0U || !failure_metrics.available) {
+    std::cerr << "async wrapper did not own terminal output metrics exactly once\n";
+    return 1;
+  }
+  failing.Stop();
 
   std::cout << "async voice response sink tests passed\n";
   return 0;

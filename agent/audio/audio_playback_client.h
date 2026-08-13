@@ -24,6 +24,9 @@ class AudioPlaybackClient final : public VoiceResponseSink {
 
   bool Submit(std::uint64_t request_id, std::string text,
               VoiceOutputCompletion completion) override;
+  bool SubmitCancellable(std::uint64_t request_id, std::string text,
+                         const std::shared_ptr<const VoiceOutputCancellation>& cancellation,
+                         VoiceOutputCompletion completion) override;
   VoiceOutputMetrics metrics() const override;
   void Interrupt() override;
   void Stop() override;
@@ -31,12 +34,14 @@ class AudioPlaybackClient final : public VoiceResponseSink {
  private:
   void ClearActiveRequest(std::uint64_t request_id);
   void MarkReachable();
+  bool RequestPlaybackCancellation(std::uint64_t request_id, std::uint64_t playback_id);
 
   const std::unique_ptr<AudioPlaybackTransport> transport_;
   const std::unique_ptr<SpeechSynthesizer> synthesizer_;
   mutable std::mutex state_mutex_;
   std::uint64_t active_request_id_ = 0;
   std::uint64_t active_playback_id_ = 0;
+  bool active_cancellation_requested_ = false;
   bool stopping_ = false;
   const std::chrono::milliseconds synthesis_timeout_;
   std::atomic<std::uint64_t> interrupt_generation_{0};

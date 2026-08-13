@@ -159,7 +159,7 @@ int main() {
   }
   if (cancellable.WaitForResult(*cancellable_id, std::chrono::milliseconds::zero(), nullptr) !=
           cockpit::audio::AudioPlaybackWaitStatus::kTimeout ||
-      !cancellable.Cancel(*cancellable_id) ||
+      !cancellable.Cancel(*cancellable_id) || !cancellable.Cancel(*cancellable_id) ||
       cancellable.WaitForResult(*cancellable_id, std::chrono::seconds(1), &playback_result) !=
           cockpit::audio::AudioPlaybackWaitStatus::kReady ||
       playback_result.status != cockpit::audio::AudioPlaybackStatus::kCancelled) {
@@ -169,7 +169,7 @@ int main() {
   const auto stop_started = std::chrono::steady_clock::now();
   cancellable.Stop();
   if (std::chrono::steady_clock::now() - stop_started > std::chrono::milliseconds(300) ||
-      cancellable.metrics().dropped != 1) {
+      cancellable.metrics().played != 0U || cancellable.metrics().dropped != 1U) {
     std::cerr << "speech output cancellation was not bounded\n";
     return 1;
   }

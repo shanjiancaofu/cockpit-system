@@ -31,9 +31,11 @@ class AsyncVoiceResponseSink final : public VoiceResponseSink {
   void Stop() override;
 
  private:
+  struct MetricsState;
   struct PendingOutput;
 
-  static void Complete(const std::shared_ptr<PendingOutput>& output, VoiceOutputStatus status,
+  static void Complete(const std::shared_ptr<PendingOutput>& output,
+                       const std::shared_ptr<MetricsState>& metrics, VoiceOutputStatus status,
                        std::string error = {});
   void CancelPending(bool stopping);
   void Run();
@@ -46,9 +48,7 @@ class AsyncVoiceResponseSink final : public VoiceResponseSink {
   std::shared_ptr<PendingOutput> active_;
   bool stop_requested_ = false;
   std::thread worker_;
-  std::atomic<std::uint64_t> queued_{0};
-  std::atomic<std::uint64_t> failed_{0};
-  std::atomic<std::uint64_t> dropped_{0};
+  const std::shared_ptr<MetricsState> metrics_;
 };
 
 }  // namespace voice
