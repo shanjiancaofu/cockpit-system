@@ -17,12 +17,34 @@ const char* StateName(cockpit::proto::voice::InteractionState state) {
   switch (state) {
     case cockpit::proto::voice::INTERACTION_STATE_DISABLED:
       return "disabled";
+    case cockpit::proto::voice::INTERACTION_STATE_IDLE:
+      return "idle";
+    case cockpit::proto::voice::INTERACTION_STATE_WAKING:
+      return "waking";
     case cockpit::proto::voice::INTERACTION_STATE_LISTENING:
       return "listening";
     case cockpit::proto::voice::INTERACTION_STATE_PROCESSING:
       return "processing";
     case cockpit::proto::voice::INTERACTION_STATE_FAULTED:
       return "faulted";
+    case cockpit::proto::voice::INTERACTION_STATE_RECOGNIZING:
+      return "recognizing";
+    case cockpit::proto::voice::INTERACTION_STATE_ROUTING:
+      return "routing";
+    case cockpit::proto::voice::INTERACTION_STATE_EXECUTING:
+      return "executing";
+    case cockpit::proto::voice::INTERACTION_STATE_THINKING:
+      return "thinking";
+    case cockpit::proto::voice::INTERACTION_STATE_SPEAKING:
+      return "speaking";
+    case cockpit::proto::voice::INTERACTION_STATE_FOLLOW_UP:
+      return "follow_up";
+    case cockpit::proto::voice::INTERACTION_STATE_CANCELLED:
+      return "cancelled";
+    case cockpit::proto::voice::INTERACTION_STATE_ERROR_RECOVERY:
+      return "error_recovery";
+    case cockpit::proto::voice::INTERACTION_STATE_SHUTTING_DOWN:
+      return "shutting_down";
     case cockpit::proto::voice::INTERACTION_STATE_UNSPECIFIED:
       return "unspecified";
     default:
@@ -51,6 +73,7 @@ void PrintTranscriptText(const cockpit::proto::voice::TranscriptEvent& transcrip
 void PrintStatusText(const cockpit::proto::voice::VoiceInteractionStatus& status) {
   const auto& metrics = status.metrics();
   std::cout << "state: " << StateName(status.state()) << '\n'
+            << "state reason: " << status.state_reason() << '\n'
             << "transcripts received: " << metrics.transcripts_received() << '\n'
             << "transcript events dropped: " << metrics.transcript_events_dropped() << '\n'
             << "responses published: " << metrics.responses_published() << '\n'
@@ -63,6 +86,8 @@ void PrintStatusText(const cockpit::proto::voice::VoiceInteractionStatus& status
             << "requests interrupted: " << metrics.requests_interrupted() << '\n'
             << "provider timeouts: " << metrics.provider_timeouts() << '\n'
             << "provider failures: " << metrics.provider_failures() << '\n';
+  std::cout << "state transitions: " << metrics.state_transitions() << '\n'
+            << "rejected state transitions: " << metrics.rejected_state_transitions() << '\n';
   std::cout << "speech requests accepted: " << metrics.speech_requests_accepted() << '\n'
             << "speech requests failed: " << metrics.speech_requests_failed() << '\n'
             << "speech requests dropped: " << metrics.speech_requests_dropped() << '\n'

@@ -12,7 +12,11 @@ add_library(agent_speech STATIC
 target_include_directories(agent_speech PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(agent_speech PUBLIC audio_frames audio_wav config time_util voice_assistant)
 
-add_library(voice_interaction STATIC interaction/voice_interaction_service.cc)
+add_library(voice_interaction STATIC
+    conversation/conversation_state_machine.cc
+    interaction/voice_interaction_service.cc
+)
+target_include_directories(voice_interaction PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(voice_interaction PUBLIC event voice)
 
 add_library(voice_audio_clients STATIC audio/audio_playback_client.cc)

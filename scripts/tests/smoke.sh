@@ -224,7 +224,7 @@ if [[ "${interrupt_json}" != *'"active_request_interrupted":false'* ||
   exit 1
 fi
 voice_status_json="$("${bin_dir}/voice-ctl" --status --output json --config "${config_path}")"
-if [[ "${voice_status_json}" != *'"state":"INTERACTION_STATE_LISTENING"'* ||
+if [[ "${voice_status_json}" != *'"state":"INTERACTION_STATE_IDLE"'* ||
       "${voice_status_json}" != *'"requests_interrupted":"0"'* ||
       "${voice_status_json}" != *'"provider_timeouts":"0"'* ||
       "${voice_status_json}" != *'"provider_failures":"0"'* ]]; then

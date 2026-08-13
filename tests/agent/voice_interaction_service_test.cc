@@ -118,7 +118,7 @@ int main() {
     return 1;
   }
   const auto status = service.status();
-  if (status.state != cockpit::voice::InteractionState::kListening ||
+  if (status.state != cockpit::voice::InteractionState::kIdle ||
       status.metrics.transcripts_received != 2 || status.metrics.transcript_events_dropped != 0 ||
       status.metrics.responses_published != 2 || status.metrics.unknown_intents != 1 ||
       status.metrics.actions_attempted != 1 || status.metrics.actions_succeeded != 1 ||
@@ -153,7 +153,7 @@ int main() {
   provider_transcript.text = "provider test";
   if (recovering_service.HandleTranscript(provider_transcript).has_value() ||
       recovering_service.status().metrics.provider_timeouts != 1 ||
-      recovering_service.status().state != cockpit::voice::InteractionState::kListening) {
+      recovering_service.status().state != cockpit::voice::InteractionState::kIdle) {
     std::cerr << "voice provider timeout was not recorded\n";
     return 1;
   }
@@ -166,7 +166,7 @@ int main() {
   const auto recovered_status = recovering_service.status();
   if (!recovered.has_value() || recovered_status.metrics.processing_errors != 2 ||
       recovered_status.metrics.responses_published != 1 || !recovered_status.last_error.empty() ||
-      recovered_status.state != cockpit::voice::InteractionState::kListening) {
+      recovered_status.state != cockpit::voice::InteractionState::kIdle) {
     std::cerr << "voice service did not recover after provider failure\n";
     return 1;
   }
@@ -207,7 +207,8 @@ int main() {
   }
   async_service.Stop();
   if (async_service.SubmitTranscript(async_transcript) !=
-      cockpit::event::EventQueuePushResult::kClosed) {
+          cockpit::event::EventQueuePushResult::kClosed ||
+      async_service.status().state != cockpit::voice::InteractionState::kShuttingDown) {
     std::cerr << "stopped async voice service accepted transcript\n";
     return 1;
   }
@@ -226,7 +227,8 @@ int main() {
   interrupt_transcript.text = "show vehicle status";
   if (interrupt_service.SubmitTranscript(interrupt_transcript) !=
           cockpit::event::EventQueuePushResult::kAccepted ||
-      !interrupt_observer->WaitUntilEntered()) {
+      !interrupt_observer->WaitUntilEntered() ||
+      interrupt_service.status().state != cockpit::voice::InteractionState::kExecuting) {
     std::cerr << "interruptible action did not start\n";
     return 1;
   }
@@ -250,6 +252,11 @@ int main() {
       interrupt_service.status().metrics.requests_interrupted != 1 ||
       interrupt_service.status().metrics.transcript_events_dropped < 2) {
     std::cerr << "voice service did not recover after interruption\n";
+    return 1;
+  }
+  if (interrupt_service.status().state != cockpit::voice::InteractionState::kIdle ||
+      interrupt_service.status().metrics.state_transitions == 0) {
+    std::cerr << "voice state machine did not recover after interruption\n";
     return 1;
   }
   interrupt_service.Stop();

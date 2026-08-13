@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 
+#include "agent/conversation/conversation_state_machine.h"
 #include "cockpit/core/base/macros.h"
 #include "cockpit/core/event/event_queue.h"
 #include "cockpit/modules/voice/actions/action_dispatcher.h"
@@ -21,13 +22,6 @@
 
 namespace cockpit {
 namespace voice {
-
-enum class InteractionState {
-  kDisabled,
-  kListening,
-  kProcessing,
-  kFaulted,
-};
 
 struct VoiceResponse {
   std::uint64_t id = 0;
@@ -54,6 +48,8 @@ struct VoiceInteractionMetrics {
   std::uint64_t requests_interrupted = 0;
   std::uint64_t provider_timeouts = 0;
   std::uint64_t provider_failures = 0;
+  std::uint64_t state_transitions = 0;
+  std::uint64_t rejected_state_transitions = 0;
   VoiceOutputMetrics output;
 };
 
@@ -66,6 +62,7 @@ struct VoiceInteractionStatus {
   InteractionState state = InteractionState::kDisabled;
   VoiceInteractionMetrics metrics;
   std::optional<VoiceResponse> latest_response;
+  std::string state_reason;
   std::string last_error;
 };
 
@@ -96,6 +93,9 @@ class VoiceInteractionService {
   void SetLastError(std::string error);
 
  private:
+  bool BeginRequest();
+  void RecoverFromError(const std::string& reason);
+  void ReturnToIdle(const std::string& reason);
   VoiceResponse PublishResponse(VoiceResponse response);
   void ProcessLoop();
 
@@ -109,7 +109,7 @@ class VoiceInteractionService {
   event::EventQueue<SpeechTranscript> transcript_events_{32};
   std::atomic<bool> worker_running_{false};
   std::unique_ptr<std::thread> worker_;
-  std::atomic<InteractionState> state_{InteractionState::kDisabled};
+  ConversationStateMachine state_machine_;
   std::atomic<std::uint64_t> transcripts_received_{0};
   std::atomic<std::uint64_t> responses_published_{0};
   std::atomic<std::uint64_t> unknown_intents_{0};

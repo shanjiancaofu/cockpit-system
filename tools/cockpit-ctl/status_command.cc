@@ -117,12 +117,34 @@ const char* InteractionStateName(proto::voice::InteractionState state) {
   switch (state) {
     case proto::voice::INTERACTION_STATE_DISABLED:
       return "disabled";
+    case proto::voice::INTERACTION_STATE_IDLE:
+      return "idle";
+    case proto::voice::INTERACTION_STATE_WAKING:
+      return "waking";
     case proto::voice::INTERACTION_STATE_LISTENING:
       return "listening";
     case proto::voice::INTERACTION_STATE_PROCESSING:
       return "processing";
     case proto::voice::INTERACTION_STATE_FAULTED:
       return "faulted";
+    case proto::voice::INTERACTION_STATE_RECOGNIZING:
+      return "recognizing";
+    case proto::voice::INTERACTION_STATE_ROUTING:
+      return "routing";
+    case proto::voice::INTERACTION_STATE_EXECUTING:
+      return "executing";
+    case proto::voice::INTERACTION_STATE_THINKING:
+      return "thinking";
+    case proto::voice::INTERACTION_STATE_SPEAKING:
+      return "speaking";
+    case proto::voice::INTERACTION_STATE_FOLLOW_UP:
+      return "follow_up";
+    case proto::voice::INTERACTION_STATE_CANCELLED:
+      return "cancelled";
+    case proto::voice::INTERACTION_STATE_ERROR_RECOVERY:
+      return "error_recovery";
+    case proto::voice::INTERACTION_STATE_SHUTTING_DOWN:
+      return "shutting_down";
     case proto::voice::INTERACTION_STATE_UNSPECIFIED:
     default:
       return "unspecified";

@@ -7,9 +7,21 @@ import "common.proto";
 enum InteractionState {
   INTERACTION_STATE_UNSPECIFIED = 0;
   INTERACTION_STATE_DISABLED = 1;
+  // Values 2-4 remain defined for wire compatibility with older tools.
   INTERACTION_STATE_LISTENING = 2;
   INTERACTION_STATE_PROCESSING = 3;
   INTERACTION_STATE_FAULTED = 4;
+  INTERACTION_STATE_IDLE = 5;
+  INTERACTION_STATE_WAKING = 6;
+  INTERACTION_STATE_RECOGNIZING = 7;
+  INTERACTION_STATE_ROUTING = 8;
+  INTERACTION_STATE_EXECUTING = 9;
+  INTERACTION_STATE_THINKING = 10;
+  INTERACTION_STATE_SPEAKING = 11;
+  INTERACTION_STATE_FOLLOW_UP = 12;
+  INTERACTION_STATE_CANCELLED = 13;
+  INTERACTION_STATE_ERROR_RECOVERY = 14;
+  INTERACTION_STATE_SHUTTING_DOWN = 15;
 }
 
 message VoiceResponseEvent {
@@ -44,6 +56,8 @@ message VoiceMetrics {
   uint64 requests_interrupted = 17;
   uint64 provider_timeouts = 18;
   uint64 provider_failures = 19;
+  uint64 state_transitions = 20;
+  uint64 rejected_state_transitions = 21;
 }
 
 message VoiceInteractionStatus {
@@ -51,6 +65,7 @@ message VoiceInteractionStatus {
   VoiceMetrics metrics = 2;
   VoiceResponseEvent latest_response = 3;
   string last_error = 4;
+  string state_reason = 5;
   cockpit.proto.common.ServiceHealth health = 100;
 }
 

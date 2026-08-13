@@ -14,7 +14,7 @@
 | 本地工作区 | [本地工作区结构.md](本地工作区结构.md) | 源码、模型、第三方依赖和运行产物放置规则 |
 | 运行说明 | [配置说明.md](配置说明.md)、[部署说明.md](部署说明.md) | 配置、构建、打包、安装和回滚 |
 | 通信专题 | [运行时通信策略.md](运行时通信策略.md) | 控制面、数据面和时间语义 |
-| 语音专题 | [语音AI规划.md](语音AI规划.md) | ASR、TTS、LLM 和动作安全边界 |
+| 语音专题 | [voice_agent_architecture.md](voice_agent_architecture.md) | 语音 Agent 架构、阶段计划和验收边界 |
 | 参考材料 | [参考项目.md](参考项目.md) | 旧项目可复用结论，不作为当前设计依据 |
 | 历史记录 | [变更记录.md](变更记录.md) | 已完成批次及验证结果 |
 | 静态审核 | [cockpit-system-code-review.md](cockpit-system-code-review.md) | 2026-07 全仓库问题清单和修复依据 |

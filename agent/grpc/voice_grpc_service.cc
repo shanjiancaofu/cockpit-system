@@ -13,12 +13,30 @@ proto::voice::InteractionState ToProtoState(InteractionState state) {
   switch (state) {
     case InteractionState::kDisabled:
       return proto::voice::INTERACTION_STATE_DISABLED;
+    case InteractionState::kIdle:
+      return proto::voice::INTERACTION_STATE_IDLE;
+    case InteractionState::kWaking:
+      return proto::voice::INTERACTION_STATE_WAKING;
     case InteractionState::kListening:
       return proto::voice::INTERACTION_STATE_LISTENING;
-    case InteractionState::kProcessing:
-      return proto::voice::INTERACTION_STATE_PROCESSING;
-    case InteractionState::kFaulted:
-      return proto::voice::INTERACTION_STATE_FAULTED;
+    case InteractionState::kRecognizing:
+      return proto::voice::INTERACTION_STATE_RECOGNIZING;
+    case InteractionState::kRouting:
+      return proto::voice::INTERACTION_STATE_ROUTING;
+    case InteractionState::kExecuting:
+      return proto::voice::INTERACTION_STATE_EXECUTING;
+    case InteractionState::kThinking:
+      return proto::voice::INTERACTION_STATE_THINKING;
+    case InteractionState::kSpeaking:
+      return proto::voice::INTERACTION_STATE_SPEAKING;
+    case InteractionState::kFollowUp:
+      return proto::voice::INTERACTION_STATE_FOLLOW_UP;
+    case InteractionState::kCancelled:
+      return proto::voice::INTERACTION_STATE_CANCELLED;
+    case InteractionState::kErrorRecovery:
+      return proto::voice::INTERACTION_STATE_ERROR_RECOVERY;
+    case InteractionState::kShuttingDown:
+      return proto::voice::INTERACTION_STATE_SHUTTING_DOWN;
   }
   return proto::voice::INTERACTION_STATE_UNSPECIFIED;
 }
@@ -27,7 +45,7 @@ void FillHealth(const VoiceInteractionStatus& status, proto::common::ServiceHeal
   health->set_service_name("voice-interaction-service");
   health->set_checked_at_ms(time::NowMs());
   health->set_last_error(status.last_error);
-  if (status.state == InteractionState::kFaulted) {
+  if (status.state == InteractionState::kErrorRecovery) {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);
     health->set_message(status.last_error.empty() ? "voice interaction faulted"
                                                   : status.last_error);
@@ -174,6 +192,7 @@ void VoiceGrpcService::FillTranscript(const SpeechTranscript& value,
 void VoiceGrpcService::FillStatus(const VoiceInteractionStatus& value,
                                   proto::voice::VoiceInteractionStatus* response) {
   response->set_state(ToProtoState(value.state));
+  response->set_state_reason(value.state_reason);
   response->set_last_error(value.last_error);
   FillHealth(value, response->mutable_health());
   auto* metrics = response->mutable_metrics();
@@ -189,6 +208,8 @@ void VoiceGrpcService::FillStatus(const VoiceInteractionStatus& value,
   metrics->set_requests_interrupted(value.metrics.requests_interrupted);
   metrics->set_provider_timeouts(value.metrics.provider_timeouts);
   metrics->set_provider_failures(value.metrics.provider_failures);
+  metrics->set_state_transitions(value.metrics.state_transitions);
+  metrics->set_rejected_state_transitions(value.metrics.rejected_state_transitions);
   metrics->set_speech_requests_accepted(value.metrics.output.queued);
   metrics->set_speech_requests_failed(value.metrics.output.failed);
   metrics->set_speech_requests_dropped(value.metrics.output.dropped);
