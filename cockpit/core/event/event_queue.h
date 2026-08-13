@@ -51,7 +51,7 @@ class EventQueue {
   template <typename Rep, typename Period>
   std::optional<T> WaitPopFor(const std::chrono::duration<Rep, Period>& timeout) {
     std::unique_lock<std::mutex> lock(mutex_);
-    cv_.wait_for(lock, timeout, [this] {
+    cv_.wait_until(lock, std::chrono::system_clock::now() + timeout, [this] {
       return closed_ || !queue_.empty();
     });
     return PopLocked();

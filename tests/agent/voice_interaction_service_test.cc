@@ -52,9 +52,10 @@ class BlockingActionDispatcher final : public cockpit::voice::ActionDispatcher {
 
   bool WaitUntilEntered() {
     std::unique_lock<std::mutex> lock(mutex_);
-    return changed_.wait_for(lock, std::chrono::seconds(1), [this] {
-      return entered_;
-    });
+    return changed_.wait_until(lock, std::chrono::system_clock::now() + std::chrono::seconds(1),
+                               [this] {
+                                 return entered_;
+                               });
   }
 
  private:
@@ -72,7 +73,7 @@ class RecoveringVoiceAssistant final : public cockpit::voice::VoiceAssistant {
     if (calls_ == 1) {
       std::unique_lock<std::mutex> lock(mutex_);
       cancelled_ = false;
-      changed_.wait_for(lock, std::chrono::seconds(1), [this] {
+      changed_.wait_until(lock, std::chrono::system_clock::now() + std::chrono::seconds(1), [this] {
         return cancelled_;
       });
       throw std::runtime_error("provider cancelled at deadline");

@@ -42,13 +42,14 @@ bool AudioPlaybackClient::Submit(std::string text) {
     return false;
   }
   const auto synthesis_deadline = std::chrono::steady_clock::now() + synthesis_timeout_;
+  const auto watchdog_deadline = std::chrono::system_clock::now() + synthesis_timeout_;
   std::mutex synthesis_mutex;
   std::condition_variable synthesis_changed;
   bool synthesis_finished = false;
   std::atomic_bool synthesis_timed_out{false};
   std::thread synthesis_watchdog([&] {
     std::unique_lock<std::mutex> lock(synthesis_mutex);
-    if (!synthesis_changed.wait_until(lock, synthesis_deadline, [&] {
+    if (!synthesis_changed.wait_until(lock, watchdog_deadline, [&] {
           return synthesis_finished;
         })) {
       synthesis_timed_out.store(true);

@@ -72,9 +72,10 @@ int main() {
 
   {
     std::unique_lock<std::mutex> lock(state->mutex);
-    if (!state->changed.wait_for(lock, std::chrono::milliseconds(500), [state] {
-          return state->entered;
-        })) {
+    if (!state->changed.wait_until(
+            lock, std::chrono::system_clock::now() + std::chrono::milliseconds(500), [state] {
+              return state->entered;
+            })) {
       std::cerr << "async sink worker did not call the downstream sink\n";
       return 1;
     }
@@ -114,9 +115,11 @@ int main() {
       return 1;
     }
     std::unique_lock<std::mutex> lock(cancel_state->mutex);
-    if (!cancel_state->changed.wait_for(lock, std::chrono::milliseconds(500), [cancel_state] {
-          return cancel_state->entered;
-        })) {
+    if (!cancel_state->changed.wait_until(
+            lock, std::chrono::system_clock::now() + std::chrono::milliseconds(500),
+            [cancel_state] {
+              return cancel_state->entered;
+            })) {
       std::cerr << "cancellable sink did not enter the downstream call\n";
       return 1;
     }

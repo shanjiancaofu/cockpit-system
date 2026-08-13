@@ -22,7 +22,8 @@ class CancellableRecognizer final : public cockpit::voice::SpeechRecognizer {
     std::unique_lock<std::mutex> lock(mutex_);
     entered_ = true;
     changed_.notify_all();
-    changed_.wait_until(lock, deadline, [this] {
+    const auto remaining = deadline - std::chrono::steady_clock::now();
+    changed_.wait_until(lock, std::chrono::system_clock::now() + remaining, [this] {
       return cancelled_;
     });
     return {false, {}, "cancellable", 0.0F, cancelled_ ? "cancelled" : "deadline exceeded"};
@@ -38,9 +39,10 @@ class CancellableRecognizer final : public cockpit::voice::SpeechRecognizer {
 
   bool WaitUntilEntered() {
     std::unique_lock<std::mutex> lock(mutex_);
-    return changed_.wait_for(lock, std::chrono::seconds(1), [this] {
-      return entered_;
-    });
+    return changed_.wait_until(lock, std::chrono::system_clock::now() + std::chrono::seconds(1),
+                               [this] {
+                                 return entered_;
+                               });
   }
 
  private:
@@ -86,9 +88,10 @@ int main() {
   }
   {
     std::unique_lock<std::mutex> lock(mutex);
-    changed.wait_for(lock, std::chrono::seconds(1), [&transcript] {
-      return transcript.has_value();
-    });
+    changed.wait_until(lock, std::chrono::system_clock::now() + std::chrono::seconds(1),
+                       [&transcript] {
+                         return transcript.has_value();
+                       });
   }
   pipeline.Stop();
   const auto metrics = pipeline.metrics();

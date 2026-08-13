@@ -32,9 +32,10 @@ class FakeAudioPlayer final : public cockpit::audio::AudioPlayer {
 
   bool WaitForPlay() {
     std::unique_lock<std::mutex> lock(mutex_);
-    return played_.wait_for(lock, std::chrono::seconds(1), [this] {
-      return play_count_ > 0;
-    });
+    return played_.wait_until(lock, std::chrono::system_clock::now() + std::chrono::seconds(1),
+                              [this] {
+                                return play_count_ > 0;
+                              });
   }
 
  private:
@@ -60,9 +61,10 @@ class BlockingAudioPlayer final : public cockpit::audio::AudioPlayer {
 
   bool WaitUntilEntered() {
     std::unique_lock<std::mutex> lock(mutex_);
-    return entered_changed_.wait_for(lock, std::chrono::seconds(1), [this] {
-      return entered_;
-    });
+    return entered_changed_.wait_until(
+        lock, std::chrono::system_clock::now() + std::chrono::seconds(1), [this] {
+          return entered_;
+        });
   }
 
  private:

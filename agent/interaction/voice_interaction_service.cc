@@ -115,6 +115,7 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
   transcripts_received_.fetch_add(1U);
   const auto provider_started = std::chrono::steady_clock::now();
   const auto provider_deadline = provider_started + request_timeout_;
+  const auto watchdog_deadline = std::chrono::system_clock::now() + request_timeout_;
   VoiceAssistantResult result;
   std::mutex provider_mutex;
   std::condition_variable provider_changed;
@@ -122,7 +123,7 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
   std::atomic_bool provider_timed_out{false};
   std::thread provider_watchdog([&] {
     std::unique_lock<std::mutex> lock(provider_mutex);
-    if (!provider_changed.wait_until(lock, provider_deadline, [&] {
+    if (!provider_changed.wait_until(lock, watchdog_deadline, [&] {
           return provider_finished;
         })) {
       provider_timed_out.store(true);
@@ -266,7 +267,7 @@ bool VoiceInteractionService::WaitForResponse(std::uint64_t after_id,
                                               std::chrono::milliseconds timeout,
                                               VoiceResponse* response) const {
   std::unique_lock<std::mutex> lock(response_mutex_);
-  response_changed_.wait_for(lock, timeout, [this, after_id] {
+  response_changed_.wait_until(lock, std::chrono::system_clock::now() + timeout, [this, after_id] {
     return !response_history_.empty() && response_history_.back().id > after_id;
   });
   const auto next = std::find_if(response_history_.begin(), response_history_.end(),
@@ -286,9 +287,10 @@ bool VoiceInteractionService::WaitForTranscript(std::uint64_t after_id,
                                                 std::chrono::milliseconds timeout,
                                                 SpeechTranscript* transcript) const {
   std::unique_lock<std::mutex> lock(transcript_mutex_);
-  transcript_changed_.wait_for(lock, timeout, [this, after_id] {
-    return !transcript_history_.empty() && transcript_history_.back().id > after_id;
-  });
+  transcript_changed_.wait_until(
+      lock, std::chrono::system_clock::now() + timeout, [this, after_id] {
+        return !transcript_history_.empty() && transcript_history_.back().id > after_id;
+      });
   const auto next = std::find_if(transcript_history_.begin(), transcript_history_.end(),
                                  [after_id](const SpeechTranscript& value) {
                                    return value.id > after_id;

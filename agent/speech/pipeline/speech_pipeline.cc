@@ -129,13 +129,14 @@ void SpeechPipeline::RecognizeSegments() {
     }
     try {
       const auto deadline = std::chrono::steady_clock::now() + recognition_timeout_;
+      const auto watchdog_deadline = std::chrono::system_clock::now() + recognition_timeout_;
       std::mutex deadline_mutex;
       std::condition_variable deadline_changed;
       bool recognition_finished = false;
       std::atomic_bool recognition_timed_out{false};
       std::thread watchdog([&] {
         std::unique_lock<std::mutex> lock(deadline_mutex);
-        if (!deadline_changed.wait_until(lock, deadline, [&] {
+        if (!deadline_changed.wait_until(lock, watchdog_deadline, [&] {
               return recognition_finished;
             })) {
           recognition_timed_out.store(true);
