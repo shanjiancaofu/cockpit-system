@@ -1,0 +1,3 @@
+features:
+  ai:
+    assistant_timeout_ms: 0

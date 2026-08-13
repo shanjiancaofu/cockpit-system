@@ -84,8 +84,10 @@ void PrintStatusText(const cockpit::proto::voice::VoiceInteractionStatus& status
             << "actions succeeded: " << metrics.actions_succeeded() << '\n'
             << "actions failed: " << metrics.actions_failed() << '\n'
             << "requests interrupted: " << metrics.requests_interrupted() << '\n'
-            << "provider timeouts: " << metrics.provider_timeouts() << '\n'
-            << "provider failures: " << metrics.provider_failures() << '\n';
+            << "assistant timeouts: " << metrics.assistant_timeouts() << '\n'
+            << "assistant failures: " << metrics.assistant_failures() << '\n'
+            << "action timeouts: " << metrics.action_timeouts() << '\n'
+            << "TTS timeouts: " << metrics.tts_timeouts() << '\n';
   std::cout << "state transitions: " << metrics.state_transitions() << '\n'
             << "rejected state transitions: " << metrics.rejected_state_transitions() << '\n';
   std::cout << "speech requests accepted: " << metrics.speech_requests_accepted() << '\n'

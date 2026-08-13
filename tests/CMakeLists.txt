@@ -213,6 +213,11 @@ add_executable(cockpit_action_dispatcher_test modules/voice/cockpit_action_dispa
 target_link_libraries(cockpit_action_dispatcher_test PRIVATE voice)
 add_test(NAME cockpit_action_dispatcher_test COMMAND cockpit_action_dispatcher_test)
 
+add_executable(action_provider_deadline_test agent/action_provider_deadline_test.cc)
+target_link_libraries(action_provider_deadline_test PRIVATE voice_hmi voice_vehicle_client)
+add_test(NAME action_provider_deadline_test COMMAND action_provider_deadline_test)
+set_tests_properties(action_provider_deadline_test PROPERTIES LABELS "system-grpc")
+
 add_executable(audio_capture_controller_test
     library/driver/audio/audio_capture_controller_test.cc
 )
@@ -264,6 +269,9 @@ target_compile_definitions(system_config_test
         INVALID_CONFIG_KEY_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_config_key.yaml"
         INVALID_AUDIO_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_config.yaml"
         INVALID_AUDIO_FORMAT_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_audio_format_config.yaml"
+        INVALID_ZERO_VOICE_TIMEOUT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_zero_voice_timeout.yaml"
+        INVALID_NEGATIVE_VOICE_TIMEOUT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_negative_voice_timeout.yaml"
+        INVALID_LEGACY_REQUEST_TIMEOUT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/invalid_legacy_request_timeout.yaml"
 )
 add_test(NAME system_config_test COMMAND system_config_test)
 

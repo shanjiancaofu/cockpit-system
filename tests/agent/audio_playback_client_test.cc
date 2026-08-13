@@ -20,8 +20,8 @@ class CancellableSynthesizer final : public cockpit::voice::SpeechSynthesizer {
     std::unique_lock<std::mutex> lock(mutex_);
     entered_ = true;
     changed_.notify_all();
-    const auto remaining = deadline - std::chrono::steady_clock::now();
-    changed_.wait_until(lock, std::chrono::system_clock::now() + remaining, [this] {
+    deadline_propagated_ = deadline > std::chrono::steady_clock::now();
+    changed_.wait(lock, [this] {
       return cancelled_;
     });
     return {false, {}, "cancellable", cancelled_ ? "cancelled" : "deadline exceeded"};
@@ -43,11 +43,17 @@ class CancellableSynthesizer final : public cockpit::voice::SpeechSynthesizer {
                                });
   }
 
+  bool deadline_propagated() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return deadline_propagated_;
+  }
+
  private:
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::condition_variable changed_;
   bool entered_ = false;
   bool cancelled_ = false;
+  bool deadline_propagated_ = false;
 };
 
 class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTransport {
@@ -55,6 +61,9 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
   enum class Behavior {
     kManual,
     kWaitTimeout,
+    kTransportError,
+    kCancelRetry,
+    kUncertain,
     kNotFound,
   };
 
@@ -80,6 +89,15 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
     if (behavior_ == Behavior::kWaitTimeout && wait_calls_ == 1U) {
       return {cockpit::voice::AudioPlaybackWaitStatus::kTimeout, "wait timeout"};
     }
+    if ((behavior_ == Behavior::kTransportError || behavior_ == Behavior::kCancelRetry) &&
+        wait_calls_ == 1U) {
+      return {cockpit::voice::AudioPlaybackWaitStatus::kTransportError,
+              "playback transport disconnected"};
+    }
+    if (behavior_ == Behavior::kUncertain) {
+      return {cockpit::voice::AudioPlaybackWaitStatus::kTransportError,
+              "playback terminal state unavailable"};
+    }
     if (behavior_ == Behavior::kNotFound) {
       return {cockpit::voice::AudioPlaybackWaitStatus::kNotFound, "playback not found"};
     }
@@ -97,7 +115,9 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
     {
       std::lock_guard<std::mutex> lock(mutex_);
       ++cancel_calls_;
-      if (playback_id == playback_id_) {
+      const bool reject = behavior_ == Behavior::kUncertain ||
+                          (behavior_ == Behavior::kCancelRetry && cancel_calls_ == 1U);
+      if (!reject && playback_id == playback_id_) {
         status_ = cockpit::voice::AudioPlaybackWaitStatus::kCancelled;
         completed_ = true;
         accepted = true;
@@ -161,6 +181,7 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
 
 int main() {
   auto timeout_synthesizer = std::make_unique<CancellableSynthesizer>();
+  auto* timeout_synthesizer_observer = timeout_synthesizer.get();
   cockpit::voice::AudioPlaybackClient timeout_client("unix:/tmp/cockpit-unused-audio.sock",
                                                      std::move(timeout_synthesizer),
                                                      std::chrono::milliseconds(10));
@@ -171,6 +192,11 @@ int main() {
       std::chrono::steady_clock::now() - timeout_started > std::chrono::milliseconds(300) ||
       timeout_client.metrics().failed != 1) {
     std::cerr << "speech synthesis deadline was not enforced\n";
+    return 1;
+  }
+  if (timeout_client.metrics().tts_timeouts != 1U ||
+      !timeout_synthesizer_observer->deadline_propagated()) {
+    std::cerr << "speech synthesis deadline or timeout metric was not propagated\n";
     return 1;
   }
 
@@ -275,6 +301,63 @@ int main() {
     std::cerr << "timeout, interrupt, and stop cancellation were not idempotent\n";
     return 1;
   }
+
+  auto transport_error_transport = std::make_unique<FakeAudioPlaybackTransport>(
+      FakeAudioPlaybackTransport::Behavior::kTransportError);
+  auto* transport_error_control = transport_error_transport.get();
+  cockpit::voice::AudioPlaybackClient transport_error_client(
+      std::move(transport_error_transport),
+      std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
+  std::uint64_t transport_error_completions = 0U;
+  cockpit::voice::VoiceOutputResult transport_error_result;
+  if (!transport_error_client.Submit(8U, "transport error playback",
+                                     [&](cockpit::voice::VoiceOutputResult result) {
+                                       ++transport_error_completions;
+                                       transport_error_result = std::move(result);
+                                     }) ||
+      transport_error_completions != 1U ||
+      transport_error_result.status != cockpit::voice::VoiceOutputStatus::kFailed ||
+      transport_error_control->cancel_calls() != 1U ||
+      transport_error_control->wait_calls() != 2U) {
+    std::cerr << "accepted playback transport error was not cancelled and failed once\n";
+    return 1;
+  }
+  transport_error_client.Stop();
+
+  auto retry_transport = std::make_unique<FakeAudioPlaybackTransport>(
+      FakeAudioPlaybackTransport::Behavior::kCancelRetry);
+  auto* retry_control = retry_transport.get();
+  cockpit::voice::AudioPlaybackClient retry_client(
+      std::move(retry_transport), std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
+  cockpit::voice::VoiceOutputStatus retry_status = cockpit::voice::VoiceOutputStatus::kCancelled;
+  if (!retry_client.Submit(9U, "retry playback cancellation",
+                           [&](cockpit::voice::VoiceOutputResult result) {
+                             retry_status = result.status;
+                           }) ||
+      retry_status != cockpit::voice::VoiceOutputStatus::kFailed ||
+      retry_control->cancel_calls() != 2U || retry_control->wait_calls() != 2U) {
+    std::cerr << "failed Cancel RPC was not retried within the fixed bound\n";
+    return 1;
+  }
+  retry_client.Stop();
+
+  auto uncertain_transport = std::make_unique<FakeAudioPlaybackTransport>(
+      FakeAudioPlaybackTransport::Behavior::kUncertain);
+  auto* uncertain_control = uncertain_transport.get();
+  cockpit::voice::AudioPlaybackClient uncertain_client(
+      std::move(uncertain_transport), std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
+  cockpit::voice::VoiceOutputResult uncertain_result;
+  if (!uncertain_client.Submit(10U, "uncertain playback",
+                               [&](cockpit::voice::VoiceOutputResult result) {
+                                 uncertain_result = std::move(result);
+                               }) ||
+      uncertain_result.status != cockpit::voice::VoiceOutputStatus::kFailed ||
+      uncertain_result.error.find("remained uncertain") == std::string::npos ||
+      uncertain_control->cancel_calls() != 2U || uncertain_control->wait_calls() != 2U) {
+    std::cerr << "unconfirmed playback terminal state was not a bounded uncertainty failure\n";
+    return 1;
+  }
+  uncertain_client.Stop();
 
   auto missing_transport =
       std::make_unique<FakeAudioPlaybackTransport>(FakeAudioPlaybackTransport::Behavior::kNotFound);

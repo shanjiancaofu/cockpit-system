@@ -268,17 +268,25 @@ features:
     asr:
       provider: mock
   ai:
-    request_timeout_ms: 10000
+    asr_timeout_ms: 3000
+    assistant_timeout_ms: 10000
+    command_execution_timeout_ms: 3000
+    tts_synthesis_timeout_ms: 5000
     follow_up_window_ms: 8000
 ```
 
 基础仓库只提供可测试的 mock 实现，不提供算法动态插件 ABI。后续 Sherpa-ONNX、ONNX Runtime
 和模型作为 Agent 产品构建的一部分接入；它们不进入主项目依赖，也不由 Audio Driver 加载。
-`request_timeout_ms` 是一次 assistant 请求的交互层响应预算；当前 mock 用它判定超时并
-丢弃迟到结果，真实 HTTP/gRPC provider 还必须把同一预算设置为网络 deadline，并实现 `Cancel()`，
-不能依赖交互层强制终止阻塞的第三方调用。
+这些字段均为正整数毫秒，分别由 `SpeechPipeline`、`VoiceInteractionService` 的 Assistant 调用、
+ActionDispatcher 及 `AudioPlaybackClient` 的 TTS synthesis 消费。业务 deadline 统一来自
+`steady_clock`；Gateway/HMI 等 gRPC client 只把剩余预算换算到 `system_clock` deadline，并支持
+`TryCancel`。TTS synthesis 预算不包含 PCM 在扬声器上的实际播放时间。
 `follow_up_window_ms` 是真实语音播放完成后保持 `FOLLOW_UP` 的 monotonic 时间窗口；窗口内的新
 transcript 直接进入下一轮识别，超时、打断或停机都会使该窗口失效。
+
+旧 `request_timeout_ms` 已删除，写入活动 YAML 会按未知字段拒绝启动。`wait_for_speech_ms`、
+`llm_first_token_ms`、`llm_total_ms` 和 `tts_first_audio_ms` 尚无真实 consumer，继续只保留在规划文档，
+不进入活动配置。
 
 ## 未来配置契约
 

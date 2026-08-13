@@ -1,0 +1,3 @@
+features:
+  ai:
+    tts_synthesis_timeout_ms: -1

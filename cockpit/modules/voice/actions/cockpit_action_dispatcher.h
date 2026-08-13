@@ -1,6 +1,8 @@
 #pragma once
 
+#include <chrono>
 #include <memory>
+#include <mutex>
 
 #include "cockpit/modules/voice/actions/action_dispatcher.h"
 #include "cockpit/modules/voice/actions/hmi_command_provider.h"
@@ -15,15 +17,27 @@ class CockpitActionDispatcher final : public ActionDispatcher {
   CockpitActionDispatcher(std::unique_ptr<VehicleStatusProvider> vehicle_status,
                           std::unique_ptr<HmiCommandProvider> hmi_commands);
 
-  ActionExecutionResult Execute(VoiceAction action) override;
+  ActionExecutionResult Execute(VoiceAction action,
+                                std::chrono::steady_clock::time_point deadline) override;
   void Cancel() override;
 
  private:
-  ActionExecutionResult QueryVehicleStatus();
-  ActionExecutionResult SendHmiCommand(HmiCommand command, const char* not_configured_message);
+  enum class ActiveProvider {
+    kNone,
+    kVehicle,
+    kHmi,
+  };
+
+  ActionExecutionResult QueryVehicleStatus(std::chrono::steady_clock::time_point deadline);
+  ActionExecutionResult SendHmiCommand(HmiCommand command, const char* not_configured_message,
+                                       std::chrono::steady_clock::time_point deadline);
+  void SetActiveProvider(ActiveProvider provider);
+  void ClearActiveProvider(ActiveProvider provider);
 
   const std::unique_ptr<VehicleStatusProvider> vehicle_status_;
   const std::unique_ptr<HmiCommandProvider> hmi_commands_;
+  std::mutex active_mutex_;
+  ActiveProvider active_provider_ = ActiveProvider::kNone;
 };
 
 }  // namespace voice

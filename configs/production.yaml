@@ -88,7 +88,10 @@ features:
     asr:
       provider: mock
   ai:
-    request_timeout_ms: 10000
+    asr_timeout_ms: 3000
+    assistant_timeout_ms: 10000
+    command_execution_timeout_ms: 3000
+    tts_synthesis_timeout_ms: 5000
     follow_up_window_ms: 8000
 
 tools:

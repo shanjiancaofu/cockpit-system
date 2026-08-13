@@ -188,7 +188,8 @@ bool AudioPlaybackClient::SubmitCancellable(
       return false;
     }
     active_request_id_ = request_id;
-    active_cancellation_requested_ = false;
+    active_cancellation_attempts_ = 0U;
+    active_cancellation_confirmed_ = false;
   }
   if (synthesizer_ == nullptr) {
     failed_.fetch_add(1U);
@@ -196,7 +197,8 @@ bool AudioPlaybackClient::SubmitCancellable(
     return false;
   }
   const auto synthesis_deadline = std::chrono::steady_clock::now() + synthesis_timeout_;
-  const auto watchdog_deadline = std::chrono::system_clock::now() + synthesis_timeout_;
+  const auto synthesis_remaining = synthesis_deadline - std::chrono::steady_clock::now();
+  const auto watchdog_deadline = std::chrono::system_clock::now() + synthesis_remaining;
   std::mutex synthesis_mutex;
   std::condition_variable synthesis_changed;
   bool synthesis_finished = false;
@@ -225,6 +227,7 @@ bool AudioPlaybackClient::SubmitCancellable(
   synthesis_changed.notify_all();
   synthesis_watchdog.join();
   if (synthesis_timed_out.load()) {
+    tts_timeouts_.fetch_add(1U);
     synthesis.success = false;
     synthesis.error = "speech synthesis deadline exceeded";
   }
@@ -248,7 +251,8 @@ bool AudioPlaybackClient::SubmitCancellable(
       return false;
     }
     active_playback_id_ = playback_id;
-    active_cancellation_requested_ = false;
+    active_cancellation_attempts_ = 0U;
+    active_cancellation_confirmed_ = false;
   }
   const AudioPlaybackSubmitResult submission = transport_->Submit(playback_id, synthesis.audio);
   if (submission.status == AudioPlaybackSubmitStatus::kAccepted) {
@@ -291,9 +295,11 @@ bool AudioPlaybackClient::SubmitCancellable(
   constexpr auto kCancellationConfirmationTimeout = std::chrono::seconds(1);
   AudioPlaybackWaitResult wait_result = transport_->Wait(
       playback_id, cancel_before_wait ? kCancellationConfirmationTimeout : wait_timeout);
-  const bool playback_timed_out = wait_result.status == AudioPlaybackWaitStatus::kTimeout;
-  if (playback_timed_out) {
-    RequestPlaybackCancellation(request_id, playback_id);
+  const bool playback_uncertain = wait_result.status == AudioPlaybackWaitStatus::kTimeout ||
+                                  wait_result.status == AudioPlaybackWaitStatus::kTransportError;
+  bool cancellation_confirmed = false;
+  if (playback_uncertain) {
+    cancellation_confirmed = RequestPlaybackCancellation(request_id, playback_id);
     wait_result = transport_->Wait(playback_id, kCancellationConfirmationTimeout);
   }
   ClearActiveRequest(request_id);
@@ -308,9 +314,22 @@ bool AudioPlaybackClient::SubmitCancellable(
     if (result.error.empty()) {
       result.error = "voice output interrupted";
     }
-  } else if (playback_timed_out) {
+  } else if (playback_uncertain) {
     result.status = VoiceOutputStatus::kFailed;
-    result.error = "audio playback wait timed out; cancellation was requested";
+    const bool terminal_confirmed = wait_result.status == AudioPlaybackWaitStatus::kCompleted ||
+                                    wait_result.status == AudioPlaybackWaitStatus::kFailed ||
+                                    wait_result.status == AudioPlaybackWaitStatus::kCancelled ||
+                                    wait_result.status == AudioPlaybackWaitStatus::kDropped;
+    if (terminal_confirmed) {
+      result.error =
+          cancellation_confirmed
+              ? "audio playback result was uncertain; cancellation terminal was confirmed"
+              : "audio playback result was uncertain; a terminal result was recovered";
+    } else {
+      result.error = cancellation_confirmed
+                         ? "audio playback terminal state remained uncertain after cancellation"
+                         : "audio playback terminal state remained uncertain; cancellation failed";
+    }
   } else {
     switch (wait_result.status) {
       case AudioPlaybackWaitStatus::kCompleted:
@@ -356,6 +375,7 @@ VoiceOutputMetrics AudioPlaybackClient::metrics() const {
   result.played = played_.load();
   result.failed = failed_.load();
   result.dropped = dropped_.load();
+  result.tts_timeouts = tts_timeouts_.load();
   result.reconnects = reconnects_.load();
   result.consecutive_failures = consecutive_failures_.load();
   result.last_success_timestamp_ms = last_success_timestamp_ms_.load();
@@ -399,22 +419,37 @@ void AudioPlaybackClient::ClearActiveRequest(std::uint64_t request_id) {
   if (active_request_id_ == request_id) {
     active_request_id_ = 0U;
     active_playback_id_ = 0U;
-    active_cancellation_requested_ = false;
+    active_cancellation_attempts_ = 0U;
+    active_cancellation_confirmed_ = false;
   }
 }
 
 bool AudioPlaybackClient::RequestPlaybackCancellation(std::uint64_t request_id,
                                                       std::uint64_t playback_id) {
-  {
-    std::lock_guard<std::mutex> lock(state_mutex_);
-    if (active_playback_id_ != playback_id || active_cancellation_requested_ ||
-        (request_id != 0U && active_request_id_ != request_id)) {
-      return false;
+  constexpr std::uint32_t kMaxCancellationAttempts = 2U;
+  while (true) {
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      if (active_playback_id_ != playback_id ||
+          (request_id != 0U && active_request_id_ != request_id)) {
+        return false;
+      }
+      if (active_cancellation_confirmed_) {
+        return true;
+      }
+      if (active_cancellation_attempts_ >= kMaxCancellationAttempts) {
+        return false;
+      }
+      ++active_cancellation_attempts_;
     }
-    active_cancellation_requested_ = true;
+    if (transport_->Cancel(playback_id)) {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      if (active_playback_id_ == playback_id) {
+        active_cancellation_confirmed_ = true;
+      }
+      return true;
+    }
   }
-  transport_->Cancel(playback_id);
-  return true;
 }
 
 }  // namespace voice

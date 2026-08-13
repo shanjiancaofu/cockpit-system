@@ -2,6 +2,7 @@
 
 #include <grpcpp/grpcpp.h>
 
+#include <algorithm>
 #include <chrono>
 #include <string>
 
@@ -26,15 +27,25 @@ GatewayVehicleStatusClient::GatewayVehicleStatusClient(const std::string& addres
       }()) {
 }
 
-bool GatewayVehicleStatusClient::GetLatest(VehicleStatusSnapshot* status, std::string* error) {
+bool GatewayVehicleStatusClient::GetLatest(std::chrono::steady_clock::time_point deadline,
+                                           VehicleStatusSnapshot* status, std::string* error) {
   const std::uint64_t generation = cancellation_generation_.load();
   std::string last_error;
   for (int attempt = 1; attempt <= kMaxAttempts; ++attempt) {
+    const auto remaining = deadline - std::chrono::steady_clock::now();
+    if (remaining <= std::chrono::steady_clock::duration::zero()) {
+      if (error != nullptr) {
+        *error = "Vehicle status request deadline exceeded.";
+      }
+      return false;
+    }
     proto::common::Empty request;
     proto::vehicle::VehicleState response;
     grpc::ClientContext context;
     context.set_wait_for_ready(true);
-    context.set_deadline(std::chrono::system_clock::now() + kRpcDeadline);
+    const auto rpc_budget = std::min(
+        remaining, std::chrono::duration_cast<std::chrono::steady_clock::duration>(kRpcDeadline));
+    context.set_deadline(std::chrono::system_clock::now() + rpc_budget);
     {
       std::lock_guard<std::mutex> lock(cancellation_mutex_);
       if (cancellation_generation_.load() != generation) {
@@ -70,9 +81,11 @@ bool GatewayVehicleStatusClient::GetLatest(VehicleStatusSnapshot* status, std::s
     }
 
     last_error = rpc_status.error_message();
-    if (attempt < kMaxAttempts && !WaitForRetry(generation)) {
+    if (attempt < kMaxAttempts && !WaitForRetry(generation, deadline)) {
       if (error != nullptr) {
-        *error = "Vehicle status request cancelled.";
+        *error = cancellation_generation_.load() != generation
+                     ? "Vehicle status request cancelled."
+                     : "Vehicle status request deadline exceeded.";
       }
       return false;
     }
@@ -95,11 +108,20 @@ void GatewayVehicleStatusClient::Cancel() {
   cancellation_changed_.notify_all();
 }
 
-bool GatewayVehicleStatusClient::WaitForRetry(std::uint64_t generation) {
+bool GatewayVehicleStatusClient::WaitForRetry(std::uint64_t generation,
+                                              std::chrono::steady_clock::time_point deadline) {
+  const auto remaining = deadline - std::chrono::steady_clock::now();
+  if (remaining <= std::chrono::steady_clock::duration::zero()) {
+    return false;
+  }
+  const auto delay = std::min(
+      remaining, std::chrono::duration_cast<std::chrono::steady_clock::duration>(kRetryDelay));
   std::unique_lock<std::mutex> lock(cancellation_mutex_);
-  return !cancellation_changed_.wait_for(lock, kRetryDelay, [this, generation] {
-    return cancellation_generation_.load() != generation;
-  });
+  const bool cancelled = cancellation_changed_.wait_until(
+      lock, std::chrono::system_clock::now() + delay, [this, generation] {
+        return cancellation_generation_.load() != generation;
+      });
+  return !cancelled && std::chrono::steady_clock::now() < deadline;
 }
 
 }  // namespace voice

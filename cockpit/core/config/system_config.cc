@@ -350,10 +350,20 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.features_.voice.asr.provider =
       Read(asr, "provider", config.features_.voice.asr.provider, "features.voice.asr.provider");
   const YAML::Node ai = ChildMap(features, "ai", "features.ai");
-  ValidateKeys(ai, "features.ai", {"request_timeout_ms", "follow_up_window_ms"});
-  config.features_.ai.request_timeout_ms =
-      Read(ai, "request_timeout_ms", config.features_.ai.request_timeout_ms,
-           "features.ai.request_timeout_ms");
+  ValidateKeys(ai, "features.ai",
+               {"asr_timeout_ms", "assistant_timeout_ms", "command_execution_timeout_ms",
+                "tts_synthesis_timeout_ms", "follow_up_window_ms"});
+  config.features_.ai.asr_timeout_ms =
+      Read(ai, "asr_timeout_ms", config.features_.ai.asr_timeout_ms, "features.ai.asr_timeout_ms");
+  config.features_.ai.assistant_timeout_ms =
+      Read(ai, "assistant_timeout_ms", config.features_.ai.assistant_timeout_ms,
+           "features.ai.assistant_timeout_ms");
+  config.features_.ai.command_execution_timeout_ms =
+      Read(ai, "command_execution_timeout_ms", config.features_.ai.command_execution_timeout_ms,
+           "features.ai.command_execution_timeout_ms");
+  config.features_.ai.tts_synthesis_timeout_ms =
+      Read(ai, "tts_synthesis_timeout_ms", config.features_.ai.tts_synthesis_timeout_ms,
+           "features.ai.tts_synthesis_timeout_ms");
   config.features_.ai.follow_up_window_ms =
       Read(ai, "follow_up_window_ms", config.features_.ai.follow_up_window_ms,
            "features.ai.follow_up_window_ms");
@@ -521,7 +531,11 @@ void SystemConfig::Validate() const {
   }
   RequireNotEmpty(hardware_.audio.input_device, "hardware.audio.input_device");
   RequireNotEmpty(hardware_.audio.output_device, "hardware.audio.output_device");
-  RequirePositive(features_.ai.request_timeout_ms, "features.ai.request_timeout_ms");
+  RequirePositive(features_.ai.asr_timeout_ms, "features.ai.asr_timeout_ms");
+  RequirePositive(features_.ai.assistant_timeout_ms, "features.ai.assistant_timeout_ms");
+  RequirePositive(features_.ai.command_execution_timeout_ms,
+                  "features.ai.command_execution_timeout_ms");
+  RequirePositive(features_.ai.tts_synthesis_timeout_ms, "features.ai.tts_synthesis_timeout_ms");
   RequirePositive(features_.ai.follow_up_window_ms, "features.ai.follow_up_window_ms");
   if (!IsOneOf(features_.voice.vad.provider, "disabled", "mock")) {
     throw std::runtime_error("features.voice.vad.provider must be disabled or mock");

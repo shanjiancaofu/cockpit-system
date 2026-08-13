@@ -9,25 +9,30 @@
 
 namespace cockpit {
 namespace voice {
+namespace {
 
-VoiceInteractionService::VoiceInteractionService(bool enabled,
-                                                 std::unique_ptr<VoiceAssistant> assistant,
-                                                 std::unique_ptr<ActionDispatcher> dispatcher,
-                                                 std::unique_ptr<VoiceResponseSink> output,
-                                                 ResponseObserver response_observer,
-                                                 std::chrono::milliseconds request_timeout,
-                                                 std::chrono::milliseconds follow_up_window)
+constexpr char kRecoveryPrompt[] = "Sorry, I couldn't complete that request. Please try again.";
+
+}  // namespace
+
+VoiceInteractionService::VoiceInteractionService(
+    bool enabled, std::unique_ptr<VoiceAssistant> assistant,
+    std::unique_ptr<ActionDispatcher> dispatcher, std::unique_ptr<VoiceResponseSink> output,
+    ResponseObserver response_observer, std::chrono::milliseconds assistant_timeout,
+    std::chrono::milliseconds action_timeout, std::chrono::milliseconds follow_up_window)
     : enabled_(enabled),
       assistant_(std::move(assistant)),
       dispatcher_(std::move(dispatcher)),
       output_(std::move(output)),
       response_observer_(std::move(response_observer)),
-      request_timeout_(request_timeout),
+      assistant_timeout_(assistant_timeout),
+      action_timeout_(action_timeout),
       follow_up_window_(follow_up_window),
       state_machine_(enabled) {
-  if (request_timeout_ <= std::chrono::milliseconds::zero() ||
+  if (assistant_timeout_ <= std::chrono::milliseconds::zero() ||
+      action_timeout_ <= std::chrono::milliseconds::zero() ||
       follow_up_window_ <= std::chrono::milliseconds::zero()) {
-    throw std::invalid_argument("voice request and follow-up timeouts must be positive");
+    throw std::invalid_argument("voice assistant, action, and follow-up timeouts must be positive");
   }
 }
 
@@ -61,12 +66,8 @@ void VoiceInteractionService::Stop() {
   InvalidateOutputLifecycle();
   transcript_events_.Close();
   transcript_events_.DiscardPending();
-  if (assistant_ != nullptr) {
-    assistant_->Cancel();
-  }
-  if (dispatcher_ != nullptr) {
-    dispatcher_->Cancel();
-  }
+  CancelAssistantCall();
+  CancelActionCall();
   if (output_ != nullptr) {
     output_->Stop();
   }
@@ -118,20 +119,22 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
   }
   transcripts_received_.fetch_add(1U);
   const auto provider_started = std::chrono::steady_clock::now();
-  const auto provider_deadline = provider_started + request_timeout_;
-  const auto watchdog_deadline = std::chrono::system_clock::now() + request_timeout_;
+  const auto provider_deadline = provider_started + assistant_timeout_;
+  const auto provider_remaining = provider_deadline - std::chrono::steady_clock::now();
+  const auto watchdog_deadline = std::chrono::system_clock::now() + provider_remaining;
   VoiceAssistantResult result;
   std::mutex provider_mutex;
   std::condition_variable provider_changed;
   bool provider_finished = false;
   std::atomic_bool provider_timed_out{false};
+  BeginAssistantCall();
   std::thread provider_watchdog([&] {
     std::unique_lock<std::mutex> lock(provider_mutex);
     if (!provider_changed.wait_until(lock, watchdog_deadline, [&] {
           return provider_finished;
         })) {
       provider_timed_out.store(true);
-      assistant_->Cancel();
+      CancelAssistantCall();
     }
   });
   std::string provider_error;
@@ -142,6 +145,7 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
   } catch (...) {
     provider_error = "voice assistant provider failed";
   }
+  EndAssistantCall();
   {
     std::lock_guard<std::mutex> lock(provider_mutex);
     provider_finished = true;
@@ -155,14 +159,21 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
     processing_errors_.fetch_add(1U);
     std::string recovery_reason;
     if (provider_timed_out.load()) {
-      provider_timeouts_.fetch_add(1U);
+      assistant_timeouts_.fetch_add(1U);
       recovery_reason = "voice assistant provider timed out";
     } else {
-      provider_failures_.fetch_add(1U);
+      assistant_failures_.fetch_add(1U);
       recovery_reason = provider_error;
     }
     SetLastError(recovery_reason);
-    RecoverFromError(recovery_reason);
+    VoiceResponse recovery;
+    recovery.timestamp_ms =
+        static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       std::chrono::system_clock::now().time_since_epoch())
+                                       .count());
+    recovery.transcript_id = transcript.id;
+    recovery.transcript_text = transcript.text;
+    RecoverFromError(recovery_reason, request_generation, std::move(recovery), true);
     return std::nullopt;
   }
 
@@ -171,10 +182,17 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
   }
   if (provider_timed_out.load() || std::chrono::steady_clock::now() > provider_deadline) {
     processing_errors_.fetch_add(1U);
-    provider_timeouts_.fetch_add(1U);
+    assistant_timeouts_.fetch_add(1U);
     SetLastError("voice assistant provider timed out");
-    assistant_->Cancel();
-    RecoverFromError("voice assistant provider timed out");
+    VoiceResponse recovery;
+    recovery.timestamp_ms =
+        static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       std::chrono::system_clock::now().time_since_epoch())
+                                       .count());
+    recovery.transcript_id = transcript.id;
+    recovery.transcript_text = transcript.text;
+    RecoverFromError("voice assistant provider timed out", request_generation, std::move(recovery),
+                     true);
     return std::nullopt;
   }
 
@@ -209,8 +227,49 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
         response.response_text = response.action_message;
         actions_failed_.fetch_add(1U);
       } else {
-        const ActionExecutionResult execution = dispatcher_->Execute(result.action);
+        const auto action_deadline = std::chrono::steady_clock::now() + action_timeout_;
+        const auto action_remaining = action_deadline - std::chrono::steady_clock::now();
+        const auto action_watchdog_deadline = std::chrono::system_clock::now() + action_remaining;
+        std::mutex action_mutex;
+        std::condition_variable action_changed;
+        bool action_finished = false;
+        std::atomic_bool action_timed_out{false};
+        BeginActionCall();
+        std::thread action_watchdog([&] {
+          std::unique_lock<std::mutex> lock(action_mutex);
+          if (!action_changed.wait_until(lock, action_watchdog_deadline, [&] {
+                return action_finished;
+              })) {
+            action_timed_out.store(true);
+            CancelActionCall();
+          }
+        });
+        ActionExecutionResult execution;
+        try {
+          execution = dispatcher_->Execute(result.action, action_deadline);
+        } catch (const std::exception& exception) {
+          execution = {ActionExecutionStatus::kFailed, exception.what()};
+        } catch (...) {
+          execution = {ActionExecutionStatus::kFailed, "Action provider failed."};
+        }
+        EndActionCall();
+        {
+          std::lock_guard<std::mutex> lock(action_mutex);
+          action_finished = true;
+        }
+        action_changed.notify_all();
+        action_watchdog.join();
         if (request_generation != interrupt_generation_.load()) {
+          return std::nullopt;
+        }
+        if (action_timed_out.load() || std::chrono::steady_clock::now() > action_deadline) {
+          action_timeouts_.fetch_add(1U);
+          actions_failed_.fetch_add(1U);
+          processing_errors_.fetch_add(1U);
+          response.action_status = ActionExecutionStatus::kFailed;
+          response.action_message = "Action execution deadline exceeded.";
+          SetLastError(response.action_message);
+          RecoverFromError(response.action_message, request_generation, std::move(response), true);
           return std::nullopt;
         }
         response.action_status = execution.status;
@@ -222,6 +281,14 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
           actions_succeeded_.fetch_add(1U);
         } else {
           actions_failed_.fetch_add(1U);
+          if (execution.status == ActionExecutionStatus::kFailed) {
+            processing_errors_.fetch_add(1U);
+            SetLastError(execution.message.empty() ? "Action provider failed." : execution.message);
+            RecoverFromError(
+                execution.message.empty() ? "Action provider failed." : execution.message,
+                request_generation, std::move(response), true);
+            return std::nullopt;
+          }
         }
       }
     } else if (!state_machine_.Handle(ConversationEvent::kOpenRequestSelected,
@@ -229,38 +296,14 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
       throw std::runtime_error("invalid conversation transition to thinking");
     }
     response = PublishResponse(std::move(response));
-    if (output_ != nullptr && !response.response_text.empty()) {
-      if (!state_machine_.Handle(ConversationEvent::kResponseReady,
-                                 "response submitted for playback")) {
-        throw std::runtime_error("invalid conversation transition to speaking");
-      }
-      {
-        std::lock_guard<std::mutex> lock(output_mutex_);
-        active_output_request_id_ = response.id;
-        active_output_generation_ = request_generation;
-        follow_up_deadline_.reset();
-      }
-      if (!output_->Submit(response.id, response.response_text,
-                           [this, request_generation](VoiceOutputResult output_result) {
-                             HandleOutputResult(request_generation, std::move(output_result));
-                           })) {
-        {
-          std::lock_guard<std::mutex> lock(output_mutex_);
-          if (active_output_request_id_ == response.id) {
-            active_output_request_id_ = 0U;
-            active_output_generation_ = 0U;
-          }
-        }
-        throw std::runtime_error("voice output queue rejected the response");
-      }
-    } else {
-      ReturnToIdle("voice request completed without playback");
+    if (!SubmitOutput(response, request_generation, false)) {
+      throw std::runtime_error("voice output queue rejected the response");
     }
     return response;
   } catch (const std::exception& exception) {
     processing_errors_.fetch_add(1U);
     SetLastError(exception.what());
-    RecoverFromError(exception.what());
+    RecoverFromError(exception.what(), request_generation);
     return std::nullopt;
   }
 }
@@ -268,20 +311,23 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
 VoiceInterruptResult VoiceInteractionService::Interrupt() {
   VoiceInterruptResult result;
   interrupt_generation_.fetch_add(1U);
+  bool output_active = false;
+  {
+    std::lock_guard<std::mutex> lock(output_mutex_);
+    output_active = active_output_request_id_ != 0U;
+  }
   InvalidateOutputLifecycle();
   result.queued_transcripts_discarded = transcript_events_.DiscardPending();
   result.active_request_interrupted =
-      ConversationStateMachine::IsActive(state_machine_.snapshot().state);
+      output_active || ConversationStateMachine::IsActive(state_machine_.snapshot().state);
   if (result.active_request_interrupted) {
     requests_interrupted_.fetch_add(1U);
-    state_machine_.Handle(ConversationEvent::kCancelRequested, "voice request interrupted");
+    if (ConversationStateMachine::IsActive(state_machine_.snapshot().state)) {
+      state_machine_.Handle(ConversationEvent::kCancelRequested, "voice request interrupted");
+    }
     SetLastError("voice request interrupted");
-    if (assistant_ != nullptr) {
-      assistant_->Cancel();
-    }
-    if (dispatcher_ != nullptr) {
-      dispatcher_->Cancel();
-    }
+    CancelAssistantCall();
+    CancelActionCall();
     if (output_ != nullptr) {
       output_->Interrupt();
     }
@@ -346,8 +392,9 @@ VoiceInteractionStatus VoiceInteractionService::status() const {
   result.metrics.actions_succeeded = actions_succeeded_.load();
   result.metrics.actions_failed = actions_failed_.load();
   result.metrics.requests_interrupted = requests_interrupted_.load();
-  result.metrics.provider_timeouts = provider_timeouts_.load();
-  result.metrics.provider_failures = provider_failures_.load();
+  result.metrics.assistant_timeouts = assistant_timeouts_.load();
+  result.metrics.assistant_failures = assistant_failures_.load();
+  result.metrics.action_timeouts = action_timeouts_.load();
   result.metrics.state_transitions = state.accepted_transitions;
   result.metrics.rejected_state_transitions = state.rejected_transitions;
   if (output_ != nullptr) {
@@ -375,8 +422,59 @@ bool VoiceInteractionService::BeginRequest() {
                                "final speech segment received");
 }
 
+void VoiceInteractionService::BeginAssistantCall() {
+  std::lock_guard<std::mutex> lock(provider_lifecycle_mutex_);
+  assistant_call_active_ = true;
+  assistant_cancel_requested_ = false;
+}
+
+void VoiceInteractionService::EndAssistantCall() {
+  std::lock_guard<std::mutex> lock(provider_lifecycle_mutex_);
+  assistant_call_active_ = false;
+}
+
+void VoiceInteractionService::CancelAssistantCall() {
+  bool cancel = false;
+  {
+    std::lock_guard<std::mutex> lock(provider_lifecycle_mutex_);
+    if (assistant_call_active_ && !assistant_cancel_requested_) {
+      assistant_cancel_requested_ = true;
+      cancel = true;
+    }
+  }
+  if (cancel && assistant_ != nullptr) {
+    assistant_->Cancel();
+  }
+}
+
+void VoiceInteractionService::BeginActionCall() {
+  std::lock_guard<std::mutex> lock(provider_lifecycle_mutex_);
+  action_call_active_ = true;
+  action_cancel_requested_ = false;
+}
+
+void VoiceInteractionService::EndActionCall() {
+  std::lock_guard<std::mutex> lock(provider_lifecycle_mutex_);
+  action_call_active_ = false;
+}
+
+void VoiceInteractionService::CancelActionCall() {
+  bool cancel = false;
+  {
+    std::lock_guard<std::mutex> lock(provider_lifecycle_mutex_);
+    if (action_call_active_ && !action_cancel_requested_) {
+      action_cancel_requested_ = true;
+      cancel = true;
+    }
+  }
+  if (cancel && dispatcher_ != nullptr) {
+    dispatcher_->Cancel();
+  }
+}
+
 void VoiceInteractionService::HandleOutputResult(std::uint64_t request_generation,
                                                  VoiceOutputResult result) {
+  bool recovery = false;
   {
     std::lock_guard<std::mutex> lock(output_mutex_);
     if (result.request_id == 0U || result.request_id != active_output_request_id_ ||
@@ -386,6 +484,17 @@ void VoiceInteractionService::HandleOutputResult(std::uint64_t request_generatio
     }
     active_output_request_id_ = 0U;
     active_output_generation_ = 0U;
+    recovery = active_output_recovery_;
+    active_output_recovery_ = false;
+  }
+
+  if (recovery) {
+    if (result.status == VoiceOutputStatus::kFailed ||
+        result.status == VoiceOutputStatus::kDropped) {
+      SetLastError(result.error.empty() ? "voice recovery playback failed" : result.error);
+    }
+    ReturnToIdle("voice recovery prompt finished");
+    return;
   }
 
   switch (result.status) {
@@ -408,7 +517,8 @@ void VoiceInteractionService::HandleOutputResult(std::uint64_t request_generatio
     case VoiceOutputStatus::kFailed:
       processing_errors_.fetch_add(1U);
       SetLastError(result.error.empty() ? "voice playback failed" : result.error);
-      RecoverFromError(result.error.empty() ? "voice playback failed" : result.error);
+      RecoverFromError(result.error.empty() ? "voice playback failed" : result.error,
+                       request_generation);
       return;
   }
 }
@@ -433,18 +543,65 @@ void VoiceInteractionService::InvalidateOutputLifecycle() {
   std::lock_guard<std::mutex> lock(output_mutex_);
   active_output_request_id_ = 0U;
   active_output_generation_ = 0U;
+  active_output_recovery_ = false;
   follow_up_deadline_.reset();
 }
 
-void VoiceInteractionService::RecoverFromError(const std::string& reason) {
+void VoiceInteractionService::RecoverFromError(const std::string& reason,
+                                               std::uint64_t request_generation,
+                                               std::optional<VoiceResponse> response,
+                                               bool play_prompt) {
   const InteractionState state = state_machine_.snapshot().state;
   if (state == InteractionState::kShuttingDown || state == InteractionState::kCancelled) {
     return;
   }
   transcript_events_.DiscardPending();
   if (state_machine_.Handle(ConversationEvent::kFailure, reason)) {
+    if (play_prompt && output_ != nullptr && request_generation == interrupt_generation_.load()) {
+      VoiceResponse recovery = response.value_or(VoiceResponse{});
+      recovery.response_text = kRecoveryPrompt;
+      recovery = PublishResponse(std::move(recovery));
+      SetLastError(reason);
+      if (SubmitOutput(std::move(recovery), request_generation, true)) {
+        return;
+      }
+      SetLastError("voice recovery prompt was rejected");
+    }
     ReturnToIdle("voice error recovery completed");
   }
+}
+
+bool VoiceInteractionService::SubmitOutput(VoiceResponse response, std::uint64_t request_generation,
+                                           bool recovery) {
+  if (output_ == nullptr || response.response_text.empty()) {
+    ReturnToIdle(recovery ? "voice recovery completed without playback"
+                          : "voice request completed without playback");
+    return true;
+  }
+  if (!recovery && !state_machine_.Handle(ConversationEvent::kResponseReady,
+                                          "response submitted for playback")) {
+    return false;
+  }
+  {
+    std::lock_guard<std::mutex> lock(output_mutex_);
+    active_output_request_id_ = response.id;
+    active_output_generation_ = request_generation;
+    active_output_recovery_ = recovery;
+    follow_up_deadline_.reset();
+  }
+  if (output_->Submit(response.id, response.response_text,
+                      [this, request_generation](VoiceOutputResult output_result) {
+                        HandleOutputResult(request_generation, std::move(output_result));
+                      })) {
+    return true;
+  }
+  std::lock_guard<std::mutex> lock(output_mutex_);
+  if (active_output_request_id_ == response.id) {
+    active_output_request_id_ = 0U;
+    active_output_generation_ = 0U;
+    active_output_recovery_ = false;
+  }
+  return false;
 }
 
 void VoiceInteractionService::ReturnToIdle(const std::string& reason) {

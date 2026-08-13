@@ -75,7 +75,7 @@ void SpeechPipeline::Stop() {
     PublishSegment(std::move(*final_segment));
   }
   running_.store(false);
-  recognizer_->Cancel();
+  CancelActiveRecognition();
   if (worker_.joinable()) {
     worker_.join();
   }
@@ -106,8 +106,13 @@ bool SpeechPipeline::Submit(const audio::AudioFrame& frame) {
 }
 
 SpeechPipelineMetrics SpeechPipeline::metrics() const {
-  return {frames_processed_.load(), speech_frames_.load(),         segments_completed_.load(),
-          segments_.DropCount(),    transcripts_published_.load(), errors_.load()};
+  return {frames_processed_.load(),
+          speech_frames_.load(),
+          segments_completed_.load(),
+          segments_.DropCount(),
+          transcripts_published_.load(),
+          asr_timeouts_.load(),
+          errors_.load()};
 }
 
 std::string SpeechPipeline::last_error() const {
@@ -120,6 +125,12 @@ void SpeechPipeline::PublishSegment(audio::SpeechSegment segment) {
   segments_.TryPush(std::move(segment));
 }
 
+void SpeechPipeline::CancelActiveRecognition() {
+  if (recognition_active_.load() && !recognition_cancelled_.exchange(true)) {
+    recognizer_->Cancel();
+  }
+}
+
 void SpeechPipeline::RecognizeSegments() {
   while (running_.load() || segments_.Available() != 0U) {
     auto segment = segments_.TryPop();
@@ -129,18 +140,21 @@ void SpeechPipeline::RecognizeSegments() {
     }
     try {
       const auto deadline = std::chrono::steady_clock::now() + recognition_timeout_;
-      const auto watchdog_deadline = std::chrono::system_clock::now() + recognition_timeout_;
+      const auto remaining = deadline - std::chrono::steady_clock::now();
+      const auto watchdog_deadline = std::chrono::system_clock::now() + remaining;
       std::mutex deadline_mutex;
       std::condition_variable deadline_changed;
       bool recognition_finished = false;
       std::atomic_bool recognition_timed_out{false};
+      recognition_cancelled_.store(false);
+      recognition_active_.store(true);
       std::thread watchdog([&] {
         std::unique_lock<std::mutex> lock(deadline_mutex);
         if (!deadline_changed.wait_until(lock, watchdog_deadline, [&] {
               return recognition_finished;
             })) {
           recognition_timed_out.store(true);
-          recognizer_->Cancel();
+          CancelActiveRecognition();
         }
       });
       voice::SpeechRecognitionResult recognition;
@@ -150,6 +164,7 @@ void SpeechPipeline::RecognizeSegments() {
       } catch (...) {
         recognition_error = std::current_exception();
       }
+      recognition_active_.store(false);
       {
         std::lock_guard<std::mutex> lock(deadline_mutex);
         recognition_finished = true;
@@ -160,6 +175,7 @@ void SpeechPipeline::RecognizeSegments() {
         std::rethrow_exception(recognition_error);
       }
       if (recognition_timed_out.load()) {
+        asr_timeouts_.fetch_add(1U);
         RecordError("speech recognition deadline exceeded");
         continue;
       }

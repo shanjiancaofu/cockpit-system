@@ -33,11 +33,12 @@ int main() {
     return 1;
   }
   cockpit::voice::MockActionDispatcher dispatcher;
-  if (dispatcher.Execute(VoiceAction::kOpenCamera).status !=
+  const auto action_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+  if (dispatcher.Execute(VoiceAction::kOpenCamera, action_deadline).status !=
           cockpit::voice::ActionExecutionStatus::kSucceeded ||
-      dispatcher.Execute(VoiceAction::kNone).status !=
+      dispatcher.Execute(VoiceAction::kNone, action_deadline).status !=
           cockpit::voice::ActionExecutionStatus::kNotRequested ||
-      dispatcher.Execute(static_cast<VoiceAction>(999)).status !=
+      dispatcher.Execute(static_cast<VoiceAction>(999), action_deadline).status !=
           cockpit::voice::ActionExecutionStatus::kRejected) {
     std::cerr << "mock action dispatcher policy failed\n";
     return 1;

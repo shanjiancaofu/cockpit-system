@@ -41,7 +41,8 @@ class AudioPlaybackClient final : public VoiceResponseSink {
   mutable std::mutex state_mutex_;
   std::uint64_t active_request_id_ = 0;
   std::uint64_t active_playback_id_ = 0;
-  bool active_cancellation_requested_ = false;
+  std::uint32_t active_cancellation_attempts_ = 0U;
+  bool active_cancellation_confirmed_ = false;
   bool stopping_ = false;
   const std::chrono::milliseconds synthesis_timeout_;
   std::atomic<std::uint64_t> interrupt_generation_{0};
@@ -50,6 +51,7 @@ class AudioPlaybackClient final : public VoiceResponseSink {
   std::atomic<std::uint64_t> played_{0};
   std::atomic<std::uint64_t> failed_{0};
   std::atomic<std::uint64_t> dropped_{0};
+  std::atomic<std::uint64_t> tts_timeouts_{0};
   std::atomic<std::uint64_t> reconnects_{0};
   std::atomic<std::uint64_t> consecutive_failures_{0};
   std::atomic<std::uint64_t> last_success_timestamp_ms_{0};

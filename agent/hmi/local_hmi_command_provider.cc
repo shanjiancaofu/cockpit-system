@@ -14,8 +14,17 @@ LocalHmiCommandProvider::LocalHmiCommandProvider(const std::string& address)
           grpc::CreateChannel(address, grpc::InsecureChannelCredentials()))) {
 }
 
-bool LocalHmiCommandProvider::SendCommand(HmiCommand command, std::string* response,
-                                          std::string* error) {
+bool LocalHmiCommandProvider::SendCommand(HmiCommand command,
+                                          std::chrono::steady_clock::time_point deadline,
+                                          std::string* response, std::string* error) {
+  const std::uint64_t generation = cancellation_generation_.load();
+  const auto remaining = deadline - std::chrono::steady_clock::now();
+  if (remaining <= std::chrono::steady_clock::duration::zero()) {
+    if (error != nullptr) {
+      *error = "HMI command deadline exceeded";
+    }
+    return false;
+  }
   proto::hmi::ExecuteHmiCommandRequest request;
   switch (command) {
     case HmiCommand::kOpenCameraPreview:
@@ -29,8 +38,30 @@ bool LocalHmiCommandProvider::SendCommand(HmiCommand command, std::string* respo
   proto::hmi::ExecuteHmiCommandResponse command_response;
   grpc::ClientContext context;
   context.set_wait_for_ready(true);
-  context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(2));
+  context.set_deadline(std::chrono::system_clock::now() + remaining);
+  {
+    std::lock_guard<std::mutex> lock(cancellation_mutex_);
+    if (cancellation_generation_.load() != generation) {
+      if (error != nullptr) {
+        *error = "HMI command cancelled";
+      }
+      return false;
+    }
+    active_context_ = &context;
+  }
   const grpc::Status status = stub_->Execute(&context, request, &command_response);
+  {
+    std::lock_guard<std::mutex> lock(cancellation_mutex_);
+    if (active_context_ == &context) {
+      active_context_ = nullptr;
+    }
+  }
+  if (cancellation_generation_.load() != generation) {
+    if (error != nullptr) {
+      *error = "HMI command cancelled";
+    }
+    return false;
+  }
   if (!status.ok()) {
     if (error != nullptr) {
       *error =
@@ -50,6 +81,14 @@ bool LocalHmiCommandProvider::SendCommand(HmiCommand command, std::string* respo
   }
   LOG_INFO("HMI command executed command=" + std::string(ToString(command)));
   return true;
+}
+
+void LocalHmiCommandProvider::Cancel() {
+  cancellation_generation_.fetch_add(1U);
+  std::lock_guard<std::mutex> lock(cancellation_mutex_);
+  if (active_context_ != nullptr) {
+    active_context_->TryCancel();
+  }
 }
 
 }  // namespace voice

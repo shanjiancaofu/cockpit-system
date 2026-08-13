@@ -18,6 +18,7 @@
 #include "agent/interaction/voice_interaction_service.h"
 #include "agent/speech/asr/mock_speech_recognizer.h"
 #include "agent/speech/pipeline/speech_pipeline.h"
+#include "agent/speech/tts/mock_speech_synthesizer.h"
 #include "agent/speech/vad/mock_voice_activity_detector.h"
 #include "agent/vehicle/gateway_vehicle_status_client.h"
 #include "cockpit/core/config/system_config.h"
@@ -93,7 +94,9 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
           std::make_unique<voice::GatewayVehicleStatusClient>(interaction_config.gateway_address),
           std::make_unique<voice::LocalHmiCommandProvider>(hmi_address));
       output = std::make_unique<voice::AsyncVoiceResponseSink>(
-          std::make_unique<voice::AudioPlaybackClient>(interaction_config.audio_address));
+          std::make_unique<voice::AudioPlaybackClient>(
+              interaction_config.audio_address, std::make_unique<voice::MockSpeechSynthesizer>(),
+              std::chrono::milliseconds(config.features().ai.tts_synthesis_timeout_ms)));
     }
 
     impl_ = std::make_unique<Impl>();
@@ -101,7 +104,8 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
       impl_->speech_pipeline = std::make_unique<SpeechPipeline>(
           config.hardware().audio, config.features().voice.speech_segment,
           std::make_unique<MockVoiceActivityDetector>(),
-          std::make_unique<voice::MockSpeechRecognizer>());
+          std::make_unique<voice::MockSpeechRecognizer>(),
+          std::chrono::milliseconds(config.features().ai.asr_timeout_ms));
       impl_->audio_stream = std::make_unique<AudioStreamClient>();
       impl_->audio_stream_path =
           std::filesystem::absolute(std::filesystem::path(config.paths().run_dir) /
@@ -117,7 +121,8 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
           recording_events->Publish(static_cast<std::int64_t>(response.timestamp_ms),
                                     "/voice/response", VoiceResponsePayload(response));
         },
-        std::chrono::milliseconds(config.features().ai.request_timeout_ms),
+        std::chrono::milliseconds(config.features().ai.assistant_timeout_ms),
+        std::chrono::milliseconds(config.features().ai.command_execution_timeout_ms),
         std::chrono::milliseconds(config.features().ai.follow_up_window_ms));
     impl_->grpc = std::make_unique<voice::VoiceGrpcService>(*impl_->service);
     if (!impl_->grpc->Start(interaction_config.grpc.listen_address)) {

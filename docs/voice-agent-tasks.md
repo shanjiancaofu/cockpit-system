@@ -409,7 +409,7 @@ vad:
 
 ## 阶段 6–10：语音交互主链路
 
-状态：阶段 6 进行中，阶段 7–10 未开始。基础仓库继续使用 mock provider；本册中的模型、版本和
+状态：阶段 6 通用运行时逻辑已完成，阶段 7–10 未开始。基础仓库继续使用 mock provider；本册中的模型、版本和
 性能项目只有在独立 Agent 产品构建与 Jetson 实测完成后才能勾选。
 
 ### 阶段 6：建立会话状态机和恢复机制
@@ -452,48 +452,49 @@ SHUTTING_DOWN
 
 - [x] 定义状态、事件和允许的状态转换，并拒绝非法转换。
 - [x] 一次只允许一个活动语音会话。
-- [ ] 设置超时：
+- [x] 当前已有 consumer 的分环节预算进入严格活动配置：
 
 ```yaml
-timeouts:
-  wait_for_speech_ms: 5000
-  max_speech_ms: 15000
-  asr_ms: 3000
-  command_execution_ms: 3000
-  llm_first_token_ms: 8000
-  llm_total_ms: 30000
-  tts_first_audio_ms: 5000
-  tts_total_ms: 30000
-  follow_up_window_ms: 8000
+features:
+  ai:
+    asr_timeout_ms: 3000
+    assistant_timeout_ms: 10000
+    command_execution_timeout_ms: 3000
+    tts_synthesis_timeout_ms: 5000
+    follow_up_window_ms: 8000
 ```
 
-- [ ] 将通用 `request_timeout_ms` 拆为上面的分环节 deadline；当前 provider 超时已能恢复，
-  但真实网络/模型 provider 尚未消费独立预算。
-- [x] provider 失败、现有超时和主动打断统一执行取消、清空过期队列、停止当前响应并恢复
-  `IDLE`；固定错误提示仍待实现。
+- [x] 删除通用 `request_timeout_ms`；ASR、Assistant、Action 和 TTS 分别消费 steady-clock deadline，
+  Gateway/HMI 将调用方剩余预算转换为 gRPC deadline。
+- [x] provider 失败、超时和主动打断统一执行取消、清空过期队列、停止当前响应并恢复；非用户主动
+  失败通过原输出通道播放固定错误提示，提示完成后才返回 `IDLE`。
 - [x] `PlayPcm accepted` 只表示有界队列接收；真实 `player_->Play()` 返回后，Audio Driver 通过
   playback id 保存 `completed / failed / cancelled / dropped` 最终结果。
 - [x] Agent 异步等待单次播放结果，`completed` 驱动 `SPEAKING -> FOLLOW_UP`；播放失败进入恢复，
   播放取消不进入 `FOLLOW_UP`。
 - [x] `FOLLOW_UP` 使用 8 秒可配置 monotonic 窗口；窗口内 transcript 进入新请求，超时返回
   `IDLE`，interrupt/shutdown 和新 generation 会使旧完成回调与 timer 失效。
-- [ ] 完整超时恢复还需：
-  - [ ] 取消当前任务。
-  - [ ] 停止播放。
-  - [ ] 清空当前语句。
-  - [ ] 重置模型状态。
-  - [ ] 播放固定错误提示。
-  - [ ] 返回 `IDLE`。
+- [x] 通用超时恢复：取消当前任务、停止播放、清空当前语句、使旧 generation 失效、播放固定错误
+  提示并在其 terminal completion 后返回 `IDLE`。真实模型的内部状态重置仍由后续 provider 的
+  `Cancel()` 实现负责。
 - [x] 禁止多个 ASR、LLM 或 TTS 请求并发执行。
+
+尚未进入活动配置的规划预算保持不变：`wait_for_speech_ms` 等 KWS/LISTENING timer 实现后再加入；
+`llm_first_token_ms`、`llm_total_ms`、`tts_first_audio_ms` 和流式 TTS 总预算等真实 streaming provider
+出现后再确定。`features.voice.speech_segment.max_segment_ms` 已承担语音段上限，不重复增加
+`max_speech_ms`。
 
 #### 验收
 
-- [x] 当前 provider 超时后能恢复到 `IDLE`。
+- [x] 当前 provider 超时后能取消工作，通过固定提示保持 `ERROR_RECOVERY` active，并在提示结束后
+  恢复到 `IDLE`。
 - [ ] 真实模型进程异常不会阻塞 Navigator 主循环。
 - [x] 不出现同时监听、识别和播放的非法状态。
 - [x] 状态转换、打断、失败恢复和停机终态具备单元测试。
 - [x] 播放 accepted/completed 分离、真实完成、失败、取消、stale completion、FollowUp 超时和
   窗口内续问具备单元测试。
+- [x] accepted playback 的 Timeout/TransportError 会执行有界取消与 terminal confirmation；取消
+  失败最多重试两次，最终不确定时明确失败且不会伪报 `Cancelled`。
 
 ---
 

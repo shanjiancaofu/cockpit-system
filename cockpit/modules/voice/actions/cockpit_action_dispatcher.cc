@@ -18,34 +18,50 @@ CockpitActionDispatcher::CockpitActionDispatcher(
     : vehicle_status_(std::move(vehicle_status)), hmi_commands_(std::move(hmi_commands)) {
 }
 
-ActionExecutionResult CockpitActionDispatcher::Execute(VoiceAction action) {
+ActionExecutionResult CockpitActionDispatcher::Execute(
+    VoiceAction action, std::chrono::steady_clock::time_point deadline) {
+  if (std::chrono::steady_clock::now() >= deadline) {
+    return {ActionExecutionStatus::kFailed, "Action execution deadline exceeded."};
+  }
   switch (action) {
     case VoiceAction::kNone:
       return {ActionExecutionStatus::kNotRequested, "No action requested."};
     case VoiceAction::kQueryVehicleStatus:
-      return QueryVehicleStatus();
+      return QueryVehicleStatus(deadline);
     case VoiceAction::kOpenCamera:
       return SendHmiCommand(HmiCommand::kOpenCameraPreview,
-                            "HMI camera preview provider is not configured.");
+                            "HMI camera preview provider is not configured.", deadline);
     case VoiceAction::kPlayMusic:
-      return SendHmiCommand(HmiCommand::kPlayMusic, "HMI media provider is not configured.");
+      return SendHmiCommand(HmiCommand::kPlayMusic, "HMI media provider is not configured.",
+                            deadline);
   }
   return {ActionExecutionStatus::kRejected, "Action is not allowlisted."};
 }
 
 void CockpitActionDispatcher::Cancel() {
-  if (vehicle_status_ != nullptr) {
+  ActiveProvider active = ActiveProvider::kNone;
+  {
+    std::lock_guard<std::mutex> lock(active_mutex_);
+    active = active_provider_;
+  }
+  if (active == ActiveProvider::kVehicle && vehicle_status_ != nullptr) {
     vehicle_status_->Cancel();
+  } else if (active == ActiveProvider::kHmi && hmi_commands_ != nullptr) {
+    hmi_commands_->Cancel();
   }
 }
 
-ActionExecutionResult CockpitActionDispatcher::QueryVehicleStatus() {
+ActionExecutionResult CockpitActionDispatcher::QueryVehicleStatus(
+    std::chrono::steady_clock::time_point deadline) {
   if (vehicle_status_ == nullptr) {
     return {ActionExecutionStatus::kNotImplemented, "Vehicle status provider is not configured."};
   }
   VehicleStatusSnapshot status;
   std::string error;
-  if (!vehicle_status_->GetLatest(&status, &error)) {
+  SetActiveProvider(ActiveProvider::kVehicle);
+  const bool succeeded = vehicle_status_->GetLatest(deadline, &status, &error);
+  ClearActiveProvider(ActiveProvider::kVehicle);
+  if (!succeeded) {
     return {ActionExecutionStatus::kFailed,
             error.empty() ? "Vehicle status is unavailable." : error};
   }
@@ -56,20 +72,36 @@ ActionExecutionResult CockpitActionDispatcher::QueryVehicleStatus() {
   return {ActionExecutionStatus::kSucceeded, message.str()};
 }
 
-ActionExecutionResult CockpitActionDispatcher::SendHmiCommand(HmiCommand command,
-                                                              const char* not_configured_message) {
+ActionExecutionResult CockpitActionDispatcher::SendHmiCommand(
+    HmiCommand command, const char* not_configured_message,
+    std::chrono::steady_clock::time_point deadline) {
   if (hmi_commands_ == nullptr) {
     return {ActionExecutionStatus::kNotImplemented, not_configured_message};
   }
   std::string response;
   std::string error;
-  if (!hmi_commands_->SendCommand(command, &response, &error)) {
+  SetActiveProvider(ActiveProvider::kHmi);
+  const bool succeeded = hmi_commands_->SendCommand(command, deadline, &response, &error);
+  ClearActiveProvider(ActiveProvider::kHmi);
+  if (!succeeded) {
     return {ActionExecutionStatus::kFailed, error.empty() ? "HMI command failed." : error};
   }
   if (response.empty()) {
     response = std::string("HMI command accepted: ") + ToString(command);
   }
   return {ActionExecutionStatus::kSucceeded, response};
+}
+
+void CockpitActionDispatcher::SetActiveProvider(ActiveProvider provider) {
+  std::lock_guard<std::mutex> lock(active_mutex_);
+  active_provider_ = provider;
+}
+
+void CockpitActionDispatcher::ClearActiveProvider(ActiveProvider provider) {
+  std::lock_guard<std::mutex> lock(active_mutex_);
+  if (active_provider_ == provider) {
+    active_provider_ = ActiveProvider::kNone;
+  }
 }
 
 }  // namespace voice

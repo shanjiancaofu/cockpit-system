@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <string>
 
@@ -18,7 +19,8 @@ class VehicleStatusProvider {
  public:
   virtual ~VehicleStatusProvider() = default;
 
-  virtual bool GetLatest(VehicleStatusSnapshot* status, std::string* error) = 0;
+  virtual bool GetLatest(std::chrono::steady_clock::time_point deadline,
+                         VehicleStatusSnapshot* status, std::string* error) = 0;
   virtual void Cancel() {
   }
 };

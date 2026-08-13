@@ -1,6 +1,10 @@
 #pragma once
 
+#include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "cockpit/modules/voice/actions/hmi_command_provider.h"
@@ -13,10 +17,15 @@ class LocalHmiCommandProvider final : public HmiCommandProvider {
  public:
   explicit LocalHmiCommandProvider(const std::string& address);
 
-  bool SendCommand(HmiCommand command, std::string* response, std::string* error) override;
+  bool SendCommand(HmiCommand command, std::chrono::steady_clock::time_point deadline,
+                   std::string* response, std::string* error) override;
+  void Cancel() override;
 
  private:
   std::unique_ptr<proto::hmi::HmiControl::Stub> stub_;
+  std::atomic<std::uint64_t> cancellation_generation_{0};
+  std::mutex cancellation_mutex_;
+  grpc::ClientContext* active_context_ = nullptr;
 };
 
 }  // namespace voice

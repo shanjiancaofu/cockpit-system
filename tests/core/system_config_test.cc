@@ -27,7 +27,10 @@ int main() {
       config.services().recording.min_free_bytes != 536870912ULL ||
       config.hardware().can.interface != "vcan0" ||
       config.features().voice.asr.provider != "mock" ||
-      config.features().ai.request_timeout_ms != 10000 ||
+      config.features().ai.asr_timeout_ms != 3000 ||
+      config.features().ai.assistant_timeout_ms != 10000 ||
+      config.features().ai.command_execution_timeout_ms != 3000 ||
+      config.features().ai.tts_synthesis_timeout_ms != 5000 ||
       config.features().ai.follow_up_window_ms != 8000 || config.tools().topic.backend != "file") {
     std::cerr << "typed config fields do not match config.yaml" << std::endl;
     return 1;
@@ -113,6 +116,33 @@ int main() {
     if (message.find("hardware.audio.sample_rate_hz") == std::string::npos) {
       std::cerr << "invalid audio format error did not identify config path: " << message
                 << std::endl;
+      return 1;
+    }
+  }
+
+  for (const auto* path : {INVALID_ZERO_VOICE_TIMEOUT_PATH, INVALID_NEGATIVE_VOICE_TIMEOUT_PATH}) {
+    try {
+      cockpit::config::SystemConfig::LoadFromFile(path);
+      std::cerr << "non-positive voice timeout was accepted: " << path << std::endl;
+      return 1;
+    } catch (const std::runtime_error& error) {
+      const std::string message = error.what();
+      if (message.find("must be positive") == std::string::npos &&
+          message.find("must be greater than zero") == std::string::npos) {
+        std::cerr << "voice timeout validation was not specific: " << error.what() << std::endl;
+        return 1;
+      }
+    }
+  }
+
+  try {
+    cockpit::config::SystemConfig::LoadFromFile(INVALID_LEGACY_REQUEST_TIMEOUT_PATH);
+    std::cerr << "legacy request_timeout_ms was accepted" << std::endl;
+    return 1;
+  } catch (const std::runtime_error& error) {
+    if (std::string(error.what()).find("features.ai.request_timeout_ms is not supported") ==
+        std::string::npos) {
+      std::cerr << "legacy timeout error did not identify the field: " << error.what() << std::endl;
       return 1;
     }
   }

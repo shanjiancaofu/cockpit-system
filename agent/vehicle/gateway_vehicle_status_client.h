@@ -17,11 +17,12 @@ class GatewayVehicleStatusClient final : public VehicleStatusProvider {
  public:
   explicit GatewayVehicleStatusClient(const std::string& address);
 
-  bool GetLatest(VehicleStatusSnapshot* status, std::string* error) override;
+  bool GetLatest(std::chrono::steady_clock::time_point deadline, VehicleStatusSnapshot* status,
+                 std::string* error) override;
   void Cancel() override;
 
  private:
-  bool WaitForRetry(std::uint64_t generation);
+  bool WaitForRetry(std::uint64_t generation, std::chrono::steady_clock::time_point deadline);
 
   std::unique_ptr<proto::gateway::CockpitGateway::Stub> stub_;
   std::atomic<std::uint64_t> cancellation_generation_{0};

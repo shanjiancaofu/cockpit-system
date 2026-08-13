@@ -26,6 +26,7 @@ struct SpeechPipelineMetrics {
   std::uint64_t segments_completed = 0;
   std::uint64_t segments_dropped = 0;
   std::uint64_t transcripts_published = 0;
+  std::uint64_t asr_timeouts = 0;
   std::uint64_t errors = 0;
 };
 
@@ -49,6 +50,7 @@ class SpeechPipeline {
 
  private:
   void PublishSegment(audio::SpeechSegment segment);
+  void CancelActiveRecognition();
   void RecognizeSegments();
   void RecordError(std::string error);
 
@@ -60,11 +62,14 @@ class SpeechPipeline {
   audio::SpscRingBuffer<audio::SpeechSegment, 8> segments_;
   TranscriptHandler handler_;
   std::atomic_bool running_{false};
+  std::atomic_bool recognition_active_{false};
+  std::atomic_bool recognition_cancelled_{false};
   std::thread worker_;
   std::atomic<std::uint64_t> frames_processed_{0};
   std::atomic<std::uint64_t> speech_frames_{0};
   std::atomic<std::uint64_t> segments_completed_{0};
   std::atomic<std::uint64_t> transcripts_published_{0};
+  std::atomic<std::uint64_t> asr_timeouts_{0};
   std::atomic<std::uint64_t> errors_{0};
   std::atomic<std::uint64_t> next_transcript_id_{1};
   mutable std::mutex error_mutex_;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <string>
 
 #include "cockpit/modules/voice/assistant/voice_assistant.h"
@@ -24,7 +25,8 @@ class ActionDispatcher {
  public:
   virtual ~ActionDispatcher() = default;
 
-  virtual ActionExecutionResult Execute(VoiceAction action) = 0;
+  virtual ActionExecutionResult Execute(VoiceAction action,
+                                        std::chrono::steady_clock::time_point deadline) = 0;
   virtual void Cancel() {
   }
 };

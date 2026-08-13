@@ -102,6 +102,7 @@ VoiceOutputMetrics AsyncVoiceResponseSink::metrics() const {
   result.played = metrics_->played.load();
   result.failed = metrics_->failed.load();
   result.dropped = metrics_->dropped.load();
+  result.tts_timeouts = sink_metrics.tts_timeouts;
   result.reconnects = sink_metrics.reconnects;
   result.consecutive_failures = sink_metrics.consecutive_failures;
   result.last_success_timestamp_ms = sink_metrics.last_success_timestamp_ms;

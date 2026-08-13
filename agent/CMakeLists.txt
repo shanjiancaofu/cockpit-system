@@ -26,7 +26,7 @@ add_library(voice_vehicle_client STATIC vehicle/gateway_vehicle_status_client.cc
 target_link_libraries(voice_vehicle_client PUBLIC contracts voice)
 
 add_library(voice_hmi STATIC hmi/local_hmi_command_provider.cc)
-target_link_libraries(voice_hmi PUBLIC contracts voice)
+target_link_libraries(voice_hmi PUBLIC contracts voice PRIVATE logging)
 
 add_library(voice_grpc STATIC grpc/voice_grpc_service.cc)
 target_link_libraries(voice_grpc PUBLIC contracts voice_interaction)

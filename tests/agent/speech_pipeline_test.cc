@@ -1,5 +1,6 @@
 #include "agent/speech/pipeline/speech_pipeline.h"
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -50,6 +51,60 @@ class CancellableRecognizer final : public cockpit::voice::SpeechRecognizer {
   std::condition_variable changed_;
   bool entered_ = false;
   bool cancelled_ = false;
+};
+
+class StaleOnTimeoutRecognizer final : public cockpit::voice::SpeechRecognizer {
+ public:
+  cockpit::voice::SpeechRecognitionResult Recognize(
+      const cockpit::audio::SpeechSegment&,
+      std::chrono::steady_clock::time_point deadline) override {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      deadline_propagated_ = deadline > std::chrono::steady_clock::now();
+      entered_ = true;
+    }
+    changed_.notify_all();
+    std::unique_lock<std::mutex> lock(mutex_);
+    changed_.wait(lock, [this] {
+      return cancelled_;
+    });
+    return {true, "stale transcript", "stale", 1.0F, {}};
+  }
+
+  void Cancel() override {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      cancelled_ = true;
+      ++cancel_calls_;
+    }
+    changed_.notify_all();
+  }
+
+  bool WaitUntilCancelled() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return changed_.wait_until(lock, std::chrono::system_clock::now() + std::chrono::seconds(1),
+                               [this] {
+                                 return entered_ && cancelled_;
+                               });
+  }
+
+  bool deadline_propagated() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return deadline_propagated_;
+  }
+
+  std::uint64_t cancel_calls() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return cancel_calls_;
+  }
+
+ private:
+  mutable std::mutex mutex_;
+  std::condition_variable changed_;
+  bool entered_ = false;
+  bool cancelled_ = false;
+  bool deadline_propagated_ = false;
+  std::uint64_t cancel_calls_ = 0U;
 };
 
 }  // namespace
@@ -129,6 +184,35 @@ int main() {
   if (std::chrono::steady_clock::now() - stop_started > std::chrono::milliseconds(300) ||
       cancellable_pipeline.metrics().errors != 1) {
     std::cerr << "speech recognition cancellation was not bounded\n";
+    return 1;
+  }
+
+  auto stale_recognizer = std::make_unique<StaleOnTimeoutRecognizer>();
+  auto* stale_observer = stale_recognizer.get();
+  cockpit::agent::SpeechPipeline timeout_pipeline(
+      audio_config, segment_config, std::make_unique<cockpit::agent::MockVoiceActivityDetector>(),
+      std::move(stale_recognizer), std::chrono::milliseconds(10));
+  std::atomic<std::uint64_t> stale_transcripts{0U};
+  if (!timeout_pipeline.Start(
+          [&stale_transcripts](const cockpit::voice::SpeechTranscript&) {
+            stale_transcripts.fetch_add(1U);
+          },
+          &error)) {
+    std::cerr << "failed to start ASR timeout pipeline\n";
+    return 1;
+  }
+  timeout_pipeline.Submit(
+      cockpit::audio::AudioFrame(1, 0, cockpit::audio::AudioFrameFlag::kNone, samples));
+  if (!stale_observer->WaitUntilCancelled()) {
+    std::cerr << "ASR deadline did not cancel the recognizer\n";
+    return 1;
+  }
+  timeout_pipeline.Stop();
+  const auto timeout_metrics = timeout_pipeline.metrics();
+  if (!stale_observer->deadline_propagated() || stale_observer->cancel_calls() != 1U ||
+      timeout_metrics.asr_timeouts != 1U || timeout_metrics.transcripts_published != 0U ||
+      stale_transcripts.load() != 0U) {
+    std::cerr << "timed-out ASR published a stale transcript or missed timeout metrics\n";
     return 1;
   }
   std::cout << "agent speech pipeline tests passed\n";

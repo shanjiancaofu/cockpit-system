@@ -206,8 +206,10 @@ void VoiceGrpcService::FillStatus(const VoiceInteractionStatus& value,
   metrics->set_actions_succeeded(value.metrics.actions_succeeded);
   metrics->set_actions_failed(value.metrics.actions_failed);
   metrics->set_requests_interrupted(value.metrics.requests_interrupted);
-  metrics->set_provider_timeouts(value.metrics.provider_timeouts);
-  metrics->set_provider_failures(value.metrics.provider_failures);
+  metrics->set_assistant_timeouts(value.metrics.assistant_timeouts);
+  metrics->set_assistant_failures(value.metrics.assistant_failures);
+  metrics->set_action_timeouts(value.metrics.action_timeouts);
+  metrics->set_tts_timeouts(value.metrics.output.tts_timeouts);
   metrics->set_state_transitions(value.metrics.state_transitions);
   metrics->set_rejected_state_transitions(value.metrics.rejected_state_transitions);
   metrics->set_speech_requests_accepted(value.metrics.output.queued);

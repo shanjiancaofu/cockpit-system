@@ -132,7 +132,10 @@ struct VoiceConfig {
 };
 
 struct AiConfig {
-  int request_timeout_ms = 10000;
+  int asr_timeout_ms = 3000;
+  int assistant_timeout_ms = 10000;
+  int command_execution_timeout_ms = 3000;
+  int tts_synthesis_timeout_ms = 5000;
   int follow_up_window_ms = 8000;
 };
 

@@ -54,10 +54,12 @@ message VoiceMetrics {
   uint64 audio_playback_consecutive_failures = 15;
   uint64 audio_playback_last_success_timestamp_ms = 16;
   uint64 requests_interrupted = 17;
-  uint64 provider_timeouts = 18;
-  uint64 provider_failures = 19;
+  uint64 assistant_timeouts = 18;
+  uint64 assistant_failures = 19;
   uint64 state_transitions = 20;
   uint64 rejected_state_transitions = 21;
+  uint64 action_timeouts = 22;
+  uint64 tts_timeouts = 23;
 }
 
 message VoiceInteractionStatus {

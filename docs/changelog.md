@@ -2,6 +2,23 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-08-14 - Voice Agent 阶段 6 通用运行时收尾
+
+- 删除通用 `request_timeout_ms`，活动配置改为 ASR、Assistant、Action、TTS synthesis 四个独立预算；
+  所有业务 deadline 使用 steady clock，Gateway/HMI 只根据剩余预算设置 gRPC deadline。
+- ASR、Assistant 和 Action 的 watchdog 在超时后取消实际 provider 并拒绝 stale 结果；Action cancel
+  能路由到当前实际使用的 vehicle 或 HMI provider，HMI active gRPC 支持 `TryCancel`。
+- Assistant/provider failure 与 timeout 复用既有 VoiceResponseSink 播放固定错误提示；恢复提示期间
+  保持 `ERROR_RECOVERY` active，完成/失败/打断后回到 `IDLE`，播放自身失败不会递归生成提示。
+- TTS synthesis 预算与 PCM playback 生命周期保持分离；accepted playback 遇到 Timeout 或
+  TransportError 时执行最多两次取消和一次有界 terminal confirmation，最终不确定时明确失败，
+  不伪报 `Cancelled`。
+- 超时指标拆分为 `asr_timeouts`、`assistant_timeouts`、`action_timeouts` 和 `tts_timeouts`；新增配置
+  非正值、旧字段、provider 总预算/取消、stale 结果、恢复提示和 transport uncertainty 测试。
+- 阶段 6 只宣告通用运行时逻辑完成；真实 ASR、TTS、LLM、麦克风、扬声器及声学验证仍未完成。
+- WSL 验证：Debug 54/54、Release 54/54、ASan/UBSan 非 system-grpc 46/46、当前 CI TSan regex
+  9/9、driver dependency boundary、签名 package validation 和 pre-commit 全部通过。
+
 ## 2026-08-13 - Voice Agent 真实播放与 FOLLOW_UP 闭环
 
 - `AudioControl.PlayPcm` 增加 playback id，继续只表达是否入队；新增最小的单次结果等待和取消 RPC，

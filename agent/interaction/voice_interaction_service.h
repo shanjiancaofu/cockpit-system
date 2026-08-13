@@ -46,8 +46,9 @@ struct VoiceInteractionMetrics {
   std::uint64_t actions_succeeded = 0;
   std::uint64_t actions_failed = 0;
   std::uint64_t requests_interrupted = 0;
-  std::uint64_t provider_timeouts = 0;
-  std::uint64_t provider_failures = 0;
+  std::uint64_t assistant_timeouts = 0;
+  std::uint64_t assistant_failures = 0;
+  std::uint64_t action_timeouts = 0;
   std::uint64_t state_transitions = 0;
   std::uint64_t rejected_state_transitions = 0;
   VoiceOutputMetrics output;
@@ -74,7 +75,8 @@ class VoiceInteractionService {
                           std::unique_ptr<ActionDispatcher> dispatcher,
                           std::unique_ptr<VoiceResponseSink> output = nullptr,
                           ResponseObserver response_observer = nullptr,
-                          std::chrono::milliseconds request_timeout = std::chrono::seconds(10),
+                          std::chrono::milliseconds assistant_timeout = std::chrono::seconds(10),
+                          std::chrono::milliseconds action_timeout = std::chrono::seconds(3),
                           std::chrono::milliseconds follow_up_window = std::chrono::seconds(8));
   ~VoiceInteractionService();
 
@@ -95,10 +97,19 @@ class VoiceInteractionService {
 
  private:
   bool BeginRequest();
+  void BeginAssistantCall();
+  void EndAssistantCall();
+  void CancelAssistantCall();
+  void BeginActionCall();
+  void EndActionCall();
+  void CancelActionCall();
   void HandleOutputResult(std::uint64_t request_generation, VoiceOutputResult result);
   void ExpireFollowUpIfNeeded();
   void InvalidateOutputLifecycle();
-  void RecoverFromError(const std::string& reason);
+  void RecoverFromError(const std::string& reason, std::uint64_t request_generation,
+                        std::optional<VoiceResponse> response = std::nullopt,
+                        bool play_prompt = false);
+  bool SubmitOutput(VoiceResponse response, std::uint64_t request_generation, bool recovery);
   void ReturnToIdle(const std::string& reason);
   VoiceResponse PublishResponse(VoiceResponse response);
   void ProcessLoop();
@@ -108,9 +119,15 @@ class VoiceInteractionService {
   const std::unique_ptr<ActionDispatcher> dispatcher_;
   const std::unique_ptr<VoiceResponseSink> output_;
   const ResponseObserver response_observer_;
-  const std::chrono::milliseconds request_timeout_;
+  const std::chrono::milliseconds assistant_timeout_;
+  const std::chrono::milliseconds action_timeout_;
   const std::chrono::milliseconds follow_up_window_;
   mutable std::mutex processing_mutex_;
+  std::mutex provider_lifecycle_mutex_;
+  bool assistant_call_active_ = false;
+  bool assistant_cancel_requested_ = false;
+  bool action_call_active_ = false;
+  bool action_cancel_requested_ = false;
   event::EventQueue<SpeechTranscript> transcript_events_{32};
   std::atomic<bool> worker_running_{false};
   std::unique_ptr<std::thread> worker_;
@@ -124,12 +141,14 @@ class VoiceInteractionService {
   std::atomic<std::uint64_t> actions_succeeded_{0};
   std::atomic<std::uint64_t> actions_failed_{0};
   std::atomic<std::uint64_t> requests_interrupted_{0};
-  std::atomic<std::uint64_t> provider_timeouts_{0};
-  std::atomic<std::uint64_t> provider_failures_{0};
+  std::atomic<std::uint64_t> assistant_timeouts_{0};
+  std::atomic<std::uint64_t> assistant_failures_{0};
+  std::atomic<std::uint64_t> action_timeouts_{0};
   std::atomic<std::uint64_t> interrupt_generation_{0};
   mutable std::mutex output_mutex_;
   std::uint64_t active_output_request_id_ = 0;
   std::uint64_t active_output_generation_ = 0;
+  bool active_output_recovery_ = false;
   std::optional<std::chrono::steady_clock::time_point> follow_up_deadline_;
   mutable std::mutex response_mutex_;
   mutable std::condition_variable response_changed_;

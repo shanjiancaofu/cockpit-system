@@ -36,8 +36,10 @@ class CountingResponseSink final : public cockpit::voice::VoiceResponseSink {
 
 class BlockingActionDispatcher final : public cockpit::voice::ActionDispatcher {
  public:
-  cockpit::voice::ActionExecutionResult Execute(cockpit::voice::VoiceAction) override {
+  cockpit::voice::ActionExecutionResult Execute(
+      cockpit::voice::VoiceAction, std::chrono::steady_clock::time_point deadline) override {
     std::unique_lock<std::mutex> lock(mutex_);
+    deadline_propagated_ = deadline > std::chrono::steady_clock::now();
     entered_ = true;
     changed_.notify_all();
     changed_.wait(lock, [this] {
@@ -50,8 +52,19 @@ class BlockingActionDispatcher final : public cockpit::voice::ActionDispatcher {
     {
       std::lock_guard<std::mutex> lock(mutex_);
       cancelled_ = true;
+      ++cancel_calls_;
     }
     changed_.notify_all();
+  }
+
+  std::uint64_t cancel_calls() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return cancel_calls_;
+  }
+
+  bool deadline_propagated() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return deadline_propagated_;
   }
 
   bool WaitUntilEntered() {
@@ -63,10 +76,12 @@ class BlockingActionDispatcher final : public cockpit::voice::ActionDispatcher {
   }
 
  private:
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::condition_variable changed_;
   bool entered_ = false;
   bool cancelled_ = false;
+  bool deadline_propagated_ = false;
+  std::uint64_t cancel_calls_ = 0U;
 };
 
 class RecoveringVoiceAssistant final : public cockpit::voice::VoiceAssistant {
@@ -92,20 +107,27 @@ class RecoveringVoiceAssistant final : public cockpit::voice::VoiceAssistant {
     {
       std::lock_guard<std::mutex> lock(mutex_);
       cancelled_ = true;
+      ++cancel_calls_;
     }
     changed_.notify_all();
   }
 
+  std::uint64_t cancel_calls() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return cancel_calls_;
+  }
+
  private:
   int calls_ = 0;
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::condition_variable changed_;
   bool cancelled_ = false;
+  std::uint64_t cancel_calls_ = 0U;
 };
 
 class ManualResponseSink final : public cockpit::voice::VoiceResponseSink {
  public:
-  bool Submit(std::uint64_t request_id, std::string,
+  bool Submit(std::uint64_t request_id, std::string text,
               cockpit::voice::VoiceOutputCompletion completion) override {
     {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -113,6 +135,7 @@ class ManualResponseSink final : public cockpit::voice::VoiceResponseSink {
         return false;
       }
       callbacks_[request_id] = std::move(completion);
+      texts_[request_id] = std::move(text);
       active_request_id_ = request_id;
       ++submissions_;
     }
@@ -186,10 +209,17 @@ class ManualResponseSink final : public cockpit::voice::VoiceResponseSink {
     return interruptions_;
   }
 
+  std::string text(std::uint64_t request_id) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto found = texts_.find(request_id);
+    return found == texts_.end() ? std::string{} : found->second;
+  }
+
  private:
   mutable std::mutex mutex_;
   std::condition_variable changed_;
   std::map<std::uint64_t, cockpit::voice::VoiceOutputCompletion> callbacks_;
+  std::map<std::uint64_t, std::string> texts_;
   std::uint64_t active_request_id_ = 0;
   std::uint64_t submissions_ = 0;
   std::uint64_t interruptions_ = 0;
@@ -281,13 +311,13 @@ int main() {
   const auto timeout_started = std::chrono::steady_clock::now();
   if (recovering_service.HandleTranscript(provider_transcript).has_value() ||
       std::chrono::steady_clock::now() - timeout_started > std::chrono::milliseconds(300) ||
-      recovering_service.status().metrics.provider_timeouts != 1 ||
+      recovering_service.status().metrics.assistant_timeouts != 1 ||
       recovering_service.status().state != cockpit::voice::InteractionState::kIdle) {
     std::cerr << "voice provider timeout was not recorded\n";
     return 1;
   }
   if (recovering_service.HandleTranscript(provider_transcript).has_value() ||
-      recovering_service.status().metrics.provider_failures != 1) {
+      recovering_service.status().metrics.assistant_failures != 1) {
     std::cerr << "voice provider failure was not recorded\n";
     return 1;
   }
@@ -300,12 +330,76 @@ int main() {
     return 1;
   }
 
+  auto recovery_assistant = std::make_unique<RecoveringVoiceAssistant>();
+  auto* recovery_assistant_observer = recovery_assistant.get();
+  auto recovery_sink = std::make_unique<ManualResponseSink>();
+  auto* recovery_output = recovery_sink.get();
+  cockpit::voice::VoiceInteractionService recovery_prompt_service(
+      true, std::move(recovery_assistant), nullptr, std::move(recovery_sink), nullptr,
+      std::chrono::milliseconds(10), std::chrono::seconds(1), std::chrono::seconds(1));
+  if (recovery_prompt_service.HandleTranscript(provider_transcript).has_value()) {
+    std::cerr << "assistant timeout unexpectedly returned a normal response\n";
+    return 1;
+  }
+  const auto timeout_prompt = recovery_prompt_service.status().latest_response;
+  if (!timeout_prompt.has_value() ||
+      recovery_prompt_service.status().state != cockpit::voice::InteractionState::kErrorRecovery ||
+      recovery_prompt_service.status().metrics.assistant_timeouts != 1U ||
+      recovery_assistant_observer->cancel_calls() != 1U ||
+      recovery_output->text(timeout_prompt->id) !=
+          "Sorry, I couldn't complete that request. Please try again.") {
+    std::cerr << "assistant timeout did not enter fixed-prompt recovery\n";
+    return 1;
+  }
+  recovery_output->Complete(timeout_prompt->id, cockpit::voice::VoiceOutputStatus::kCompleted);
+  if (recovery_prompt_service.status().state != cockpit::voice::InteractionState::kIdle) {
+    std::cerr << "completed recovery prompt did not return to Idle\n";
+    return 1;
+  }
+
+  if (recovery_prompt_service.HandleTranscript(provider_transcript).has_value()) {
+    std::cerr << "assistant failure unexpectedly returned a normal response\n";
+    return 1;
+  }
+  const auto failure_prompt = recovery_prompt_service.status().latest_response;
+  if (!failure_prompt.has_value() ||
+      recovery_prompt_service.status().metrics.assistant_failures != 1U ||
+      recovery_prompt_service.status().state != cockpit::voice::InteractionState::kErrorRecovery) {
+    std::cerr << "assistant failure did not keep recovery active\n";
+    return 1;
+  }
+  const auto recovery_interrupt = recovery_prompt_service.Interrupt();
+  if (!recovery_interrupt.active_request_interrupted ||
+      recovery_prompt_service.status().state != cockpit::voice::InteractionState::kIdle) {
+    std::cerr << "interrupt did not cancel the recovery prompt\n";
+    return 1;
+  }
+  recovery_output->Complete(failure_prompt->id, cockpit::voice::VoiceOutputStatus::kCompleted);
+  if (recovery_prompt_service.status().state != cockpit::voice::InteractionState::kIdle) {
+    std::cerr << "stale recovery prompt callback changed state\n";
+    return 1;
+  }
+
+  const auto normal_after_recovery = recovery_prompt_service.HandleTranscript(provider_transcript);
+  if (!normal_after_recovery.has_value()) {
+    std::cerr << "service did not accept a request after recovery\n";
+    return 1;
+  }
+  const auto output_count_before_failure = recovery_prompt_service.status().metrics.output.queued;
+  recovery_output->Complete(normal_after_recovery->id, cockpit::voice::VoiceOutputStatus::kFailed,
+                            "speaker failed");
+  if (recovery_prompt_service.status().state != cockpit::voice::InteractionState::kIdle ||
+      recovery_prompt_service.status().metrics.output.queued != output_count_before_failure) {
+    std::cerr << "playback failure recursively created a recovery prompt\n";
+    return 1;
+  }
+
   auto lifecycle_sink = std::make_unique<ManualResponseSink>();
   auto* lifecycle_output = lifecycle_sink.get();
   cockpit::voice::VoiceInteractionService lifecycle_service(
       true, std::make_unique<cockpit::voice::MockVoiceAssistant>(),
       std::make_unique<cockpit::voice::MockActionDispatcher>(), std::move(lifecycle_sink), nullptr,
-      std::chrono::seconds(1), std::chrono::milliseconds(30));
+      std::chrono::seconds(1), std::chrono::seconds(1), std::chrono::milliseconds(30));
   if (!lifecycle_service.Start()) {
     std::cerr << "playback lifecycle service did not start\n";
     return 1;
@@ -392,6 +486,38 @@ int main() {
     return 1;
   }
   lifecycle_service.Stop();
+
+  auto timeout_dispatcher = std::make_unique<BlockingActionDispatcher>();
+  auto* timeout_dispatcher_observer = timeout_dispatcher.get();
+  auto action_timeout_sink = std::make_unique<ManualResponseSink>();
+  auto* action_timeout_output = action_timeout_sink.get();
+  cockpit::voice::VoiceInteractionService action_timeout_service(
+      true, std::make_unique<cockpit::voice::MockVoiceAssistant>(), std::move(timeout_dispatcher),
+      std::move(action_timeout_sink), nullptr, std::chrono::seconds(1),
+      std::chrono::milliseconds(10), std::chrono::seconds(1));
+  cockpit::voice::SpeechTranscript action_timeout_transcript;
+  action_timeout_transcript.id = 450U;
+  action_timeout_transcript.text = "show vehicle status";
+  const auto action_started = std::chrono::steady_clock::now();
+  if (action_timeout_service.HandleTranscript(action_timeout_transcript).has_value() ||
+      std::chrono::steady_clock::now() - action_started > std::chrono::milliseconds(300)) {
+    std::cerr << "action execution deadline was not bounded\n";
+    return 1;
+  }
+  const auto action_timeout_prompt = action_timeout_service.status().latest_response;
+  if (!action_timeout_prompt.has_value() || !timeout_dispatcher_observer->deadline_propagated() ||
+      timeout_dispatcher_observer->cancel_calls() != 1U ||
+      action_timeout_service.status().metrics.action_timeouts != 1U ||
+      action_timeout_service.status().state != cockpit::voice::InteractionState::kErrorRecovery) {
+    std::cerr << "action timeout did not cancel once and enter recovery\n";
+    return 1;
+  }
+  action_timeout_output->Complete(action_timeout_prompt->id,
+                                  cockpit::voice::VoiceOutputStatus::kCompleted);
+  if (action_timeout_service.status().state != cockpit::voice::InteractionState::kIdle) {
+    std::cerr << "action timeout recovery did not return to Idle\n";
+    return 1;
+  }
 
   auto rejecting_sink = std::make_unique<ManualResponseSink>();
   auto* rejecting_output = rejecting_sink.get();
