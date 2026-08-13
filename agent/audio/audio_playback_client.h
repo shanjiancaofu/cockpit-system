@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -15,7 +16,8 @@ namespace voice {
 class AudioPlaybackClient final : public VoiceResponseSink {
  public:
   explicit AudioPlaybackClient(const std::string& address);
-  AudioPlaybackClient(const std::string& address, std::unique_ptr<SpeechSynthesizer> synthesizer);
+  AudioPlaybackClient(const std::string& address, std::unique_ptr<SpeechSynthesizer> synthesizer,
+                      std::chrono::milliseconds synthesis_timeout = std::chrono::seconds(5));
 
   bool Submit(std::string text) override;
   VoiceOutputMetrics metrics() const override;
@@ -29,6 +31,7 @@ class AudioPlaybackClient final : public VoiceResponseSink {
   mutable std::mutex context_mutex_;
   grpc::ClientContext* active_context_ = nullptr;
   bool stopping_ = false;
+  const std::chrono::milliseconds synthesis_timeout_;
   std::atomic<std::uint64_t> queued_{0};
   std::atomic<std::uint64_t> failed_{0};
   std::atomic<std::uint64_t> dropped_{0};

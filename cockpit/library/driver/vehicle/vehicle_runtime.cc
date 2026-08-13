@@ -62,6 +62,9 @@ bool VehicleRuntime::Start(const std::string& config_path, const std::string& so
         },
         [this] {
           return !impl_->stopping.load();
+        },
+        [this](const can::CanLinkStatus& status) {
+          impl_->grpc.PublishLinkStatus(status);
         });
     impl_->running.store(true);
     impl_->worker = std::thread([this] {

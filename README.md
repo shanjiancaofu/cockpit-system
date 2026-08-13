@@ -28,8 +28,8 @@
 ```text
 systemd → cockpit/navigator → module child → cockpit/library / agent
 
-apps / library / agent / tools → modules ← drivers
-                 各层共用 core；跨进程契约位于 proto
+Linux / Hardware → drivers → modules → library / agent / apps / tools
+drivers 之上的项目层共用 core；跨进程契约位于 proto
 ```
 
 - `cockpit/core`：配置、日志、Runtime、事件和 IPC。

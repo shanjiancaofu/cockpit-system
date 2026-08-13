@@ -26,20 +26,24 @@ cockpit-system/
 依赖方向：
 
 ```text
-apps / library / agent / tools
-               ↓
-             modules
-               ↑
-             drivers
+Linux / Hardware
+       ↓
+     drivers
+       ↓
+     modules
+       ↓
+library / agent / apps / tools
 
-core 为各层提供通用基础设施；drivers 实现 modules 定义的硬件抽象。
+core 为 drivers 之上的项目层提供通用基础设施；drivers 不依赖任何 cockpit 项目层。
 ```
 
 实际依赖按接口决定，禁止反向依赖：
 
 - `core` 不依赖业务模块。
 - `modules` 不依赖 process 或 app。
-- `drivers` 只适配硬件接口，不包含业务策略。
+- `drivers` 只封装 Linux/硬件原始接口和类型，不包含业务策略，也不 include/link `core`、
+  `modules`、`library`、Navigator 或 Agent。
+- `modules` 可以使用 driver，将硬件原始类型适配为领域类型和逻辑。
 - UI 不直接打开硬件设备。
 - 进程级模块之间通过 `cockpit/proto` 定义的 gRPC 契约或明确 IPC 通信，不直接 include 对方实现。
 

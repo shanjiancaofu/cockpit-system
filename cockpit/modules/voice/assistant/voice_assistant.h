@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <string>
 
 #include "cockpit/modules/voice/assistant/speech_transcript.h"
@@ -31,9 +32,9 @@ class VoiceAssistant {
  public:
   virtual ~VoiceAssistant() = default;
 
-  virtual VoiceAssistantResult HandleTranscript(const SpeechTranscript& transcript) = 0;
-  virtual void Cancel() {
-  }
+  virtual VoiceAssistantResult HandleTranscript(const SpeechTranscript& transcript,
+                                                std::chrono::steady_clock::time_point deadline) = 0;
+  virtual void Cancel() = 0;
 };
 
 const char* ToString(VoiceIntent intent);

@@ -5,8 +5,8 @@
 #include <thread>
 #include <utility>
 
-#include "cockpit/drivers/alsa/alsa_capture_source.h"
 #include "cockpit/modules/audio/analysis/audio_level_meter.h"
+#include "cockpit/modules/audio/capture/alsa_capture_source.h"
 #include "cockpit/modules/audio/capture/audio_capture_stream.h"
 
 namespace cockpit {
@@ -79,10 +79,14 @@ bool AudioCaptureController::Start(const std::string& input_device, std::string*
          std::chrono::steady_clock::now() < deadline) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
-  if (capture_module_->capture_state() == AudioCaptureState::kFaulted) {
+  const AudioCaptureState ready_state = capture_module_->capture_state();
+  if (ready_state != AudioCaptureState::kRunning) {
     if (error != nullptr) {
-      *error = capture_module_->last_error();
+      *error = ready_state == AudioCaptureState::kFaulted
+                   ? capture_module_->last_error()
+                   : "audio capture did not become ready before timeout";
     }
+    StopLocked();
     return false;
   }
   input_level_millidbfs_.store(-120000);
@@ -120,6 +124,11 @@ AudioCaptureControllerStatus AudioCaptureController::status() const {
     result.last_error = capture_module_->last_error();
   }
   return result;
+}
+
+bool AudioCaptureController::faulted() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return CaptureStateLocked() == AudioCaptureState::kFaulted;
 }
 
 void AudioCaptureController::StopLocked() {

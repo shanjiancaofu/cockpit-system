@@ -250,36 +250,42 @@ openssl pkey -in ota-signing-key.pem -pubout -out ota-public-key.pem
 OTA_SIGNING_KEY="$PWD/ota-signing-key.pem" bash scripts/package.sh
 ```
 
-`safe-ota` 接收解压后的候选发布包，操作前必须显式确认包内版本：
+生产 release 和 `current` 由 root 管理且对 `cockpit` 运行用户只读。管理员接收解压后的候选发布包，
+操作前必须显式确认包内版本，并使用 standalone 权限边界：
 
 ```bash
 sudo /cockpit-system/current/bin/safe-ota \
   --package /cockpit-system/data/ota/incoming/cockpit-system-0.2.0-linux-arm64 \
   --confirm 0.2.0 \
   --root /cockpit-system \
-  --socket /cockpit-system/run/navigator.sock
+  --socket /cockpit-system/run/navigator.sock \
+  --standalone
 ```
 
-工具在执行包内任何脚本前验证 Ed25519 签名、checksum、确认版本和单调版本策略，请求 Navigator
-进入只运行 upgrader 的 `upgrade` mode，将候选安装到 `releases/<version>` 并原子更新 `current`。
+工具在执行包内任何脚本前验证 Ed25519 签名、checksum、确认版本和单调版本策略，将候选安装到
+root 管理的 `releases/<version>` 并原子更新 `current`。普通 `cockpit` module child 不拥有 release
+写权限，不能替换已验签的 executable 或动态库。
 激活后 Navigator 通过 `exec` 替换为新 release，全部 module child 和 UI 重新启动；健康检查确认整棵
 进程树均来自新 release 后才写入 `data/ota-version-floor` 并确认升级。旧版本或相同版本的合法签名包
-也会被 anti-rollback 拒绝。健康检查失败时恢复旧版本、删除失败版本并重新执行旧 Navigator。WSL 或
-救援环境可加 `--standalone`，不通过 Navigator 执行同一安装和回滚事务。
-在线模式只接受 `/cockpit-system/data/ota/incoming`（0700）内的候选包，使 systemd
-`PrivateTmp` 和 `ProtectHome` 保持生效；只有显式 `--standalone` 的救援流程可从其他目录安装。
+也会被 anti-rollback 拒绝。健康检查失败时恢复旧版本、删除失败版本并重新执行旧 Navigator。生产部署
+必须使用 root `--standalone`，不经 Navigator module child 修改 release。候选包固定进入
+`/cockpit-system/data/ota/incoming`（0700）；开发/WSL 的非系统安装根仍可使用在线 upgrade mode 验证
+编排流程，但不代表生产权限模型。
 
 安装前会写入 `run/upgrade-transaction.yaml`，记录 `prepared`、`activated`、`confirmed` 阶段。事务
 使用“临时文件写入并 fsync -> rename -> 父目录 fsync”的顺序发布；安装脚本在切换 `current` 前同步
 候选内容，切换和回滚后再次同步安装根目录。这样重启后可以根据最后一个完整事务状态决定回滚未确认
 版本，或保留已 confirmed 版本。
 
-`run/safe-ota.lock` 保证同一安装根目录只执行一个升级。systemd 在 Navigator 启动前执行一次
-`safe-ota --recover`，因此开机和服务重启会先收口遗留事务；救援流程也可显式执行：
+`run/safe-ota.lock` 保证同一安装根目录只执行一个升级。生产 systemd 进程没有 release 写权限，
+因此不会在 Navigator 的文件系统沙箱中自动恢复事务。管理员在启动或重启服务前执行：
 
 ```bash
-sudo /cockpit-system/current/bin/safe-ota --recover --root /cockpit-system
+sudo /cockpit-system/current/bin/safe-ota --recover --root /cockpit-system --standalone
 ```
+
+设备量产时应由 root 权限的外部启动/升级协调器执行这一步；不能为了自动恢复而重新开放 Navigator 对
+`releases/` 和 `current` 的写权限。
 
 当前自动测试覆盖 prepared 切换前后、activated、confirmed、签名/内容篡改、anti-rollback、卡死健康
 检查进程组清理、新旧完整进程树切换和失败回滚。尚未用真实 Jetson 存储介质做拔电测试，也未覆盖 A/B

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <condition_variable>
 #include <exception>
 #include <stdexcept>
 #include <utility>
@@ -113,22 +114,47 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
   }
   transcripts_received_.fetch_add(1U);
   const auto provider_started = std::chrono::steady_clock::now();
+  const auto provider_deadline = provider_started + request_timeout_;
   VoiceAssistantResult result;
+  std::mutex provider_mutex;
+  std::condition_variable provider_changed;
+  bool provider_finished = false;
+  std::atomic_bool provider_timed_out{false};
+  std::thread provider_watchdog([&] {
+    std::unique_lock<std::mutex> lock(provider_mutex);
+    if (!provider_changed.wait_until(lock, provider_deadline, [&] {
+          return provider_finished;
+        })) {
+      provider_timed_out.store(true);
+      assistant_->Cancel();
+    }
+  });
+  std::string provider_error;
   try {
-    result = assistant_->HandleTranscript(transcript);
+    result = assistant_->HandleTranscript(transcript, provider_deadline);
   } catch (const std::exception& exception) {
+    provider_error = exception.what();
+  } catch (...) {
+    provider_error = "voice assistant provider failed";
+  }
+  {
+    std::lock_guard<std::mutex> lock(provider_mutex);
+    provider_finished = true;
+  }
+  provider_changed.notify_all();
+  provider_watchdog.join();
+  if (!provider_error.empty()) {
     if (request_generation != interrupt_generation_.load()) {
       return std::nullopt;
     }
-    const auto elapsed = std::chrono::steady_clock::now() - provider_started;
     processing_errors_.fetch_add(1U);
     std::string recovery_reason;
-    if (elapsed > request_timeout_) {
+    if (provider_timed_out.load()) {
       provider_timeouts_.fetch_add(1U);
       recovery_reason = "voice assistant provider timed out";
     } else {
       provider_failures_.fetch_add(1U);
-      recovery_reason = exception.what();
+      recovery_reason = provider_error;
     }
     SetLastError(recovery_reason);
     RecoverFromError(recovery_reason);
@@ -138,7 +164,7 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
   if (request_generation != interrupt_generation_.load()) {
     return std::nullopt;
   }
-  if (std::chrono::steady_clock::now() - provider_started > request_timeout_) {
+  if (provider_timed_out.load() || std::chrono::steady_clock::now() > provider_deadline) {
     processing_errors_.fetch_add(1U);
     provider_timeouts_.fetch_add(1U);
     SetLastError("voice assistant provider timed out");

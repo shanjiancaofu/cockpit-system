@@ -2,12 +2,22 @@ add_executable(cockpit_smoke_test integration/smoke_test.cc)
 target_link_libraries(cockpit_smoke_test PRIVATE can vehicle)
 add_test(NAME cockpit_smoke_test COMMAND cockpit_smoke_test)
 
+add_executable(socket_can_adapter_test modules/can/socket_can_adapter_test.cc)
+target_link_libraries(socket_can_adapter_test PRIVATE can)
+add_test(NAME socket_can_adapter_test COMMAND socket_can_adapter_test)
+
 add_library(navigator_crash_module MODULE runtime/crash_module.cc)
 target_include_directories(navigator_crash_module PRIVATE ${PROJECT_SOURCE_DIR})
 target_link_libraries(navigator_crash_module PRIVATE Threads::Threads)
 
 add_library(navigator_good_module MODULE runtime/good_module.cc)
 target_include_directories(navigator_good_module PRIVATE ${PROJECT_SOURCE_DIR})
+
+add_library(navigator_debugger_good_module MODULE runtime/debugger_good_module.cc)
+target_include_directories(navigator_debugger_good_module PRIVATE ${PROJECT_SOURCE_DIR})
+
+add_library(navigator_calibration_good_module MODULE runtime/calibration_good_module.cc)
+target_include_directories(navigator_calibration_good_module PRIVATE ${PROJECT_SOURCE_DIR})
 
 add_library(navigator_incompatible_module MODULE runtime/incompatible_module.cc)
 target_include_directories(navigator_incompatible_module PRIVATE ${PROJECT_SOURCE_DIR})
@@ -17,6 +27,8 @@ target_link_libraries(navigator_test PRIVATE navigator_core)
 add_test(NAME navigator_test COMMAND navigator_test
     $<TARGET_FILE:cockpit-navigator>
     $<TARGET_FILE:navigator_good_module>
+    $<TARGET_FILE:navigator_debugger_good_module>
+    $<TARGET_FILE:navigator_calibration_good_module>
     $<TARGET_FILE:navigator_crash_module>
     $<TARGET_FILE:navigator_incompatible_module>
     $<TARGET_FILE:cockpit-ctl>
@@ -122,6 +134,11 @@ target_link_libraries(gateway_grpc_service_test PRIVATE transfer_runtime)
 add_test(NAME gateway_grpc_service_test COMMAND gateway_grpc_service_test)
 set_tests_properties(gateway_grpc_service_test PROPERTIES LABELS "system-grpc")
 
+add_executable(vehicle_grpc_service_test library/driver/vehicle/vehicle_grpc_service_test.cc)
+target_link_libraries(vehicle_grpc_service_test PRIVATE vehicle_runtime)
+add_test(NAME vehicle_grpc_service_test COMMAND vehicle_grpc_service_test)
+set_tests_properties(vehicle_grpc_service_test PROPERTIES LABELS "system-grpc")
+
 add_executable(recording_session_test modules/recording/recording_session_test.cc)
 target_link_libraries(recording_session_test PRIVATE recording)
 add_test(NAME recording_session_test COMMAND recording_session_test)
@@ -210,6 +227,15 @@ add_executable(voice_interaction_service_test agent/voice_interaction_service_te
 target_link_libraries(voice_interaction_service_test PRIVATE voice_interaction)
 add_test(NAME voice_interaction_service_test COMMAND voice_interaction_service_test)
 
+add_executable(voice_pcm_e2e_test agent/voice_pcm_e2e_test.cc)
+target_link_libraries(voice_pcm_e2e_test PRIVATE
+    agent_audio_stream
+    agent_speech
+    audio_stream_publisher
+    voice_interaction
+)
+add_test(NAME voice_pcm_e2e_test COMMAND voice_pcm_e2e_test)
+
 add_executable(conversation_state_machine_test agent/conversation_state_machine_test.cc)
 target_link_libraries(conversation_state_machine_test PRIVATE voice_interaction)
 add_test(NAME conversation_state_machine_test COMMAND conversation_state_machine_test)
@@ -217,6 +243,10 @@ add_test(NAME conversation_state_machine_test COMMAND conversation_state_machine
 add_executable(audio_playback_test library/driver/audio/audio_playback_test.cc)
 target_link_libraries(audio_playback_test PRIVATE agent_speech audio_device_playback)
 add_test(NAME audio_playback_test COMMAND audio_playback_test)
+
+add_executable(audio_playback_client_test agent/audio_playback_client_test.cc)
+target_link_libraries(audio_playback_client_test PRIVATE voice_audio_clients)
+add_test(NAME audio_playback_client_test COMMAND audio_playback_client_test)
 
 add_executable(system_config_test core/system_config_test.cc)
 target_link_libraries(system_config_test PRIVATE config)

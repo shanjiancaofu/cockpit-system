@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package cockpit.proto.vehicle;
 
+import "common.proto";
+
 message VehicleState {
   int64 timestamp_ms = 1;
   double speed_kph = 2;
@@ -20,9 +22,37 @@ message SensorState {
 
 service VehicleDataService {
   rpc SubscribeVehicleState(SubscribeVehicleStateRequest) returns (stream VehicleState);
+  rpc GetStatus(cockpit.proto.common.Empty) returns (CanLinkStatus);
 }
 
 message SubscribeVehicleStateRequest {
   string consumer = 1;
   int32 max_hz = 2;
+}
+
+enum CanCommunicationState {
+  CAN_COMMUNICATION_STATE_UNSPECIFIED = 0;
+  CAN_COMMUNICATION_STATE_STARTING = 1;
+  CAN_COMMUNICATION_STATE_ONLINE = 2;
+  CAN_COMMUNICATION_STATE_IDLE = 3;
+  CAN_COMMUNICATION_STATE_FAULTED = 4;
+}
+
+message CanLinkStatus {
+  cockpit.proto.common.ServiceHealth health = 1;
+  string interface_name = 2;
+  bool fd_enabled = 3;
+  CanCommunicationState state = 4;
+  uint64 last_rx_age_ms = 5;
+  uint64 rx_frames = 6;
+  uint64 decoded_frames = 7;
+  uint64 invalid_frames = 8;
+  uint64 idle_timeouts = 9;
+  uint64 error_frames = 10;
+  uint64 bus_off_count = 11;
+  uint64 error_passive_count = 12;
+  uint64 error_warning_count = 13;
+  uint64 ack_error_count = 14;
+  uint64 protocol_error_count = 15;
+  string last_error = 16;
 }

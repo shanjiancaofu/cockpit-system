@@ -4,6 +4,7 @@
 #include <string>
 
 #include "cockpit/core/config/system_config.h"
+#include "cockpit/modules/can/can_link_status.h"
 #include "cockpit/modules/vehicle/vehicle_state.h"
 
 namespace cockpit {
@@ -21,9 +22,10 @@ class VehicleDataService {
  public:
   using StateSink = std::function<void(const VehicleState&)>;
   using ContinueHandler = std::function<bool()>;
+  using LinkStatusSink = std::function<void(const can::CanLinkStatus&)>;
 
   VehicleDataService(VehicleDataOptions options, StateSink state_sink,
-                     ContinueHandler should_continue);
+                     ContinueHandler should_continue, LinkStatusSink link_status_sink = nullptr);
 
   int Run();
 
@@ -35,6 +37,7 @@ class VehicleDataService {
   VehicleDataOptions options_;
   StateSink state_sink_;
   ContinueHandler should_continue_;
+  LinkStatusSink link_status_sink_;
 };
 
 }  // namespace vehicle

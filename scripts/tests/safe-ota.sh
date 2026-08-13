@@ -75,8 +75,8 @@ lock_result=$?
 set -e
 wait "${lock_pid}"
 [[ "${lock_result}" -eq 1 ]]
-grep -Fq \
-  'ExecStartPre=/cockpit-system/current/bin/safe-ota --recover --root /cockpit-system' \
+! grep -Fq 'ExecStartPre=' "${source_root}/deploy/systemd/cockpit-navigator.service"
+grep -Fxq 'ReadWritePaths=/cockpit-system/data /cockpit-system/logs /cockpit-system/run' \
   "${source_root}/deploy/systemd/cockpit-navigator.service"
 grep -Fq -- '--mode normal' \
   "${source_root}/deploy/systemd/cockpit-navigator.service"

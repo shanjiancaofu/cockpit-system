@@ -7,7 +7,10 @@ namespace voice {
 
 class MockSpeechRecognizer final : public SpeechRecognizer {
  public:
-  SpeechRecognitionResult Recognize(const audio::SpeechSegment& segment) override;
+  SpeechRecognitionResult Recognize(const audio::SpeechSegment& segment,
+                                    std::chrono::steady_clock::time_point deadline) override;
+  void Cancel() override {
+  }
 };
 
 }  // namespace voice

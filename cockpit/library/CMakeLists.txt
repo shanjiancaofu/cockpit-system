@@ -12,7 +12,7 @@ add_library(vehicle_runtime STATIC
     driver/vehicle/vehicle_runtime.cc
 )
 target_include_directories(vehicle_runtime PUBLIC ${PROJECT_SOURCE_DIR})
-target_link_libraries(vehicle_runtime PUBLIC config contracts logging socketcan vehicle)
+target_link_libraries(vehicle_runtime PUBLIC can config contracts logging vehicle)
 
 add_library(audio_capture_module STATIC driver/audio/capture/audio_capture_module.cc)
 target_link_libraries(audio_capture_module PUBLIC audio_capture runtime)

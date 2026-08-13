@@ -4,6 +4,7 @@
 #include <chrono>
 
 #include "cockpit/core/logging/logger.h"
+#include "cockpit/core/time/time.h"
 
 namespace cockpit {
 namespace vehicle {
@@ -18,6 +19,20 @@ proto::vehicle::VehicleState ToProto(const VehicleState& state) {
   message.set_cloud_enabled(state.cloud_enabled);
   message.set_source(state.source);
   return message;
+}
+
+proto::vehicle::CanCommunicationState ToProto(can::CanCommunicationState state) {
+  switch (state) {
+    case can::CanCommunicationState::kStarting:
+      return proto::vehicle::CAN_COMMUNICATION_STATE_STARTING;
+    case can::CanCommunicationState::kOnline:
+      return proto::vehicle::CAN_COMMUNICATION_STATE_ONLINE;
+    case can::CanCommunicationState::kIdle:
+      return proto::vehicle::CAN_COMMUNICATION_STATE_IDLE;
+    case can::CanCommunicationState::kFaulted:
+      return proto::vehicle::CAN_COMMUNICATION_STATE_FAULTED;
+  }
+  return proto::vehicle::CAN_COMMUNICATION_STATE_UNSPECIFIED;
 }
 
 }  // namespace
@@ -46,6 +61,11 @@ void VehicleGrpcService::Publish(const VehicleState& state) {
     ++version_;
   }
   state_changed_.notify_all();
+}
+
+void VehicleGrpcService::PublishLinkStatus(const can::CanLinkStatus& status) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  link_status_ = status;
 }
 
 void VehicleGrpcService::Shutdown() {
@@ -104,6 +124,51 @@ grpc::Status VehicleGrpcService::SubscribeVehicleState(
     next_write = std::chrono::steady_clock::now() + min_interval;
   }
   LOG_INFO("vehicle state subscriber disconnected consumer=" + request->consumer());
+  return grpc::Status::OK;
+}
+
+grpc::Status VehicleGrpcService::GetStatus(grpc::ServerContext*, const proto::common::Empty*,
+                                           proto::vehicle::CanLinkStatus* response) {
+  can::CanLinkStatus status;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    status = link_status_;
+  }
+  response->set_interface_name(status.interface_name);
+  response->set_fd_enabled(status.fd_enabled);
+  response->set_state(ToProto(status.state));
+  const std::uint64_t now_ms = static_cast<std::uint64_t>(time::NowMs());
+  response->set_last_rx_age_ms(status.last_rx_timestamp_ms == 0 ||
+                                       now_ms < status.last_rx_timestamp_ms
+                                   ? 0
+                                   : now_ms - status.last_rx_timestamp_ms);
+  response->set_rx_frames(status.rx_frames);
+  response->set_decoded_frames(status.decoded_frames);
+  response->set_invalid_frames(status.invalid_frames);
+  response->set_idle_timeouts(status.idle_timeouts);
+  response->set_error_frames(status.error_frames);
+  response->set_bus_off_count(status.bus_off_count);
+  response->set_error_passive_count(status.error_passive_count);
+  response->set_error_warning_count(status.error_warning_count);
+  response->set_ack_error_count(status.ack_error_count);
+  response->set_protocol_error_count(status.protocol_error_count);
+  response->set_last_error(status.last_error);
+  auto* health = response->mutable_health();
+  health->set_service_name("vehicle-can-link");
+  health->set_checked_at_ms(static_cast<std::int64_t>(now_ms));
+  if (status.state == can::CanCommunicationState::kOnline) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_OK);
+    health->set_message("CAN link online");
+  } else if (status.state == can::CanCommunicationState::kStarting) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
+    health->set_message("CAN link waiting for frames");
+  } else if (status.state == can::CanCommunicationState::kIdle) {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
+    health->set_message(status.last_error.empty() ? "CAN link idle" : status.last_error);
+  } else {
+    health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);
+    health->set_message(status.last_error.empty() ? "CAN link faulted" : status.last_error);
+  }
   return grpc::Status::OK;
 }
 

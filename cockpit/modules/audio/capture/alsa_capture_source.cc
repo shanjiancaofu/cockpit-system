@@ -1,4 +1,4 @@
-#include "cockpit/drivers/alsa/alsa_capture_source.h"
+#include "cockpit/modules/audio/capture/alsa_capture_source.h"
 
 #include <chrono>
 #include <thread>
@@ -22,7 +22,8 @@ bool AlsaCaptureSource::Open(std::string* error) {
     }
     return false;
   }
-  if (!pcm_.Open(device_, PcmDirection::kCapture, format_, error)) {
+  const AlsaPcmFormat driver_format{format_.sample_rate_hz, format_.channels, format_.frame_ms};
+  if (!pcm_.Open(device_, PcmDirection::kCapture, driver_format, error)) {
     return false;
   }
   next_read_deadline_ = std::chrono::steady_clock::now();
@@ -31,7 +32,29 @@ bool AlsaCaptureSource::Open(std::string* error) {
 
 CaptureResult AlsaCaptureSource::Read(std::int16_t* samples, std::size_t frame_capacity,
                                       int timeout_ms, const std::atomic_bool& stop_requested) {
-  CaptureResult result = pcm_.PollReadFrames(samples, frame_capacity, timeout_ms, stop_requested);
+  const AlsaReadResult driver_result =
+      pcm_.PollReadFrames(samples, frame_capacity, timeout_ms, stop_requested);
+  CaptureResult result;
+  result.frames_read = driver_result.frames_read;
+  result.device_error = driver_result.device_error;
+  result.message = driver_result.message;
+  switch (driver_result.status) {
+    case AlsaReadStatus::kOk:
+      result.status = CaptureStatus::kOk;
+      break;
+    case AlsaReadStatus::kTimeout:
+      result.status = CaptureStatus::kTimeout;
+      break;
+    case AlsaReadStatus::kXrunRecovered:
+      result.status = CaptureStatus::kXrunRecovered;
+      break;
+    case AlsaReadStatus::kStopped:
+      result.status = CaptureStatus::kStopped;
+      break;
+    case AlsaReadStatus::kDeviceError:
+      result.status = CaptureStatus::kDeviceError;
+      break;
+  }
   if (result.status == CaptureStatus::kOk && result.frames_read > 0) {
     PaceNullDevice(result.frames_read);
   }

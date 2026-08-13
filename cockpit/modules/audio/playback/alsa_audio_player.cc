@@ -1,4 +1,4 @@
-#include "cockpit/drivers/alsa/alsa_audio_player.h"
+#include "cockpit/modules/audio/playback/alsa_audio_player.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -17,7 +17,9 @@ bool AlsaAudioPlayer::Play(const std::string& device, const PcmBuffer& buffer,
     return false;
   }
   AlsaPcm pcm;
-  if (!pcm.Open(device, PcmDirection::kPlayback, buffer.format, error)) {
+  const AlsaPcmFormat driver_format{buffer.format.sample_rate_hz, buffer.format.channels,
+                                    buffer.format.frame_ms};
+  if (!pcm.Open(device, PcmDirection::kPlayback, driver_format, error)) {
     return false;
   }
   std::size_t offset = 0;

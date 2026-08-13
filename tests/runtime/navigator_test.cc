@@ -17,6 +17,7 @@
 
 #include "cockpit/core/json/json.h"
 #include "cockpit/navigator/connection/ipc_connector.h"
+#include "cockpit/navigator/process/process_manager.h"
 #include "cockpit/navigator/run_config/run_config.h"
 
 namespace {
@@ -92,19 +93,25 @@ int RunModuleChild(const std::string& navigator_path, const std::string& module_
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 6) {
+  if (argc != 8) {
     std::cerr << "expected navigator, module and cockpit-ctl paths\n";
     return 1;
   }
 
   const std::string navigator_path = argv[1];
   const std::string good_module = argv[2];
-  const std::string crash_module = argv[3];
-  const std::string incompatible_module = argv[4];
-  const std::string cockpit_ctl_path = argv[5];
+  const std::string debugger_good_module = argv[3];
+  const std::string calibration_good_module = argv[4];
+  const std::string crash_module = argv[5];
+  const std::string incompatible_module = argv[6];
+  const std::string cockpit_ctl_path = argv[7];
   const std::filesystem::path module_directory = std::filesystem::path(good_module).parent_path();
   const std::string good_library = std::filesystem::path(good_module).filename().string();
   const std::string crash_library = std::filesystem::path(crash_module).filename().string();
+  const std::string debugger_good_library =
+      std::filesystem::path(debugger_good_module).filename().string();
+  const std::string calibration_good_library =
+      std::filesystem::path(calibration_good_module).filename().string();
   const std::string incompatible_library =
       std::filesystem::path(incompatible_module).filename().string();
   const std::filesystem::path test_dir = std::filesystem::temp_directory_path() /
@@ -240,6 +247,43 @@ int main(int argc, char** argv) {
        {cockpit::navigator::ModuleId::kTransfer, cockpit::navigator::ModuleId::kDebugger}},
       {cockpit::navigator::RunMode::kUpgrade, {cockpit::navigator::ModuleId::kCalibration}},
   };
+
+  cockpit::navigator::RunConfig transactional_config = config;
+  transactional_config.modules = {
+      {cockpit::navigator::ModuleId::kTransfer, good_library},
+      {cockpit::navigator::ModuleId::kDebugger, debugger_good_library},
+      {cockpit::navigator::ModuleId::kCalibration, calibration_good_library},
+  };
+  transactional_config.modes = {
+      {cockpit::navigator::RunMode::kNormal, {cockpit::navigator::ModuleId::kTransfer}},
+      {cockpit::navigator::RunMode::kDevelopment,
+       {cockpit::navigator::ModuleId::kTransfer, cockpit::navigator::ModuleId::kDebugger,
+        cockpit::navigator::ModuleId::kCalibration}},
+  };
+  bool stop_failure_pending = true;
+  cockpit::navigator::ProcessManager transactional_manager(
+      std::move(transactional_config), navigator_path, module_directory.string(), "",
+      (test_dir / "transaction-crashes").string(),
+      [&stop_failure_pending](cockpit::navigator::ModuleId module) {
+        if (stop_failure_pending && module == cockpit::navigator::ModuleId::kDebugger) {
+          stop_failure_pending = false;
+          return true;
+        }
+        return false;
+      });
+  success &= Expect(
+      transactional_manager.SwitchMode(cockpit::navigator::RunMode::kDevelopment, &socket_error),
+      "transactional test mode did not start");
+  success &=
+      Expect(!transactional_manager.SwitchMode(cockpit::navigator::RunMode::kNormal, &socket_error),
+             "injected stop failure did not fail mode switch");
+  const auto rollback_status = transactional_manager.Status();
+  bool rollback_running = transactional_manager.mode() == "development";
+  for (const auto& process : rollback_status) {
+    rollback_running &= process.state == cockpit::navigator::ProcessState::kRunning;
+  }
+  success &= Expect(rollback_running, "stop-phase failure did not restore previous mode");
+  transactional_manager.StopAll();
 
   const pid_t navigator_pid = fork();
   if (navigator_pid == 0) {

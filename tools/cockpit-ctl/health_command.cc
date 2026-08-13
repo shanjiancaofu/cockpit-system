@@ -14,6 +14,7 @@
 #include "common.pb.h"
 #include "gateway.grpc.pb.h"
 #include "recording.grpc.pb.h"
+#include "vehicle_state.grpc.pb.h"
 #include "voice.grpc.pb.h"
 
 namespace cockpit {
@@ -77,6 +78,21 @@ bool CheckAudio(const std::string& address, std::string* error) {
   return CheckHealth(response.health(), "audio", error);
 }
 
+bool CheckVehicle(const std::string& address, std::string* error) {
+  auto stub = proto::vehicle::VehicleDataService::NewStub(
+      grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+  proto::common::Empty request;
+  proto::vehicle::CanLinkStatus response;
+  grpc::ClientContext context;
+  SetContext(&context);
+  const grpc::Status status = stub->GetStatus(&context, request, &response);
+  if (!status.ok()) {
+    *error = RpcError(status);
+    return false;
+  }
+  return CheckHealth(response.health(), "vehicle", error);
+}
+
 bool CheckVoice(const std::string& address, std::string* error) {
   auto stub = proto::voice::VoiceInteractionControl::NewStub(
       grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
@@ -136,6 +152,7 @@ int Run(const config::SystemConfig& config, diagnostics::OutputFormat output_for
         const std::string& mode) {
   std::vector<Target> targets = {
       {"gateway", &config.services().gateway.grpc.listen_address, CheckGateway},
+      {"vehicle", &config.services().vehicle_data.grpc.listen_address, CheckVehicle},
   };
   if (mode == "normal" || mode == "development" || mode == "ui") {
     targets.push_back({"audio", &config.services().audio.grpc.listen_address, CheckAudio});

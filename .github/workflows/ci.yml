@@ -36,12 +36,15 @@ jobs:
           - name: tsan-camera
             build_type: Debug
             cmake_options: "-DCOCKPIT_ENABLE_TSAN=ON"
-            test_regex: "^(camera_service_test|camera_synthetic_stability_test)$"
+            test_regex: "^(camera_service_test|camera_synthetic_stability_test|audio_capture_stream_test|audio_capture_controller_test|speech_pipeline_test|voice_interaction_service_test|async_voice_response_sink_test|audio_playback_test|audio_playback_client_test)$"
             test_label_exclude: ""
 
     name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check driver dependency boundaries
+        run: scripts/lint.sh --driver-boundaries-only
 
       - name: Install build dependencies
         run: |

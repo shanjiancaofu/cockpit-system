@@ -15,7 +15,7 @@ int main() {
 
   const std::array<std::uint8_t, cockpit::can::CanFrame::kMaxDataLength> data{
       0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
-  const cockpit::can::CanFrame frame(0x123, data, static_cast<std::uint8_t>(data.size()));
+  const cockpit::can::CanFrame frame(0x123, data, 8);
   if (!frame.IsValid() || frame.ToString() != "123#0001020304050607") {
     std::cerr << "invalid CAN frame formatting" << std::endl;
     return 1;

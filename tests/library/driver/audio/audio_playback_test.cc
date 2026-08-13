@@ -75,8 +75,9 @@ class BlockingAudioPlayer final : public cockpit::audio::AudioPlayer {
 
 int main() {
   cockpit::voice::MockSpeechSynthesizer synthesizer;
-  const auto empty = synthesizer.Synthesize("");
-  auto tone = synthesizer.Synthesize("System ready.");
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+  const auto empty = synthesizer.Synthesize("", deadline);
+  auto tone = synthesizer.Synthesize("System ready.", deadline);
   if (empty.success || !tone.success || tone.provider != "mock" || tone.audio.samples.empty() ||
       tone.audio.format.sample_rate_hz != 16000 || tone.audio.format.channels != 1) {
     std::cerr << "mock speech synthesis is invalid\n";
@@ -109,7 +110,7 @@ int main() {
   auto blocking_player = std::make_unique<BlockingAudioPlayer>();
   auto* blocking_observer = blocking_player.get();
   cockpit::audio::AudioPlayback cancellable("test-output", std::move(blocking_player));
-  auto cancellable_tone = synthesizer.Synthesize("cancel playback");
+  auto cancellable_tone = synthesizer.Synthesize("cancel playback", deadline);
   if (!cancellable.Start(&error) || !cancellable.Submit(std::move(cancellable_tone.audio)) ||
       !blocking_observer->WaitUntilEntered()) {
     std::cerr << "cancellable speech output did not enter playback\n";

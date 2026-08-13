@@ -9,6 +9,7 @@
 #include <string>
 
 #include "cockpit/core/base/macros.h"
+#include "cockpit/modules/can/can_link_status.h"
 #include "cockpit/modules/vehicle/vehicle_state.h"
 #include "vehicle_state.grpc.pb.h"
 
@@ -24,16 +25,20 @@ class VehicleGrpcService final : public proto::vehicle::VehicleDataService::Serv
 
   bool Start(const std::string& address);
   void Publish(const VehicleState& state);
+  void PublishLinkStatus(const can::CanLinkStatus& status);
   void Shutdown();
 
  private:
   grpc::Status SubscribeVehicleState(
       grpc::ServerContext* context, const proto::vehicle::SubscribeVehicleStateRequest* request,
       grpc::ServerWriter<proto::vehicle::VehicleState>* writer) override;
+  grpc::Status GetStatus(grpc::ServerContext* context, const proto::common::Empty* request,
+                         proto::vehicle::CanLinkStatus* response) override;
 
   std::mutex mutex_;
   std::condition_variable state_changed_;
   VehicleState latest_state_;
+  can::CanLinkStatus link_status_;
   std::uint64_t version_ = 0;
   bool stopping_ = false;
   std::unique_ptr<grpc::Server> server_;

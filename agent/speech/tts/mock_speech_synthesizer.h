@@ -7,7 +7,10 @@ namespace voice {
 
 class MockSpeechSynthesizer final : public SpeechSynthesizer {
  public:
-  SpeechSynthesisResult Synthesize(const std::string& text) override;
+  SpeechSynthesisResult Synthesize(const std::string& text,
+                                   std::chrono::steady_clock::time_point deadline) override;
+  void Cancel() override {
+  }
 };
 
 }  // namespace voice

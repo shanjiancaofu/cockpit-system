@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -34,7 +35,8 @@ class SpeechPipeline {
 
   SpeechPipeline(config::AudioConfig audio_config, config::SpeechSegmentConfig segment_config,
                  std::unique_ptr<audio::VoiceActivityDetector> detector,
-                 std::unique_ptr<voice::SpeechRecognizer> recognizer);
+                 std::unique_ptr<voice::SpeechRecognizer> recognizer,
+                 std::chrono::milliseconds recognition_timeout = std::chrono::seconds(3));
   ~SpeechPipeline();
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(SpeechPipeline);
@@ -51,6 +53,7 @@ class SpeechPipeline {
   void RecordError(std::string error);
 
   const config::AudioConfig audio_config_;
+  const std::chrono::milliseconds recognition_timeout_;
   std::unique_ptr<audio::VoiceActivityDetector> detector_;
   std::unique_ptr<audio::SpeechSegmenter> segmenter_;
   std::unique_ptr<voice::SpeechRecognizer> recognizer_;

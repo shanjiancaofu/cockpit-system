@@ -48,6 +48,26 @@ class FakeCaptureSource final : public cockpit::audio::AudioCaptureSource {
   std::shared_ptr<FakeState> state_;
 };
 
+class SlowOpenCaptureSource final : public cockpit::audio::AudioCaptureSource {
+ public:
+  bool Open(std::string*) override {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+    return true;
+  }
+
+  cockpit::audio::CaptureResult Read(std::int16_t*, std::size_t, int,
+                                     const std::atomic_bool& stop_requested) override {
+    return {stop_requested.load() ? cockpit::audio::CaptureStatus::kStopped
+                                  : cockpit::audio::CaptureStatus::kTimeout,
+            0,
+            0,
+            {}};
+  }
+
+  void Close() override {
+  }
+};
+
 template <typename Predicate>
 bool WaitUntil(const Predicate& predicate) {
   const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
@@ -106,6 +126,20 @@ int main() {
       status.modules[0].name != "audio-capture" ||
       status.modules[0].state != cockpit::runtime::ModuleState::kStopped) {
     std::cerr << "audio capture controller stopped status is invalid\n";
+    return 1;
+  }
+
+  cockpit::audio::AudioCaptureController slow_controller(
+      config,
+      [](const std::string&, const cockpit::audio::PcmFormat&) {
+        return std::make_unique<SlowOpenCaptureSource>();
+      },
+      publisher);
+  error.clear();
+  if (slow_controller.Start("", &error) ||
+      error != "audio capture did not become ready before timeout" ||
+      slow_controller.status().capture_state != cockpit::audio::AudioCaptureState::kStopped) {
+    std::cerr << "capture readiness timeout was accepted\n";
     return 1;
   }
   std::cout << "audio capture controller tests passed\n";

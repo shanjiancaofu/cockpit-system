@@ -11,6 +11,31 @@ repo_dir="${root_dir}"
 source_filter="^${repo_dir}/(cockpit|tests|tools)/.*"
 header_filter="^${repo_dir}/(cockpit|tests|tools)/.*"
 
+driver_dependency_errors="$(
+  rg -n '#include[[:space:]]+"(cockpit/(core|modules|library|navigator)/|agent/)' \
+    "${root_dir}/cockpit/drivers" --glob '*.{cc,h}' || true
+)"
+if [[ -n "${driver_dependency_errors}" ]]; then
+  echo "driver dependency boundary violated:" >&2
+  echo "${driver_dependency_errors}" >&2
+  exit 1
+fi
+
+driver_cmake_errors="$(
+  rg -n '^[[:space:]]*(audio_|camera_|can|vehicle|config|logging|runtime|contracts|agent_)($|[[:space:]])' \
+    "${root_dir}/cockpit/drivers" --glob 'CMakeLists.txt' || true
+)"
+if [[ -n "${driver_cmake_errors}" ]]; then
+  echo "driver CMake links a cockpit project target:" >&2
+  echo "${driver_cmake_errors}" >&2
+  exit 1
+fi
+
+if [[ "${1:-}" == "--driver-boundaries-only" ]]; then
+  echo "driver dependency boundaries passed"
+  exit 0
+fi
+
 if [[ ! "${parallel_level}" =~ ^[1-9][0-9]*$ ]]; then
   echo "CMAKE_BUILD_PARALLEL_LEVEL must be a positive integer; found '${parallel_level}'" >&2
   exit 2

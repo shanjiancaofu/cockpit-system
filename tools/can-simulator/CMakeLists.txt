@@ -1,5 +1,5 @@
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_executable(can-simulator main.cc can_simulator.cc)
     target_include_directories(can-simulator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(can-simulator PRIVATE logging runtime socketcan vehicle)
+    target_link_libraries(can-simulator PRIVATE can logging runtime vehicle)
 endif()

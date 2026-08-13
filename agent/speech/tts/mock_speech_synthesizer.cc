@@ -8,9 +8,14 @@
 namespace cockpit {
 namespace voice {
 
-SpeechSynthesisResult MockSpeechSynthesizer::Synthesize(const std::string& text) {
+SpeechSynthesisResult MockSpeechSynthesizer::Synthesize(
+    const std::string& text, std::chrono::steady_clock::time_point deadline) {
   SpeechSynthesisResult result;
   result.provider = "mock";
+  if (std::chrono::steady_clock::now() >= deadline) {
+    result.error = "speech synthesis deadline exceeded";
+    return result;
+  }
   if (text.empty()) {
     result.error = "TTS text is empty";
     return result;

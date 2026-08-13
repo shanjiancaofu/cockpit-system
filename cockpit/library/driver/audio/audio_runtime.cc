@@ -8,11 +8,11 @@
 
 #include "cockpit/core/config/system_config.h"
 #include "cockpit/core/logging/logger.h"
-#include "cockpit/drivers/alsa/alsa_audio_player.h"
 #include "cockpit/library/driver/audio/capture/audio_capture_controller.h"
 #include "cockpit/library/driver/audio/grpc/audio_grpc_server.h"
 #include "cockpit/library/driver/audio/playback/audio_playback.h"
 #include "cockpit/library/driver/audio/transport/audio_stream_publisher.h"
+#include "cockpit/modules/audio/playback/alsa_audio_player.h"
 
 namespace cockpit {
 namespace audio {
@@ -101,7 +101,10 @@ void AudioRuntime::Stop() {
 }
 
 int AudioRuntime::Poll() const {
-  return impl_ == nullptr ? 1 : 0;
+  if (impl_ == nullptr) {
+    return 1;
+  }
+  return impl_->capture->faulted() ? 2 : 0;
 }
 
 }  // namespace audio

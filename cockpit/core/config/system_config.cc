@@ -529,6 +529,10 @@ void SystemConfig::Validate() const {
     throw std::runtime_error(
         "features.voice.vad.provider must be mock when features.voice.enabled is true");
   }
+  if (features_.voice.enabled && !services_.audio.auto_start) {
+    throw std::runtime_error(
+        "services.audio.auto_start must be true when features.voice.enabled is true");
+  }
   if (!IsOneOf(tools_.topic.backend, "file", "grpc")) {
     throw std::runtime_error("tools.topic.backend must be file or grpc");
   }

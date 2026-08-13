@@ -18,18 +18,18 @@
 
 | 模块 | 当前状态 | 主要入口 | 验证方式 | 下一步 |
 |---|---|---|---|---|
-| 工程基础 | 已落地 | `CMakeLists.txt`、`cmake/`、`scripts/`、`.github/workflows/ci.yml` | GCC Debug/Release、ASan/UBSan、Camera TSan、CTest、smoke、clang-tidy 和 pre-commit | 按失败证据维护门禁，不为假想场景扩展脚本 |
+| 工程基础 | 已落地 | `CMakeLists.txt`、`cmake/`、`scripts/`、`.github/workflows/ci.yml` | GCC Debug/Release、ASan/UBSan、Camera/Audio/Agent TSan、driver 依赖门禁、CTest、smoke、clang-tidy 和 pre-commit | 按失败证据维护门禁，不为假想场景扩展脚本 |
 | 配置与日志 | 可用原型 | `cockpit/core/config`、`cockpit/core/logging` | 活动字段真实消费、严格未知字段、周期刷盘、时间切分、按模块保留上限和资源基线 | Jetson 长运行验证 |
 | Navigator 动态运行时 | 可用原型 | `cockpit/navigator`、`cockpit/library` | mode、有界 IPC、重复崩溃恢复、RSS/线程/FD/目录占用基线及 Jetson systemd 重启、冷启动 | Jetson 实机长稳验证 |
 | MessageBus | 已落地 | `cockpit/core/event` | `message_bus_test` | 仅在出现真实低频事件 consumer 时接入，不扩成跨进程总线 |
 | IPC shared memory | 已落地 | `cockpit/core/ipc` | camera shared memory 崩溃恢复、帧边界测试和 UI 联调 | Jetson 权限、进程并发启动和长稳验证 |
-| 车辆与 CAN | 可用原型 | `cockpit/library/driver/vehicle`、`cockpit/drivers/socketcan`、`cockpit/modules/vehicle` | `vcan0`、Jetson `mttcan can0` 内部闭环、vcan smoke、Navigator smoke | 接外置 CAN 收发器、真实总线和正式 DBC/车辆信号定义 |
+| 车辆与 CAN | 可用原型 | `cockpit/library/driver/vehicle`、`cockpit/drivers/socketcan`、`cockpit/modules/can`、`cockpit/modules/vehicle` | CAN FD 0–64 Byte、BRS/ESI、error filter、链路 health、64-byte vcan smoke 和 Navigator smoke | 接外置 CAN 收发器、真实总线和 STM32G474 正式 DBC/信号定义 |
 | Transfer 与 topic | 已落地 | `cockpit/library/transfer`、`tools/topic` | transport、更新周期、可用状态、错误原因、gRPC test、Navigator smoke | 接入真实新数据源时扩展 metadata |
 | 音频采集 | 可用原型 | `cockpit/library/driver/audio`、`cockpit/modules/audio`、`cockpit/drivers/alsa` | audio tests、null/ALSA smoke、Navigator smoke | Jetson 麦克风、增益、延迟和声学标定 |
-| 语音识别 | 部分完成 | `agent/speech/asr`、`agent/speech/pipeline` | mock ASR、分段和 pipeline tests | 在 Agent 产品构建中接入并对比真实 ASR |
-| 语音交互/Agent | 可用原型 | `agent/`、`cockpit/navigator/library/agent` | 单会话、显式状态转换、主动中断、队列丢弃、provider 超时/失败恢复和 voice smoke | 阶段 6 deadline/播放回执/FOLLOW_UP，再接 KWS 和真实 provider |
+| 语音识别 | 部分完成 | `agent/speech/asr`、`agent/speech/pipeline` | mock ASR、分段、deadline/cancel、PCM→VAD→ASR→Agent E2E | 在 Agent 产品构建中接入并对比真实 ASR |
+| 语音交互/Agent | 可用原型 | `agent/`、`cockpit/navigator/library/agent` | 单会话、显式状态转换、主动中断、队列丢弃、provider deadline/cancel、失败恢复和 voice smoke | 播放完成回执/FOLLOW_UP，再接 KWS 和真实 provider |
 | HMI 动作桥接 | 部分完成 | `agent/hmi`、`cockpit/apps/cockpit-ui/hmi_control.*` | `open_camera` Qt 主线程切页、媒体未接入失败路径、Navigator smoke | 媒体责任边界明确后接 Qt/Android 播放器 |
-| 语音播放 | 可用原型 | `agent/speech/tts`、`agent/audio`、`cockpit/library/driver/audio` | mock TTS 测试音、PCM RPC、异步播放和有界停止测试 | 接真实 TTS provider、播放完成回执和扬声器标定 |
+| 语音播放 | 可用原型 | `agent/speech/tts`、`agent/audio`、`cockpit/library/driver/audio` | mock TTS、TTS deadline/cancel、PCM RPC、异步播放和有界停止测试 | 接真实 TTS provider、播放完成回执和扬声器标定 |
 | 相机采集 | 可用原型 | `cockpit/library/driver/camera`、`cockpit/drivers/v4l2`、`cockpit/modules/camera` | 合成故障测试、共享内存恢复、Navigator smoke、IMX219 Argus/NVMM 实拍、no-frames 恢复及正式部署 7 分钟短稳 | Jetson CSI 小时级长稳测试 |
 | UI 健康总览 | 可用原型 | `cockpit/core/health`、`cockpit/apps/cockpit-ui/health`、QML Dashboard/Diagnostics | health/model tests、Qt offscreen、smoke | Jetson 图形栈和长运行状态可见性验证 |
 | 相机 UI | 可用原型 | `cockpit/apps/cockpit-ui/camera` | Qt offscreen、Jetson Xorg 实窗、CSI 自动映射 Argus URI、IMX219 预览与 JPEG 拍照 | 补齐相机故障分类可视化和长稳验证 |

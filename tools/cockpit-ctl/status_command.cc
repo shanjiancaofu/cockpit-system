@@ -21,6 +21,7 @@
 #include "gateway.grpc.pb.h"
 #include "recording.grpc.pb.h"
 #include "tools/diagnostics/cli_output.h"
+#include "vehicle_state.grpc.pb.h"
 #include "voice.grpc.pb.h"
 
 namespace cockpit {
@@ -266,6 +267,37 @@ void PrintAudioStatus(const std::string& address) {
   }
 }
 
+void PrintVehicleStatus(const std::string& address) {
+  PrintServiceHeader("vehicle", address);
+  auto stub = proto::vehicle::VehicleDataService::NewStub(
+      grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+  proto::common::Empty request;
+  proto::vehicle::CanLinkStatus vehicle;
+  grpc::ClientContext context;
+  SetContext(&context);
+  const grpc::Status status = stub->GetStatus(&context, request, &vehicle);
+  if (!status.ok()) {
+    PrintUnavailable(status);
+    return;
+  }
+  std::cout << "  available: yes\n"
+            << "  can: interface=" << vehicle.interface_name()
+            << " fd=" << (vehicle.fd_enabled() ? "yes" : "no")
+            << " state=" << proto::vehicle::CanCommunicationState_Name(vehicle.state())
+            << " age_ms=" << vehicle.last_rx_age_ms() << "\n"
+            << "  frames: rx=" << vehicle.rx_frames() << " decoded=" << vehicle.decoded_frames()
+            << " invalid=" << vehicle.invalid_frames() << " errors=" << vehicle.error_frames()
+            << "\n"
+            << "  controller: bus_off=" << vehicle.bus_off_count()
+            << " passive=" << vehicle.error_passive_count()
+            << " warning=" << vehicle.error_warning_count() << " ack=" << vehicle.ack_error_count()
+            << " protocol=" << vehicle.protocol_error_count() << "\n";
+  PrintHealth(vehicle.health());
+  if (!vehicle.last_error().empty()) {
+    std::cout << "  last_error: " << vehicle.last_error() << "\n";
+  }
+}
+
 void PrintVoiceStatus(const std::string& address) {
   PrintServiceHeader("voice", address);
   auto stub = proto::voice::VoiceInteractionControl::NewStub(
@@ -369,6 +401,8 @@ int RunStatusText(const config::SystemConfig& config) {
 
   PrintGatewayStatus(config.services().gateway.grpc.listen_address);
   std::cout << '\n';
+  PrintVehicleStatus(config.services().vehicle_data.grpc.listen_address);
+  std::cout << '\n';
   PrintAudioStatus(config.services().audio.grpc.listen_address);
   std::cout << '\n';
   PrintVoiceStatus(config.services().voice_interaction.grpc.listen_address);
@@ -399,6 +433,8 @@ std::string FetchStatusJson(Fetch fetch) {
 std::string BuildStatusJson(const config::SystemConfig& config) {
   auto gateway = proto::gateway::CockpitGateway::NewStub(grpc::CreateChannel(
       config.services().gateway.grpc.listen_address, grpc::InsecureChannelCredentials()));
+  auto vehicle = proto::vehicle::VehicleDataService::NewStub(grpc::CreateChannel(
+      config.services().vehicle_data.grpc.listen_address, grpc::InsecureChannelCredentials()));
   auto audio = proto::audio::AudioControl::NewStub(grpc::CreateChannel(
       config.services().audio.grpc.listen_address, grpc::InsecureChannelCredentials()));
   auto voice = proto::voice::VoiceInteractionControl::NewStub(grpc::CreateChannel(
@@ -422,6 +458,11 @@ std::string BuildStatusJson(const config::SystemConfig& config) {
          << FetchStatusJson<proto::audio::AudioStatus>(
                 [&](grpc::ClientContext* context, proto::audio::AudioStatus* response) {
                   return audio->GetStatus(context, request, response);
+                });
+  output << ",\"vehicle\":"
+         << FetchStatusJson<proto::vehicle::CanLinkStatus>(
+                [&](grpc::ClientContext* context, proto::vehicle::CanLinkStatus* response) {
+                  return vehicle->GetStatus(context, request, response);
                 });
   output << ",\"voice\":"
          << FetchStatusJson<proto::voice::VoiceInteractionStatus>(

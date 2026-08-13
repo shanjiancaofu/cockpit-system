@@ -3,8 +3,11 @@
 #include <grpcpp/grpcpp.h>
 
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <cstring>
+#include <stdexcept>
+#include <thread>
 #include <utility>
 
 #include "agent/speech/tts/mock_speech_synthesizer.h"
@@ -13,18 +16,24 @@ namespace cockpit {
 namespace voice {
 
 AudioPlaybackClient::AudioPlaybackClient(const std::string& address)
-    : AudioPlaybackClient(address, std::make_unique<MockSpeechSynthesizer>()) {
+    : AudioPlaybackClient(address, std::make_unique<MockSpeechSynthesizer>(),
+                          std::chrono::seconds(5)) {
 }
 
 AudioPlaybackClient::AudioPlaybackClient(const std::string& address,
-                                         std::unique_ptr<SpeechSynthesizer> synthesizer)
+                                         std::unique_ptr<SpeechSynthesizer> synthesizer,
+                                         std::chrono::milliseconds synthesis_timeout)
     : stub_([&address] {
         grpc::ChannelArguments arguments;
         arguments.SetInt(GRPC_ARG_ENABLE_HTTP_PROXY, 0);
         return proto::audio::AudioControl::NewStub(
             grpc::CreateCustomChannel(address, grpc::InsecureChannelCredentials(), arguments));
       }()),
-      synthesizer_(std::move(synthesizer)) {
+      synthesizer_(std::move(synthesizer)),
+      synthesis_timeout_(synthesis_timeout) {
+  if (synthesis_timeout_ <= std::chrono::milliseconds::zero()) {
+    throw std::invalid_argument("speech synthesis timeout must be positive");
+  }
 }
 
 bool AudioPlaybackClient::Submit(std::string text) {
@@ -32,7 +41,38 @@ bool AudioPlaybackClient::Submit(std::string text) {
     failed_.fetch_add(1U);
     return false;
   }
-  const SpeechSynthesisResult synthesis = synthesizer_->Synthesize(text);
+  const auto synthesis_deadline = std::chrono::steady_clock::now() + synthesis_timeout_;
+  std::mutex synthesis_mutex;
+  std::condition_variable synthesis_changed;
+  bool synthesis_finished = false;
+  std::atomic_bool synthesis_timed_out{false};
+  std::thread synthesis_watchdog([&] {
+    std::unique_lock<std::mutex> lock(synthesis_mutex);
+    if (!synthesis_changed.wait_until(lock, synthesis_deadline, [&] {
+          return synthesis_finished;
+        })) {
+      synthesis_timed_out.store(true);
+      synthesizer_->Cancel();
+    }
+  });
+  SpeechSynthesisResult synthesis;
+  try {
+    synthesis = synthesizer_->Synthesize(text, synthesis_deadline);
+  } catch (const std::exception& exception) {
+    synthesis.error = exception.what();
+  } catch (...) {
+    synthesis.error = "speech synthesis failed";
+  }
+  {
+    std::lock_guard<std::mutex> lock(synthesis_mutex);
+    synthesis_finished = true;
+  }
+  synthesis_changed.notify_all();
+  synthesis_watchdog.join();
+  if (synthesis_timed_out.load()) {
+    synthesis.success = false;
+    synthesis.error = "speech synthesis deadline exceeded";
+  }
   if (!synthesis.success || synthesis.audio.samples.empty()) {
     failed_.fetch_add(1U);
     return false;
@@ -108,6 +148,9 @@ void AudioPlaybackClient::MarkReachable() {
 void AudioPlaybackClient::Stop() {
   std::lock_guard<std::mutex> lock(context_mutex_);
   stopping_ = true;
+  if (synthesizer_ != nullptr) {
+    synthesizer_->Cancel();
+  }
   available_.store(false);
   if (active_context_ != nullptr) {
     active_context_->TryCancel();

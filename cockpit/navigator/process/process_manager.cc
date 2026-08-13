@@ -82,12 +82,14 @@ const char* ToString(ProcessState state) {
 
 ProcessManager::ProcessManager(RunConfig config, std::string executable_path,
                                std::string module_dir, std::string module_config_path,
-                               std::string crash_report_directory)
+                               std::string crash_report_directory,
+                               StopFailureInjector stop_failure_injector)
     : config_(std::move(config)),
       executable_path_(std::move(executable_path)),
       module_dir_(std::move(module_dir)),
       module_config_path_(std::move(module_config_path)),
-      crash_reporter_(std::move(crash_report_directory)) {
+      crash_reporter_(std::move(crash_report_directory)),
+      stop_failure_injector_(std::move(stop_failure_injector)) {
   for (const ModuleConfig& module : config_.modules) {
     processes_.emplace_back(module);
   }
@@ -122,11 +124,27 @@ bool ProcessManager::SwitchMode(RunMode mode, std::string* error) {
     }
   }
 
+  const auto restore_previous_mode = [this, &previous, &previous_order]() {
+    bool rollback_ok = true;
+    for (auto current = processes_.rbegin(); current != processes_.rend(); ++current) {
+      if (current->desired && previous.find(current->config.id) == previous.end()) {
+        std::string rollback_error;
+        rollback_ok &= StopModule(current->config.id, &rollback_error);
+      }
+    }
+    for (ModuleId previous_module : previous_order) {
+      std::string rollback_error;
+      rollback_ok &= StartModule(previous_module, &rollback_error);
+    }
+    return rollback_ok;
+  };
+
   for (auto process = processes_.rbegin(); process != processes_.rend(); ++process) {
     if (process->desired && desired.find(process->config.id) == desired.end()) {
       std::string stop_error;
       if (!StopModule(process->config.id, &stop_error)) {
-        *error = stop_error;
+        const bool rollback_ok = restore_previous_mode();
+        *error = stop_error + (rollback_ok ? "" : "; rollback failed");
         return false;
       }
     }
@@ -136,20 +154,7 @@ bool ProcessManager::SwitchMode(RunMode mode, std::string* error) {
     if (!process->desired || process->state != ProcessState::kRunning) {
       if (!StartModule(module, error)) {
         const std::string switch_error = *error;
-        bool rollback_ok = true;
-        for (auto current = processes_.rbegin(); current != processes_.rend(); ++current) {
-          if (current->desired && previous.find(current->config.id) == previous.end()) {
-            std::string rollback_error;
-            rollback_ok &= StopModule(current->config.id, &rollback_error);
-          }
-        }
-        for (ModuleId previous_module : previous_order) {
-          ProcessRecord* previous_process = Find(previous_module);
-          if (previous_process->state != ProcessState::kRunning) {
-            std::string rollback_error;
-            rollback_ok &= StartModule(previous_module, &rollback_error);
-          }
-        }
+        const bool rollback_ok = restore_previous_mode();
         *error = switch_error + (rollback_ok ? "" : "; rollback failed");
         return false;
       }
@@ -199,6 +204,10 @@ bool ProcessManager::StopModule(ModuleId module, std::string* error) {
   const std::string name = ModuleName(module);
   if (process == nullptr) {
     *error = "module is not configured: " + name;
+    return false;
+  }
+  if (stop_failure_injector_ && stop_failure_injector_(module)) {
+    *error = "injected stop failure for module " + name;
     return false;
   }
   process->desired = false;

@@ -59,8 +59,10 @@ int Capture(const cockpit::runtime::ProcessRuntime& runtime, const std::string& 
   }
 
   cockpit::audio::AlsaPcm pcm;
+  const cockpit::audio::AlsaPcmFormat driver_format{format.sample_rate_hz, format.channels,
+                                                    format.frame_ms};
   std::string error;
-  if (!pcm.Open(device, cockpit::audio::PcmDirection::kCapture, format, &error)) {
+  if (!pcm.Open(device, cockpit::audio::PcmDirection::kCapture, driver_format, &error)) {
     LOG_ERROR(error);
     return 1;
   }
@@ -75,14 +77,14 @@ int Capture(const cockpit::runtime::ProcessRuntime& runtime, const std::string& 
     const std::size_t frame_capacity =
         std::min(format.FramesPerPeriod(), total_frames - captured_frames);
     const auto result = pcm.PollReadFrames(period.data(), frame_capacity, 100, stop_requested);
-    if (result.status == cockpit::audio::CaptureStatus::kTimeout ||
-        result.status == cockpit::audio::CaptureStatus::kXrunRecovered) {
+    if (result.status == cockpit::audio::AlsaReadStatus::kTimeout ||
+        result.status == cockpit::audio::AlsaReadStatus::kXrunRecovered) {
       continue;
     }
-    if (result.status == cockpit::audio::CaptureStatus::kStopped) {
+    if (result.status == cockpit::audio::AlsaReadStatus::kStopped) {
       break;
     }
-    if (result.status == cockpit::audio::CaptureStatus::kDeviceError) {
+    if (result.status == cockpit::audio::AlsaReadStatus::kDeviceError) {
       LOG_ERROR(result.message);
       return 1;
     }
@@ -119,7 +121,9 @@ int Play(const cockpit::runtime::ProcessRuntime& runtime, const std::string& inp
   buffer.format.frame_ms = audio_config.frame_ms;
   const std::string device = runtime.args().GetString("device", audio_config.output_device);
   cockpit::audio::AlsaPcm pcm;
-  if (!pcm.Open(device, cockpit::audio::PcmDirection::kPlayback, buffer.format, &error)) {
+  const cockpit::audio::AlsaPcmFormat driver_format{buffer.format.sample_rate_hz,
+                                                    buffer.format.channels, buffer.format.frame_ms};
+  if (!pcm.Open(device, cockpit::audio::PcmDirection::kPlayback, driver_format, &error)) {
     LOG_ERROR(error);
     return 1;
   }

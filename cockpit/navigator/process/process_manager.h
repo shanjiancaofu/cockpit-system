@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -38,8 +39,11 @@ struct ProcessStatus {
 
 class ProcessManager {
  public:
+  using StopFailureInjector = std::function<bool(ModuleId)>;
+
   ProcessManager(RunConfig config, std::string executable_path, std::string module_dir,
-                 std::string module_config_path, std::string crash_report_directory);
+                 std::string module_config_path, std::string crash_report_directory,
+                 StopFailureInjector stop_failure_injector = {});
   ~ProcessManager();
 
   ProcessManager(const ProcessManager&) = delete;
@@ -102,6 +106,7 @@ class ProcessManager {
   std::string mode_;
   std::vector<ProcessRecord> processes_;
   bool critical_failure_{false};
+  StopFailureInjector stop_failure_injector_;
 };
 
 }  // namespace navigator

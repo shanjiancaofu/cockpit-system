@@ -1,5 +1,6 @@
 #include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
 
+#include <chrono>
 #include <iostream>
 #include <string>
 
@@ -12,7 +13,8 @@ bool Expect(const std::string& text, cockpit::voice::VoiceIntent intent,
   cockpit::voice::MockVoiceAssistant assistant;
   cockpit::voice::SpeechTranscript transcript;
   transcript.text = text;
-  const auto result = assistant.HandleTranscript(transcript);
+  const auto result = assistant.HandleTranscript(
+      transcript, std::chrono::steady_clock::now() + std::chrono::seconds(1));
   return result.intent == intent && result.action == action && !result.response_text.empty();
 }
 

@@ -48,6 +48,7 @@ class AudioCaptureController {
   bool Start(const std::string& input_device, std::string* error = nullptr);
   void Stop();
   AudioCaptureControllerStatus status() const;
+  bool faulted() const;
 
  private:
   void StopLocked();

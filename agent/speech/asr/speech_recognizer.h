@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <string>
 
 #include "agent/speech/segment/speech_segment.h"
@@ -19,7 +20,9 @@ class SpeechRecognizer {
  public:
   virtual ~SpeechRecognizer() = default;
 
-  virtual SpeechRecognitionResult Recognize(const audio::SpeechSegment& segment) = 0;
+  virtual SpeechRecognitionResult Recognize(const audio::SpeechSegment& segment,
+                                            std::chrono::steady_clock::time_point deadline) = 0;
+  virtual void Cancel() = 0;
 };
 
 }  // namespace voice

@@ -67,10 +67,15 @@ class BlockingActionDispatcher final : public cockpit::voice::ActionDispatcher {
 class RecoveringVoiceAssistant final : public cockpit::voice::VoiceAssistant {
  public:
   cockpit::voice::VoiceAssistantResult HandleTranscript(
-      const cockpit::voice::SpeechTranscript&) override {
+      const cockpit::voice::SpeechTranscript&, std::chrono::steady_clock::time_point) override {
     ++calls_;
     if (calls_ == 1) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(30));
+      std::unique_lock<std::mutex> lock(mutex_);
+      cancelled_ = false;
+      changed_.wait_for(lock, std::chrono::seconds(1), [this] {
+        return cancelled_;
+      });
+      throw std::runtime_error("provider cancelled at deadline");
     } else if (calls_ == 2) {
       throw std::runtime_error("mock provider failed");
     }
@@ -78,8 +83,19 @@ class RecoveringVoiceAssistant final : public cockpit::voice::VoiceAssistant {
             "provider recovered"};
   }
 
+  void Cancel() override {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      cancelled_ = true;
+    }
+    changed_.notify_all();
+  }
+
  private:
   int calls_ = 0;
+  std::mutex mutex_;
+  std::condition_variable changed_;
+  bool cancelled_ = false;
 };
 
 }  // namespace
@@ -151,7 +167,9 @@ int main() {
       std::chrono::milliseconds(10));
   cockpit::voice::SpeechTranscript provider_transcript;
   provider_transcript.text = "provider test";
+  const auto timeout_started = std::chrono::steady_clock::now();
   if (recovering_service.HandleTranscript(provider_transcript).has_value() ||
+      std::chrono::steady_clock::now() - timeout_started > std::chrono::milliseconds(300) ||
       recovering_service.status().metrics.provider_timeouts != 1 ||
       recovering_service.status().state != cockpit::voice::InteractionState::kIdle) {
     std::cerr << "voice provider timeout was not recorded\n";

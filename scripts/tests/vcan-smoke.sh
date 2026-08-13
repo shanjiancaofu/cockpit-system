@@ -77,7 +77,8 @@ if [[ "${runtime_ready}" != true ]]; then
   exit 1
 fi
 
-"${bin_dir}/can-simulator" --config "${config_path}" --backend socketcan --samples 3
+"${bin_dir}/can-simulator" --config "${config_path}" --backend socketcan \
+  --fd-payload-size 64 --brs --samples 3
 vehicle_state="$("${bin_dir}/topic" echo /vehicle/state --backend grpc --count 1 \
   --timeout-ms 2000 --config "${config_path}")"
 echo "${vehicle_state}"

@@ -1,6 +1,7 @@
 #include "agent/speech/pipeline/speech_pipeline.h"
 
 #include <chrono>
+#include <condition_variable>
 #include <exception>
 #include <stdexcept>
 #include <utility>
@@ -13,11 +14,14 @@ namespace agent {
 SpeechPipeline::SpeechPipeline(config::AudioConfig audio_config,
                                config::SpeechSegmentConfig segment_config,
                                std::unique_ptr<audio::VoiceActivityDetector> detector,
-                               std::unique_ptr<voice::SpeechRecognizer> recognizer)
+                               std::unique_ptr<voice::SpeechRecognizer> recognizer,
+                               std::chrono::milliseconds recognition_timeout)
     : audio_config_(std::move(audio_config)),
+      recognition_timeout_(recognition_timeout),
       detector_(std::move(detector)),
       recognizer_(std::move(recognizer)) {
-  if (detector_ == nullptr || recognizer_ == nullptr) {
+  if (detector_ == nullptr || recognizer_ == nullptr ||
+      recognition_timeout_ <= std::chrono::milliseconds::zero()) {
     throw std::invalid_argument("speech pipeline requires VAD and ASR implementations");
   }
   audio::SpeechSegmenterConfig config;
@@ -71,6 +75,7 @@ void SpeechPipeline::Stop() {
     PublishSegment(std::move(*final_segment));
   }
   running_.store(false);
+  recognizer_->Cancel();
   if (worker_.joinable()) {
     worker_.join();
   }
@@ -123,7 +128,40 @@ void SpeechPipeline::RecognizeSegments() {
       continue;
     }
     try {
-      const voice::SpeechRecognitionResult recognition = recognizer_->Recognize(*segment);
+      const auto deadline = std::chrono::steady_clock::now() + recognition_timeout_;
+      std::mutex deadline_mutex;
+      std::condition_variable deadline_changed;
+      bool recognition_finished = false;
+      std::atomic_bool recognition_timed_out{false};
+      std::thread watchdog([&] {
+        std::unique_lock<std::mutex> lock(deadline_mutex);
+        if (!deadline_changed.wait_until(lock, deadline, [&] {
+              return recognition_finished;
+            })) {
+          recognition_timed_out.store(true);
+          recognizer_->Cancel();
+        }
+      });
+      voice::SpeechRecognitionResult recognition;
+      std::exception_ptr recognition_error;
+      try {
+        recognition = recognizer_->Recognize(*segment, deadline);
+      } catch (...) {
+        recognition_error = std::current_exception();
+      }
+      {
+        std::lock_guard<std::mutex> lock(deadline_mutex);
+        recognition_finished = true;
+      }
+      deadline_changed.notify_all();
+      watchdog.join();
+      if (recognition_error != nullptr) {
+        std::rethrow_exception(recognition_error);
+      }
+      if (recognition_timed_out.load()) {
+        RecordError("speech recognition deadline exceeded");
+        continue;
+      }
       if (!recognition.success) {
         RecordError(recognition.error.empty() ? "speech recognition failed" : recognition.error);
         continue;

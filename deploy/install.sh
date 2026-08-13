@@ -81,17 +81,28 @@ fi
 if [[ ! -f "${trusted_public_key}" ]]; then
   install -m 0444 "${public_key}" "${trusted_public_key}"
 fi
-if [[ "${install_systemd}" == "true" ]]; then
-  chown "${service_user}:${service_group}" "${install_root}" "${install_root}/releases"
-  chown -R "${service_user}:${service_group}" "${release_dir}" "${install_root}/data" \
-    "${install_root}/logs" "${install_root}/run"
-  chown -R root:"${service_group}" "${install_root}/config"
+if [[ "${EUID}" -eq 0 ]]; then
+  chown root:root "${install_root}" "${install_root}/releases"
+  chown -R root:root "${release_dir}"
+  chmod -R u=rwX,go=rX "${release_dir}"
+  if id -u "${service_user}" >/dev/null 2>&1 && getent group "${service_group}" >/dev/null; then
+    chown -R "${service_user}:${service_group}" "${install_root}/data" \
+      "${install_root}/logs" "${install_root}/run"
+    chown -R root:"${service_group}" "${install_root}/config"
+  else
+    chown -R root:root "${install_root}/config"
+  fi
+  chmod 0750 "${install_root}/data" "${install_root}/logs" "${install_root}/run"
+  chmod 0700 "${install_root}/data/ota/incoming"
   chmod 0750 "${install_root}/config"
 fi
 # Make the candidate contents durable before publishing the new current link.
 sync -f "${install_root}"
 ln -sfn "releases/${version}" "${install_root}/current.new"
 mv -Tf "${install_root}/current.new" "${install_root}/current"
+if [[ "${EUID}" -eq 0 ]]; then
+  chown -h root:root "${install_root}/current"
+fi
 sync -f "${install_root}"
 
 if [[ "${install_systemd}" == "true" ]]; then

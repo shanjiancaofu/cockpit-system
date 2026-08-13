@@ -21,7 +21,11 @@ bool Contains(const std::string& text, const std::string& phrase) {
 
 }  // namespace
 
-VoiceAssistantResult MockVoiceAssistant::HandleTranscript(const SpeechTranscript& transcript) {
+VoiceAssistantResult MockVoiceAssistant::HandleTranscript(
+    const SpeechTranscript& transcript, std::chrono::steady_clock::time_point deadline) {
+  if (std::chrono::steady_clock::now() >= deadline) {
+    return {VoiceIntent::kUnknown, VoiceAction::kNone, "Voice request timed out."};
+  }
   const std::string text = Normalize(transcript.text);
   if (Contains(text, "open camera")) {
     return {VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera, "Opening the camera."};

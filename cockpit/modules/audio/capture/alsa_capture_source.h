@@ -5,6 +5,7 @@
 
 #include "cockpit/drivers/alsa/alsa_pcm.h"
 #include "cockpit/modules/audio/capture/audio_capture_source.h"
+#include "cockpit/modules/audio/frames/pcm_format.h"
 
 namespace cockpit {
 namespace audio {

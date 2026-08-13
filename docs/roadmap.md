@@ -42,7 +42,7 @@ Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证�
 | HMI 生命周期 | HMI Runtime 保留 Qt 独立主线程，由 Navigator 统一启停并覆盖 UI/module 双向崩溃恢复 |
 | 部署雏形 | x86_64/arm64 构建目录约定、ARM64 原生构建与 package、systemd 示例、回滚脚本 |
 | Jetson 原生基线 | Orin Nano Super 上 GCC Debug/Release 46/46 CTest 与完整 smoke 通过；IMX219 和 ALSA 端点可枚举 |
-| 升级原型 | upgrader 独占 mode、事务落盘顺序、启动自动恢复、健康检查、确认和失败回滚 |
+| 升级原型 | upgrader 独占 mode、事务落盘顺序、管理员恢复、健康检查、确认和失败回滚；生产 release 保持 root 只读 |
 | 稳定性基线 | Navigator 周期采样 health、RSS、线程、FD 和目录占用；支持重复故障注入，失败自动生成有界诊断快照并写入 schema 3 JSON 报告 |
 | WSL 故障矩阵 | 严格配置、Release package、临时安装、健康检查、回滚及四类故障形成机器可读报告 |
 | 单入口验证 | 详细 smoke、Qt UI 联调和 vcan smoke 均通过 Navigator 启动所需模块组合 |
@@ -53,7 +53,7 @@ Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证�
 
 按以下顺序推进：
 
-1. 完成阶段 6 的分环节 deadline、播放完成回执和 `FOLLOW_UP` 窗口。
+1. 完成阶段 6 剩余的播放完成回执和 `FOLLOW_UP` 窗口；ASR/LLM/TTS deadline/cancel 已落地。
 2. 实现阶段 10 的 TranscriptNormalizer、确定性命令白名单和否定词/参数边界测试。
 3. 建立 KWS 接口、单唤醒词、冷却和半双工反馈。
 4. 在 Agent 产品边界接入固定版本 Sherpa-ONNX 与私有 ONNX Runtime，再在 Jetson 对比

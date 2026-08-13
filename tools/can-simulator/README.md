@@ -20,6 +20,8 @@ _output/build/x86_64-debug/bin/can-simulator --backend socketcan --interface vca
   --config configs/development.yaml
 ```
 
+`--fd-payload-size 64 --brs` 会先发送一帧逐字节递增的 64-byte CAN FD/BRS 诊断帧，再发送车辆原型帧。
+
 在已由系统或管理员配置并启用的真实 SocketCAN 接口上运行端到端 smoke 时，跳过脚本内的
 `vcan` 创建步骤：
 

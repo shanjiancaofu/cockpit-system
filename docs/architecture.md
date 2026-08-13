@@ -16,14 +16,11 @@ target 和职责目录实现内部模块化，不提前拆分云端前端、后�
 ```text
 systemd → cockpit-navigator                 唯一长运行入口
               ↓ fork + exec
-         module child → cockpit/library    Driver/业务模块装配
-                      → agent/             语音与本地 Agent 应用层
-                              ↓
-                       cockpit/modules     平台无关领域能力
-                              ↑
-                       cockpit/drivers     Linux/硬件适配实现
+         module child → cockpit/library / agent
 
-cockpit/core 为上述各层提供配置、日志、IPC、时间和运行时基础设施。
+Linux / Hardware → cockpit/drivers → cockpit/modules → library / agent / apps / tools
+
+cockpit/core 为 drivers 之上的项目层提供配置、日志、IPC、时间和运行时基础设施。
 ```
 
 主要目录：
@@ -249,9 +246,10 @@ Jetson CUDA/TensorRT 验证、音视频多源录包、MQTT、WebSocket、视觉 
 systemd 只负责 Navigator 的启动和重启，每个硬件资源只有一个 process owner；UI 崩溃只重启 HMI，
 不关闭 driver module，重启后的 client 应重新连接，设备权限由部署配置固定。carupload 当前仍是可选占位。
 
-升级控制面由一次性 `safe-ota` 发起：确认候选版本后切换到 `upgrade`，upgrader 校验 SHA256、安装到
+开发安装根的升级控制面可由一次性 `safe-ota` 发起：确认候选版本后切换到 `upgrade`，upgrader 校验 SHA256、安装到
 独立版本目录并原子切换 `current`；切回原业务 mode 后执行健康检查，失败则恢复旧 symlink 并让
-Navigator 重新加载旧模块。当前闭环用于 WSL 原型验证，不等同于量产 OTA。
+Navigator 重新加载旧模块。生产 release 为 root 只读，必须由 root `safe-ota --standalone` 或后续外部
+升级协调器执行安装与恢复；当前闭环用于 WSL 原型验证，不等同于量产 OTA。
 
 当前已经实现 RAII、有界队列和丢弃指标、gRPC deadline/cancellation、signal stop、配置校验、
 mock/null backend，以及 shared memory 的 name/layout/version/capacity 校验。尚未达到量产要求的部分

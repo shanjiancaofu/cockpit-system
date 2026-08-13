@@ -2,6 +2,20 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-08-13 - Driver、CAN FD、运行时故障与语音 deadline 收口
+
+- ALSA、SocketCAN driver 改为只依赖 STL 和 Linux/ALSA 系统接口；领域适配移到 modules，CI 新增
+  driver include/link 方向门禁。
+- SocketCAN 启用 CAN FD 和 error filter，支持 0–64 Byte、BRS、ESI、标准/扩展 ID；CAN 链路
+  idle、bus-off、error-passive/warning、ACK 和 protocol error 指标通过 vehicle gRPC 与
+  `cockpit-ctl health/status` 暴露。车辆信号 codec 仍明确是原型，等待 STM32G474 正式协议。
+- Audio capture 启动只在 Running 时成功，运行期 Fault 会传给 Navigator Poll；mode stop 失败会恢复
+  原 mode 的模块集合。
+- 生产 release/current 改为 root 管理且只读，Navigator systemd 只开放 data/logs/run；事务恢复由
+  root 管理员或后续外部升级协调器执行，不扩大运行进程写权限。
+- ASR、LLM、TTS 接口统一 deadline/cancel，超时 watchdog 主动取消 provider；新增有界停止测试和
+  `SOCK_SEQPACKET PCM → VAD → ASR → transcript → Agent` 端到端测试。
+
 ## 2026-08-13 - 文档入口收口
 
 - 将常用文档统一为简短英文文件名并平铺到 `docs/`，只把时点材料保留在 `reference/`，减少后续

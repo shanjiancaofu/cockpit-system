@@ -8,16 +8,19 @@
 
 #include "cockpit/core/logging/logger.h"
 #include "cockpit/drivers/socketcan/socket_can.h"
+#include "cockpit/modules/can/socket_can_adapter.h"
 #include "cockpit/modules/vehicle/vehicle_can_codec.h"
 
 namespace cockpit {
 namespace vehicle {
 
 VehicleDataService::VehicleDataService(VehicleDataOptions options, StateSink state_sink,
-                                       ContinueHandler should_continue)
+                                       ContinueHandler should_continue,
+                                       LinkStatusSink link_status_sink)
     : options_(std::move(options)),
       state_sink_(std::move(state_sink)),
-      should_continue_(std::move(should_continue)) {
+      should_continue_(std::move(should_continue)),
+      link_status_sink_(std::move(link_status_sink)) {
 }
 
 int VehicleDataService::Run() {
@@ -32,9 +35,24 @@ int VehicleDataService::Run() {
 }
 
 int VehicleDataService::RunMock() {
+  can::CanLinkStatus link_status;
+  link_status.interface_name = "mock";
+  link_status.state = can::CanCommunicationState::kOnline;
+  if (link_status_sink_) {
+    link_status_sink_(link_status);
+  }
   int sequence = 0;
   do {
     Publish(MakeMockVehicleState(sequence));
+    ++link_status.rx_frames;
+    ++link_status.decoded_frames;
+    link_status.last_rx_timestamp_ms =
+        static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       std::chrono::system_clock::now().time_since_epoch())
+                                       .count());
+    if (link_status_sink_) {
+      link_status_sink_(link_status);
+    }
     ++sequence;
     std::this_thread::sleep_for(std::chrono::milliseconds(options_.vehicle.publish_interval_ms));
   } while (should_continue_() && (options_.forever || sequence < options_.samples));
@@ -47,29 +65,78 @@ int VehicleDataService::RunSocketCan() {
   const int max_idle_timeouts = options_.can.max_idle_timeouts;
 
   can::SocketCan socket;
+  can::CanLinkStatus link_status;
+  link_status.interface_name = interface_name;
+  link_status.fd_enabled = true;
+  const auto publish_link_status = [this, &link_status] {
+    if (link_status_sink_) {
+      link_status_sink_(link_status);
+    }
+  };
   std::string error;
   if (!socket.Open(interface_name, &error)) {
     LOG_ERROR(error);
     return 1;
   }
+  publish_link_status();
   LOG_INFO("vehicle source opened interface=" + interface_name);
 
   int published = 0;
   int idle_timeouts = 0;
   while (should_continue_() && (options_.forever || published < options_.samples)) {
-    can::CanFrame frame;
+    can::SocketCanFrame socket_frame;
     error.clear();
-    const can::CanIoStatus io_status = socket.Receive(&frame, timeout_ms, &error);
+    const can::CanIoStatus io_status = socket.Receive(&socket_frame, timeout_ms, &error);
     if (io_status == can::CanIoStatus::kTimeout) {
-      if (!options_.forever && ++idle_timeouts >= max_idle_timeouts) {
+      ++idle_timeouts;
+      ++link_status.idle_timeouts;
+      if (idle_timeouts >= max_idle_timeouts) {
+        link_status.state = can::CanCommunicationState::kIdle;
+        link_status.last_error = "CAN receive idle threshold exceeded";
+        publish_link_status();
+      }
+      if (!options_.forever && idle_timeouts >= max_idle_timeouts) {
         LOG_ERROR("CAN receive timed out before enough vehicle frames arrived");
         return 3;
       }
       continue;
     }
     if (io_status != can::CanIoStatus::kOk) {
+      link_status.state = can::CanCommunicationState::kFaulted;
+      link_status.last_error = error.empty() ? "CAN receive failed" : error;
+      publish_link_status();
       LOG_ERROR(error.empty() ? "CAN receive failed" : error);
       return 1;
+    }
+
+    ++link_status.rx_frames;
+    link_status.last_rx_timestamp_ms =
+        static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       std::chrono::system_clock::now().time_since_epoch())
+                                       .count());
+
+    if (socket_frame.error) {
+      ++link_status.error_frames;
+      link_status.bus_off_count += socket_frame.bus_off ? 1U : 0U;
+      link_status.error_passive_count += socket_frame.error_passive ? 1U : 0U;
+      link_status.error_warning_count += socket_frame.error_warning ? 1U : 0U;
+      link_status.ack_error_count += socket_frame.ack_error ? 1U : 0U;
+      link_status.protocol_error_count += socket_frame.protocol_error ? 1U : 0U;
+      link_status.state = socket_frame.bus_off ? can::CanCommunicationState::kFaulted
+                                               : can::CanCommunicationState::kIdle;
+      link_status.last_error =
+          "SocketCAN error frame mask=" + std::to_string(socket_frame.error_mask);
+      publish_link_status();
+      LOG_ERROR(link_status.last_error);
+      continue;
+    }
+    can::CanFrame frame;
+    if (!can::FromSocketCanFrame(socket_frame, &frame, &error)) {
+      ++link_status.invalid_frames;
+      link_status.last_error = error.empty() ? "invalid SocketCAN frame" : error;
+      publish_link_status();
+      LOG_WARN(error.empty() ? "invalid SocketCAN frame" : error);
+      continue;
     }
 
     VehicleState state;
@@ -79,11 +146,18 @@ int VehicleDataService::RunSocketCan() {
       continue;
     }
     if (decode_status == VehicleCanDecodeStatus::kInvalid) {
+      ++link_status.invalid_frames;
+      link_status.last_error = "invalid vehicle CAN frame";
+      publish_link_status();
       LOG_WARN("invalid vehicle CAN frame " + frame.ToString());
       continue;
     }
 
     idle_timeouts = 0;
+    link_status.state = can::CanCommunicationState::kOnline;
+    link_status.last_error.clear();
+    ++link_status.decoded_frames;
+    publish_link_status();
     Publish(state);
     ++published;
   }
