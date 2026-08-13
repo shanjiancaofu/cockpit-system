@@ -1,11 +1,9 @@
-# Cockpit 车载语音 Agent 架构与实施计划
+# Cockpit 车载语音 Agent 架构
 
 ## 1. 文档状态
 
-本文是语音 Agent 的唯一总体文档，合并原《语音与 AI 规划》。文档严格分为两部分：
-
-- **第一部分——架构**：长期稳定的分层、进程、数据流、安全和资源边界。
-- **第二部分——实施计划**：按阶段记录已完成项、当前工作和未来验收门槛。
+本文只维护语音 Agent 长期稳定的分层、进程、数据流、安全和资源边界。实施状态与阶段任务见
+[语音阶段任务入口](voice-agent-tasks.md)，避免架构和计划各维护一份进度。
 
 文档中的能力状态使用以下定义：
 
@@ -14,8 +12,6 @@
 - **候选实验**：只用于比较，不进入默认配置和安装包。
 
 最后更新：2026-08-13。
-
-# 第一部分：稳定架构
 
 ## 2. 已确定的边界
 
@@ -108,7 +104,7 @@ CommandMatcher
 设备仍然只有一个 systemd 单元：
 
 ```text
-cockpit-system.service
+cockpit-navigator.service
 └── cockpit-navigator
     ├── audio_driver
     │   ├── ALSA Capture/Playback
@@ -421,118 +417,13 @@ config_version: 1
 
 模型榜单分数不能代替车内固定数据集和真机稳定性。
 
-# 第二部分：分阶段实施计划
+## 14. 相关文档
 
-## 14. 阶段规则
+- [当前实现状态](status.md)
+- [语音阶段任务入口](voice-agent-tasks.md)
+- 当前工作：在任务表中定位“阶段 6：建立会话状态机和恢复机制”。
 
-- 阶段状态只使用“已完成”、“进行中”、“未开始”和“真机待验收”。
-- 一个阶段必须同时满足代码、单元测试、构建和文档验收，才能标记完成。
-- 基础 CI 不下载模型，不构建 Sherpa-ONNX、ONNX Runtime 或 llama.cpp。
-- 每个阶段单独提交，不在架构重构提交中夹带模型和部署包。
-- Jetson 相关性能结论只能由真机数据产生，WSL2 只负责通用逻辑和工程质量。
-
-## 15. 阶段总览
-
-| 阶段 | 目标 | 状态 | 交付物 |
-| --- | --- | --- | --- |
-| 0 | 现状冻结与依赖审计 | 已完成 | 调用链、迁移清单、构建基线 |
-| 1 | ALSA 依赖精确化 | 已完成 | ALSA 只链接音频基础 target |
-| 2 | Audio Driver 职责缩减 | 已完成 | 采集、PCM 发布/播放、设备状态 |
-| 3 | Driver 到 Agent PCM 传输 | 已完成 | `SOCK_SEQPACKET` 协议、有界队列、重连和丢帧指标 |
-| 4 | 顶层 Agent 基础结构 | 已完成 | `agent/`、Runtime、PCM 输入和播放输出 |
-| 5 | VAD、切句、ASR、TTS 迁入 Agent | 已完成 | 普通 C++ 接口、mock 实现和流水线测试 |
-| 6 | 会话状态机与恢复 | 进行中 | 显式状态/事件、转换校验、单会话和超时恢复 |
-| 7 | KWS 和唤醒反馈 | 未开始 | KWS 接口、冷却、预录提示音、半双工 |
-| 8 | Sherpa 产品实现 | 未开始 | 独立产品构建、固定版本、私有 ONNX Runtime |
-| 9 | 真实 ASR 对比 | 未开始 | SenseVoice 基线与 Qwen3-ASR 真机报告 |
-| 10 | 确定性命令路由 | 未开始 | normalizer、matcher、validator、typed action |
-| 11 | 本地 LLM | 未开始 | 受监管 `llama-server`、超时、取消和文本输出 |
-| 12 | 动态 TTS | 未开始 | Kokoro PCM、句级合成、有界播放队列 |
-| 13 | NS、AEC 和 Barge-in | 未开始 | 车内噪声抑制、回声消除和打断 |
-| 14 | 模型版本、升级和回滚 | 未开始 | manifest、签名、`current/previous` 原子切换 |
-| 15 | 全量回归与发布门槛 | 未开始 | 真机指标、稳定性和发布否决条件 |
-
-## 16. 已完成基线（阶段 0–5）
-
-已经落地的端到端链路是：
-
-```text
-ALSA 麦克风
-  → audio_driver（采集并发布 PCM）
-  → Unix SOCK_SEQPACKET
-  → agent（mock VAD → SpeechSegmenter → mock ASR）
-  → transcript / intent / typed action
-  → response text → mock TTS
-  → AudioControl.PlayPcm
-  → audio_driver（只播放 PCM）
-  → ALSA 扬声器
-```
-
-已删除 VAD/ASR 动态插件 ABI、加载器、`Speak(text)` 和 Audio RPC 上的
-Transcript 订阅。Transcript 由 `VoiceInteractionControl.SubscribeTranscripts` 发布。
-
-## 17. 当前阶段：会话状态机（阶段 6）
-
-当前进度：状态/事件核心、非法转换拒绝、单会话串行、打断、provider 错误恢复、
-停机终态、Voice RPC 状态和状态转换指标已实现。待 KWS 和真实 ASR/LLM/TTS provider 接入后，
-再完成分环节 deadline、播放完成回执和 `FOLLOW_UP` 窗口。因此本阶段保持“进行中”。
-
-### 17.1 实现范围
-
-1. 在 `agent/conversation/` 建立独立会话状态机，不把转换规则散落在 gRPC、
-   Audio Driver 或具体模型实现中。
-2. 定义 `IDLE`、`WAKING`、`LISTENING`、`RECOGNIZING`、`ROUTING`、`EXECUTING`、
-   `THINKING`、`SPEAKING`、`FOLLOW_UP`、`CANCELLED`、`ERROR_RECOVERY` 和
-   `SHUTTING_DOWN`。
-3. 转换 API 拒绝非法边，保留最后一次转换原因和统计。
-4. 一次只允许一个活动会话；新请求不能和 ASR、LLM、TTS 并发执行。
-5. 打断、超时和 provider 异常统一经过 `CANCELLED/ERROR_RECOVERY`，执行取消、
-   清队列、停播放和恢复 `IDLE`。
-6. 先使用通用 `request_timeout_ms` 保持配置兼容；KWS、ASR、LLM 和 TTS 真实
-   provider 接入时，再按实际阶段拆分 deadline。
-
-### 17.2 验收
-
-- 所有允许和禁止转换具备单元测试。
-- 打断、provider 失败和超时最终都恢复到 `IDLE`。
-- 停止 Agent 后状态是 `SHUTTING_DOWN`，不得重新接收 transcript。
-- Voice RPC 状态输出能区分会话阶段，不再只暴露 `listening/processing`。
-- Debug、Release、ASan/UBSan 和 CI 保持通过。
-
-## 18. 后续阶段边界
-
-### 阶段 7：KWS 与唤醒反馈
-
-建立 KWS 接口、单唤醒词、冷却时间、预录提示音和 UI 反馈。第一版采用半双工，
-TTS 播放期间暂停 KWS/VAD/ASR。
-
-### 阶段 8–9：Sherpa 产品实现与 ASR 对比
-
-Sherpa-ONNX 使用固定版本的独立产品构建，ONNX Runtime 及其内部依赖保持私有。
-主项目 CMake 不查找 ONNX Runtime，基础 CI 不下载 Sherpa 或模型。默认不恢复
-算法级 `dlopen` C ABI；只有存在外部供应商独立替换的确定需求时，才重新评审该边界。
-
-### 阶段 10：确定性命令路由
-
-实现 TranscriptNormalizer、CommandMatcher、ActionValidator 和否定词/参数范围测试。
-所有车控动作必须来自确定性路由。
-
-### 阶段 11–12：本地 LLM 与动态 TTS
-
-Agent 监管固定 commit 的 `llama-server`，只通过本地接口获取回复文本。动态 TTS 按句
-合成 PCM 并走 Audio Playback；固定提示优先使用预录 WAV。
-
-### 阶段 13：音频前处理与打断
-
-先用真实车内录音验证 NS/AGC，再接 AEC3 和 Barge-in。开启 AEC 前继续保持
-半双工，不得让系统 TTS 触发自身。
-
-### 阶段 14–15：模型生命周期与发布
-
-实现可追踪 manifest、校验和签名、`current/previous` 原子切换、固定车内数据集、
-Jetson 全系统压力测试和发布否决条件。
-
-## 19. 官方参考
+## 15. 官方参考
 
 - Sherpa-ONNX：https://github.com/k2-fsa/sherpa-onnx
 - Sherpa-ONNX C API：https://k2-fsa.github.io/sherpa/onnx/c-api/html/

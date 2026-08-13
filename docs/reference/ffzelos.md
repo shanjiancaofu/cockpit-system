@@ -145,6 +145,6 @@
 3. `SystemConfig` 已集中管理业务参数；未消费的 WebSocket、AI provider、cloud 开关、固定实现选择项
    和旧 service 依赖表已移出活动配置，未来候选契约保留在配置与语音规划文档中。
 4. Navigator 已形成统一入口、代码内 mode、module child、版本化 dlopen ABI、本地控制 Socket 和
-   崩溃重启限制；systemd 只选择 mode 并守护 Navigator。
+   崩溃重启限制；systemd 只守护固定 Navigator，业务 mode 由代码内策略和本地控制面管理。
 5. 当前主链路为 `vehicle_driver -> transfer -> topic/Qt/agent/recording`。Qt/QML 已接入；WebSocket、
    MQTT/TLS 和真实云端上传等待后端身份、topic、确认和重试合同明确后实现。

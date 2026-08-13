@@ -1,16 +1,19 @@
 # 项目进度总览
 
-更新时间：2026-07-22。
+更新时间：2026-08-13。
 
-本文是日常推进看板，只回答当前阶段、主线完成度、下一步和风险。模块级完成度见
-[实现状态.md](实现状态.md)，每批具体改动见 [变更记录.md](变更记录.md)。
+本文是日常推进看板，只回答当前阶段、下一步和风险。模块级完成度见
+[status.md](status.md)，语音专项见 [voice-agent-tasks.md](voice-agent-tasks.md)，每批具体改动见
+[changelog.md](changelog.md)。
 
 ## 当前阶段
 
-当前已经完成 **WSL 开发机可靠性主线收口**，并进入 **Jetson Orin Nano Super 实机验证阶段**。
-Jetson 原生 GCC Debug/Release 构建、两套 45/45 CTest、ARM64 发布包、Navigator 完整 smoke 以及
-`/cockpit-system` 的 systemd 安装、健康检查、重启和回滚已通过。
-后续不再增加只提高模拟完整度的功能，优先形成图形、音频、CSI、CAN、systemd 和长稳的实机证据。
+当前主线是 **语音 Agent 阶段 6：会话状态机与恢复**。状态/事件核心、非法转换拒绝、单会话、
+主动打断、provider 错误恢复、停机终态及 RPC 状态指标已经落地；下一步补分环节 deadline、播放
+完成回执和 `FOLLOW_UP` 窗口。当前 WSL 独立 Debug/Release 构建均为 48/48 CTest。
+
+Jetson Orin Nano Super 的构建、安装、Navigator smoke、IMX219 短稳和 CAN 内部闭环已有历史实测，
+真实音频、外部 CAN、异常掉电及小时级长稳作为并行硬件验收，不阻塞 WSL 的通用 Agent 逻辑。
 
 当前不做完整云端平台，不拆前端/后端仓库，不把 Android、OTA、自动驾驶算法栈提前拉进主线。
 Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证等硬件相关工作，等设备到位后推进。
@@ -28,8 +31,8 @@ Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证�
 | 本地崩溃记录 | module child 异常退出写入有界 JSON，记录退出原因与重启结果；正常停止不留假记录 |
 | 真实模块迁移 | transfer、vehicle/audio/camera driver、agent、hmi、recording 和 upgrader 已迁入 Navigator；旧独立 service 入口已删除，carupload 等预留模块仅保留 ABI 骨架 |
 | 车辆链路 | mock/SocketCAN 到 VehicleState streaming，再到 gateway、topic、UI 和真实语音查询动作 |
-| 音频语音链路 | ALSA 抽象、AudioFrame、SPSC、VAD、分段、mock ASR/TTS 和停止取消链路 |
-| 语音异常闭环 | 连续命令保持顺序；支持中断当前 action、丢弃排队 transcript，并统计 provider 超时和失败后恢复 |
+| 音频语音链路 | ALSA 抽象、AudioFrame、SPSC、`SOCK_SEQPACKET` PCM、Agent 内 mock VAD/ASR/TTS 和停止取消链路 |
+| 语音异常闭环 | 显式会话状态机；连续命令保持顺序，支持中断当前 action、丢弃排队 transcript，并统计 provider 超时和失败后恢复 |
 | 语音动作边界 | 车辆状态走 gateway gRPC；打开相机通过本地 HMI gRPC 切换 Qt 页面；媒体未接入时明确失败 |
 | 相机链路 | V4L2/GStreamer 与合成采集、运行期看门狗、故障恢复、robust shared memory、Qt Camera 页面和拍照 |
 | 研发录包 | recording module、JSONL、artifacts/checksum、复盘元数据、时间线、完整性诊断和有界 text/JSON 聚合报告 |
@@ -48,19 +51,16 @@ Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证�
 
 ## 下一步要干啥事
 
-WSL 计划批次已经全部完成。Jetson 下一批按以下顺序推进：
+按以下顺序推进：
 
-1. ARM64 发布包临时安装、动态库解析、healthcheck 和 rollback 已通过。
-2. Jetson Xorg 真机窗口、Qt/QML 生命周期和 IMX219 预览、拍照已通过。
-3. IMX219 两分钟和正式 systemd 7 分 33 秒零丢帧、no-frames 恢复已通过，继续做小时级长稳。
-4. 接入真实麦克风和扬声器，验证采集、播放、增益、打断和声学参数。
-5. Jetson `mttcan can0` 的 500 kbit/s 内部闭环和 SocketCAN 车辆链路已通过；继续接入外置
-   CAN 收发器，完成真实总线、车辆信号和异常恢复验证。
-6. `0.1.2` 已安装到 `/cockpit-system`，systemd、健康检查、重启、日志、双向回滚和整机冷启动已通过；
-   冷启动后 target、normal mode、HMI/UI 和四个 gRPC 服务均自动恢复。继续验证异常掉电和小时级长稳。
-7. USB 音频模块到位后验证真实录音、噪声和端到端延迟，再进行真实 ASR 选型。
+1. 完成阶段 6 的分环节 deadline、播放完成回执和 `FOLLOW_UP` 窗口。
+2. 实现阶段 10 的 TranscriptNormalizer、确定性命令白名单和否定词/参数边界测试。
+3. 建立 KWS 接口、单唤醒词、冷却和半双工反馈。
+4. 在 Agent 产品边界接入固定版本 Sherpa-ONNX 与私有 ONNX Runtime，再在 Jetson 对比
+   SenseVoice 和 Qwen3-ASR；基础 CMake/CI 不下载模型。
+5. 硬件并行完成真实麦克风/扬声器、CSI 小时级、外部 CAN、异常掉电和 systemd 长稳。
 
-## WSL 后续批次
+## 已完成的 WSL 可靠性批次
 
 | 批次 | 状态 | 交付结果 | 完成标准 |
 |---|---|---|---|
@@ -69,7 +69,7 @@ WSL 计划批次已经全部完成。Jetson 下一批按以下顺序推进：
 | WSL-R3 | 已完成 | 可重复的 normal/development 长运行证据 | 报告包含资源初值、峰值和结束值；多次故障注入后 Runtime 恢复；日志、录包、报告和快照都保持有界 |
 | WSL-R4 | 已完成 | Whisper 可选真实识别证据 | 独立 GCC Release 构建识别真实 WAV，耗时 4.39 秒、峰值 RSS 649232 KiB；默认构建仍不依赖大模型 |
 
-WSL-R1 至 WSL-R4 已完成，WSL 开发机阶段收口。
+WSL-R1 至 WSL-R4 已完成的是此前可靠性批次，不表示 WSL 后续不再承担 Agent 通用逻辑开发。
 debugger 只在出现远程触发、持续采样或独立生命周期需求后实现；MQTT 只在 broker、身份、
 topic 和重试合同明确后接入。
 

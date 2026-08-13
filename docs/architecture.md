@@ -1,7 +1,7 @@
 # 当前架构概览
 
-本文只描述当前代码已经形成的真实运行架构。模块完成度见 [实现状态.md](实现状态.md)，近期推进
-顺序见 [项目进度总览.md](项目进度总览.md)。
+本文只描述当前代码已经形成的真实运行架构。模块完成度见 [status.md](status.md)，
+近期推进顺序见 [roadmap.md](roadmap.md)。
 
 ## 项目定位
 
@@ -16,13 +16,14 @@ target 和职责目录实现内部模块化，不提前拆分云端前端、后�
 ```text
 systemd → cockpit-navigator                 唯一长运行入口
               ↓ fork + exec
-         module child → cockpit/library    进程级动态业务模块
+         module child → cockpit/library    Driver/业务模块装配
+                      → agent/             语音与本地 Agent 应用层
                               ↓
-                       cockpit/modules     进程内领域实现
-                              ↓
-                       cockpit/drivers     Linux/硬件适配
-                              ↓
-                         cockpit/core      通用基础设施
+                       cockpit/modules     平台无关领域能力
+                              ↑
+                       cockpit/drivers     Linux/硬件适配实现
+
+cockpit/core 为上述各层提供配置、日志、IPC、时间和运行时基础设施。
 ```
 
 主要目录：
@@ -36,6 +37,7 @@ cockpit/
 ├── modules/               audio、camera、recording、vehicle、voice
 ├── navigator/             统一入口、配置、连接、加载和子进程管理
 └── proto/                 protobuf/gRPC 契约
+agent/                     语音、会话、动作和本地 AI 编排
 tools/                     诊断和模拟工具
 tests/                     单元测试与 smoke test
 ```
@@ -44,8 +46,10 @@ tests/                     单元测试与 smoke test
 
 `cockpit-navigator` 是车端唯一长运行入口。进程级模块表和 mode 组合固定在
 `navigator/run_config/run_config.cc`，不由业务 YAML 暴露动态库路径。父进程只把统一的
-`config.yaml` 路径传给 module child；子进程通过版本化 C ABI 和 `dlopen` 加载一个 `library/*`
-动态库。Navigator 负责模式切换、显式启停、状态查询、崩溃重启限制和退出回收；异常退出的原因与
+`config.yaml` 路径传给 module child；子进程通过版本化 C ABI 和 `dlopen` 加载一个模块
+动态库。Driver 和通用业务装配位于 `cockpit/library/`；Agent 的薄 ABI 入口位于
+`cockpit/navigator/library/agent/`，实现位于顶层 `agent/`。Navigator 负责模式切换、
+显式启停、状态查询、崩溃重启限制和退出回收；异常退出的原因与
 重启结果以最多 20 份 JSON 写入 `paths.data_dir/crashes/`。本地 Unix Socket
 控制接口不依赖 transfer 模块。客户端连接、写入和读取以及服务端回复都有 1 秒上限，
 无响应 peer 不会永久卡住运行时命令。
@@ -54,9 +58,9 @@ tests/                     单元测试与 smoke test
 
 - `vehicle_driver`：独占 CAN 或 mock 车辆数据源，发布 `VehicleState`。
 - `transfer`：聚合车辆状态，向 UI、topic 和语音动作提供数据。
-- `audio_driver`：独占麦克风和扬声器，运行采集、VAD、分段、ASR 和 TTS 播放。
+- `audio_driver`：独占麦克风和扬声器，负责 PCM 采集发布、PCM 播放和设备状态。
 - `camera_driver`：独占摄像头，负责预览生命周期和共享内存写入。
-- `agent`：订阅识别文本，执行模型、意图、动作和语音回复编排。
+- `agent`：消费 PCM，运行 VAD、切句、ASR、会话状态机、意图/动作、TTS 和回复编排。
 - `hmi`：启动并监管 `cockpit-ui`，保持 Qt 主线程事件循环独立，向 Navigator 汇报退出状态。
 - `recording`：面向研发诊断，订阅车辆状态并管理持久化录包会话。
 - `upgrader`：在独占的 upgrade mode 中校验并安装候选版本，发布持久化事务结果。
@@ -85,13 +89,14 @@ module child 异常退出则由 Linux parent-death signal 终止 UI，避免留�
 同线程             函数调用
 同进程控制         callback / EventQueue
 音频连续流         SPSC RingBuffer
+音频 Driver 到 Agent Unix SOCK_SEQPACKET
 相机跨进程帧       POSIX Shared Memory 双缓冲
 控制、状态、文本   gRPC unary / streaming
 外部云端           MQTT / WebSocket（后续）
 ```
 
-gRPC 不承载 PCM、图片等高频大数据。控制面和数据面分离：gRPC 管理生命周期、状态和文本；
-ring buffer 或共享内存传输连续数据。
+gRPC 不承载采集音频流、图片等高频大数据。控制面和数据面分离：gRPC 管理生命周期、
+状态、文本和有界播放请求；ring buffer、Unix 音频协议或共享内存传输连续数据。
 
 ## 车辆链路
 
@@ -116,16 +121,21 @@ ALSA microphone
     → AudioCaptureStream
     → AudioFrame（20 ms）
     → SPSC RingBuffer
-    → Energy VAD
-    → SpeechSegmenter
-    → mock ASR / external ASR C ABI plugin
-    → agent
-    → intent / action
-    → mock TTS
-    → ALSA speaker
+    → AudioStreamPublisher
+    → Unix SOCK_SEQPACKET PCM protocol
+    → Agent AudioStreamClient
+    → mock VAD → SpeechSegmenter → mock ASR
+    → ConversationStateMachine
+    → intent / typed action / response
+    → mock TTS → AudioControl.PlayPcm
+    → AudioPlayback → ALSA speaker
 ```
 
-PCM 和语音片段保持在 `audio_driver` module child 内，只有 transcript、控制和指标通过 gRPC。
+Audio Driver 不理解 VAD、Transcript、ASR、TTS 或 LLM。采集 PCM 通过固定小端序协议
+跨进程传给 Agent；Agent 合成的 PCM 通过 Audio gRPC `PlayPcm` 提交回 Driver。
+Transcript 和会话状态只由 Voice RPC 对外发布。基础仓库仅提供 mock VAD/ASR/TTS，
+不包含 Sherpa-ONNX、ONNX Runtime 或模型下载逻辑。详见
+[voice-agent.md](voice-agent.md)。
 
 ## 相机链路
 
@@ -168,7 +178,7 @@ start/recover 状态机，因此合成测试与真实 GStreamer pipeline 共享�
 
 cockpit-ui 在进程内保留最近 32 条状态切换，初次采样只建立基线，不生成虚假事件。每个服务记录
 最近一次 degraded/faulted 的状态、时间和原因，恢复为 OK 后仍可在 Dashboard 和 Diagnostics 页面
-追溯。历史不写数据库，UI 重启后清空；长期运行证据由 `run_navigator_stability.sh` 输出到
+追溯。历史不写数据库，UI 重启后清空；长期运行证据由 `scripts/tests/navigator-stability.sh` 输出到
 `_output/runtime/reports`。
 
 ## 诊断 CLI 输出
@@ -245,13 +255,14 @@ Navigator 重新加载旧模块。当前闭环用于 WSL 原型验证，不等�
 
 当前已经实现 RAII、有界队列和丢弃指标、gRPC deadline/cancellation、signal stop、配置校验、
 mock/null backend，以及 shared memory 的 name/layout/version/capacity 校验。尚未达到量产要求的部分
-包括认证加密、secure boot、ASIL、硬件 watchdog、权限最小化、量产 OTA 和隐私授权。
+包括完整设备身份/认证、secure boot、ASIL、硬件 watchdog、量产 OTA 和隐私授权。
 
 ## AI 安全边界
 
-语音链路保持 `Audio -> VAD -> ASR provider -> Assistant -> typed ActionDispatcher -> TTS`。
-外部 ASR 通过 `RTLD_LOCAL` 加载的稳定 C ABI 留在 `audio_driver` 进程内，PCM 不跨进程；插件内部
-依赖不进入主项目 CMake 依赖图。
+语音链路保持 `Audio Driver -> Agent VAD/ASR -> deterministic routing -> typed
+ActionDispatcher / local response -> Agent TTS -> Audio Driver`。真实算法作为 Agent 产品
+构建中的普通 C++ target 接入，不恢复算法级 `dlopen` 插件。Sherpa-ONNX 及其私有
+ONNX Runtime 不进入主项目默认 CMake/CI。
 车辆动作必须经过 allowlist 和类型校验；LLM 文本不能直接生成 CAN frame 或 shell command；网络失败
 需要明确的本地 fallback；录音、文本和云端请求必须有隐私策略。mock provider 只用于链路验证。
 

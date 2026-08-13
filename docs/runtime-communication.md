@@ -12,6 +12,7 @@
 | 同线程 | 函数调用 | 同步控制、纯计算 |
 | 同进程低频 | callback / EventQueue / MessageBus | 状态变化、控制事件、模块事件 |
 | 同进程连续流 | SPSC RingBuffer | PCM、固定帧数据 |
+| Audio Driver 到 Agent | Unix `SOCK_SEQPACKET` | PCM16 固定帧、sequence、timestamp、丢帧标志 |
 | 跨进程大数据 | POSIX Shared Memory | 相机帧，未来视频/模型输入 |
 | 跨进程控制 | gRPC unary | start/stop/status/config |
 | 跨进程小消息流 | gRPC streaming | VehicleState、transcript、事件 |
@@ -41,10 +42,15 @@
 ```text
 ALSA capture thread
     → SPSC RingBuffer<AudioFrame>
+    → AudioStreamPublisher 有界队列
+    → Unix SOCK_SEQPACKET
+    → Agent AudioStreamClient
     → VAD/segment/ASR consumer
 ```
 
-单生产者、单消费者、固定容量。队列满时丢帧并记录指标，采集线程不得等待 ASR。
+采集线程不执行 socket I/O，也不得等待 Agent/ASR。Driver 队列固定容量，满时丢弃旧帧，
+下一帧显式带 `discontinuity` 和 `dropped-before`。Agent 或 Driver 重启后由 client 重连，不建立
+无界内存积压。播放方向是有界 Audio gRPC `PlayPcm`：Agent 负责文本合成，Driver 只校验并播放 PCM。
 
 ### 相机
 

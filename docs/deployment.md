@@ -81,12 +81,12 @@ Jetson 多媒体库与 JetPack 版本绑定较强，原生构建更稳定。
 
 | 项目 | 状态 | 说明 |
 |---|---|---|
-| WSL GCC Debug | 已完成 | GCC 11.4、全量 45/45 CTest 已形成基线；smoke 和 clang-tidy 沿用现有门禁 |
+| WSL GCC Debug | 已完成 | 当前语音重构构建全量 48/48 CTest；smoke 和 clang-tidy 沿用现有门禁 |
 | WSL GCC Release | 已完成 | GCC 11.4、Release 构建、打包和 WSL matrix 已通过 |
 | ARM64 交叉编译器 | 已安装 | 当前 WSL 已有 `aarch64-linux-gnu-g++` 11.4 |
 | CMake toolchain | 已完成 | 已隔离宿主程序与目标头文件、库和 CMake package 查找路径 |
 | Jetson sysroot | 待硬件 | 必须从最终目标 JetPack/L4T 环境准备，不使用其他发行版替代 |
-| Jetson ARM64 原生构建 | 已完成 | Orin Nano Super 上 Debug/Release 45/45 CTest、打包和完整 smoke 通过 |
+| Jetson ARM64 原生构建 | 已完成 | 最近实机快照 Debug/Release 46/46 CTest、打包和完整 smoke 通过；测试数按当时清单记录 |
 | Jetson 临时安装 | 已完成 | ARM64 双版本安装、包篡改拒绝、healthcheck、故障恢复和 rollback 通过 |
 | Jetson 正式安装与长稳 | 待验证 | 继续验证 `/cockpit-system`、systemd、硬件权限和长期运行 |
 
@@ -218,7 +218,7 @@ bash scripts/tests/wsl-matrix.sh
 目录再原子发布，不复制完整配置文件，避免将后续加入的令牌或证书带入诊断归档。
 
 默认最多保留 10 份快照、合计 100 MiB，超过 `--max-snapshots` 或 `--max-total-bytes` 后按修改时间
-删除同目录中最旧的 `snapshot-*`。`run_navigator_stability.sh` 在 Navigator 未就绪、健康采样失败、
+删除同目录中最旧的 `snapshot-*`。`scripts/tests/navigator-stability.sh` 在 Navigator 未就绪、健康采样失败、
 故障恢复失败、进程退出或脚本异常时只抓取一次，并把原因、是否成功、快照路径和 Navigator 日志路径
 写入稳定性报告；健康运行不会生成快照。
 
@@ -326,13 +326,14 @@ action/factory，最后与后端 PKI 和发布协议一起开放远程控制面�
 bash scripts/check-health.sh
 ```
 
-systemd 只负责 Navigator 的进程级存活和模式选择。模块启动顺序、故障重启、状态和退出回收由
-Navigator 管理；模块间业务依赖仍通过 gRPC 合同和弱依赖重连处理。
+systemd 只负责固定 Navigator 的进程级存活并从 normal mode 启动。临时 mode 切换、模块启动顺序、
+故障重启、状态和退出回收由 Navigator 管理；模块间业务依赖仍通过 gRPC 合同和弱依赖重连处理。
 
 ## 依赖策略
 
-默认发布包使用系统提供的 Qt、ALSA、gRPC、Protobuf 3.12.4、yaml-cpp、GStreamer 和平台库，
-不重复打包这些系统运行库。
+Ubuntu 22.04 apt 负责 CMake、Ninja、GCC、Qt、ALSA、GStreamer、yaml-cpp、gRPC、Protobuf 3.12.4
+等系统依赖；发布包不重复复制这些系统运行库。apt 不负责全部应用依赖。
 
-外部 ASR 属于独立应用包，不由 Ubuntu 系统仓库替主项目管理，也不进入 cockpit-system 的构建。
-插件安装到 `/usr/lib/cockpit/asr/`，自身配置放在 `/etc/cockpit/`；插件内部运行时依赖由该包负责。
+Sherpa-ONNX、其私有 ONNX Runtime、llama.cpp 和模型属于后续 Agent 产品依赖，必须固定版本、离线准备、
+可追踪和可回滚。它们不进入基础系统默认 CMake/CI，不由 Audio Driver 加载，也不要求 ONNX Runtime
+与应用 gRPC 共用 Protobuf。当前仓库尚未接入或下载这些依赖。

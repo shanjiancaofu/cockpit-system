@@ -9,7 +9,7 @@
 
 - SocketCAN/mock 车辆数据和 VehicleState gRPC streaming。
 - ROS 风格 `topic list/info/echo/hz` 调试。
-- ALSA 录音/播放、AudioFrame、SPSC ring、VAD 和语音分段。
+- ALSA 录音/播放、AudioFrame、SPSC ring、PCM 进程间传输、mock VAD 和语音分段。
 - mock ASR/TTS 语音链路。
 - 语音意图、动作分发、车辆状态查询和 Qt 相机页面控制。
 - V4L2/GStreamer USB 摄像头和 Jetson Argus CSI 摄像头预览。
@@ -26,13 +26,10 @@
 ## 架构
 
 ```text
-systemd → cockpit/navigator → cockpit/library
-                                  ↓
-                           cockpit/modules
-                                  ↓
-                           cockpit/drivers
-                                  ↓
-                             cockpit/core
+systemd → cockpit/navigator → module child → cockpit/library / agent
+
+apps / library / agent / tools → modules ← drivers
+                 各层共用 core；跨进程契约位于 proto
 ```
 
 - `cockpit/core`：配置、日志、Runtime、事件和 IPC。
@@ -40,6 +37,7 @@ systemd → cockpit/navigator → cockpit/library
 - `cockpit/modules`：audio、camera、vehicle、voice 等领域能力。
 - `cockpit/navigator`：统一入口、模式、模块进程和状态管理。
 - `cockpit/library`：进程级动态业务模块和资源所有权。
+- `agent`：语音、会话、动作和本地 AI 应用层。
 - `cockpit/apps`：Qt/QML UI。
 - `tools`：模拟器和诊断工具。
 
@@ -58,11 +56,11 @@ cockpit-system/
 
 详细说明见：
 
-- `docs/architecture.md`
-- `docs/项目进度总览.md`
-- `docs/实现状态.md`
-- `docs/运行时通信策略.md`
-- `docs/模块化策略.md`
+- [文档导航](docs/README.md)
+- [当前实现状态](docs/status.md)
+- [系统架构](docs/architecture.md)
+- [项目路线图](docs/roadmap.md)
+- [语音 Agent 阶段任务](docs/voice-agent-tasks.md)
 
 ## 环境准备
 
@@ -159,4 +157,4 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 [docs]: update ...
 ```
 
-每批代码变更同步记录到 `docs/变更记录.md`。
+每批代码变更同步记录到 [changelog.md](docs/changelog.md)。

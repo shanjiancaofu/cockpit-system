@@ -13,7 +13,8 @@ pre-commit 源、Bazel 历史配置或 zlog/zutil 私有依赖。
 
 ## 目录与构建
 
-- 顶层产品源码按 `apps / processes / modules / drivers / core / proto` 分层。
+- 产品源码按顶层 `agent/` 与 `cockpit/{apps,core,drivers,library,modules,navigator,proto}`
+  分层，不再使用旧 `processes/` 目录。
 - 一个可执行程序使用一个目录，内部默认平铺；只有形成明确子域时才增加子目录。
 - 领域源码目录可以表达职责，但不要求每个源码子目录维护独立 `CMakeLists.txt`。
 - 只有需要独立复用、依赖隔离或条件编译时才建立 target；领域入口统一声明所属 target。

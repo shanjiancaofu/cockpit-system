@@ -9,6 +9,7 @@
 
 ```text
 cockpit-system/
+├── agent/         语音、会话、动作和本地 AI 应用层
 ├── cockpit/
 │   ├── apps/       用户应用
 │   ├── core/       通用基础设施
@@ -25,13 +26,13 @@ cockpit-system/
 依赖方向：
 
 ```text
-apps / library / tools
-          ↓
-       modules
-          ↓
-       drivers
-          ↓
-         core
+apps / library / agent / tools
+               ↓
+             modules
+               ↑
+             drivers
+
+core 为各层提供通用基础设施；drivers 实现 modules 定义的硬件抽象。
 ```
 
 实际依赖按接口决定，禁止反向依赖：
@@ -61,13 +62,13 @@ apps / library / tools
 
 ```text
 cockpit/modules/audio/
-  frames/ capture/ vad/ playback/ wav/
+  frames/ capture/ playback/ transport/ wav/
 
 cockpit/modules/camera/
   frames/ capture/ shared_memory/
 
 cockpit/modules/voice/
-  asr/ tts/ assistant/ actions/ responses/
+  assistant/ actions/ responses/
 ```
 
 领域子目录用于表达真实职责，由领域根目录的 `CMakeLists.txt` 集中声明 target。只有需要独立复用、
@@ -92,7 +93,7 @@ cockpit/modules/voice/
 
 - `transfer`
 - `driver/vehicle`、`driver/audio`、`driver/camera`
-- `agent`
+- `agent`（薄 ABI 入口在 `cockpit/navigator/library/agent/`，实现在顶层 `agent/`）
 - `hmi`（监管独立 Qt 主线程进程）
 - `recording`
 - `upgrader`
@@ -115,7 +116,7 @@ cockpit/library/driver/camera/
   preview/ control/ grpc/
 
 agent/
-  runtime/ speech/ interaction/ audio/ vehicle/ hmi/ grpc/
+  runtime/ speech/ conversation/ interaction/ audio/ vehicle/ hmi/ grpc/
 ```
 
 `entry.cc` 只暴露模块 ABI，真实装配放在同域 Runtime。Navigator 是长运行产品业务的唯一入口，
@@ -175,7 +176,7 @@ agent_speech voice_actions voice_responses
 Monitor 或插件框架。不要先创建空接口等待未来使用。
 
 模块边界不等于把每段短逻辑做成 helper 或类。单次、短小且没有独立资源/协议边界的逻辑优先留在
-调用处；具体判断标准见 [代码风格.md](代码风格.md) 的“克制抽象”。
+调用处；具体判断标准见 [code-style.md](code-style.md) 的“克制抽象”。
 
 ## 何时拆仓
 

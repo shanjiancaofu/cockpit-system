@@ -96,7 +96,7 @@ logging:
 |---|---|---|---|
 | vehicle-data | `vehicle_driver` | `127.0.0.1:50050` | VehicleState streaming |
 | gateway | `transfer` | `127.0.0.1:50051` | UI、topic 和车辆状态查询 |
-| audio | `audio_driver` | `127.0.0.1:50052` | 音频控制、transcript、Speak |
+| audio | `audio_driver` | `127.0.0.1:50052` | PCM 采集状态、设备指标和 `PlayPcm` |
 | voice interaction | `agent` | `127.0.0.1:50053` | 语音交互控制和回复 |
 | camera | `camera_driver` | `127.0.0.1:50054` | 相机 list/start/stop/status/photo |
 | recording | `recording` | `127.0.0.1:50055` | 研发录包、时间线和完整性诊断 |
@@ -293,7 +293,8 @@ features:
 
 `hardware.audio.capture_backend`、`hardware.audio.playback_backend` 和
 `services.camera.frame_transport` 也不作为当前配置。现阶段采集、播放和相机帧传输分别固定为
-ALSA、ALSA 和 POSIX shared memory。VAD 已使用独立插件 provider，不再增加同义的 backend 字段。
+ALSA、ALSA 和 POSIX shared memory。当前 VAD/ASR 通过 Agent 内的普通 C++ 接口注入 mock 实现，
+不提供算法动态插件 backend。
 
 ## 配置原则
 
