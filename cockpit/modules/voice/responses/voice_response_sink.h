@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <string>
 
 namespace cockpit {
@@ -17,12 +18,31 @@ struct VoiceOutputMetrics {
   bool available = false;
 };
 
+enum class VoiceOutputStatus {
+  kCompleted,
+  kFailed,
+  kCancelled,
+  kDropped,
+};
+
+struct VoiceOutputResult {
+  std::uint64_t request_id = 0;
+  VoiceOutputStatus status = VoiceOutputStatus::kFailed;
+  std::string error;
+};
+
+using VoiceOutputCompletion = std::function<void(VoiceOutputResult)>;
+
 class VoiceResponseSink {
  public:
   virtual ~VoiceResponseSink() = default;
 
-  virtual bool Submit(std::string text) = 0;
+  // A true return accepts ownership of completion and guarantees exactly one callback.
+  virtual bool Submit(std::uint64_t request_id, std::string text,
+                      VoiceOutputCompletion completion) = 0;
   virtual VoiceOutputMetrics metrics() const = 0;
+  virtual void Interrupt() {
+  }
   virtual void Stop() {
   }
 };

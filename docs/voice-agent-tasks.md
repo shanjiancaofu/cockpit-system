@@ -19,10 +19,10 @@
 
 ```text
 当前阶段：6 - 会话状态机与恢复
-已完成：显式状态/事件、非法转换拒绝、单会话、打断、provider 错误恢复、停机终态、RPC 状态与指标
-待完成：分环节 deadline、播放完成回执、FOLLOW_UP 窗口
+已完成：显式状态/事件、单会话、打断、provider 恢复、真实播放回执/取消、FOLLOW_UP 窗口
+待完成：分环节 deadline 和固定错误提示
 下一个实现入口：agent/conversation/ 和 agent/interaction/
-验证基线：Debug 48/48，Release 48/48，ASan/UBSan 聚焦测试通过
+验证基线：Debug/Release、ASan/UBSan、TSan 和 driver dependency boundary 由 CI 持续验证
 ```
 
 更新任务时，只更改对应分册的勾选项和本节交接信息；不把架构正文复制到任务文档。
@@ -180,7 +180,8 @@ cockpit/navigator/library/agent/
 状态：工程迁移已完成。真实麦克风、真实 VAD 和声学指标属于后续 Jetson 验收，不因 mock
 链路通过而标记完成。
 
-> 本文保留最初的任务明细和取舍记录。`[x]` 表示代码边界或自动化验证已完成；`[ ]` 表示仍需真实
+> 本节保留最初任务明细用于追踪，但其中曾经出现的“driver 依赖 modules”方案已经废弃。
+> 下面以当前最终依赖方向为准；`[x]` 表示代码边界或自动化验证已完成，`[ ]` 表示仍需真实
 > provider 或硬件证据。
 
 ### 阶段 0：现状冻结与依赖审计
@@ -217,17 +218,17 @@ cockpit/navigator/library/agent/
 
 - [x] 拆分并确认 `audio_frames`、`audio_capture`、`audio_playback`、`audio_analysis` 和
   `audio_wav` 基础 target。
-- [x] 移除 ALSA 对整个 `audio` 聚合 target 的依赖，改为精确依赖：
+- [x] 移除 ALSA driver 对 `audio` 聚合 target 和所有上层 target 的依赖。最终实现是 driver
+  只链接系统 ALSA，上层音频能力精确依赖 driver：
 
 ```cmake
 target_link_libraries(alsa_audio
     PUBLIC
-        audio_frames
-        audio_capture
-        audio_playback
-    PRIVATE
         PkgConfig::ALSA
 )
+
+target_link_libraries(audio_capture PUBLIC audio_frames alsa_audio)
+target_link_libraries(audio_playback PUBLIC audio_wav alsa_audio)
 ```
 
 - [x] 确认 `drivers/alsa` 不链接 `audio_vad`、`modules/voice`、Sherpa-ONNX 或 ONNX Runtime。
@@ -241,12 +242,17 @@ target_link_libraries(alsa_audio
 - [x] CMake 依赖方向符合：
 
 ```text
-core
-  ↑
-modules/audio
-  ↑
+Linux / ALSA
+     ↓
 drivers/alsa
+     ↓
+modules/audio
+     ↓
+library/driver/audio
 ```
+
+箭头表示上层依赖下层。`drivers/alsa` 不链接 `core`、`modules`、`library` 或 `agent`；CI 的
+driver dependency boundary 检查持续保护该约束。
 
 ---
 
@@ -464,7 +470,13 @@ timeouts:
 - [ ] 将通用 `request_timeout_ms` 拆为上面的分环节 deadline；当前 provider 超时已能恢复，
   但真实网络/模型 provider 尚未消费独立预算。
 - [x] provider 失败、现有超时和主动打断统一执行取消、清空过期队列、停止当前响应并恢复
-  `IDLE`；固定错误提示和播放完成回执仍待实现。
+  `IDLE`；固定错误提示仍待实现。
+- [x] `PlayPcm accepted` 只表示有界队列接收；真实 `player_->Play()` 返回后，Audio Driver 通过
+  playback id 保存 `completed / failed / cancelled / dropped` 最终结果。
+- [x] Agent 异步等待单次播放结果，`completed` 驱动 `SPEAKING -> FOLLOW_UP`；播放失败进入恢复，
+  播放取消不进入 `FOLLOW_UP`。
+- [x] `FOLLOW_UP` 使用 8 秒可配置 monotonic 窗口；窗口内 transcript 进入新请求，超时返回
+  `IDLE`，interrupt/shutdown 和新 generation 会使旧完成回调与 timer 失效。
 - [ ] 完整超时恢复还需：
   - [ ] 取消当前任务。
   - [ ] 停止播放。
@@ -480,6 +492,8 @@ timeouts:
 - [ ] 真实模型进程异常不会阻塞 Navigator 主循环。
 - [x] 不出现同时监听、识别和播放的非法状态。
 - [x] 状态转换、打断、失败恢复和停机终态具备单元测试。
+- [x] 播放 accepted/completed 分离、真实完成、失败、取消、stale completion、FollowUp 超时和
+  窗口内续问具备单元测试。
 
 ---
 
@@ -960,7 +974,7 @@ Jetson 全系统压力测试
 VAD/Segmenter 工程迁移和会话状态机核心
 
 P0：
-阶段 6 分环节 deadline、播放完成回执和 FOLLOW_UP 窗口
+阶段 6 分环节 deadline 和固定错误提示
 命令白名单
 
 P1：

@@ -27,7 +27,8 @@ int main() {
       config.services().recording.min_free_bytes != 536870912ULL ||
       config.hardware().can.interface != "vcan0" ||
       config.features().voice.asr.provider != "mock" ||
-      config.features().ai.request_timeout_ms != 10000 || config.tools().topic.backend != "file") {
+      config.features().ai.request_timeout_ms != 10000 ||
+      config.features().ai.follow_up_window_ms != 8000 || config.tools().topic.backend != "file") {
     std::cerr << "typed config fields do not match config.yaml" << std::endl;
     return 1;
   }

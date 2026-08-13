@@ -2,6 +2,21 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-08-13 - Voice Agent 真实播放与 FOLLOW_UP 闭环
+
+- `AudioControl.PlayPcm` 增加 playback id，继续只表达是否入队；新增最小的单次结果等待和取消 RPC，
+  不引入 streaming 或通用异步框架。
+- `AudioPlayback::Run()` 在真实 `AudioPlayer::Play()` 返回后生成 completed、failed、cancelled 或
+  dropped 最终结果；结果历史和播放队列均保持有界。
+- Voice 输出接口增加 exactly-once completion 和独立 `Interrupt()`；Agent 在入队成功后保持
+  `SPEAKING`，真实完成后进入 `FOLLOW_UP`，失败走现有恢复链路。
+- `FOLLOW_UP` 使用 steady-clock 8 秒窗口；新 transcript、interrupt 和 shutdown 会使旧 timer 与旧
+  completion 失效，避免旧会话改变新会话状态。
+- 修正文档中的历史 ALSA 依赖示例：最终方向为 Linux/ALSA → drivers → modules → library，上层依赖
+  下层，driver 不链接 core/modules/library/agent。
+- WSL 验证：Debug 53/53、Release 53/53、ASan/UBSan 非 system-grpc 46/46、当前 CI TSan regex
+  9/9、driver dependency boundary 和 pre-commit 全部通过。
+
 ## 2026-08-13 - Driver、CAN FD、运行时故障与语音 deadline 收口
 
 - ALSA、SocketCAN driver 改为只依赖 STL 和 Linux/ALSA 系统接口；领域适配移到 modules，CI 新增

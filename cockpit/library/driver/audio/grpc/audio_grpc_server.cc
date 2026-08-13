@@ -47,6 +47,22 @@ proto::common::RuntimeModuleState ToProtoModuleState(runtime::ModuleState state)
   return proto::common::RUNTIME_MODULE_STATE_UNSPECIFIED;
 }
 
+proto::audio::PlaybackStatus ToProtoPlaybackStatus(AudioPlaybackStatus status) {
+  switch (status) {
+    case AudioPlaybackStatus::kPending:
+      return proto::audio::PLAYBACK_STATUS_PENDING;
+    case AudioPlaybackStatus::kCompleted:
+      return proto::audio::PLAYBACK_STATUS_COMPLETED;
+    case AudioPlaybackStatus::kFailed:
+      return proto::audio::PLAYBACK_STATUS_FAILED;
+    case AudioPlaybackStatus::kCancelled:
+      return proto::audio::PLAYBACK_STATUS_CANCELLED;
+    case AudioPlaybackStatus::kDropped:
+      return proto::audio::PLAYBACK_STATUS_DROPPED;
+  }
+  return proto::audio::PLAYBACK_STATUS_UNSPECIFIED;
+}
+
 void FillHealth(const AudioCaptureControllerStatus& status, proto::common::ServiceHealth* health) {
   health->set_service_name("audio-driver");
   health->set_checked_at_ms(time::NowMs());
@@ -146,11 +162,52 @@ grpc::Status AudioGrpcServer::PlayPcm(grpc::ServerContext*,
         static_cast<std::uint16_t>(low) | (static_cast<std::uint16_t>(high) << 8U);
     std::memcpy(&buffer.samples[index], &raw, sizeof(raw));
   }
-  const bool accepted = playback_.Submit(std::move(buffer));
-  response->set_accepted(accepted);
-  return accepted ? grpc::Status::OK
-                  : grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
-                                 "audio playback queue rejected the request");
+  if (request->playback_id() == 0U) {
+    response->set_accepted(false);
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "playback_id must be non-zero");
+  }
+  const auto playback_id = playback_.Submit(std::move(buffer), request->playback_id());
+  response->set_accepted(playback_id.has_value());
+  response->set_playback_id(playback_id.value_or(request->playback_id()));
+  return playback_id.has_value() ? grpc::Status::OK
+                                 : grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                                "audio playback queue rejected the request");
+}
+
+grpc::Status AudioGrpcServer::WaitPlayback(grpc::ServerContext*,
+                                           const proto::audio::PlaybackRequest* request,
+                                           proto::audio::PlaybackResult* response) {
+  constexpr std::uint32_t kMaxWaitTimeoutMs = 120000U;
+  if (request->playback_id() == 0U || request->wait_timeout_ms() == 0U ||
+      request->wait_timeout_ms() > kMaxWaitTimeoutMs) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                        "playback wait requires an id and timeout up to 120000 ms");
+  }
+  AudioPlaybackResult result;
+  const AudioPlaybackWaitStatus wait = playback_.WaitForResult(
+      request->playback_id(), std::chrono::milliseconds(request->wait_timeout_ms()), &result);
+  response->set_playback_id(request->playback_id());
+  if (wait == AudioPlaybackWaitStatus::kNotFound) {
+    response->set_status(proto::audio::PLAYBACK_STATUS_NOT_FOUND);
+    return grpc::Status::OK;
+  }
+  if (wait == AudioPlaybackWaitStatus::kTimeout) {
+    response->set_status(proto::audio::PLAYBACK_STATUS_PENDING);
+    return grpc::Status::OK;
+  }
+  response->set_status(ToProtoPlaybackStatus(result.status));
+  response->set_error(result.error);
+  return grpc::Status::OK;
+}
+
+grpc::Status AudioGrpcServer::CancelPlayback(grpc::ServerContext*,
+                                             const proto::audio::CancelPlaybackRequest* request,
+                                             proto::audio::CancelPlaybackResponse* response) {
+  if (request->playback_id() == 0U) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "playback_id must be non-zero");
+  }
+  response->set_accepted(playback_.Cancel(request->playback_id()));
+  return grpc::Status::OK;
 }
 
 void AudioGrpcServer::FillStatus(const AudioCaptureControllerStatus& status,

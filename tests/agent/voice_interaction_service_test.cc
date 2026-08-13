@@ -2,7 +2,9 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -15,8 +17,10 @@ namespace {
 
 class CountingResponseSink final : public cockpit::voice::VoiceResponseSink {
  public:
-  bool Submit(std::string) override {
+  bool Submit(std::uint64_t request_id, std::string,
+              cockpit::voice::VoiceOutputCompletion completion) override {
     ++submitted_;
+    completion({request_id, cockpit::voice::VoiceOutputStatus::kCompleted, {}});
     return true;
   }
 
@@ -99,6 +103,112 @@ class RecoveringVoiceAssistant final : public cockpit::voice::VoiceAssistant {
   bool cancelled_ = false;
 };
 
+class ManualResponseSink final : public cockpit::voice::VoiceResponseSink {
+ public:
+  bool Submit(std::uint64_t request_id, std::string,
+              cockpit::voice::VoiceOutputCompletion completion) override {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (reject_) {
+        return false;
+      }
+      callbacks_[request_id] = std::move(completion);
+      active_request_id_ = request_id;
+      ++submissions_;
+    }
+    changed_.notify_all();
+    return true;
+  }
+
+  cockpit::voice::VoiceOutputMetrics metrics() const override {
+    std::lock_guard<std::mutex> lock(mutex_);
+    cockpit::voice::VoiceOutputMetrics result;
+    result.queued = submissions_;
+    return result;
+  }
+
+  void Interrupt() override {
+    cockpit::voice::VoiceOutputCompletion completion;
+    std::uint64_t request_id = 0;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      ++interruptions_;
+      request_id = active_request_id_;
+      const auto found = callbacks_.find(request_id);
+      if (found != callbacks_.end()) {
+        completion = found->second;
+      }
+      active_request_id_ = 0U;
+    }
+    if (completion) {
+      completion(
+          {request_id, cockpit::voice::VoiceOutputStatus::kCancelled, "manual playback cancelled"});
+    }
+  }
+
+  void Stop() override {
+    Interrupt();
+  }
+
+  bool WaitForSubmissions(std::uint64_t count) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return changed_.wait_until(lock, std::chrono::system_clock::now() + std::chrono::seconds(1),
+                               [this, count] {
+                                 return submissions_ >= count;
+                               });
+  }
+
+  void Complete(std::uint64_t request_id, cockpit::voice::VoiceOutputStatus status,
+                std::string error = {}) {
+    cockpit::voice::VoiceOutputCompletion completion;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      const auto found = callbacks_.find(request_id);
+      if (found != callbacks_.end()) {
+        completion = found->second;
+      }
+      if (active_request_id_ == request_id) {
+        active_request_id_ = 0U;
+      }
+    }
+    if (completion) {
+      completion({request_id, status, std::move(error)});
+    }
+  }
+
+  void set_reject(bool reject) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    reject_ = reject;
+  }
+
+  std::uint64_t interruptions() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return interruptions_;
+  }
+
+ private:
+  mutable std::mutex mutex_;
+  std::condition_variable changed_;
+  std::map<std::uint64_t, cockpit::voice::VoiceOutputCompletion> callbacks_;
+  std::uint64_t active_request_id_ = 0;
+  std::uint64_t submissions_ = 0;
+  std::uint64_t interruptions_ = 0;
+  bool reject_ = false;
+};
+
+bool WaitForState(cockpit::voice::VoiceInteractionService& service,
+                  cockpit::voice::InteractionState expected,
+                  std::chrono::milliseconds timeout = std::chrono::milliseconds(500)) {
+  const auto deadline = std::chrono::steady_clock::now() + timeout;
+  while (std::chrono::steady_clock::now() < deadline) {
+    if (service.status().state == expected) {
+      return true;
+    }
+    std::this_thread::yield();
+  }
+  return service.status().state == expected;
+}
+
 }  // namespace
 
 int main() {
@@ -135,7 +245,7 @@ int main() {
     return 1;
   }
   const auto status = service.status();
-  if (status.state != cockpit::voice::InteractionState::kIdle ||
+  if (status.state != cockpit::voice::InteractionState::kFollowUp ||
       status.metrics.transcripts_received != 2 || status.metrics.transcript_events_dropped != 0 ||
       status.metrics.responses_published != 2 || status.metrics.unknown_intents != 1 ||
       status.metrics.actions_attempted != 1 || status.metrics.actions_succeeded != 1 ||
@@ -187,6 +297,112 @@ int main() {
       recovered_status.metrics.responses_published != 1 || !recovered_status.last_error.empty() ||
       recovered_status.state != cockpit::voice::InteractionState::kIdle) {
     std::cerr << "voice service did not recover after provider failure\n";
+    return 1;
+  }
+
+  auto lifecycle_sink = std::make_unique<ManualResponseSink>();
+  auto* lifecycle_output = lifecycle_sink.get();
+  cockpit::voice::VoiceInteractionService lifecycle_service(
+      true, std::make_unique<cockpit::voice::MockVoiceAssistant>(),
+      std::make_unique<cockpit::voice::MockActionDispatcher>(), std::move(lifecycle_sink), nullptr,
+      std::chrono::seconds(1), std::chrono::milliseconds(30));
+  if (!lifecycle_service.Start()) {
+    std::cerr << "playback lifecycle service did not start\n";
+    return 1;
+  }
+  cockpit::voice::SpeechTranscript lifecycle_transcript;
+  lifecycle_transcript.id = 400;
+  lifecycle_transcript.text = "something unknown";
+  if (lifecycle_service.SubmitTranscript(lifecycle_transcript) !=
+          cockpit::event::EventQueuePushResult::kAccepted ||
+      !lifecycle_output->WaitForSubmissions(1U) ||
+      lifecycle_service.status().state != cockpit::voice::InteractionState::kSpeaking) {
+    std::cerr << "accepted output did not keep the interaction in Speaking\n";
+    return 1;
+  }
+  const auto first_lifecycle_response = lifecycle_service.status().latest_response;
+  if (!first_lifecycle_response.has_value()) {
+    std::cerr << "playback lifecycle response was not published\n";
+    return 1;
+  }
+  lifecycle_output->Complete(first_lifecycle_response->id,
+                             cockpit::voice::VoiceOutputStatus::kCompleted);
+  if (lifecycle_service.status().state != cockpit::voice::InteractionState::kFollowUp ||
+      !WaitForState(lifecycle_service, cockpit::voice::InteractionState::kIdle)) {
+    std::cerr << "real playback completion did not enter and expire FollowUp\n";
+    return 1;
+  }
+
+  lifecycle_transcript.id = 401;
+  if (lifecycle_service.SubmitTranscript(lifecycle_transcript) !=
+          cockpit::event::EventQueuePushResult::kAccepted ||
+      !lifecycle_output->WaitForSubmissions(2U)) {
+    std::cerr << "second playback lifecycle request was not accepted\n";
+    return 1;
+  }
+  const auto interrupted_response = lifecycle_service.status().latest_response;
+  if (!interrupted_response.has_value() ||
+      lifecycle_service.status().state != cockpit::voice::InteractionState::kSpeaking) {
+    std::cerr << "second playback did not enter Speaking\n";
+    return 1;
+  }
+  lifecycle_output->Complete(interrupted_response->id,
+                             cockpit::voice::VoiceOutputStatus::kCompleted);
+  lifecycle_transcript.id = 402;
+  if (lifecycle_service.status().state != cockpit::voice::InteractionState::kFollowUp ||
+      lifecycle_service.SubmitTranscript(lifecycle_transcript) !=
+          cockpit::event::EventQueuePushResult::kAccepted ||
+      !lifecycle_output->WaitForSubmissions(3U) ||
+      lifecycle_service.status().state != cockpit::voice::InteractionState::kSpeaking) {
+    std::cerr << "transcript inside FollowUp did not start a new request\n";
+    return 1;
+  }
+  const auto interrupted_playback = lifecycle_service.status().latest_response;
+  const auto playback_interrupt = lifecycle_service.Interrupt();
+  if (!playback_interrupt.active_request_interrupted || lifecycle_output->interruptions() != 1U ||
+      lifecycle_service.status().state != cockpit::voice::InteractionState::kIdle) {
+    std::cerr << "interrupt during Speaking did not stop voice output\n";
+    return 1;
+  }
+
+  lifecycle_transcript.id = 403;
+  if (lifecycle_service.SubmitTranscript(lifecycle_transcript) !=
+          cockpit::event::EventQueuePushResult::kAccepted ||
+      !lifecycle_output->WaitForSubmissions(4U)) {
+    std::cerr << "voice service did not accept work after playback interruption\n";
+    return 1;
+  }
+  const auto current_response = lifecycle_service.status().latest_response;
+  if (!interrupted_playback.has_value()) {
+    std::cerr << "interrupted playback response was not published\n";
+    return 1;
+  }
+  lifecycle_output->Complete(interrupted_playback->id,
+                             cockpit::voice::VoiceOutputStatus::kCompleted);
+  if (!current_response.has_value() ||
+      lifecycle_service.status().state != cockpit::voice::InteractionState::kSpeaking) {
+    std::cerr << "stale playback completion changed the new conversation\n";
+    return 1;
+  }
+  lifecycle_output->Complete(current_response->id, cockpit::voice::VoiceOutputStatus::kFailed,
+                             "speaker failed");
+  if (!WaitForState(lifecycle_service, cockpit::voice::InteractionState::kIdle) ||
+      lifecycle_service.status().metrics.processing_errors == 0U) {
+    std::cerr << "playback failure did not enter recovery\n";
+    return 1;
+  }
+  lifecycle_service.Stop();
+
+  auto rejecting_sink = std::make_unique<ManualResponseSink>();
+  auto* rejecting_output = rejecting_sink.get();
+  rejecting_output->set_reject(true);
+  cockpit::voice::VoiceInteractionService rejecting_service(
+      true, std::make_unique<cockpit::voice::MockVoiceAssistant>(), nullptr,
+      std::move(rejecting_sink));
+  if (rejecting_service.HandleTranscript(lifecycle_transcript).has_value() ||
+      rejecting_service.status().state != cockpit::voice::InteractionState::kIdle ||
+      rejecting_service.status().metrics.processing_errors == 0U) {
+    std::cerr << "rejected playback queue produced a successful response\n";
     return 1;
   }
 

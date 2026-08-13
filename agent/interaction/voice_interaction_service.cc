@@ -15,16 +15,19 @@ VoiceInteractionService::VoiceInteractionService(bool enabled,
                                                  std::unique_ptr<ActionDispatcher> dispatcher,
                                                  std::unique_ptr<VoiceResponseSink> output,
                                                  ResponseObserver response_observer,
-                                                 std::chrono::milliseconds request_timeout)
+                                                 std::chrono::milliseconds request_timeout,
+                                                 std::chrono::milliseconds follow_up_window)
     : enabled_(enabled),
       assistant_(std::move(assistant)),
       dispatcher_(std::move(dispatcher)),
       output_(std::move(output)),
       response_observer_(std::move(response_observer)),
       request_timeout_(request_timeout),
+      follow_up_window_(follow_up_window),
       state_machine_(enabled) {
-  if (request_timeout_ <= std::chrono::milliseconds::zero()) {
-    throw std::invalid_argument("voice request timeout must be positive");
+  if (request_timeout_ <= std::chrono::milliseconds::zero() ||
+      follow_up_window_ <= std::chrono::milliseconds::zero()) {
+    throw std::invalid_argument("voice request and follow-up timeouts must be positive");
   }
 }
 
@@ -55,6 +58,7 @@ void VoiceInteractionService::Stop() {
   worker_running_.store(false);
   state_machine_.Handle(ConversationEvent::kShutdownRequested, "voice interaction stopping");
   interrupt_generation_.fetch_add(1U);
+  InvalidateOutputLifecycle();
   transcript_events_.Close();
   transcript_events_.DiscardPending();
   if (assistant_ != nullptr) {
@@ -230,9 +234,28 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
                                  "response submitted for playback")) {
         throw std::runtime_error("invalid conversation transition to speaking");
       }
-      output_->Submit(response.response_text);
+      {
+        std::lock_guard<std::mutex> lock(output_mutex_);
+        active_output_request_id_ = response.id;
+        active_output_generation_ = request_generation;
+        follow_up_deadline_.reset();
+      }
+      if (!output_->Submit(response.id, response.response_text,
+                           [this, request_generation](VoiceOutputResult output_result) {
+                             HandleOutputResult(request_generation, std::move(output_result));
+                           })) {
+        {
+          std::lock_guard<std::mutex> lock(output_mutex_);
+          if (active_output_request_id_ == response.id) {
+            active_output_request_id_ = 0U;
+            active_output_generation_ = 0U;
+          }
+        }
+        throw std::runtime_error("voice output queue rejected the response");
+      }
+    } else {
+      ReturnToIdle("voice request completed without playback");
     }
-    ReturnToIdle("voice request completed");
     return response;
   } catch (const std::exception& exception) {
     processing_errors_.fetch_add(1U);
@@ -245,6 +268,7 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
 VoiceInterruptResult VoiceInteractionService::Interrupt() {
   VoiceInterruptResult result;
   interrupt_generation_.fetch_add(1U);
+  InvalidateOutputLifecycle();
   result.queued_transcripts_discarded = transcript_events_.DiscardPending();
   result.active_request_interrupted =
       ConversationStateMachine::IsActive(state_machine_.snapshot().state);
@@ -257,6 +281,9 @@ VoiceInterruptResult VoiceInteractionService::Interrupt() {
     }
     if (dispatcher_ != nullptr) {
       dispatcher_->Cancel();
+    }
+    if (output_ != nullptr) {
+      output_->Interrupt();
     }
     ReturnToIdle("voice interrupt cleanup completed");
   }
@@ -340,8 +367,73 @@ bool VoiceInteractionService::BeginRequest() {
       state != InteractionState::kFollowUp) {
     return false;
   }
+  if (state == InteractionState::kFollowUp) {
+    std::lock_guard<std::mutex> lock(output_mutex_);
+    follow_up_deadline_.reset();
+  }
   return state_machine_.Handle(ConversationEvent::kSpeechSegmentReady,
                                "final speech segment received");
+}
+
+void VoiceInteractionService::HandleOutputResult(std::uint64_t request_generation,
+                                                 VoiceOutputResult result) {
+  {
+    std::lock_guard<std::mutex> lock(output_mutex_);
+    if (result.request_id == 0U || result.request_id != active_output_request_id_ ||
+        request_generation != active_output_generation_ ||
+        request_generation != interrupt_generation_.load()) {
+      return;
+    }
+    active_output_request_id_ = 0U;
+    active_output_generation_ = 0U;
+  }
+
+  switch (result.status) {
+    case VoiceOutputStatus::kCompleted:
+      if (state_machine_.Handle(ConversationEvent::kPlaybackCompleted,
+                                "audio playback completed")) {
+        std::lock_guard<std::mutex> lock(output_mutex_);
+        if (request_generation == interrupt_generation_.load() &&
+            state_machine_.snapshot().state == InteractionState::kFollowUp) {
+          follow_up_deadline_ = std::chrono::steady_clock::now() + follow_up_window_;
+        }
+      }
+      return;
+    case VoiceOutputStatus::kCancelled:
+      if (state_machine_.Handle(ConversationEvent::kCancelRequested, "audio playback cancelled")) {
+        ReturnToIdle("voice playback cancellation completed");
+      }
+      return;
+    case VoiceOutputStatus::kDropped:
+    case VoiceOutputStatus::kFailed:
+      processing_errors_.fetch_add(1U);
+      SetLastError(result.error.empty() ? "voice playback failed" : result.error);
+      RecoverFromError(result.error.empty() ? "voice playback failed" : result.error);
+      return;
+  }
+}
+
+void VoiceInteractionService::ExpireFollowUpIfNeeded() {
+  std::uint64_t generation = 0U;
+  {
+    std::lock_guard<std::mutex> lock(output_mutex_);
+    if (!follow_up_deadline_.has_value() ||
+        std::chrono::steady_clock::now() < *follow_up_deadline_) {
+      return;
+    }
+    follow_up_deadline_.reset();
+    generation = interrupt_generation_.load();
+  }
+  if (generation == interrupt_generation_.load()) {
+    state_machine_.Handle(ConversationEvent::kFollowUpExpired, "follow-up window expired");
+  }
+}
+
+void VoiceInteractionService::InvalidateOutputLifecycle() {
+  std::lock_guard<std::mutex> lock(output_mutex_);
+  active_output_request_id_ = 0U;
+  active_output_generation_ = 0U;
+  follow_up_deadline_.reset();
 }
 
 void VoiceInteractionService::RecoverFromError(const std::string& reason) {
@@ -395,6 +487,7 @@ void VoiceInteractionService::ProcessLoop() {
   while (worker_running_.load()) {
     auto transcript = transcript_events_.WaitPopFor(std::chrono::milliseconds(100));
     if (!transcript.has_value()) {
+      ExpireFollowUpIfNeeded();
       continue;
     }
     HandleTranscript(*transcript);

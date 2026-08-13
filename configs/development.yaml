@@ -89,6 +89,7 @@ features:
       provider: mock
   ai:
     request_timeout_ms: 10000
+    follow_up_window_ms: 8000
 
 tools:
   topic:

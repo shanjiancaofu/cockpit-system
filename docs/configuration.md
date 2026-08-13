@@ -269,6 +269,7 @@ features:
       provider: mock
   ai:
     request_timeout_ms: 10000
+    follow_up_window_ms: 8000
 ```
 
 基础仓库只提供可测试的 mock 实现，不提供算法动态插件 ABI。后续 Sherpa-ONNX、ONNX Runtime
@@ -276,6 +277,8 @@ features:
 `request_timeout_ms` 是一次 assistant 请求的交互层响应预算；当前 mock 用它判定超时并
 丢弃迟到结果，真实 HTTP/gRPC provider 还必须把同一预算设置为网络 deadline，并实现 `Cancel()`，
 不能依赖交互层强制终止阻塞的第三方调用。
+`follow_up_window_ms` 是真实语音播放完成后保持 `FOLLOW_UP` 的 monotonic 时间窗口；窗口内的新
+transcript 直接进入下一轮识别，超时、打断或停机都会使该窗口失效。
 
 ## 未来配置契约
 

@@ -6,8 +6,8 @@
 #include <mutex>
 #include <string>
 
+#include "agent/audio/audio_playback_transport.h"
 #include "agent/speech/tts/speech_synthesizer.h"
-#include "audio.grpc.pb.h"
 #include "cockpit/modules/voice/responses/voice_response_sink.h"
 
 namespace cockpit {
@@ -18,21 +18,31 @@ class AudioPlaybackClient final : public VoiceResponseSink {
   explicit AudioPlaybackClient(const std::string& address);
   AudioPlaybackClient(const std::string& address, std::unique_ptr<SpeechSynthesizer> synthesizer,
                       std::chrono::milliseconds synthesis_timeout = std::chrono::seconds(5));
+  AudioPlaybackClient(std::unique_ptr<AudioPlaybackTransport> transport,
+                      std::unique_ptr<SpeechSynthesizer> synthesizer,
+                      std::chrono::milliseconds synthesis_timeout = std::chrono::seconds(5));
 
-  bool Submit(std::string text) override;
+  bool Submit(std::uint64_t request_id, std::string text,
+              VoiceOutputCompletion completion) override;
   VoiceOutputMetrics metrics() const override;
+  void Interrupt() override;
   void Stop() override;
 
  private:
+  void ClearActiveRequest(std::uint64_t request_id);
   void MarkReachable();
 
-  std::unique_ptr<proto::audio::AudioControl::Stub> stub_;
+  const std::unique_ptr<AudioPlaybackTransport> transport_;
   const std::unique_ptr<SpeechSynthesizer> synthesizer_;
-  mutable std::mutex context_mutex_;
-  grpc::ClientContext* active_context_ = nullptr;
+  mutable std::mutex state_mutex_;
+  std::uint64_t active_request_id_ = 0;
+  std::uint64_t active_playback_id_ = 0;
   bool stopping_ = false;
   const std::chrono::milliseconds synthesis_timeout_;
+  std::atomic<std::uint64_t> interrupt_generation_{0};
+  std::atomic<std::uint64_t> next_playback_id_{1};
   std::atomic<std::uint64_t> queued_{0};
+  std::atomic<std::uint64_t> played_{0};
   std::atomic<std::uint64_t> failed_{0};
   std::atomic<std::uint64_t> dropped_{0};
   std::atomic<std::uint64_t> reconnects_{0};

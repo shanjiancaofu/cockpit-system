@@ -74,7 +74,8 @@ class VoiceInteractionService {
                           std::unique_ptr<ActionDispatcher> dispatcher,
                           std::unique_ptr<VoiceResponseSink> output = nullptr,
                           ResponseObserver response_observer = nullptr,
-                          std::chrono::milliseconds request_timeout = std::chrono::seconds(10));
+                          std::chrono::milliseconds request_timeout = std::chrono::seconds(10),
+                          std::chrono::milliseconds follow_up_window = std::chrono::seconds(8));
   ~VoiceInteractionService();
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(VoiceInteractionService);
@@ -94,6 +95,9 @@ class VoiceInteractionService {
 
  private:
   bool BeginRequest();
+  void HandleOutputResult(std::uint64_t request_generation, VoiceOutputResult result);
+  void ExpireFollowUpIfNeeded();
+  void InvalidateOutputLifecycle();
   void RecoverFromError(const std::string& reason);
   void ReturnToIdle(const std::string& reason);
   VoiceResponse PublishResponse(VoiceResponse response);
@@ -105,6 +109,7 @@ class VoiceInteractionService {
   const std::unique_ptr<VoiceResponseSink> output_;
   const ResponseObserver response_observer_;
   const std::chrono::milliseconds request_timeout_;
+  const std::chrono::milliseconds follow_up_window_;
   mutable std::mutex processing_mutex_;
   event::EventQueue<SpeechTranscript> transcript_events_{32};
   std::atomic<bool> worker_running_{false};
@@ -122,6 +127,10 @@ class VoiceInteractionService {
   std::atomic<std::uint64_t> provider_timeouts_{0};
   std::atomic<std::uint64_t> provider_failures_{0};
   std::atomic<std::uint64_t> interrupt_generation_{0};
+  mutable std::mutex output_mutex_;
+  std::uint64_t active_output_request_id_ = 0;
+  std::uint64_t active_output_generation_ = 0;
+  std::optional<std::chrono::steady_clock::time_point> follow_up_deadline_;
   mutable std::mutex response_mutex_;
   mutable std::condition_variable response_changed_;
   std::deque<VoiceResponse> response_history_;

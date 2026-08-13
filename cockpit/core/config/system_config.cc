@@ -350,10 +350,13 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.features_.voice.asr.provider =
       Read(asr, "provider", config.features_.voice.asr.provider, "features.voice.asr.provider");
   const YAML::Node ai = ChildMap(features, "ai", "features.ai");
-  ValidateKeys(ai, "features.ai", {"request_timeout_ms"});
+  ValidateKeys(ai, "features.ai", {"request_timeout_ms", "follow_up_window_ms"});
   config.features_.ai.request_timeout_ms =
       Read(ai, "request_timeout_ms", config.features_.ai.request_timeout_ms,
            "features.ai.request_timeout_ms");
+  config.features_.ai.follow_up_window_ms =
+      Read(ai, "follow_up_window_ms", config.features_.ai.follow_up_window_ms,
+           "features.ai.follow_up_window_ms");
 
   const YAML::Node tools = ChildMap(root, "tools", "tools");
   ValidateKeys(tools, "tools", {"topic"});
@@ -519,6 +522,7 @@ void SystemConfig::Validate() const {
   RequireNotEmpty(hardware_.audio.input_device, "hardware.audio.input_device");
   RequireNotEmpty(hardware_.audio.output_device, "hardware.audio.output_device");
   RequirePositive(features_.ai.request_timeout_ms, "features.ai.request_timeout_ms");
+  RequirePositive(features_.ai.follow_up_window_ms, "features.ai.follow_up_window_ms");
   if (!IsOneOf(features_.voice.vad.provider, "disabled", "mock")) {
     throw std::runtime_error("features.voice.vad.provider must be disabled or mock");
   }

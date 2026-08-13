@@ -9,8 +9,8 @@
 ## 当前阶段
 
 当前主线是 **语音 Agent 阶段 6：会话状态机与恢复**。状态/事件核心、非法转换拒绝、单会话、
-主动打断、provider 错误恢复、停机终态及 RPC 状态指标已经落地；下一步补分环节 deadline、播放
-完成回执和 `FOLLOW_UP` 窗口。当前 WSL 独立 Debug/Release 构建均为 48/48 CTest。
+主动打断、provider 错误恢复、停机终态、真实播放完成/取消回执及 `FOLLOW_UP` 窗口已经落地；
+下一步补分环节 deadline 和固定错误提示。
 
 Jetson Orin Nano Super 的构建、安装、Navigator smoke、IMX219 短稳和 CAN 内部闭环已有历史实测，
 真实音频、外部 CAN、异常掉电及小时级长稳作为并行硬件验收，不阻塞 WSL 的通用 Agent 逻辑。
@@ -33,6 +33,7 @@ Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证�
 | 车辆链路 | mock/SocketCAN 到 VehicleState streaming，再到 gateway、topic、UI 和真实语音查询动作 |
 | 音频语音链路 | ALSA 抽象、AudioFrame、SPSC、`SOCK_SEQPACKET` PCM、Agent 内 mock VAD/ASR/TTS 和停止取消链路 |
 | 语音异常闭环 | 显式会话状态机；连续命令保持顺序，支持中断当前 action、丢弃排队 transcript，并统计 provider 超时和失败后恢复 |
+| 语音播放闭环 | playback id 区分入队和真实播放结果；完成后进入有界 `FOLLOW_UP`，失败恢复，打断取消当前及排队输出并忽略旧回调 |
 | 语音动作边界 | 车辆状态走 gateway gRPC；打开相机通过本地 HMI gRPC 切换 Qt 页面；媒体未接入时明确失败 |
 | 相机链路 | V4L2/GStreamer 与合成采集、运行期看门狗、故障恢复、robust shared memory、Qt Camera 页面和拍照 |
 | 研发录包 | recording module、JSONL、artifacts/checksum、复盘元数据、时间线、完整性诊断和有界 text/JSON 聚合报告 |
@@ -53,7 +54,7 @@ Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证�
 
 按以下顺序推进：
 
-1. 完成阶段 6 剩余的播放完成回执和 `FOLLOW_UP` 窗口；ASR/LLM/TTS deadline/cancel 已落地。
+1. 完成阶段 6 剩余的分环节 deadline 和固定错误提示；播放完成、取消和 `FOLLOW_UP` 已闭环。
 2. 实现阶段 10 的 TranscriptNormalizer、确定性命令白名单和否定词/参数边界测试。
 3. 建立 KWS 接口、单唤醒词、冷却和半双工反馈。
 4. 在 Agent 产品边界接入固定版本 Sherpa-ONNX 与私有 ONNX Runtime，再在 Jetson 对比

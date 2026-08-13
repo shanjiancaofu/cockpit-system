@@ -33,6 +33,12 @@ class AudioGrpcServer final : public proto::audio::AudioControl::Service {
                          proto::audio::AudioStatus* response) override;
   grpc::Status PlayPcm(grpc::ServerContext* context, const proto::audio::PlayPcmRequest* request,
                        proto::audio::PlayPcmResponse* response) override;
+  grpc::Status WaitPlayback(grpc::ServerContext* context,
+                            const proto::audio::PlaybackRequest* request,
+                            proto::audio::PlaybackResult* response) override;
+  grpc::Status CancelPlayback(grpc::ServerContext* context,
+                              const proto::audio::CancelPlaybackRequest* request,
+                              proto::audio::CancelPlaybackResponse* response) override;
 
   void FillStatus(const AudioCaptureControllerStatus& status,
                   proto::audio::AudioStatus* response) const;

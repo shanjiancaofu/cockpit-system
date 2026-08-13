@@ -93,10 +93,11 @@ void AudioRuntime::Stop() {
   if (impl_ == nullptr) {
     return;
   }
-  impl_->grpc->Shutdown();
   impl_->capture->Stop();
   impl_->stream_publisher->Stop();
+  // Finalize playback results before waiting for blocking WaitPlayback RPCs to drain.
   impl_->playback->Stop();
+  impl_->grpc->Shutdown();
   impl_.reset();
 }
 

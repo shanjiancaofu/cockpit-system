@@ -24,18 +24,26 @@ class AsyncVoiceResponseSink final : public VoiceResponseSink {
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(AsyncVoiceResponseSink);
 
-  bool Submit(std::string text) override;
+  bool Submit(std::uint64_t request_id, std::string text,
+              VoiceOutputCompletion completion) override;
   VoiceOutputMetrics metrics() const override;
+  void Interrupt() override;
   void Stop() override;
 
  private:
+  struct PendingOutput;
+
+  static void Complete(const std::shared_ptr<PendingOutput>& output, VoiceOutputStatus status,
+                       std::string error = {});
+  void CancelPending(bool stopping);
   void Run();
 
   const std::unique_ptr<VoiceResponseSink> sink_;
   const std::size_t capacity_;
   mutable std::mutex mutex_;
   std::condition_variable changed_;
-  std::deque<std::string> queue_;
+  std::deque<std::shared_ptr<PendingOutput>> queue_;
+  std::shared_ptr<PendingOutput> active_;
   bool stop_requested_ = false;
   std::thread worker_;
   std::atomic<std::uint64_t> queued_{0};

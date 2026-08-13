@@ -133,6 +133,7 @@ struct VoiceConfig {
 
 struct AiConfig {
   int request_timeout_ms = 10000;
+  int follow_up_window_ms = 8000;
 };
 
 struct FeaturesConfig {

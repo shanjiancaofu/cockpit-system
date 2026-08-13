@@ -17,6 +17,7 @@ struct BlockingState {
   bool entered = false;
   bool released = false;
   std::atomic<std::uint64_t> submitted{0};
+  std::atomic<std::uint64_t> interrupted{0};
 };
 
 class BlockingSink final : public cockpit::voice::VoiceResponseSink {
@@ -24,7 +25,8 @@ class BlockingSink final : public cockpit::voice::VoiceResponseSink {
   explicit BlockingSink(std::shared_ptr<BlockingState> state) : state_(std::move(state)) {
   }
 
-  bool Submit(std::string) override {
+  bool Submit(std::uint64_t request_id, std::string,
+              cockpit::voice::VoiceOutputCompletion completion) override {
     {
       std::unique_lock<std::mutex> lock(state_->mutex);
       state_->entered = true;
@@ -34,6 +36,7 @@ class BlockingSink final : public cockpit::voice::VoiceResponseSink {
       });
     }
     state_->submitted.fetch_add(1U);
+    completion({request_id, cockpit::voice::VoiceOutputStatus::kCompleted, {}});
     return true;
   }
 
@@ -42,10 +45,15 @@ class BlockingSink final : public cockpit::voice::VoiceResponseSink {
   }
 
   void Stop() override {
+    Interrupt();
+  }
+
+  void Interrupt() override {
     {
       std::lock_guard<std::mutex> lock(state_->mutex);
       state_->released = true;
     }
+    state_->interrupted.fetch_add(1U);
     state_->changed.notify_all();
   }
 
@@ -58,9 +66,18 @@ class BlockingSink final : public cockpit::voice::VoiceResponseSink {
 int main() {
   auto state = std::make_shared<BlockingState>();
   cockpit::voice::AsyncVoiceResponseSink sink(std::make_unique<BlockingSink>(state), 1U);
+  std::atomic<std::uint64_t> completions{0};
+  std::atomic<std::uint64_t> cancellations{0};
+  const auto on_complete = [&completions,
+                            &cancellations](cockpit::voice::VoiceOutputResult result) {
+    completions.fetch_add(1U);
+    if (result.status == cockpit::voice::VoiceOutputStatus::kCancelled) {
+      cancellations.fetch_add(1U);
+    }
+  };
 
   const auto start = std::chrono::steady_clock::now();
-  if (!sink.Submit("first")) {
+  if (!sink.Submit(1U, "first", on_complete)) {
     std::cerr << "async sink rejected the first response\n";
     return 1;
   }
@@ -81,7 +98,7 @@ int main() {
     }
   }
 
-  if (!sink.Submit("second") || sink.Submit("overflow")) {
+  if (!sink.Submit(2U, "second", on_complete) || sink.Submit(3U, "overflow", on_complete)) {
     std::cerr << "async sink capacity handling failed\n";
     return 1;
   }
@@ -104,13 +121,23 @@ int main() {
     std::cerr << "async sink did not drain accepted responses\n";
     return 1;
   }
+  if (completions.load() != 2U || cancellations.load() != 0U) {
+    std::cerr << "accepted output did not complete exactly once\n";
+    return 1;
+  }
 
   auto cancel_state = std::make_shared<BlockingState>();
   const auto cancel_start = std::chrono::steady_clock::now();
   {
     cockpit::voice::AsyncVoiceResponseSink cancellable(
         std::make_unique<BlockingSink>(cancel_state));
-    if (!cancellable.Submit("blocked")) {
+    std::atomic<std::uint64_t> cancel_completions{0};
+    if (!cancellable.Submit(4U, "blocked",
+                            [&cancel_completions](cockpit::voice::VoiceOutputResult result) {
+                              if (result.status == cockpit::voice::VoiceOutputStatus::kCancelled) {
+                                cancel_completions.fetch_add(1U);
+                              }
+                            })) {
       std::cerr << "cancellable sink rejected a response\n";
       return 1;
     }
@@ -121,6 +148,18 @@ int main() {
               return cancel_state->entered;
             })) {
       std::cerr << "cancellable sink did not enter the downstream call\n";
+      return 1;
+    }
+    lock.unlock();
+    cancellable.Interrupt();
+    const auto completion_deadline =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+    while (cancel_completions.load() == 0U &&
+           std::chrono::steady_clock::now() < completion_deadline) {
+      std::this_thread::yield();
+    }
+    if (cancel_completions.load() != 1U || cancel_state->interrupted.load() == 0U) {
+      std::cerr << "async sink interrupt did not complete the request as cancelled\n";
       return 1;
     }
   }

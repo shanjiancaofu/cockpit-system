@@ -248,6 +248,11 @@ add_executable(audio_playback_client_test agent/audio_playback_client_test.cc)
 target_link_libraries(audio_playback_client_test PRIVATE voice_audio_clients)
 add_test(NAME audio_playback_client_test COMMAND audio_playback_client_test)
 
+add_executable(audio_playback_grpc_test library/driver/audio/audio_playback_grpc_test.cc)
+target_link_libraries(audio_playback_grpc_test PRIVATE audio_grpc)
+add_test(NAME audio_playback_grpc_test COMMAND audio_playback_grpc_test)
+set_tests_properties(audio_playback_grpc_test PROPERTIES LABELS system-grpc)
+
 add_executable(system_config_test core/system_config_test.cc)
 target_link_libraries(system_config_test PRIVATE config)
 target_compile_definitions(system_config_test

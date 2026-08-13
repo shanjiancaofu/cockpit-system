@@ -21,9 +21,40 @@ message PlayPcmRequest {
   uint32 sample_rate_hz = 1;
   uint32 channels = 2;
   bytes samples_s16le = 3;
+  uint64 playback_id = 4;
 }
 
 message PlayPcmResponse {
+  bool accepted = 1;
+  uint64 playback_id = 2;
+}
+
+enum PlaybackStatus {
+  PLAYBACK_STATUS_UNSPECIFIED = 0;
+  PLAYBACK_STATUS_PENDING = 1;
+  PLAYBACK_STATUS_COMPLETED = 2;
+  PLAYBACK_STATUS_FAILED = 3;
+  PLAYBACK_STATUS_CANCELLED = 4;
+  PLAYBACK_STATUS_DROPPED = 5;
+  PLAYBACK_STATUS_NOT_FOUND = 6;
+}
+
+message PlaybackRequest {
+  uint64 playback_id = 1;
+  uint32 wait_timeout_ms = 2;
+}
+
+message PlaybackResult {
+  uint64 playback_id = 1;
+  PlaybackStatus status = 2;
+  string error = 3;
+}
+
+message CancelPlaybackRequest {
+  uint64 playback_id = 1;
+}
+
+message CancelPlaybackResponse {
   bool accepted = 1;
 }
 
@@ -63,4 +94,6 @@ service AudioControl {
   rpc StopCapture(cockpit.proto.common.Empty) returns (AudioStatus);
   rpc GetStatus(cockpit.proto.common.Empty) returns (AudioStatus);
   rpc PlayPcm(PlayPcmRequest) returns (PlayPcmResponse);
+  rpc WaitPlayback(PlaybackRequest) returns (PlaybackResult);
+  rpc CancelPlayback(CancelPlaybackRequest) returns (CancelPlaybackResponse);
 }

@@ -117,7 +117,8 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
           recording_events->Publish(static_cast<std::int64_t>(response.timestamp_ms),
                                     "/voice/response", VoiceResponsePayload(response));
         },
-        std::chrono::milliseconds(config.features().ai.request_timeout_ms));
+        std::chrono::milliseconds(config.features().ai.request_timeout_ms),
+        std::chrono::milliseconds(config.features().ai.follow_up_window_ms));
     impl_->grpc = std::make_unique<voice::VoiceGrpcService>(*impl_->service);
     if (!impl_->grpc->Start(interaction_config.grpc.listen_address)) {
       impl_.reset();
