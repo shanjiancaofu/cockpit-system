@@ -1,22 +1,26 @@
 #include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
 
-#include <algorithm>
-#include <cctype>
 #include <string>
+
+#include "cockpit/modules/voice/assistant/deterministic_command_router.h"
+#include "cockpit/modules/voice/assistant/transcript_normalizer.h"
 
 namespace cockpit {
 namespace voice {
 namespace {
 
-std::string Normalize(std::string text) {
-  std::transform(text.begin(), text.end(), text.begin(), [](unsigned char value) {
-    return static_cast<char>(std::tolower(value));
-  });
-  return text;
-}
-
-bool Contains(const std::string& text, const std::string& phrase) {
-  return text.find(phrase) != std::string::npos;
+std::string ResponseForRoute(const DeterministicCommandRoute& route) {
+  switch (route.action) {
+    case VoiceAction::kOpenCamera:
+      return "Opening the camera.";
+    case VoiceAction::kPlayMusic:
+      return "Starting music playback.";
+    case VoiceAction::kQueryVehicleStatus:
+      return "Retrieving vehicle status.";
+    case VoiceAction::kNone:
+      return "I could not map that request to a cockpit action.";
+  }
+  return "I could not map that request to a cockpit action.";
 }
 
 }  // namespace
@@ -26,19 +30,9 @@ VoiceAssistantResult MockVoiceAssistant::HandleTranscript(
   if (std::chrono::steady_clock::now() >= deadline) {
     return {VoiceIntent::kUnknown, VoiceAction::kNone, "Voice request timed out."};
   }
-  const std::string text = Normalize(transcript.text);
-  if (Contains(text, "open camera")) {
-    return {VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera, "Opening the camera."};
-  }
-  if (Contains(text, "play music")) {
-    return {VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic, "Starting music playback."};
-  }
-  if (Contains(text, "vehicle status") || Contains(text, "battery level")) {
-    return {VoiceIntent::kShowVehicleStatus, VoiceAction::kQueryVehicleStatus,
-            "Retrieving vehicle status."};
-  }
-  return {VoiceIntent::kUnknown, VoiceAction::kNone,
-          "I could not map that request to a cockpit action."};
+  const std::string normalized = TranscriptNormalizer::Normalize(transcript.text);
+  const DeterministicCommandRoute route = DeterministicCommandRouter().Route(normalized);
+  return {route.intent, route.action, ResponseForRoute(route)};
 }
 
 const char* ToString(VoiceIntent intent) {

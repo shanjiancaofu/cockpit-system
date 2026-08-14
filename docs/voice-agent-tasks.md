@@ -11,18 +11,19 @@
 | 范围 | 文档 | 状态 |
 | --- | --- | --- |
 | 阶段 0–5 | 分层、Audio Driver、PCM、Agent 基础 | 已完成工程迁移；真实声学验收延后 |
-| 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | 阶段 6 已封板；下一主线阶段 10 |
+| 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | 阶段 6 已封板；阶段 10 第一批完成，整体进行中 |
 | 阶段 11–15 | LLM、TTS、前处理、模型发布 | 未开始 |
 | 实施顺序和优先级 | 文末 | 持续更新 |
 
 ## 当前交接信息
 
 ```text
-当前阶段：6 - 会话状态机与恢复已正式封板
+当前阶段：10 - 确定性命令路由第一批已完成，阶段整体未完成
 已完成：分环节 deadline、固定错误提示、request-scoped Action 取消、single-flight playback 取消、
-        ASR Stop stale-success 隔离、真实播放回执/取消和 FOLLOW_UP 窗口
-下一主线：阶段 10 - TranscriptNormalizer、确定性命令路由、否定词和参数边界
-下一个实现入口：agent/interaction/ 与新的命令规范化/路由组件
+        ASR Stop stale-success 隔离、真实播放回执/取消和 FOLLOW_UP 窗口；TranscriptNormalizer、
+        现有三种 Action 的确定性路由、否定/歧义/英文词边界/危险参数拒绝
+下一主线：按产品顺序推进后续 provider；阶段 10 只在出现真实 consumer 或固定 ASR 语料后扩展
+当前实现入口：cockpit/modules/voice/assistant/
 验证基线：Debug/Release、ASan/UBSan、TSan 和 driver dependency boundary 由 CI 持续验证
 ```
 
@@ -410,8 +411,9 @@ vad:
 
 ## 阶段 6–10：语音交互主链路
 
-状态：阶段 6 已正式封板，阶段 7–9 尚未开始，下一主线直接推进阶段 10。基础仓库继续使用 mock
-provider；本册中的模型、版本和性能项目只有在独立 Agent 产品构建与 Jetson 实测完成后才能勾选。
+状态：阶段 6 已正式封板，阶段 7–9 尚未开始；阶段 10 第一批已完成但整体仍在进行。基础仓库继续
+使用 mock provider；本册中的模型、版本和性能项目只有在独立 Agent 产品构建与 Jetson 实测完成后
+才能勾选。
 
 ### 阶段 6：建立会话状态机和恢复机制
 
@@ -660,19 +662,28 @@ transcript
   ↓
 TranscriptNormalizer
   ↓
-CommandMatcher
-  ├─ 命中 → TypedAction
-  │          ↓
-  │        ActionValidator
-  │          ↓
-  │        ActionDispatcher
+DeterministicCommandRouter
+  ├─ 唯一白名单命中 → 现有 VoiceAction
+  │                         ↓
+  │                    ActionDispatcher
   │
-  └─ 未命中 → Local LLM
+  └─ 否定 / 歧义 / 危险参数 / 未命中 → Unknown + None
 ```
+
+未来 LLM 只能消费未命中的普通问答文本并生成回复或澄清，不持有 `ActionDispatcher`，不能调用 Shell、
+发送 CAN、执行任意 RPC 或把自由文本转换为车辆动作。所有硬件动作仍必须来自这里的确定性白名单。
 
 #### 任务
 
-- [ ] 建立类型化动作：
+- [x] 增加最小 `TranscriptNormalizer`：trim、空白折叠、ASCII lowercase、全角 ASCII/U+3000
+  转换和常见中英文标点分隔，同时保留中文 UTF-8。
+- [x] `DeterministicCommandRouter` 第一批只允许已有的 `OpenCamera`、`PlayMusic` 和
+  `QueryVehicleStatus`，不增加没有 consumer 的 Action 或参数结构。
+- [x] 否定词在正向命令前拒绝；多个 Action 同时命中时保守返回 `Unknown + None`。
+- [x] 英文短语检查 token/word boundary；中文使用明确 phrase，不使用宽松的任意英文子串命中。
+- [x] 未支持的速度、转向、油门和制动参数命令 fail closed，不能退化成任一已有硬件 Action。
+- [x] `MockVoiceAssistant` 保持原接口和 deadline 行为，内部复用 normalizer 和 router。
+- [ ] 出现真实 consumer 后再评审以下候选类型化动作，当前不进入 `VoiceAction`：
 
 ```text
 Stop
@@ -686,23 +697,17 @@ LightOn
 LightOff
 ```
 
-- [ ] 建立同义词和误识别词归一化。
-- [ ] 建立数字、单位和否定词解析。
-- [ ] 建立参数范围检查。
+- [ ] 基于固定真实 ASR 语料扩展同义词和误识别词归一化。
+- [ ] 只有参数化 Action 及 consumer 落地后，才建立数字、单位解析和参数范围检查。
 - [ ] 建立设备状态和权限检查。
-- [ ] 第一阶段禁止：
-  - [ ] LLM 控制车辆。
-  - [ ] Shell 命令。
-  - [ ] 任意 RPC。
-  - [ ] 动态插件调用。
-  - [ ] 自由生成车辆运动参数。
+- [x] 第一批确定性边界禁止 LLM 控制车辆、Shell、任意 RPC、动态插件调用和自由生成车辆运动参数。
 - [ ] `LocalLlmClient` 不得持有 `ActionDispatcher`。
 
 #### 验收
 
-- [ ] 所有动作只能来自 `CommandMatcher`。
+- [x] 当前 `MockVoiceAssistant` 的动作只能来自 `DeterministicCommandRouter`。
 - [ ] LLM 输出无法进入动作执行接口。
-- [ ] “打开”和“不要打开”等否定语义测试通过。
+- [x] “打开”和“不要打开”、多动作歧义、英文子串和未支持车辆参数测试通过。
 - [ ] 语音停止不替代底层急停和安全状态机。
 
 ---
@@ -951,8 +956,8 @@ Jetson 全系统压力测试
 
 ## 语音阶段实施顺序
 
-更新时间：2026-08-14。阶段 0–6 已完成，阶段 6 已正式封板；下一次实现从阶段 10 开始，不再继续
-扩展阶段 6。
+更新时间：2026-08-14。阶段 0–6 已完成，阶段 6 已正式封板；阶段 10 第一批已完成但整体未完成，
+不再继续扩展阶段 6。
 
 ```text
 阶段 0  现状冻结

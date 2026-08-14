@@ -8,9 +8,12 @@
 
 ## 当前阶段
 
-**语音 Agent 阶段 6：会话状态机与恢复已经正式封板，下一主线是阶段 10。** 状态/事件核心、
+**语音 Agent 阶段 6：会话状态机与恢复已经正式封板；阶段 10 第一批已完成，阶段整体仍在进行。**
+状态/事件核心、
 单会话、主动打断、ASR/Assistant/Action/TTS 分环节 deadline、request-scoped Action 取消、固定错误
 提示、真实播放回执、single-flight playback 取消、stale 结果隔离及 `FOLLOW_UP` 窗口均已落地。
+第一批确定性命令边界已增加最小 UTF-8 Transcript 规范化、现有三种动作白名单、英文词边界以及
+否定、歧义和未支持车辆参数的保守拒绝；没有扩大 Action 合同。
 真实 ASR、TTS、LLM、麦克风、扬声器和声学验证属于后续 provider/硬件阶段，不能由本阶段的 mock
 自动化结果替代。
 
@@ -36,7 +39,7 @@ Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证�
 | 音频语音链路 | ALSA 抽象、AudioFrame、SPSC、`SOCK_SEQPACKET` PCM、Agent 内 mock VAD/ASR/TTS 和停止取消链路 |
 | 语音异常闭环 | 显式会话状态机；ASR/Assistant/Action/TTS 独立预算向真实 consumer 传播；超时取消、固定错误提示和 stale 结果隔离形成闭环 |
 | 语音播放闭环 | playback id 区分入队和真实播放结果；完成后进入有界 `FOLLOW_UP`，失败恢复，打断取消当前及排队输出并忽略旧回调 |
-| 语音动作边界 | 车辆状态走 gateway gRPC；打开相机通过本地 HMI gRPC 切换 Qt 页面；媒体未接入时明确失败 |
+| 语音动作边界 | ASR 文本先规范化并经过确定性白名单；否定、歧义、危险参数和英文子串误命中均拒绝；车辆状态走 gateway gRPC，相机走本地 HMI gRPC，媒体未接入时明确失败 |
 | 相机链路 | V4L2/GStreamer 与合成采集、运行期看门狗、故障恢复、robust shared memory、Qt Camera 页面和拍照 |
 | 研发录包 | recording module、JSONL、artifacts/checksum、复盘元数据、时间线、完整性诊断和有界 text/JSON 聚合报告 |
 | 诊断工具 | cockpit-ctl、topic、camera-ctl、voice-ctl、audio/camera probe、统一 health、JSON/JSONL、退出码和有界诊断快照 |
@@ -56,7 +59,7 @@ Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证�
 
 按以下顺序推进：
 
-1. 实现阶段 10 的 TranscriptNormalizer、确定性命令白名单和否定词/参数边界测试。
+1. 用后续真实 ASR 固定语料继续验证阶段 10 第一批边界；没有 consumer 前不增加参数化 Action。
 2. 建立 KWS 接口、单唤醒词、冷却和半双工反馈。
 3. 在 Agent 产品边界接入固定版本 Sherpa-ONNX 与私有 ONNX Runtime，再在 Jetson 对比
    SenseVoice 和 Qwen3-ASR；基础 CMake/CI 不下载模型。

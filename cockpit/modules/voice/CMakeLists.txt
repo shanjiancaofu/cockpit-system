@@ -1,4 +1,8 @@
-add_library(voice_assistant STATIC assistant/mock_voice_assistant.cc)
+add_library(voice_assistant STATIC
+    assistant/deterministic_command_router.cc
+    assistant/mock_voice_assistant.cc
+    assistant/transcript_normalizer.cc
+)
 
 add_library(voice_actions STATIC
     actions/cockpit_action_dispatcher.cc

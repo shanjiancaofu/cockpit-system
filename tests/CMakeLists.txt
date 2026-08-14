@@ -205,6 +205,12 @@ add_executable(mock_voice_assistant_test modules/voice/mock_voice_assistant_test
 target_link_libraries(mock_voice_assistant_test PRIVATE voice)
 add_test(NAME mock_voice_assistant_test COMMAND mock_voice_assistant_test)
 
+add_executable(deterministic_command_router_test
+    modules/voice/deterministic_command_router_test.cc
+)
+target_link_libraries(deterministic_command_router_test PRIVATE voice_assistant)
+add_test(NAME deterministic_command_router_test COMMAND deterministic_command_router_test)
+
 add_executable(async_voice_response_sink_test modules/voice/async_voice_response_sink_test.cc)
 target_link_libraries(async_voice_response_sink_test PRIVATE voice Threads::Threads)
 add_test(NAME async_voice_response_sink_test COMMAND async_voice_response_sink_test)

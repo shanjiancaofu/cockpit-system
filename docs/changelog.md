@@ -2,6 +2,20 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-08-14 - Voice Agent 阶段 10 第一批确定性命令边界
+
+- 新增最小 `TranscriptNormalizer`，支持首尾/连续空白、ASCII lowercase、全角 ASCII、U+3000 和
+  常见中英文标点规范化，同时原样保留有效中文 UTF-8。
+- 新增 `DeterministicCommandRouter`，第一批只路由已有的打开相机、播放音乐和查询车辆状态三种
+  `VoiceAction`；英文匹配要求合理 word boundary，中文只匹配明确短语。
+- 否定短语、多个动作同时命中、未支持的速度/转向/油门/制动参数和英文长词子串全部 fail closed，
+  返回 `Unknown + None`，不增加 Slot、Entity、参数 Action、DSL 或通用 NLU 框架。
+- `MockVoiceAssistant` 保持现有 API 和 deadline 行为，只把内部文本处理替换为 normalizer/router；
+  Stage 6 lifecycle、ActionDispatcher allowlist 和 driver/library 分层未修改。
+- 阶段 6 继续保持正式封板；这里只完成阶段 10 第一批，不代表真实 ASR、LLM 或整个阶段 10 完成。
+- WSL 验证：Debug 56/56、Release 56/56、ASan/UBSan 非 system-grpc 48/48、当前 CI TSan regex
+  9/9；新增 router 测试也在 TSan 下通过，driver dependency boundary 和 pre-commit 通过。
+
 ## 2026-08-14 - Voice Agent 阶段 6 正式封板
 
 - `AudioPlaybackClient` 将同一 playback id 的取消改为 single-flight：并发 Stop、Interrupt 和 Submit
