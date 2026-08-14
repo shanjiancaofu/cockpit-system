@@ -1,11 +1,20 @@
 #include "tools/safe-ota/action/safe_ota.h"
 
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/file.h>
+#include <sys/inotify.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
+#include <algorithm>
+#include <cerrno>
 #include <chrono>
+#include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <thread>
 
@@ -17,7 +26,51 @@ namespace safe_ota {
 namespace {
 
 constexpr int kRuntimeCommandTimeoutMs = 30000;
+constexpr int kRuntimeTransitionTimeoutSeconds = kRuntimeCommandTimeoutMs / 1000;
 constexpr int kUpgradeResultTimeoutSeconds = 600;
+
+class RuntimeDirectoryWatch {
+ public:
+  explicit RuntimeDirectoryWatch(const std::filesystem::path& socket_path) {
+    fd_ = inotify_init1(IN_CLOEXEC | IN_NONBLOCK);
+    if (fd_ < 0) {
+      return;
+    }
+    if (inotify_add_watch(fd_, socket_path.parent_path().c_str(),
+                          IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO) < 0) {
+      close(fd_);
+      fd_ = -1;
+    }
+  }
+
+  ~RuntimeDirectoryWatch() {
+    if (fd_ >= 0) {
+      close(fd_);
+    }
+  }
+
+  RuntimeDirectoryWatch(const RuntimeDirectoryWatch&) = delete;
+  RuntimeDirectoryWatch& operator=(const RuntimeDirectoryWatch&) = delete;
+
+  void WaitUntil(const std::chrono::steady_clock::time_point& deadline) const {
+    const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+        deadline - std::chrono::steady_clock::now());
+    if (remaining.count() <= 0) {
+      return;
+    }
+    const int timeout_ms = static_cast<int>(std::min<std::int64_t>(remaining.count(), 100));
+    pollfd descriptor{fd_, POLLIN, 0};
+    poll(fd_ >= 0 ? &descriptor : nullptr, fd_ >= 0 ? 1U : 0U, timeout_ms);
+    if (fd_ >= 0 && (descriptor.revents & POLLIN) != 0) {
+      char events[4096];
+      while (read(fd_, events, sizeof(events)) > 0) {
+      }
+    }
+  }
+
+ private:
+  int fd_{-1};
+};
 
 bool SendRuntimeCommand(const std::string& socket_path, const std::string& command,
                         std::string* error) {
@@ -46,12 +99,48 @@ bool WaitForResult(const std::filesystem::path& path, int timeout_seconds,
   return false;
 }
 
+std::string RuntimeDiagnostics(const std::filesystem::path& socket_path,
+                               const std::string& last_response) {
+  std::ostringstream diagnostics;
+  struct stat socket_status {};
+  if (lstat(socket_path.c_str(), &socket_status) == 0) {
+    diagnostics << "; socket=" << (S_ISSOCK(socket_status.st_mode) ? "present" : "not-a-socket");
+  } else {
+    diagnostics << "; socket=missing(" << std::strerror(errno) << ')';
+  }
+
+  diagnostics << "; runtime_dir=[";
+  std::error_code filesystem_error;
+  bool first = true;
+  for (const auto& entry :
+       std::filesystem::directory_iterator(socket_path.parent_path(), filesystem_error)) {
+    if (!first) {
+      diagnostics << ',';
+    }
+    first = false;
+    diagnostics << entry.path().filename().string();
+  }
+  if (filesystem_error) {
+    diagnostics << "error:" << filesystem_error.message();
+  }
+  diagnostics << ']';
+  if (!last_response.empty()) {
+    std::string compact_response = last_response;
+    std::replace(compact_response.begin(), compact_response.end(), '\n', '|');
+    diagnostics << "; last_response=" << compact_response;
+  }
+  return diagnostics.str();
+}
+
 bool WaitForRuntime(const std::string& socket_path, const std::filesystem::path& install_root,
-                    const std::string& version, int timeout_seconds, std::string* error) {
+                    const std::string& version, std::string* error) {
   const std::string expected_executable =
       std::filesystem::weakly_canonical(install_root / "current/bin/cockpit-navigator").string();
-  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(timeout_seconds);
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(kRuntimeTransitionTimeoutSeconds);
+  RuntimeDirectoryWatch runtime_watch(socket_path);
   std::string last_error;
+  std::string last_response;
   while (std::chrono::steady_clock::now() < deadline) {
     std::string response;
     if (navigator::IpcConnector::SendRequest(socket_path, "status", &response, &last_error, 500) &&
@@ -59,12 +148,16 @@ bool WaitForRuntime(const std::string& socket_path, const std::filesystem::path&
         response.find(" executable=" + expected_executable + "\n") != std::string::npos) {
       return true;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    if (!response.empty()) {
+      last_response = std::move(response);
+    }
+    runtime_watch.WaitUntil(deadline);
   }
   *error = "replacement Navigator did not become ready with version " + version;
   if (!last_error.empty()) {
     *error += ": " + last_error;
   }
+  *error += RuntimeDiagnostics(socket_path, last_response);
   return false;
 }
 
@@ -191,8 +284,8 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
   }
 
   const bool runtime_ready =
-      options.standalone || WaitForRuntime(options.socket_path, options.install_root,
-                                           package_version, options.timeout_seconds, &error);
+      options.standalone ||
+      WaitForRuntime(options.socket_path, options.install_root, package_version, &error);
   if (!runtime_ready ||
       !upgrader::WaitForUpgradeHealth(options.health_command, options.install_root,
                                       options.timeout_seconds, &error)) {
@@ -209,8 +302,7 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
         return ExitCode::kOperationFailed;
       }
       if (!WaitForRuntime(options.socket_path, options.install_root,
-                          result.previous_release.filename().string(), options.timeout_seconds,
-                          &reload_error)) {
+                          result.previous_release.filename().string(), &reload_error)) {
         std::cerr << error << "; rollback Navigator did not become ready: " << reload_error << '\n';
         return ExitCode::kOperationFailed;
       }
@@ -229,8 +321,7 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
       if (!SendRuntimeCommand(options.socket_path, "reexec normal", &reload_error)) {
         error += "; runtime reexec failed: " + reload_error;
       } else if (!WaitForRuntime(options.socket_path, options.install_root,
-                                 result.previous_release.filename().string(),
-                                 options.timeout_seconds, &reload_error)) {
+                                 result.previous_release.filename().string(), &reload_error)) {
         error += "; rollback Navigator did not become ready: " + reload_error;
       }
     }

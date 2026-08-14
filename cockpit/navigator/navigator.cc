@@ -140,8 +140,9 @@ std::string Navigator::StatusText() const {
                           : "unknown";
   const build::BuildInfo build_info = build::GetBuildInfo();
   std::ostringstream output;
-  output << "OK mode=" << process_manager_.mode() << " version=" << build_info.version
-         << " commit=" << build_info.git_commit << " executable=" << executable << '\n';
+  output << "OK mode=" << process_manager_.mode() << " pid=" << getpid()
+         << " version=" << build_info.version << " commit=" << build_info.git_commit
+         << " executable=" << executable << '\n';
   for (const ProcessStatus& status : process_manager_.Status()) {
     output << "module=" << status.name << " state=" << ToString(status.state)
            << " pid=" << status.pid << " exit=" << status.last_exit_code

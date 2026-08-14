@@ -14,6 +14,35 @@ ota_public_key="${work_dir}/ota-public.pem"
 
 cleanup() {
   local status=$?
+  if [[ "${status}" -ne 0 ]]; then
+    echo "safe-ota failure diagnostics:" >&2
+    echo "navigator_pid=${navigator_pid:-unset}" >&2
+    if [[ -n "${navigator_pid}" ]] && kill -0 "${navigator_pid}" 2>/dev/null; then
+      echo "navigator_alive=yes" >&2
+      ps -o pid=,ppid=,pgid=,stat=,comm=,args= -p "${navigator_pid}" >&2 || true
+      if [[ -r "/proc/${navigator_pid}/task/${navigator_pid}/children" ]]; then
+        children="$(<"/proc/${navigator_pid}/task/${navigator_pid}/children")"
+        echo "module_children=${children:-none}" >&2
+        if [[ -n "${children}" ]]; then
+          ps -o pid=,ppid=,pgid=,stat=,comm=,args= --ppid "${navigator_pid}" >&2 || true
+        fi
+      fi
+    else
+      echo "navigator_alive=no" >&2
+    fi
+    if [[ -n "${socket_path:-}" ]]; then
+      if [[ -S "${socket_path}" ]]; then
+        echo "navigator_socket=present path=${socket_path}" >&2
+      elif [[ -e "${socket_path}" ]]; then
+        echo "navigator_socket=not-a-socket path=${socket_path}" >&2
+      else
+        echo "navigator_socket=missing path=${socket_path}" >&2
+      fi
+      echo "runtime_dir=${socket_path%/*}" >&2
+      ls -la "${socket_path%/*}" >&2 || true
+      "${navigator}" --command status --socket "${socket_path}" >&2 || true
+    fi
+  fi
   if [[ -n "${navigator_pid}" ]]; then
     kill "${navigator_pid}" 2>/dev/null || true
     wait "${navigator_pid}" 2>/dev/null || true
