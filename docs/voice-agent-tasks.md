@@ -11,17 +11,17 @@
 | 范围 | 文档 | 状态 |
 | --- | --- | --- |
 | 阶段 0–5 | 分层、Audio Driver、PCM、Agent 基础 | 已完成工程迁移；真实声学验收延后 |
-| 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | 阶段 6 已封板；阶段 10 第一批完成，整体进行中 |
+| 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | 阶段 6、阶段 10 第一批已封板；整体进行中 |
 | 阶段 11–15 | LLM、TTS、前处理、模型发布 | 未开始 |
 | 实施顺序和优先级 | 文末 | 持续更新 |
 
 ## 当前交接信息
 
 ```text
-当前阶段：10 - 确定性命令路由第一批已完成，阶段整体未完成
+当前阶段：10 - 确定性命令路由第一批已封板，阶段整体未完成
 已完成：分环节 deadline、固定错误提示、request-scoped Action 取消、single-flight playback 取消、
         ASR Stop stale-success 隔离、真实播放回执/取消和 FOLLOW_UP 窗口；TranscriptNormalizer、
-        现有三种 Action 的确定性路由、否定/歧义/英文词边界/危险参数拒绝
+        现有三种 Action 的显式正向整句 allowlist；所有非白名单 transcript fail closed
 下一主线：按产品顺序推进后续 provider；阶段 10 只在出现真实 consumer 或固定 ASR 语料后扩展
 当前实现入口：cockpit/modules/voice/assistant/
 验证基线：Debug/Release、ASan/UBSan、TSan 和 driver dependency boundary 由 CI 持续验证
@@ -663,11 +663,11 @@ transcript
 TranscriptNormalizer
   ↓
 DeterministicCommandRouter
-  ├─ 唯一白名单命中 → 现有 VoiceAction
+  ├─ 正向命令整句白名单命中 → 现有 VoiceAction
   │                         ↓
   │                    ActionDispatcher
   │
-  └─ 否定 / 歧义 / 危险参数 / 未命中 → Unknown + None
+  └─ 其他所有 transcript → Unknown + None
 ```
 
 未来 LLM 只能消费未命中的普通问答文本并生成回复或澄清，不持有 `ActionDispatcher`，不能调用 Shell、
@@ -679,9 +679,10 @@ DeterministicCommandRouter
   转换和常见中英文标点分隔，同时保留中文 UTF-8。
 - [x] `DeterministicCommandRouter` 第一批只允许已有的 `OpenCamera`、`PlayMusic` 和
   `QueryVehicleStatus`，不增加没有 consumer 的 Action 或参数结构。
-- [x] 否定词在正向命令前拒绝；多个 Action 同时命中时保守返回 `Unknown + None`。
-- [x] 英文短语检查 token/word boundary；中文使用明确 phrase，不使用宽松的任意英文子串命中。
-- [x] 未支持的速度、转向、油门和制动参数命令 fail closed，不能退化成任一已有硬件 Action。
+- [x] 规范化 transcript 只与固定 `CommandEntry` 正向白名单做整句相等匹配，不使用自由文本
+  substring、否定词 blacklist、规则语法或通用 matcher。
+- [x] 否定、条件、延期、意愿、多动作组合和未支持参数等所有非白名单输入统一 fail closed，
+  不能退化成任一已有硬件 Action。
 - [x] `MockVoiceAssistant` 保持原接口和 deadline 行为，内部复用 normalizer 和 router。
 - [ ] 出现真实 consumer 后再评审以下候选类型化动作，当前不进入 `VoiceAction`：
 
@@ -707,7 +708,8 @@ LightOff
 
 - [x] 当前 `MockVoiceAssistant` 的动作只能来自 `DeterministicCommandRouter`。
 - [ ] LLM 输出无法进入动作执行接口。
-- [x] “打开”和“不要打开”、多动作歧义、英文子串和未支持车辆参数测试通过。
+- [x] 全部正向白名单以及否定、多动作、英文子串、自然语言嵌入和未支持车辆参数测试通过。
+- [x] 阶段 10 第一批正式封板；出现真实 consumer 或固定 ASR 语料前不增加规则。
 - [ ] 语音停止不替代底层急停和安全状态机。
 
 ---
@@ -956,7 +958,7 @@ Jetson 全系统压力测试
 
 ## 语音阶段实施顺序
 
-更新时间：2026-08-14。阶段 0–6 已完成，阶段 6 已正式封板；阶段 10 第一批已完成但整体未完成，
+更新时间：2026-08-14。阶段 0–6 已完成，阶段 6、阶段 10 第一批已正式封板但整体未完成，
 不再继续扩展阶段 6。
 
 ```text
@@ -985,11 +987,8 @@ Jetson 全系统压力测试
 ```text
 已完成：
 分层纠正、CMake 依赖清理、Audio Driver 缩减、PCM 传输、顶层 agent/ 建立、
-VAD/Segmenter 工程迁移、阶段 6 会话状态机、分环节 deadline、恢复和生命周期 hardening
-
-P0：
-阶段 10 TranscriptNormalizer
-确定性命令白名单、否定词和参数边界
+VAD/Segmenter 工程迁移、阶段 6 会话状态机、分环节 deadline、恢复和生命周期 hardening、
+阶段 10 第一批 TranscriptNormalizer 与确定性正向整句白名单
 
 P1：
 KWS

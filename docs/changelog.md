@@ -2,6 +2,17 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-08-14 - 确定性硬件命令正向白名单封板
+
+- `DeterministicCommandRouter` 改为对规范化后的完整 transcript 匹配固定 `CommandEntry`
+  正向白名单；只有明确列出的 27 种命令形式可以产生现有三种 `VoiceAction`，其余输入全部
+  fail closed 为 `Unknown + None`。
+- 删除自由文本 action substring、英文 word-boundary、否定词上下文和危险参数 blacklist
+  匹配。否定、条件、延期、意愿表达、多动作组合和未知自然语言不再依赖枚举拒绝词，而是因为
+  不属于正向白名单直接拒绝。
+- 补齐全部允许命令及 can't/cannot/not、不能/禁止/无需/不必、条件句、组合句和嵌入式正向
+  phrase 的拒绝测试。Voice Agent 阶段 10 第一批至此封板，后续不继续扩展本批规则。
+
 ## 2026-08-14 - 命令否定语义与 Safe OTA timeout 合同加固
 
 - 确定性路由不再全句扫描少量否定词；每个 action phrase occurrence 分别检查有限前置上下文。

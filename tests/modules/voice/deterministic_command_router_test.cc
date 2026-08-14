@@ -48,23 +48,41 @@ int main() {
   }
 
   if (!ExpectRoute("open camera", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("please open camera", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("open the camera", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("please open the camera", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("ＯＰＥＮ　ＣＡＭＥＲＡ！", VoiceIntent::kOpenCamera,
                    VoiceAction::kOpenCamera) ||
       !ExpectRoute("打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
-      !ExpectRoute("这个画面不错，打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("请打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("帮我打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("打开相机！", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("打开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("请打开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("帮我打开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("play music", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
+      !ExpectRoute("please play music", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
       !ExpectRoute("播放音乐", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
+      !ExpectRoute("请播放音乐", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
+      !ExpectRoute("帮我播放音乐", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
       !ExpectRoute("放音乐", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
+      !ExpectRoute("请放音乐", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
       !ExpectRoute("vehicle status", VoiceIntent::kShowVehicleStatus,
                    VoiceAction::kQueryVehicleStatus) ||
       !ExpectRoute("battery level", VoiceIntent::kShowVehicleStatus,
                    VoiceAction::kQueryVehicleStatus) ||
+      !ExpectRoute("show vehicle status", VoiceIntent::kShowVehicleStatus,
+                   VoiceAction::kQueryVehicleStatus) ||
+      !ExpectRoute("show battery level", VoiceIntent::kShowVehicleStatus,
+                   VoiceAction::kQueryVehicleStatus) ||
       !ExpectRoute("车辆状态", VoiceIntent::kShowVehicleStatus, VoiceAction::kQueryVehicleStatus) ||
       !ExpectRoute("查看车辆状态", VoiceIntent::kShowVehicleStatus,
                    VoiceAction::kQueryVehicleStatus) ||
+      !ExpectRoute("请查看车辆状态", VoiceIntent::kShowVehicleStatus,
+                   VoiceAction::kQueryVehicleStatus) ||
       !ExpectRoute("查看电量", VoiceIntent::kShowVehicleStatus, VoiceAction::kQueryVehicleStatus) ||
+      !ExpectRoute("请查看电量", VoiceIntent::kShowVehicleStatus,
+                   VoiceAction::kQueryVehicleStatus) ||
       !ExpectRoute("电量多少", VoiceIntent::kShowVehicleStatus, VoiceAction::kQueryVehicleStatus)) {
     return 1;
   }
@@ -91,13 +109,30 @@ int main() {
       "do not open camera",
       "do not ever open camera",
       "never open camera",
+      "can't open camera",
+      "cannot open camera",
+      "not open camera",
       "don't play music",
       "do not play music",
       "never play music",
+      "can't play music",
+      "not play music",
       "不要现在打开相机",
       "不要打开相机，播放音乐",
+      "不能打开相机",
+      "禁止打开相机",
+      "无需打开相机",
+      "不必打开相机",
+      "不能播放音乐",
+      "禁止播放音乐",
       "打开相机并播放音乐",
+      "这个画面不错，打开相机",
+      "以后打开相机",
+      "我想打开相机",
       "open camera and play music",
+      "open camera later",
+      "if possible open camera",
+      "i want to open camera",
       "set speed to 100",
       "把速度调到100",
       "速度设置为80",
@@ -106,6 +141,7 @@ int main() {
       "reopen camera settings",
       "play musical instruments",
       "cameraopen camera view",
+      "camera open camera view",
       "display music playlist",
   };
   for (const std::string& text : rejected) {
