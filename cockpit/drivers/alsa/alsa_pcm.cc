@@ -127,11 +127,18 @@ bool AlsaPcm::Open(const std::string& device, PcmDirection direction, const Alsa
 
   snd_pcm_hw_params_t* params = nullptr;
   snd_pcm_hw_params_alloca(&params);
-  if ((result = snd_pcm_hw_params_any(handle_, params)) < 0 ||
-      (result = snd_pcm_hw_params_set_access(handle_, params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0 ||
-      (result = snd_pcm_hw_params_set_format(handle_, params, SND_PCM_FORMAT_S16_LE)) < 0 ||
-      (result = snd_pcm_hw_params_set_channels(handle_, params,
-                                               static_cast<unsigned int>(format.channels))) < 0) {
+  result = snd_pcm_hw_params_any(handle_, params);
+  if (result >= 0) {
+    result = snd_pcm_hw_params_set_access(handle_, params, SND_PCM_ACCESS_RW_INTERLEAVED);
+  }
+  if (result >= 0) {
+    result = snd_pcm_hw_params_set_format(handle_, params, SND_PCM_FORMAT_S16_LE);
+  }
+  if (result >= 0) {
+    result =
+        snd_pcm_hw_params_set_channels(handle_, params, static_cast<unsigned int>(format.channels));
+  }
+  if (result < 0) {
     const std::string message = AlsaError("failed to configure ALSA hardware parameters", result);
     Close();
     return Fail(message, error);
@@ -151,14 +158,28 @@ bool AlsaPcm::Open(const std::string& device, PcmDirection direction, const Alsa
   snd_pcm_uframes_t period_size = static_cast<snd_pcm_uframes_t>(format.FramesPerPeriod());
   snd_pcm_uframes_t buffer_size = period_size * 4U;
   direction_hint = 0;
-  if ((result = snd_pcm_hw_params_set_period_size_near(handle_, params, &period_size,
-                                                       &direction_hint)) < 0 ||
-      (result = snd_pcm_hw_params_set_buffer_size_near(handle_, params, &buffer_size)) < 0 ||
-      (result = snd_pcm_hw_params(handle_, params)) < 0 ||
-      (result = snd_pcm_prepare(handle_)) < 0) {
+  result = snd_pcm_hw_params_set_period_size_near(handle_, params, &period_size, &direction_hint);
+  if (result >= 0) {
+    result = snd_pcm_hw_params_set_buffer_size_near(handle_, params, &buffer_size);
+  }
+  if (result >= 0) {
+    result = snd_pcm_hw_params(handle_, params);
+  }
+  if (result >= 0) {
+    result = snd_pcm_prepare(handle_);
+  }
+  if (result < 0) {
     const std::string message = AlsaError("failed to activate ALSA hardware parameters", result);
     Close();
     return Fail(message, error);
+  }
+  if (direction == PcmDirection::kCapture) {
+    result = snd_pcm_start(handle_);
+    if (result < 0) {
+      const std::string message = AlsaError("failed to start ALSA capture", result);
+      Close();
+      return Fail(message, error);
+    }
   }
 
   format_ = format;
@@ -257,7 +278,7 @@ bool AlsaPcm::WriteFrames(const std::int16_t* samples, std::size_t frame_count, 
       return Fail("ALSA playback stopped", error);
     }
     const snd_pcm_sframes_t result =
-        snd_pcm_writei(handle_, samples + completed * static_cast<std::size_t>(format_.channels),
+        snd_pcm_writei(handle_, samples + (completed * static_cast<std::size_t>(format_.channels)),
                        static_cast<snd_pcm_uframes_t>(frame_count - completed));
     if (result < 0) {
       if (result == -EAGAIN) {

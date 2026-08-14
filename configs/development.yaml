@@ -71,8 +71,8 @@ hardware:
     receive_timeout_ms: 500
     max_idle_timeouts: 10
   audio:
-    input_device: default
-    output_device: default
+    input_device: plughw:CARD=Device,DEV=0
+    output_device: plughw:CARD=Device,DEV=0
     sample_rate_hz: 16000
     channels: 1
     frame_ms: 20

@@ -67,9 +67,12 @@ std::string SystemError(const std::string& action) {
 
 int Xioctl(int fd, unsigned long request, void* arg) {
   int result = -1;
-  do {
+  while (true) {
     result = ::ioctl(fd, request, arg);
-  } while (result < 0 && errno == EINTR);
+    if (result >= 0 || errno != EINTR) {
+      break;
+    }
+  }
   return result;
 }
 

@@ -8,7 +8,7 @@
 namespace cockpit {
 namespace can {
 
-enum class CanIoStatus {
+enum class CanIoStatus : std::uint8_t {
   kOk,
   kTimeout,
   kClosed,

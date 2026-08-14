@@ -11,7 +11,7 @@
 namespace cockpit {
 namespace audio {
 
-enum class PcmDirection {
+enum class PcmDirection : std::uint8_t {
   kCapture,
   kPlayback,
 };
@@ -25,7 +25,7 @@ struct AlsaPcmFormat {
   std::size_t FramesPerPeriod() const;
 };
 
-enum class AlsaReadStatus {
+enum class AlsaReadStatus : std::uint8_t {
   kOk,
   kTimeout,
   kXrunRecovered,
@@ -40,7 +40,7 @@ struct AlsaReadResult {
   std::string message;
 };
 
-enum class AlsaDeviceIo {
+enum class AlsaDeviceIo : std::uint8_t {
   kInput,
   kOutput,
   kDuplex,

@@ -62,7 +62,8 @@ Checks: >
     -readability-static-accessed-through-instance,
     -readability-implicit-bool-conversion,
     -abseil-*,
-    boost-*
+    boost-*,
+    -boost-use-ranges
 
 FormatStyle: "file"
 

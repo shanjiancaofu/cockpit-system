@@ -2,6 +2,15 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-08-14 - USB 声卡实机采集适配
+
+- 开发配置绑定 Texas Instruments PCM2902 的稳定 ALSA 名称
+  `plughw:CARD=Device,DEV=0`，保持 16 kHz、单声道、20 ms PCM 合同，生产配置不变。
+- 修复 non-blocking ALSA capture 在 `PREPARED` 状态先 poll、尚未开始产生帧的问题；capture
+  完成硬件参数配置后显式 `snd_pcm_start()`，播放路径不变。
+- 使用项目 `audio-probe` 在真实 USB 声卡上完成 3 秒录制和回放，共 48,000 帧；`null` 开发设备
+  回归仍可采集 16,000 帧。
+
 ## 2026-08-14 - 确定性硬件命令正向白名单封板
 
 - `DeterministicCommandRouter` 改为对规范化后的完整 transcript 匹配固定 `CommandEntry`
