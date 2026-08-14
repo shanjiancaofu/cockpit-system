@@ -3,7 +3,7 @@
 更新时间：2026-08-15。
 
 本文是语音专项的唯一任务表。稳定设计以
-[voice-agent.md](voice-agent.md) 为准；后续对话先读下面的交接信息，再按阶段标题定位，
+[语音Agent架构](语音Agent架构.md) 为准；后续对话先读下面的交接信息，再按阶段标题定位，
 不需要读取全文。
 
 ## 对话阅读入口
@@ -202,7 +202,7 @@ cockpit/navigator/library/agent/
 - [x] 检查并收缩 `audio.proto` RPC。
 - [x] 识别并迁移 `modules/audio/vad`、`audio_service`、`speech_output`、
   `SubscribeTranscripts` 和 `Speak(text)` 等混层代码。
-- [x] 保存构建和测试基线；详细批次证据见[变更记录](changelog.md)。
+- [x] 保存构建和测试基线；详细批次证据见[变更记录](变更记录.md)。
 
 #### 验收
 

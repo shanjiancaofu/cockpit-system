@@ -56,11 +56,11 @@ cockpit-system/
 
 详细说明见：
 
-- [文档导航](docs/README.md)
-- [当前实现状态](docs/status.md)
-- [系统架构](docs/architecture.md)
-- [项目路线图](docs/roadmap.md)
-- [语音 Agent 阶段任务](docs/voice-agent-tasks.md)
+- [文档导航](docs/文档导航.md)
+- [当前实现状态](docs/实现状态.md)
+- [系统架构](docs/系统架构.md)
+- [项目路线图](docs/项目进度总览.md)
+- [语音 Agent 阶段任务](docs/语音Agent阶段任务.md)
 
 ## 环境准备
 
@@ -157,4 +157,4 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 [docs]: update ...
 ```
 
-每批代码变更同步记录到 [changelog.md](docs/changelog.md)。
+每批代码变更同步记录到 [变更记录](docs/变更记录.md)。
