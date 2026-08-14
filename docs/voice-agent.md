@@ -11,7 +11,7 @@
 - **目标基线**：准备在 Jetson 真机上验收，未通过前不视为生产能力。
 - **候选实验**：只用于比较，不进入默认配置和安装包。
 
-最后更新：2026-08-13。
+最后更新：2026-08-15。
 
 ## 2. 已确定的边界
 
@@ -19,7 +19,7 @@
 2. 车控命令走确定性匹配和类型化白名单，不交给 LLM 决策。
 3. LLM 只生成回复文本，不持有 `ActionDispatcher`，不能执行 Shell、任意 RPC 或车辆动作。
 4. `cockpit/drivers` 只负责硬件适配，`cockpit/library/driver` 只负责驱动模块组装和数据传输。
-5. 顶层 `agent/` 负责 VAD、语音分段、ASR、LLM、工具调用和 TTS。
+5. 顶层 `agent/` 负责 KWS、VAD、语音分段、ASR、LLM、工具调用和 TTS。
 6. Navigator 只动态加载顶层模块，Agent 内部算法使用普通 C++ target 和接口注入，不再逐个
    设计为运行时插件。
 7. Sherpa-ONNX、ONNX Runtime、llama.cpp 和模型只进入 Agent 产品构建，不进入基础系统的
@@ -42,13 +42,13 @@
 | Agent 侧 PCM Client | 已实现并接入语音流水线 |
 | VAD/ASR 插件加载器 | 已删除 |
 | Energy VAD | 已移除 |
-| Sherpa-ONNX/SenseVoice | 主仓库中不存在 |
-| KWS | 未实现 |
+| Sherpa-ONNX/SenseVoice | 不进入默认构建；Sherpa KWS provider 仅在显式 Agent 产品构建中编译 |
+| KWS | 接口、mock 实现、input gate、cooldown、固定 PCM wake prompt 和 Sherpa KWS provider 代码已落地；Jetson 真机声学验收待完成 |
 | 真实 VAD 实现 | 未实现 |
 | 真实 ASR 实现 | 未实现 |
 | TTS 与 PCM 回放 | mock TTS 已在 Agent，Driver 只播放 PCM |
 | 本地 LLM client | 未实现 |
-| 语音会话状态机 | 状态/事件核心已实现，KWS 和真实 provider 事件待接入 |
+| 语音会话状态机 | 状态/事件核心已实现，KWS wake 事件已通过 `VoiceInteractionService` 公开入口接入 |
 
 默认配置保持：
 
@@ -56,6 +56,12 @@
 features:
   voice:
     enabled: false
+    kws:
+      enabled: false
+      provider: mock
+      cooldown_ms: 1500
+      wake_word: 你好小车
+      model_dir: ""
     vad:
       provider: mock
     speech_segment:
@@ -78,11 +84,12 @@ Audio Driver 格式校验 / 单声道 PCM
   ↓
 Unix SOCK_SEQPACKET PCM Stream
   ↓
-Agent 有界音频缓冲
+Agent AudioStreamClient
   ↓
-KWS（流式）
-  ↓
-VAD（流式）
+VoiceInputGate
+  ├─ Idle → KWS（流式）
+  ├─ Listening / FollowUp → VAD（流式）
+  └─ Waking / Recognizing / Routing / Executing / Thinking / Speaking → Paused
   ↓
 SpeechSegmenter
   ↓
@@ -110,7 +117,7 @@ cockpit-navigator.service
     │   ├── ALSA Capture/Playback
     │   └── PCM Stream Publisher
     ├── agent
-    │   ├── VAD / Segmenter / ASR / TTS
+    │   ├── KWS / VAD / Segmenter / ASR / TTS
     │   └── llama-server 子进程
     └── 其他 Navigator 模块
 ```
@@ -168,8 +175,8 @@ audio_driver 进程
 
 agent 进程
 ├── 应用 Protobuf/gRPC
-├── Sherpa-ONNX
-└── 私有 ONNX Runtime 及其内部依赖
+├── 默认构建：mock KWS/VAD/ASR/TTS
+└── Agent 产品构建：Sherpa-ONNX + 私有 ONNX Runtime 及其内部依赖
 
 llama-server
 └── llama.cpp + CUDA + GGUF
@@ -184,7 +191,9 @@ SHERPA_ONNX_ENABLE_*
 启动时模型下载逻辑
 ```
 
-Agent 产品 target 使用普通 C++ 接口链接具体实现，并通过模块进程边界、hidden visibility、
+普通构建只编译 `WakeWordDetector` 接口、mock detector 和 input gate；`provider=sherpa` 需要显式
+`COCKPIT_ENABLE_SHERPA_AGENT=ON`，并指定准备好的 Sherpa runtime/model root。Agent 产品 target
+使用普通 C++ 接口链接具体实现，并通过模块进程边界、hidden visibility、
 version script 和 `--exclude-libs,ALL` 限制第三方符号。只有出现外部供应商独立交付且必须
 运行时替换的需求时，才重新评估算法插件 ABI。
 
@@ -200,7 +209,23 @@ version script 和 `--exclude-libs,ALL` 限制第三方符号。只有出现外�
 sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
 ```
 
-第一阶段只配置一个唤醒词。必须测试车内音乐、TTS 回放、远场、开窗风噪和每小时误唤醒次数。
+第一阶段只配置一个唤醒词，但唤醒词内容可以自定义：
+
+```yaml
+features:
+  voice:
+    kws:
+      enabled: true
+      provider: sherpa
+      cooldown_ms: 1500
+      wake_word: ""
+      keywords_file: /cockpit-system/config/voice/kws-keyword.txt
+      model_dir: /cockpit-system/models/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
+```
+
+`wake_word` 和 `keywords_file` 二选一。普通 CI 使用 mock provider 验证 gate/cooldown，不需要
+Sherpa/ONNX Runtime；Jetson 产品构建再使用 Sherpa KWS provider 和外部模型目录。必须测试车内音乐、
+TTS 回放、远场、开窗风噪和每小时误唤醒次数。
 
 ### 8.2 VAD
 
@@ -311,9 +336,9 @@ Jetson 内存由 CPU 和 GPU 共享。第一轮真机测试采用以下上限作
 
 ```text
 IDLE
-  ↓ KWS
+  ↓ KWS 命中
 WAKING
-  ↓ 短提示音
+  ↓ 固定 PCM 短提示音完成
 LISTENING
   ↓ VAD endpoint
 RECOGNIZING
@@ -333,6 +358,16 @@ SHUTTING_DOWN
 
 第一阶段一次只允许一个会话。TTS 播放期间暂停采集链路的 KWS/VAD/ASR 判定；AEC 和 barge-in
 放到后续阶段。
+
+当前 gate 状态表：
+
+| 状态 | 输入处理 |
+| --- | --- |
+| `Idle` | KWS |
+| `Listening`、`FollowUp` | SpeechPipeline |
+| `Waking`、`Recognizing`、`Routing`、`Executing`、`Thinking`、`Speaking`、`Cancelled`、`ErrorRecovery`、`ShuttingDown` | Paused |
+
+KWS 关闭时保持开发兼容模式：所有 PCM 直接进入 `SpeechPipeline`。
 
 ## 11. 车控安全边界
 

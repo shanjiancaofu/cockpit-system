@@ -151,6 +151,12 @@ Jetson 部署时将 `input_device` 和
 features:
   voice:
     enabled: false
+    kws:
+      enabled: false
+      provider: mock
+      cooldown_ms: 1500
+      wake_word: 你好小车
+      model_dir: ""
     vad:
       provider: mock
     speech_segment:
@@ -275,9 +281,24 @@ features:
     follow_up_window_ms: 8000
 ```
 
-基础仓库只提供可测试的 mock 实现，不提供算法动态插件 ABI。后续 Sherpa-ONNX、ONNX Runtime
-和模型作为 Agent 产品构建的一部分接入；它们不进入主项目依赖，也不由 Audio Driver 加载。
-这些字段均为正整数毫秒，分别由 `SpeechPipeline`、`VoiceInteractionService` 的 Assistant 调用、
+基础仓库只提供可测试的 mock 实现，不提供算法动态插件 ABI。KWS 已有项目内稳定接口和
+`VoiceInputGate`，但真实 Sherpa runtime/model 只属于显式 Agent 产品构建；它们不进入主项目依赖，
+也不由 Audio Driver 加载。
+
+`features.voice.kws` 控制唤醒入口：
+
+- `enabled=false`：保持旧行为，所有 PCM 继续进入 `SpeechPipeline`，便于开发和自动化测试。
+- `enabled=true`：`Idle` 状态下 PCM 只送入 KWS；`Listening`/`FollowUp` 状态下 PCM 送入
+  `SpeechPipeline`；`Waking`、`Recognizing`、`Routing`、`Executing`、`Thinking`、`Speaking`、
+  `Cancelled`、`ErrorRecovery` 和 `ShuttingDown` 暂停输入处理。
+- `provider=mock` 可在普通 CI 中验证 gate/cooldown；`provider=sherpa` 需要
+  `COCKPIT_ENABLE_SHERPA_AGENT=ON` 的产品构建。
+- `cooldown_ms` 使用 `steady_clock`，防止连续重复唤醒。
+- `wake_word` 和 `keywords_file` 二选一。第一阶段只支持一个唤醒词；产品可通过修改 YAML 或替换
+  keyword 文件自定义唤醒词。
+- `model_dir` 是 Sherpa KWS 模型目录，只有启用 `provider=sherpa` 时要求非空。
+
+AI deadline 字段均为正整数毫秒，分别由 `SpeechPipeline`、`VoiceInteractionService` 的 Assistant 调用、
 ActionDispatcher 及 `AudioPlaybackClient` 的 TTS synthesis 消费。业务 deadline 统一来自
 `steady_clock`；Gateway/HMI 等 gRPC client 只把剩余预算换算到 `system_clock` deadline，并支持
 `TryCancel`。TTS synthesis 预算不包含 PCM 在扬声器上的实际播放时间。
@@ -297,8 +318,9 @@ transcript 直接进入下一轮识别，超时、打断或停机都会使该窗
   `services.gateway.websocket` 的最终结构。
 - 云端上传：候选职责包括开关、broker、topic、QoS、设备身份、TLS、发布确认和重试；后端合同明确且
   `carupload` 建立真实 transport 后再确定 `services.cloud_uplink` 的最终结构。
-- TTS 与交互模式：出现第二个真实 TTS 实现或 push-to-talk/wake-word 两种可切换实现后，再引入
-  `features.voice.tts_provider` 或 `features.voice.mode`。
+- TTS 与交互模式：出现第二个真实 TTS 实现或 push-to-talk 等交互模式后，再引入
+  `features.voice.tts_provider` 或 `features.voice.mode`。wake-word 第一阶段已经由
+  `features.voice.kws.enabled` 控制，不再另设 mode 字段。
 - LLM：真实 Assistant provider 接入并具备 deadline、取消和错误语义后，再引入
   `features.ai.provider` 与 `features.ai.model`。
 

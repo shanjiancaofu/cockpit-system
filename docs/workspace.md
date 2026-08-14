@@ -21,4 +21,5 @@ WSL 和 Jetson 都按源码、外部资源和生成物分开。用户名及工�
 - 本地生成的 WAV 放在 `_output/runtime/audio`，运行日志放在
   `_output/runtime/logs`。
 - Sherpa-ONNX、ONNX Runtime、llama.cpp 和模型按固定版本放在外部资源目录或受控依赖缓存，
-  不提交到主仓库，也不在程序启动时下载。
+  不提交到主仓库，也不在程序启动时下载。Sherpa KWS provider 源码可以留在主仓库，但
+  `libsherpa-onnx-c-api.so`、`libonnxruntime.so`、模型目录和自定义关键词文件属于外部产品资源。

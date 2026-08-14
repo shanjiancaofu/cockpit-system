@@ -340,6 +340,8 @@ systemd 只负责固定 Navigator 的进程级存活并从 normal mode 启动。
 Ubuntu 22.04 apt 负责 CMake、Ninja、GCC、Qt、ALSA、GStreamer、yaml-cpp、gRPC、Protobuf 3.12.4
 等系统依赖；发布包不重复复制这些系统运行库。apt 不负责全部应用依赖。
 
-Sherpa-ONNX、其私有 ONNX Runtime、llama.cpp 和模型属于后续 Agent 产品依赖，必须固定版本、离线准备、
+Sherpa-ONNX、其私有 ONNX Runtime、llama.cpp 和模型属于 Agent 产品依赖，必须固定版本、离线准备、
 可追踪和可回滚。它们不进入基础系统默认 CMake/CI，不由 Audio Driver 加载，也不要求 ONNX Runtime
-与应用 gRPC 共用 Protobuf。当前仓库尚未接入或下载这些依赖。
+与应用 gRPC 共用 Protobuf。当前仓库已有 Sherpa KWS provider 源码和显式
+`COCKPIT_ENABLE_SHERPA_AGENT` 产品构建开关，但不提交 runtime、模型或下载逻辑；Jetson 产品构建
+需要外部提供 Sherpa runtime root 和 KWS `model_dir`。

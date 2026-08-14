@@ -1,6 +1,6 @@
 # Cockpit Agent 与语音系统阶段任务表
 
-更新时间：2026-08-14。
+更新时间：2026-08-15。
 
 本文是语音专项的唯一任务表。稳定设计以
 [voice-agent.md](voice-agent.md) 为准；后续对话先读下面的交接信息，再按阶段标题定位，
@@ -11,19 +11,21 @@
 | 范围 | 文档 | 状态 |
 | --- | --- | --- |
 | 阶段 0–5 | 分层、Audio Driver、PCM、Agent 基础 | 已完成工程迁移；真实声学验收延后 |
-| 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | 阶段 6、阶段 10 第一批已封板；整体进行中 |
+| 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | 阶段 6、阶段 10 第一批已封板；阶段 7 KWS 主链路已起步；整体进行中 |
 | 阶段 11–15 | LLM、TTS、前处理、模型发布 | 未开始 |
 | 实施顺序和优先级 | 文末 | 持续更新 |
 
 ## 当前交接信息
 
 ```text
-当前阶段：10 - 确定性命令路由第一批已封板，阶段整体未完成
+当前阶段：7/8 - KWS 主链路与 Sherpa KWS 产品边界起步，真实 Jetson 声学验收未完成
 已完成：分环节 deadline、固定错误提示、request-scoped Action 取消、single-flight playback 取消、
         ASR Stop stale-success 隔离、真实播放回执/取消和 FOLLOW_UP 窗口；TranscriptNormalizer、
-        现有三种 Action 的显式正向整句 allowlist；所有非白名单 transcript fail closed
-下一主线：按产品顺序推进后续 provider；阶段 10 只在出现真实 consumer 或固定 ASR 语料后扩展
-当前实现入口：cockpit/modules/voice/assistant/
+        现有三种 Action 的显式正向整句 allowlist；所有非白名单 transcript fail closed；
+        WakeWordDetector 接口、VoiceInputGate、cooldown、固定 PCM wake prompt、自定义唤醒词配置
+下一主线：Jetson Sherpa KWS smoke；随后按产品顺序推进 ASR/VAD/TTS provider
+当前实现入口：agent/runtime/voice_input_gate.*, agent/speech/kws/, agent/speech/providers/sherpa/,
+             cockpit/modules/voice/assistant/
 验证基线：Debug/Release、ASan/UBSan、TSan 和 driver dependency boundary 由 CI 持续验证
 ```
 
@@ -411,7 +413,8 @@ vad:
 
 ## 阶段 6–10：语音交互主链路
 
-状态：阶段 6 已正式封板，阶段 7–9 尚未开始；阶段 10 第一批已完成但整体仍在进行。基础仓库继续
+状态：阶段 6 已正式封板；阶段 7 KWS 主链路已起步；阶段 8 仅 Sherpa KWS provider 边界代码已落地；
+阶段 9 尚未开始；阶段 10 第一批已完成但整体仍在进行。基础仓库继续
 使用 mock provider；本册中的模型、版本和性能项目只有在独立 Agent 产品构建与 Jetson 实测完成后
 才能勾选。
 
@@ -522,23 +525,27 @@ sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
 
 #### 任务
 
-- [ ] 第一阶段只配置一个唤醒词。
-- [ ] 建立 KWS 接口和实现。
-- [ ] KWS 命中后立即：
-  - [ ] 更新 UI。
-  - [ ] 播放短提示音。
-  - [ ] 切换状态灯。
-- [ ] 决定是否支持“唤醒词和命令连说”。
-- [ ] 若支持，KWS 命中后不得清空采集缓冲。
-- [ ] 增加唤醒冷却时间，防止连续触发。
-- [ ] TTS 播放期间第一阶段暂停 KWS。
+- [x] 第一阶段只配置一个唤醒词，内容可通过 `wake_word` 或 `keywords_file` 自定义。
+- [x] 建立 KWS 接口和 mock 实现。
+- [x] 建立 `VoiceInputGate`：
+  - [x] KWS disabled 时保持 PCM 进入 `SpeechPipeline` 的旧行为。
+  - [x] KWS enabled + `Idle` 时 PCM 只进入 KWS。
+  - [x] `Listening` / `FollowUp` 时 PCM 只进入 `SpeechPipeline`。
+  - [x] `Waking` / `Recognizing` / `Routing` / `Executing` / `Thinking` / `Speaking` 等状态暂停输入处理。
+- [x] KWS 命中后进入 `Waking`，固定 PCM 提示音完成后进入 `Listening`。
+- [ ] UI 图标、状态灯或动画反馈接入真实 HMI consumer。
+- [x] 第一版明确不支持“唤醒词和命令连说”，KWS 命中后 reset KWS 和 speech input state。
+- [x] 增加唤醒冷却时间，防止连续触发。
+- [x] TTS 播放期间第一阶段暂停 KWS/VAD/ASR。
+- [x] 新增 `voice_input_gate_test` 覆盖 disabled 直通、Idle KWS、Listening speech、cooldown 和 wake transition。
 
 #### 验收
 
 - [ ] 正常距离可稳定唤醒。
 - [ ] 音乐和系统 TTS 不频繁误唤醒。
 - [ ] 长时间运行能够统计每小时误唤醒次数。
-- [ ] 唤醒后用户能立即获得声音或界面反馈。
+- [x] 代码链路中唤醒后可播放固定 PCM 声音反馈。
+- [ ] Jetson 真实音频链路中确认用户能立即获得声音或界面反馈。
 
 ---
 
@@ -553,7 +560,7 @@ Audio Driver 依赖。算法实现使用普通 C++ 接口注入，不恢复逐�
 
 ```text
 agent/
-├── speech/providers/sherpa/      # 有实现时再创建
+├── speech/providers/sherpa/      # Sherpa KWS provider 已创建
 ├── product/                      # 产品依赖装配与版本清单
 └── models/
 │   ├── kws/
@@ -581,22 +588,22 @@ TTS：kokoro-multi-lang-v1_1
 
 #### 任务
 
-- [ ] 用现有 `VoiceActivityDetector`、`SpeechRecognizer`、`SpeechSynthesizer` 等普通 C++ 接口
-  实现 KWS、VAD、ASR 和 TTS provider。
-- [ ] 固定 Sherpa-ONNX 版本，并使用其私有 ONNX Runtime；不得要求它与应用 gRPC 共用
+- [x] 用 `WakeWordDetector` 普通 C++ 接口实现 Sherpa KWS provider；VAD、ASR 和 TTS provider 未完成。
+- [x] 增加默认关闭的 `COCKPIT_ENABLE_SHERPA_AGENT` 产品构建开关，基础 CI 不要求 Sherpa runtime/model。
+- [x] Sherpa KWS provider 对外只暴露项目接口，不传播 Sherpa 或 ONNX Runtime 类型。
+- [ ] 固定 Sherpa-ONNX v1.13.4 runtime 交付物，并使用其私有 ONNX Runtime；不得要求它与应用 gRPC 共用
   Protobuf。
 - [ ] 使用 `-fvisibility=hidden`。
 - [ ] 使用 linker version script。
 - [ ] 使用 `$ORIGIN` 相对 RPATH。
 - [ ] 保留 Navigator module 边界的 `--exclude-libs,ALL` 和 version script，限制
   Sherpa/ONNX Runtime 第三方符号。
-- [ ] provider 对 Agent 只暴露项目接口，不向其他模块传播 Sherpa 或 ONNX Runtime 类型。
-- [ ] 主项目不出现 Sherpa、ONNX Runtime 和模型下载逻辑。
+- [x] 主项目不出现 Sherpa、ONNX Runtime 和模型下载逻辑。
 
 #### 验收
 
-- [ ] 基础系统只依赖稳定领域接口，算法实现仅由 Agent 产品 target 链接。
-- [ ] 主项目 CMake 中不存在 `find_package(ONNXRuntime)`。
+- [x] 基础系统只依赖稳定领域接口，Sherpa KWS 算法实现仅由 Agent 产品 target 链接。
+- [x] 主项目 CMake 中不存在 `find_package(ONNXRuntime)`。
 - [ ] Agent 产品依赖和模型可以按固定版本独立准备、构建和发布。
 - [ ] provider 初始化失败时 Agent 能明确降级并恢复。
 - [ ] 若同进程符号或故障隔离实测不可靠，再记录升级为独立进程的条件。
@@ -958,8 +965,8 @@ Jetson 全系统压力测试
 
 ## 语音阶段实施顺序
 
-更新时间：2026-08-14。阶段 0–6 已完成，阶段 6、阶段 10 第一批已正式封板但整体未完成，
-不再继续扩展阶段 6。
+更新时间：2026-08-15。阶段 0–6 已完成，阶段 6、阶段 10 第一批已正式封板但整体未完成，
+阶段 7 KWS 主链路已起步，阶段 8 只完成 Sherpa KWS provider 边界代码，不再继续扩展阶段 6。
 
 ```text
 阶段 0  现状冻结
@@ -988,11 +995,11 @@ Jetson 全系统压力测试
 已完成：
 分层纠正、CMake 依赖清理、Audio Driver 缩减、PCM 传输、顶层 agent/ 建立、
 VAD/Segmenter 工程迁移、阶段 6 会话状态机、分环节 deadline、恢复和生命周期 hardening、
-阶段 10 第一批 TranscriptNormalizer 与确定性正向整句白名单
+阶段 7 KWS input gate / cooldown / 可配置唤醒词、阶段 10 第一批 TranscriptNormalizer 与确定性正向整句白名单
 
 P1：
-KWS
-Sherpa Agent 产品实现
+Jetson Sherpa KWS smoke
+Sherpa Agent 产品实现剩余 provider
 SenseVoice 恢复
 Qwen3-ASR 对比
 

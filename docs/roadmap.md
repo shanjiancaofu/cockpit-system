@@ -1,6 +1,6 @@
 # 项目进度总览
 
-更新时间：2026-08-14。
+更新时间：2026-08-15。
 
 本文是日常推进看板，只回答当前阶段、下一步和风险。模块级完成度见
 [status.md](status.md)，语音专项见 [voice-agent-tasks.md](voice-agent-tasks.md)，每批具体改动见
@@ -8,13 +8,15 @@
 
 ## 当前阶段
 
-**语音 Agent 阶段 6：会话状态机与恢复已经正式封板；阶段 10 第一批已完成，阶段整体仍在进行。**
+**语音 Agent 阶段 6：会话状态机与恢复已经正式封板；阶段 7 KWS 主链路已起步；阶段 10 第一批已完成，阶段整体仍在进行。**
 状态/事件核心、
 单会话、主动打断、ASR/Assistant/Action/TTS 分环节 deadline、request-scoped Action 取消、固定错误
 提示、真实播放回执、single-flight playback 取消、stale 结果隔离及 `FOLLOW_UP` 窗口均已落地。
 第一批确定性命令边界已增加最小 UTF-8 Transcript 规范化、现有三种动作白名单、英文词边界以及
 否定、歧义和未支持车辆参数的保守拒绝；没有扩大 Action 合同。
-真实 ASR、TTS、LLM、麦克风、扬声器和声学验证属于后续 provider/硬件阶段，不能由本阶段的 mock
+KWS 已新增 `VoiceInputGate`、可配置单唤醒词、cooldown、半双工暂停和固定 PCM wake prompt；
+Sherpa KWS provider 仅进入显式 Agent 产品构建。真实 KWS 声学、ASR、TTS、LLM、麦克风、扬声器和
+声学验证属于后续 provider/硬件阶段，不能由本阶段的 mock
 自动化结果替代。
 
 Jetson Orin Nano Super 的构建、安装、Navigator smoke、IMX219 短稳和 CAN 内部闭环已有历史实测，
@@ -37,6 +39,7 @@ Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证�
 | 真实模块迁移 | transfer、vehicle/audio/camera driver、agent、hmi、recording 和 upgrader 已迁入 Navigator；旧独立 service 入口已删除，carupload 等预留模块仅保留 ABI 骨架 |
 | 车辆链路 | mock/SocketCAN 到 VehicleState streaming，再到 gateway、topic、UI 和真实语音查询动作 |
 | 音频语音链路 | ALSA 抽象、AudioFrame、SPSC、`SOCK_SEQPACKET` PCM、Agent 内 mock VAD/ASR/TTS 和停止取消链路 |
+| 语音唤醒链路 | KWS 关闭直通、Idle 下进入 KWS、Listening/FollowUp 进入 SpeechPipeline、其他状态暂停输入、cooldown 抑制重复唤醒和可配置唤醒词 |
 | 语音异常闭环 | 显式会话状态机；ASR/Assistant/Action/TTS 独立预算向真实 consumer 传播；超时取消、固定错误提示和 stale 结果隔离形成闭环 |
 | 语音播放闭环 | playback id 区分入队和真实播放结果；完成后进入有界 `FOLLOW_UP`，失败恢复，打断取消当前及排队输出并忽略旧回调 |
 | 语音动作边界 | ASR 文本先规范化并经过确定性白名单；否定、歧义、危险参数和英文子串误命中均拒绝；车辆状态走 gateway gRPC，相机走本地 HMI gRPC，媒体未接入时明确失败 |
@@ -59,9 +62,9 @@ Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证�
 
 按以下顺序推进：
 
-1. 用后续真实 ASR 固定语料继续验证阶段 10 第一批边界；没有 consumer 前不增加参数化 Action。
-2. 建立 KWS 接口、单唤醒词、冷却和半双工反馈。
-3. 在 Agent 产品边界接入固定版本 Sherpa-ONNX 与私有 ONNX Runtime，再在 Jetson 对比
+1. 在 Jetson 产品 runtime 中准备 Sherpa-ONNX v1.13.4、KWS 模型和自定义唤醒词文件，跑真实 KWS smoke。
+2. 用后续真实 ASR 固定语料继续验证阶段 10 第一批边界；没有 consumer 前不增加参数化 Action。
+3. 在 Agent 产品边界继续接入固定版本 Sherpa-ONNX 与私有 ONNX Runtime，再在 Jetson 对比
    SenseVoice 和 Qwen3-ASR；基础 CMake/CI 不下载模型。
 4. 接入真实 TTS 和 LLM provider，并按现有稳定 deadline/cancel 接口完成故障测试。
 5. 硬件并行完成真实麦克风/扬声器、声学验证、CSI 小时级、外部 CAN、异常掉电和 systemd 长稳。

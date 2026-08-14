@@ -121,7 +121,10 @@ ALSA microphone
     → AudioStreamPublisher
     → Unix SOCK_SEQPACKET PCM protocol
     → Agent AudioStreamClient
-    → mock VAD → SpeechSegmenter → mock ASR
+    → VoiceInputGate
+       ├─ KWS enabled + Idle → WakeWordDetector
+       ├─ Listening / FollowUp → mock VAD → SpeechSegmenter → mock ASR
+       └─ Speaking / Waking / active request → paused
     → ConversationStateMachine
     → intent / typed action / response
     → mock TTS → AudioControl.PlayPcm
@@ -130,8 +133,8 @@ ALSA microphone
 
 Audio Driver 不理解 VAD、Transcript、ASR、TTS 或 LLM。采集 PCM 通过固定小端序协议
 跨进程传给 Agent；Agent 合成的 PCM 通过 Audio gRPC `PlayPcm` 提交回 Driver。
-Transcript 和会话状态只由 Voice RPC 对外发布。基础仓库仅提供 mock VAD/ASR/TTS，
-不包含 Sherpa-ONNX、ONNX Runtime 或模型下载逻辑。详见
+Transcript 和会话状态只由 Voice RPC 对外发布。基础仓库提供 mock KWS/VAD/ASR/TTS 和 KWS
+input gate；真实 Sherpa KWS 只在显式 Agent 产品构建中编译，不包含模型下载逻辑。详见
 [voice-agent.md](voice-agent.md)。
 
 ## 相机链路
@@ -257,10 +260,10 @@ mock/null backend，以及 shared memory 的 name/layout/version/capacity 校验
 
 ## AI 安全边界
 
-语音链路保持 `Audio Driver -> Agent VAD/ASR -> deterministic routing -> typed
+语音链路保持 `Audio Driver -> Agent KWS/VAD/ASR -> deterministic routing -> typed
 ActionDispatcher / local response -> Agent TTS -> Audio Driver`。真实算法作为 Agent 产品
-构建中的普通 C++ target 接入，不恢复算法级 `dlopen` 插件。Sherpa-ONNX 及其私有
-ONNX Runtime 不进入主项目默认 CMake/CI。
+构建中的普通 C++ target 接入，不恢复算法级 `dlopen` 插件。`COCKPIT_ENABLE_SHERPA_AGENT`
+默认关闭；Sherpa-ONNX 及其私有 ONNX Runtime 不进入主项目默认 CMake/CI。
 车辆动作必须经过 allowlist 和类型校验；LLM 文本不能直接生成 CAN frame 或 shell command；网络失败
 需要明确的本地 fallback；录音、文本和云端请求必须有隐私策略。mock provider 只用于链路验证。
 

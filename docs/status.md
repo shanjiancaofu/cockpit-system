@@ -1,6 +1,6 @@
 # 实现状态
 
-更新时间：2026-08-13。
+更新时间：2026-08-15。
 
 本文只记录代码已经落地到什么程度、入口在哪里、如何验证、下一步补什么。
 项目推进顺序见 [roadmap.md](roadmap.md)，架构解释见 [architecture.md](architecture.md)。
@@ -27,7 +27,8 @@
 | Transfer 与 topic | 已落地 | `cockpit/library/transfer`、`tools/topic` | transport、更新周期、可用状态、错误原因、gRPC test、Navigator smoke | 接入真实新数据源时扩展 metadata |
 | 音频采集 | 可用原型 | `cockpit/library/driver/audio`、`cockpit/modules/audio`、`cockpit/drivers/alsa` | audio tests、null/ALSA smoke、Navigator smoke | Jetson 麦克风、增益、延迟和声学标定 |
 | 语音识别 | 部分完成 | `agent/speech/asr`、`agent/speech/pipeline` | mock ASR、分段、deadline/cancel、PCM→VAD→ASR→Agent E2E | 在 Agent 产品构建中接入并对比真实 ASR |
-| 语音交互/Agent | 可用原型 | `agent/`、`cockpit/navigator/library/agent` | 单会话、显式状态转换、主动中断、队列丢弃、provider deadline/cancel、失败恢复和 voice smoke | 播放完成回执/FOLLOW_UP，再接 KWS 和真实 provider |
+| 语音唤醒/KWS | 部分完成 | `agent/runtime/voice_input_gate.*`、`agent/speech/kws`、`agent/speech/providers/sherpa` | `voice_input_gate_test`、`system_config_test`；KWS 关闭直通、Idle→KWS、Listening/FollowUp→Speech、半双工暂停、cooldown 和自定义唤醒词配置 | Jetson 准备 Sherpa runtime/model 后跑真实 KWS smoke 和声学误唤醒测试 |
+| 语音交互/Agent | 可用原型 | `agent/`、`cockpit/navigator/library/agent` | 单会话、显式状态转换、主动中断、队列丢弃、provider deadline/cancel、失败恢复、FOLLOW_UP、KWS input gate 和 voice smoke | 接真实 KWS/ASR/TTS provider 并做 Jetson 声学验证 |
 | HMI 动作桥接 | 部分完成 | `agent/hmi`、`cockpit/apps/cockpit-ui/hmi_control.*` | `open_camera` Qt 主线程切页、媒体未接入失败路径、Navigator smoke | 媒体责任边界明确后接 Qt/Android 播放器 |
 | 语音播放 | 可用原型 | `agent/speech/tts`、`agent/audio`、`cockpit/library/driver/audio` | mock TTS、TTS deadline/cancel、PCM RPC、异步播放和有界停止测试 | 接真实 TTS provider、播放完成回执和扬声器标定 |
 | 相机采集 | 可用原型 | `cockpit/library/driver/camera`、`cockpit/drivers/v4l2`、`cockpit/modules/camera` | 合成故障测试、共享内存恢复、Navigator smoke、IMX219 Argus/NVMM 实拍、no-frames 恢复及正式部署 7 分钟短稳 | Jetson CSI 小时级长稳测试 |
@@ -58,8 +59,10 @@ bash scripts/tests/wsl-matrix.sh
 pre-commit run --all-files
 ```
 
-当前 WSL 语音重构基线：独立 Debug/Release 构建均为 48/48 CTest，ASan/UBSan 聚焦测试 4/4，
-pre-commit 全部通过。最近 Jetson 快照为 ARM64 Debug/Release 46/46 CTest 和 Navigator 单入口完整
+当前 WSL 语音重构基线：KWS input gate 与配置回归测试已通过，pre-commit 通过。当前受限沙箱完整
+Debug CTest 中 Unix socket/gRPC bind 类测试会因 `Operation not permitted` 失败；这些失败不作为
+KWS 逻辑回归证据。历史独立 Debug/Release 构建均为 48/48 CTest，ASan/UBSan 聚焦测试 4/4。
+最近 Jetson 快照为 ARM64 Debug/Release 46/46 CTest 和 Navigator 单入口完整
 smoke 通过；该数字是当时测试清单，不与当前 WSL 测试总数强行对齐。语音测试覆盖连续命令顺序、
 主动中断当前 action、丢弃排队 transcript、provider 超时和失败后继续服务。Navigator 测试覆盖有界 IPC、模式切换、
 `cockpit-ctl runtime`、显式重启、整组 reload、真实 development 模块健康采样、camera driver 崩溃恢复、
@@ -93,5 +96,5 @@ Release 对照测试。输出文本正确，耗时 4.39 秒，CPU 393%，峰值 
 - 真实车辆 CAN、GPIO、I2C 等外设。
 - 真实麦克风、扬声器、AEC 和噪声环境。
 - IMX219 小时级预览稳定性。
-- 真实 ASR、USB 麦克风、车内噪声、AEC、功耗和长运行性能。
+- 真实 KWS/ASR、USB 麦克风、车内噪声、AEC、功耗和长运行性能。
 - MQTT/TLS/鉴权、量产 OTA、崩溃上传和云端平台。
