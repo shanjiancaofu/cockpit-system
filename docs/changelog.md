@@ -2,6 +2,19 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-08-15 - Voice Agent Stage 7 KWS 主链路起步
+
+- 新增 `agent/runtime/voice_input_gate`，把 PCM 输入按 `VoiceInteractionService` 状态分到
+  KWS / Speech / Paused 三个模式；KWS 关闭时保持旧的 speech 直通行为。
+- 新增最小 `WakeWordDetector` 接口、`MockWakeWordDetector`、`WakePromptPlayer` 和固定 PCM 提示音
+  播放路径；唤醒词可通过 `features.voice.kws.wake_word` 或 `keywords_file` 配置，不再写死在代码里。
+- `SpeechPipeline` 增加 `ResetInputState()`，用于 KWS 唤醒后清理上一次半句残留；`VoiceInteractionService`
+  增加 wake 通知接口，继续由状态机统一管理会话转换。
+- `features.voice.kws.provider=sherpa` 仅在显式 `COCKPIT_ENABLE_SHERPA_AGENT` 产品构建下启用，普通 CI
+  不依赖 Sherpa/ONNX Runtime；`model_dir` 作为产品边界配置单独校验。
+- 新增 `voice_input_gate_test` 和配置回归测试，覆盖 KWS 关闭直通、KWS 命中进入 Listening、cooldown
+  抑制重复唤醒以及可配置唤醒词解析。
+
 ## 2026-08-14 - USB 声卡实机采集适配
 
 - 开发配置绑定 Texas Instruments PCM2902 的稳定 ALSA 名称

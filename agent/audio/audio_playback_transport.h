@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "cockpit/modules/audio/wav/wav_file.h"
@@ -47,6 +48,9 @@ class AudioPlaybackTransport {
                                        std::chrono::milliseconds timeout) = 0;
   virtual bool Cancel(std::uint64_t playback_id) = 0;
 };
+
+std::unique_ptr<AudioPlaybackTransport> CreateGrpcAudioPlaybackTransport(
+    const std::string& address);
 
 }  // namespace voice
 }  // namespace cockpit

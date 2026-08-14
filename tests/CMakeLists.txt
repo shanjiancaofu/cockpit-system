@@ -239,6 +239,10 @@ add_executable(speech_pipeline_test agent/speech_pipeline_test.cc)
 target_link_libraries(speech_pipeline_test PRIVATE agent_speech)
 add_test(NAME speech_pipeline_test COMMAND speech_pipeline_test)
 
+add_executable(voice_input_gate_test agent/voice_input_gate_test.cc)
+target_link_libraries(voice_input_gate_test PRIVATE agent_input_gate voice_interaction)
+add_test(NAME voice_input_gate_test COMMAND voice_input_gate_test)
+
 add_executable(voice_interaction_service_test agent/voice_interaction_service_test.cc)
 target_link_libraries(voice_interaction_service_test PRIVATE voice_interaction)
 add_test(NAME voice_interaction_service_test COMMAND voice_interaction_service_test)

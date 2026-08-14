@@ -329,9 +329,25 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   const YAML::Node features = ChildMap(root, "features", "features");
   ValidateKeys(features, "features", {"voice", "ai"});
   const YAML::Node voice = ChildMap(features, "voice", "features.voice");
-  ValidateKeys(voice, "features.voice", {"enabled", "vad", "speech_segment", "asr"});
+  ValidateKeys(voice, "features.voice", {"enabled", "kws", "vad", "speech_segment", "asr"});
   config.features_.voice.enabled =
       Read(voice, "enabled", config.features_.voice.enabled, "features.voice.enabled");
+  const YAML::Node kws = ChildMap(voice, "kws", "features.voice.kws");
+  ValidateKeys(kws, "features.voice.kws",
+               {"enabled", "provider", "cooldown_ms", "wake_word", "keywords_file", "model_dir"});
+  config.features_.voice.kws.enabled =
+      Read(kws, "enabled", config.features_.voice.kws.enabled, "features.voice.kws.enabled");
+  config.features_.voice.kws.provider =
+      Read(kws, "provider", config.features_.voice.kws.provider, "features.voice.kws.provider");
+  config.features_.voice.kws.cooldown_ms = Read(
+      kws, "cooldown_ms", config.features_.voice.kws.cooldown_ms, "features.voice.kws.cooldown_ms");
+  config.features_.voice.kws.wake_word =
+      Read(kws, "wake_word", config.features_.voice.kws.wake_word, "features.voice.kws.wake_word");
+  config.features_.voice.kws.keywords_file =
+      Read(kws, "keywords_file", config.features_.voice.kws.keywords_file,
+           "features.voice.kws.keywords_file");
+  config.features_.voice.kws.model_dir =
+      Read(kws, "model_dir", config.features_.voice.kws.model_dir, "features.voice.kws.model_dir");
   const YAML::Node vad = ChildMap(voice, "vad", "features.voice.vad");
   ValidateKeys(vad, "features.voice.vad", {"provider"});
   config.features_.voice.vad.provider =
@@ -537,6 +553,29 @@ void SystemConfig::Validate() const {
                   "features.ai.command_execution_timeout_ms");
   RequirePositive(features_.ai.tts_synthesis_timeout_ms, "features.ai.tts_synthesis_timeout_ms");
   RequirePositive(features_.ai.follow_up_window_ms, "features.ai.follow_up_window_ms");
+  if (!IsOneOf(features_.voice.kws.provider, "disabled", "mock") &&
+      features_.voice.kws.provider != "sherpa") {
+    throw std::runtime_error("features.voice.kws.provider must be disabled, mock, or sherpa");
+  }
+  RequirePositive(features_.voice.kws.cooldown_ms, "features.voice.kws.cooldown_ms");
+  if (features_.voice.kws.cooldown_ms > 60000) {
+    throw std::runtime_error("features.voice.kws.cooldown_ms must not exceed 60000");
+  }
+  if (!features_.voice.kws.wake_word.empty() && !features_.voice.kws.keywords_file.empty()) {
+    throw std::runtime_error("features.voice.kws must set only one of wake_word or keywords_file");
+  }
+  if (features_.voice.kws.enabled && features_.voice.kws.provider == "disabled") {
+    throw std::runtime_error(
+        "features.voice.kws.provider must not be disabled when features.voice.kws.enabled is true");
+  }
+  if (features_.voice.kws.enabled && features_.voice.kws.wake_word.empty() &&
+      features_.voice.kws.keywords_file.empty()) {
+    throw std::runtime_error("features.voice.kws requires wake_word or keywords_file when enabled");
+  }
+  if (features_.voice.kws.enabled && features_.voice.kws.provider == "sherpa" &&
+      features_.voice.kws.model_dir.empty()) {
+    throw std::runtime_error("features.voice.kws.model_dir is required for sherpa KWS");
+  }
   if (!IsOneOf(features_.voice.vad.provider, "disabled", "mock")) {
     throw std::runtime_error("features.voice.vad.provider must be disabled or mock");
   }

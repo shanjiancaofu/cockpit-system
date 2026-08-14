@@ -12,11 +12,15 @@
 #include <utility>
 
 #include "agent/audio/audio_playback_client.h"
+#include "agent/audio/audio_playback_transport.h"
 #include "agent/audio/audio_stream_client.h"
 #include "agent/grpc/voice_grpc_service.h"
 #include "agent/hmi/local_hmi_command_provider.h"
 #include "agent/interaction/voice_interaction_service.h"
+#include "agent/runtime/voice_input_gate.h"
 #include "agent/speech/asr/mock_speech_recognizer.h"
+#include "agent/speech/kws/fixed_pcm_wake_prompt_player.h"
+#include "agent/speech/kws/mock_wake_word_detector.h"
 #include "agent/speech/pipeline/speech_pipeline.h"
 #include "agent/speech/tts/mock_speech_synthesizer.h"
 #include "agent/speech/vad/mock_voice_activity_detector.h"
@@ -28,6 +32,10 @@
 #include "cockpit/modules/voice/actions/cockpit_action_dispatcher.h"
 #include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
 #include "cockpit/modules/voice/responses/async_voice_response_sink.h"
+
+#if defined(COCKPIT_ENABLE_SHERPA_AGENT)
+#include "agent/speech/providers/sherpa/sherpa_wake_word_detector.h"
+#endif
 
 namespace cockpit {
 namespace agent {
@@ -45,6 +53,30 @@ std::string VoiceResponsePayload(const voice::VoiceResponse& response) {
   return output.str();
 }
 
+std::unique_ptr<WakeWordDetector> CreateWakeWordDetector(const config::KwsConfig& config,
+                                                         std::string* error) {
+  if (!config.enabled) {
+    return nullptr;
+  }
+  if (config.provider == "mock") {
+    return std::make_unique<MockWakeWordDetector>(config.wake_word);
+  }
+  if (config.provider == "sherpa") {
+#if defined(COCKPIT_ENABLE_SHERPA_AGENT)
+    return CreateSherpaWakeWordDetector(config);
+#else
+    if (error != nullptr) {
+      *error = "Sherpa KWS provider requested, but COCKPIT_ENABLE_SHERPA_AGENT is OFF";
+    }
+    return nullptr;
+#endif
+  }
+  if (error != nullptr) {
+    *error = "unsupported KWS provider: " + config.provider;
+  }
+  return nullptr;
+}
+
 }  // namespace
 
 class AgentRuntime::Impl {
@@ -53,6 +85,7 @@ class AgentRuntime::Impl {
   std::unique_ptr<voice::VoiceInteractionService> service;
   std::unique_ptr<voice::VoiceGrpcService> grpc;
   std::unique_ptr<SpeechPipeline> speech_pipeline;
+  std::unique_ptr<VoiceInputGate> input_gate;
   std::unique_ptr<AudioStreamClient> audio_stream;
   std::string audio_stream_path;
   std::thread worker;
@@ -133,6 +166,21 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
     impl_->running.store(true);
     if (enabled) {
       impl_->service->Start();
+      std::string kws_error;
+      auto detector = CreateWakeWordDetector(config.features().voice.kws, &kws_error);
+      if (config.features().voice.kws.enabled && detector == nullptr) {
+        LOG_ERROR("failed to configure KWS: " + kws_error);
+        impl_.reset();
+        return false;
+      }
+      std::unique_ptr<WakePromptPlayer> wake_prompt;
+      if (config.features().voice.kws.enabled) {
+        wake_prompt = std::make_unique<FixedPcmWakePromptPlayer>(
+            voice::CreateGrpcAudioPlaybackTransport(interaction_config.audio_address));
+      }
+      impl_->input_gate = std::make_unique<VoiceInputGate>(
+          config.features().voice.kws, impl_->service.get(), impl_->speech_pipeline.get(),
+          std::move(detector), std::move(wake_prompt));
       std::string pipeline_error;
       if (!impl_->speech_pipeline->Start(
               [this](const voice::SpeechTranscript& transcript) {
@@ -156,7 +204,7 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
           }
           const AudioStreamReceiveResult result = impl_->audio_stream->ReceiveFrame(100);
           if (result.status == AudioStreamReceiveStatus::kFrame) {
-            impl_->speech_pipeline->Submit(*result.frame);
+            impl_->input_gate->ProcessFrame(*result.frame);
           } else if (result.status == AudioStreamReceiveStatus::kDisconnected ||
                      result.status == AudioStreamReceiveStatus::kError) {
             impl_->service->SetLastError(result.error);
@@ -186,6 +234,9 @@ void AgentRuntime::Stop() {
   }
   if (impl_->audio_stream != nullptr) {
     impl_->audio_stream->Close();
+  }
+  if (impl_->input_gate != nullptr) {
+    impl_->input_gate->Stop();
   }
   if (impl_->speech_pipeline != nullptr) {
     impl_->speech_pipeline->Stop();

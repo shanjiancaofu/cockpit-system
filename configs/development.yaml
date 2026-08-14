@@ -80,6 +80,12 @@ hardware:
 features:
   voice:
     enabled: false
+    kws:
+      enabled: false
+      provider: mock
+      cooldown_ms: 1500
+      wake_word: 你好小车
+      model_dir: ""
     vad:
       provider: mock
     speech_segment:

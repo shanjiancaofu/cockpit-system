@@ -45,6 +45,7 @@ class SpeechPipeline {
   bool Start(TranscriptHandler handler, std::string* error = nullptr);
   void Stop();
   bool Submit(const audio::AudioFrame& frame);
+  void ResetInputState();
   SpeechPipelineMetrics metrics() const;
   std::string last_error() const;
 

@@ -87,6 +87,9 @@ class VoiceInteractionService {
   event::EventQueuePushResult SubmitTranscript(const SpeechTranscript& transcript);
   std::optional<VoiceResponse> HandleTranscript(const SpeechTranscript& transcript);
   VoiceInterruptResult Interrupt();
+  bool NotifyWakeWordDetected();
+  bool NotifyWakePromptCompleted();
+  InteractionState state() const;
   bool WaitForResponse(std::uint64_t after_id, std::chrono::milliseconds timeout,
                        VoiceResponse* response) const;
   bool WaitForTranscript(std::uint64_t after_id, std::chrono::milliseconds timeout,

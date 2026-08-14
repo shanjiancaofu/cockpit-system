@@ -150,8 +150,8 @@ AudioPlaybackClient::AudioPlaybackClient(const std::string& address)
 AudioPlaybackClient::AudioPlaybackClient(const std::string& address,
                                          std::unique_ptr<SpeechSynthesizer> synthesizer,
                                          std::chrono::milliseconds synthesis_timeout)
-    : AudioPlaybackClient(std::make_unique<GrpcAudioPlaybackTransport>(address),
-                          std::move(synthesizer), synthesis_timeout) {
+    : AudioPlaybackClient(CreateGrpcAudioPlaybackTransport(address), std::move(synthesizer),
+                          synthesis_timeout) {
 }
 
 AudioPlaybackClient::AudioPlaybackClient(std::unique_ptr<AudioPlaybackTransport> transport,
@@ -164,6 +164,11 @@ AudioPlaybackClient::AudioPlaybackClient(std::unique_ptr<AudioPlaybackTransport>
     throw std::invalid_argument("audio playback requires a transport and positive timeout");
   }
   next_playback_id_.store(InitialPlaybackId());
+}
+
+std::unique_ptr<AudioPlaybackTransport> CreateGrpcAudioPlaybackTransport(
+    const std::string& address) {
+  return std::make_unique<GrpcAudioPlaybackTransport>(address);
 }
 
 bool AudioPlaybackClient::Submit(std::uint64_t request_id, std::string text,

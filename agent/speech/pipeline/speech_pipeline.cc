@@ -106,6 +106,11 @@ bool SpeechPipeline::Submit(const audio::AudioFrame& frame) {
   }
 }
 
+void SpeechPipeline::ResetInputState() {
+  detector_->Reset();
+  segmenter_->Reset();
+}
+
 SpeechPipelineMetrics SpeechPipeline::metrics() const {
   return {frames_processed_.load(),
           speech_frames_.load(),

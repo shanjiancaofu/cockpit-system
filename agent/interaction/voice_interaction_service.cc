@@ -341,6 +341,34 @@ VoiceInterruptResult VoiceInteractionService::Interrupt() {
   return result;
 }
 
+bool VoiceInteractionService::NotifyWakeWordDetected() {
+  if (!enabled_ || !worker_running_.load()) {
+    return false;
+  }
+  const bool accepted =
+      state_machine_.Handle(ConversationEvent::kWakeWordDetected, "wake word detected");
+  if (!accepted) {
+    SetLastError("wake word ignored in current interaction state");
+  }
+  return accepted;
+}
+
+bool VoiceInteractionService::NotifyWakePromptCompleted() {
+  if (!enabled_ || !worker_running_.load()) {
+    return false;
+  }
+  const bool accepted =
+      state_machine_.Handle(ConversationEvent::kWakePromptCompleted, "wake prompt completed");
+  if (!accepted) {
+    SetLastError("wake prompt completion ignored in current interaction state");
+  }
+  return accepted;
+}
+
+InteractionState VoiceInteractionService::state() const {
+  return state_machine_.snapshot().state;
+}
+
 bool VoiceInteractionService::WaitForResponse(std::uint64_t after_id,
                                               std::chrono::milliseconds timeout,
                                               VoiceResponse* response) const {

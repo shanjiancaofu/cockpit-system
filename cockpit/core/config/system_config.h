@@ -45,6 +45,15 @@ struct VadConfig {
   std::string provider = "mock";
 };
 
+struct KwsConfig {
+  bool enabled = false;
+  std::string provider = "mock";
+  int cooldown_ms = 1500;
+  std::string wake_word = "你好小车";
+  std::string keywords_file;
+  std::string model_dir;
+};
+
 struct SpeechSegmentConfig {
   int pre_roll_ms = 100;
   int max_segment_ms = 15000;
@@ -126,6 +135,7 @@ struct AsrConfig {
 
 struct VoiceConfig {
   bool enabled = false;
+  KwsConfig kws;
   VadConfig vad;
   SpeechSegmentConfig speech_segment;
   AsrConfig asr;

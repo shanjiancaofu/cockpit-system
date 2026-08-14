@@ -14,6 +14,10 @@ int main() {
       config.services().vehicle_data.grpc.listen_address != "127.0.0.1:50050" ||
       config.services().gateway.stream_timeout_ms != 10000 ||
       config.services().audio.grpc.listen_address != "127.0.0.1:50052" ||
+      config.features().voice.kws.provider != "mock" ||
+      config.features().voice.kws.cooldown_ms != 1500 ||
+      config.features().voice.kws.wake_word != "你好小车" ||
+      config.features().voice.kws.model_dir != "" ||
       config.features().voice.vad.provider != "mock" ||
       config.features().voice.speech_segment.max_segment_ms != 15000 ||
       config.services().camera.capture_backend != "gstreamer" ||
