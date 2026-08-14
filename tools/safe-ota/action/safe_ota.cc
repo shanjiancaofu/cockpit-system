@@ -26,7 +26,6 @@ namespace safe_ota {
 namespace {
 
 constexpr int kRuntimeCommandTimeoutMs = 30000;
-constexpr int kRuntimeTransitionTimeoutSeconds = kRuntimeCommandTimeoutMs / 1000;
 constexpr int kUpgradeResultTimeoutSeconds = 600;
 
 class RuntimeDirectoryWatch {
@@ -133,17 +132,23 @@ std::string RuntimeDiagnostics(const std::filesystem::path& socket_path,
 }
 
 bool WaitForRuntime(const std::string& socket_path, const std::filesystem::path& install_root,
-                    const std::string& version, std::string* error) {
+                    const std::string& version, std::chrono::steady_clock::time_point deadline,
+                    std::string* error) {
   const std::string expected_executable =
       std::filesystem::weakly_canonical(install_root / "current/bin/cockpit-navigator").string();
-  const auto deadline =
-      std::chrono::steady_clock::now() + std::chrono::seconds(kRuntimeTransitionTimeoutSeconds);
   RuntimeDirectoryWatch runtime_watch(socket_path);
   std::string last_error;
   std::string last_response;
   while (std::chrono::steady_clock::now() < deadline) {
+    const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+        deadline - std::chrono::steady_clock::now());
+    if (remaining.count() <= 0) {
+      break;
+    }
+    const int probe_timeout_ms = static_cast<int>(std::min<std::int64_t>(remaining.count(), 500));
     std::string response;
-    if (navigator::IpcConnector::SendRequest(socket_path, "status", &response, &last_error, 500) &&
+    if (navigator::IpcConnector::SendRequest(socket_path, "status", &response, &last_error,
+                                             probe_timeout_ms) &&
         response.rfind("OK", 0) == 0 &&
         response.find(" executable=" + expected_executable + "\n") != std::string::npos) {
       return true;
@@ -285,7 +290,9 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
 
   const bool runtime_ready =
       options.standalone ||
-      WaitForRuntime(options.socket_path, options.install_root, package_version, &error);
+      WaitForRuntime(
+          options.socket_path, options.install_root, package_version,
+          std::chrono::steady_clock::now() + std::chrono::seconds(options.timeout_seconds), &error);
   if (!runtime_ready ||
       !upgrader::WaitForUpgradeHealth(options.health_command, options.install_root,
                                       options.timeout_seconds, &error)) {
@@ -301,8 +308,11 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
                   << '\n';
         return ExitCode::kOperationFailed;
       }
-      if (!WaitForRuntime(options.socket_path, options.install_root,
-                          result.previous_release.filename().string(), &reload_error)) {
+      if (!WaitForRuntime(
+              options.socket_path, options.install_root,
+              result.previous_release.filename().string(),
+              std::chrono::steady_clock::now() + std::chrono::seconds(options.timeout_seconds),
+              &reload_error)) {
         std::cerr << error << "; rollback Navigator did not become ready: " << reload_error << '\n';
         return ExitCode::kOperationFailed;
       }
@@ -321,7 +331,10 @@ diagnostics::ExitCode ExecuteSafeOta(const SafeOtaOptions& options) {
       if (!SendRuntimeCommand(options.socket_path, "reexec normal", &reload_error)) {
         error += "; runtime reexec failed: " + reload_error;
       } else if (!WaitForRuntime(options.socket_path, options.install_root,
-                                 result.previous_release.filename().string(), &reload_error)) {
+                                 result.previous_release.filename().string(),
+                                 std::chrono::steady_clock::now() +
+                                     std::chrono::seconds(options.timeout_seconds),
+                                 &reload_error)) {
         error += "; rollback Navigator did not become ready: " + reload_error;
       }
     }

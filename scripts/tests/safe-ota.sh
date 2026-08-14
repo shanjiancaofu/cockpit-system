@@ -272,6 +272,37 @@ set -e
 runtime_status="$("${navigator}" --command status --socket "${socket_path}")"
 [[ "${runtime_status}" == *"module=transfer state=running"* ]]
 
-"${navigator}" --command shutdown --socket "${socket_path}" >/dev/null
-wait "${navigator_pid}"
+package_never_ready="${install_root}/data/ota/incoming/package-never-ready"
+make_package "${package_never_ready}" 6.0.0
+replacement_started="${work_dir}/replacement-started"
+mkfifo "${replacement_started}"
+printf '#!/usr/bin/env bash\nprintf "ready\\n" >"%s"\nexec tail -f /dev/null\n' \
+  "${replacement_started}" >"${package_never_ready}/release/bin/cockpit-navigator"
+chmod 0755 "${package_never_ready}/release/bin/cockpit-navigator"
+(
+  cd "${package_never_ready}"
+  find release config deploy manifest -type f ! -name SHA256SUMS ! -name SHA256SUMS.sig -print0 \
+    | sort -z | xargs -0 sha256sum >manifest/SHA256SUMS
+  openssl pkeyutl -sign -rawin -inkey "${ota_private_key}" \
+    -in manifest/SHA256SUMS -out manifest/SHA256SUMS.sig
+)
+set +e
+"${safe_ota}" --package "${package_never_ready}" --confirm 6.0.0 --root "${install_root}" \
+  --public-key "${ota_public_key}" --socket "${socket_path}" \
+  --health-command /bin/true --timeout 1 &
+runtime_budget_pid=$!
+replacement_signal="$(timeout 10 head -n 1 "${replacement_started}")"
+started_at="$(date +%s)"
+wait "${runtime_budget_pid}"
+runtime_budget_result=$?
+set -e
+elapsed="$(( $(date +%s) - started_at ))"
+[[ "${replacement_signal}" == "ready" ]]
+[[ "${runtime_budget_result}" -ne 0 ]]
+[[ "${elapsed}" -lt 5 ]]
+[[ "$(readlink "${install_root}/current")" == "releases/4.0.0" ]]
+[[ ! -e "${install_root}/releases/6.0.0" ]]
+
+kill "${navigator_pid}" 2>/dev/null || true
+wait "${navigator_pid}" 2>/dev/null || true
 navigator_pid=""

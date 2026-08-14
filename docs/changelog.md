@@ -2,6 +2,18 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-08-14 - 命令否定语义与 Safe OTA timeout 合同加固
+
+- 确定性路由不再全句扫描少量否定词；每个 action phrase occurrence 分别检查有限前置上下文。
+  中文支持不、不要、别、请勿、不用和不需要，英文支持 don't、do not 和 never；只要存在被否定
+  action，即使同句还有肯定 action，也保守返回 `Unknown + None`。
+- `TranscriptNormalizer` 将 U+2018/U+2019 smart apostrophe 规范化为 ASCII `'`，使两种
+  `don’t/don‘t` 稳定进入同一个英文否定路径，不引入 Unicode 大依赖。
+- Safe OTA runtime readiness 改为接收 caller steady-clock deadline；每次 status probe 与 inotify
+  poll 均取剩余预算，候选和 rollback readiness 都不再越过 `--timeout` 等待内部固定 30 秒。
+- 新增中文/英文否定、smart apostrophe、否定与肯定组合歧义，以及永不创建 runtime socket 的
+  1 秒 caller budget 回归测试；保留现有 readiness watch、诊断和事务安全语义。
+
 ## 2026-08-14 - Voice Agent 阶段 10 第一批确定性命令边界
 
 - 新增最小 `TranscriptNormalizer`，支持首尾/连续空白、ASCII lowercase、全角 ASCII、U+3000 和

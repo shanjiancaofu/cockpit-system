@@ -110,6 +110,9 @@ std::string TranscriptNormalizer::Normalize(std::string_view transcript) {
     if (value >= 0xFF01U && value <= 0xFF5EU) {
       value -= 0xFEE0U;
     }
+    if (value == 0x2018U || value == 0x2019U) {
+      value = '\'';
+    }
     if (IsSeparator(value)) {
       pending_space = !normalized.empty();
       continue;

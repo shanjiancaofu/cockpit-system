@@ -40,6 +40,8 @@ int main() {
   if (!ExpectNormalization("  OPEN CAMERA  ", "open camera") ||
       !ExpectNormalization("OPEN   CAMERA", "open camera") ||
       !ExpectNormalization("ＯＰＥＮ　ＣＡＭＥＲＡ", "open camera") ||
+      !ExpectNormalization("don’t open camera", "don't open camera") ||
+      !ExpectNormalization("don‘t open camera", "don't open camera") ||
       !ExpectNormalization("打开相机！", "打开相机") ||
       !ExpectNormalization("查看车辆状态，电量多少？", "查看车辆状态 电量多少")) {
     return 1;
@@ -49,6 +51,7 @@ int main() {
       !ExpectRoute("ＯＰＥＮ　ＣＡＭＥＲＡ！", VoiceIntent::kOpenCamera,
                    VoiceAction::kOpenCamera) ||
       !ExpectRoute("打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("这个画面不错，打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("打开相机！", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("打开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("play music", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
@@ -69,16 +72,30 @@ int main() {
   const std::string rejected[] = {
       "不要打开相机",
       "别打开相机",
+      "不打开相机",
+      "请勿打开相机",
+      "不用打开相机",
+      "不需要打开相机",
+      "不打开摄像头",
       "不要打开摄像头",
       "别打开摄像头",
+      "不播放音乐",
+      "请勿播放音乐",
+      "不用播放音乐",
+      "不需要播放音乐",
       "不要播放音乐",
       "别放音乐",
       "don't open camera",
+      "don’t open camera",
+      "don‘t open camera",
       "do not open camera",
       "do not ever open camera",
+      "never open camera",
       "don't play music",
       "do not play music",
+      "never play music",
       "不要现在打开相机",
+      "不要打开相机，播放音乐",
       "打开相机并播放音乐",
       "open camera and play music",
       "set speed to 100",
