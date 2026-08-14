@@ -7,6 +7,7 @@
 #include <chrono>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <thread>
 
@@ -31,10 +32,11 @@ int main(int argc, char** argv) {
   std::string camera_response;
   std::string camera_error;
   std::thread camera_request([&] {
-    camera_succeeded =
-        provider.SendCommand(cockpit::voice::HmiCommand::kOpenCameraPreview,
-                             std::chrono::steady_clock::now() + std::chrono::seconds(1),
-                             &camera_response, &camera_error);
+    const cockpit::voice::ActionExecutionContext action_context{
+        std::chrono::steady_clock::now() + std::chrono::seconds(1),
+        std::make_shared<cockpit::voice::ActionCancellation>()};
+    camera_succeeded = provider.SendCommand(cockpit::voice::HmiCommand::kOpenCameraPreview,
+                                            action_context, &camera_response, &camera_error);
     completed.store(true);
   });
   const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
@@ -46,9 +48,11 @@ int main(int argc, char** argv) {
 
   std::string music_response;
   std::string music_error;
-  const bool music_succeeded = provider.SendCommand(
-      cockpit::voice::HmiCommand::kPlayMusic,
-      std::chrono::steady_clock::now() + std::chrono::seconds(1), &music_response, &music_error);
+  const cockpit::voice::ActionExecutionContext music_context{
+      std::chrono::steady_clock::now() + std::chrono::seconds(1),
+      std::make_shared<cockpit::voice::ActionCancellation>()};
+  const bool music_succeeded = provider.SendCommand(cockpit::voice::HmiCommand::kPlayMusic,
+                                                    music_context, &music_response, &music_error);
   const bool result = camera_succeeded && camera_error.empty() &&
                       camera_response == "Camera view opened." &&
                       control.currentView() == cockpit::ui::HmiControl::kCameraView &&

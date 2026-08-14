@@ -17,8 +17,8 @@ class LocalHmiCommandProvider final : public HmiCommandProvider {
  public:
   explicit LocalHmiCommandProvider(const std::string& address);
 
-  bool SendCommand(HmiCommand command, std::chrono::steady_clock::time_point deadline,
-                   std::string* response, std::string* error) override;
+  bool SendCommand(HmiCommand command, const ActionExecutionContext& context, std::string* response,
+                   std::string* error) override;
   void Cancel() override;
 
  private:

@@ -2,6 +2,10 @@
 set -euo pipefail
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+if ! command -v rg >/dev/null 2>&1; then
+  echo "ripgrep is required for repository dependency checks" >&2
+  exit 1
+fi
 source "${root_dir}/scripts/common.sh"
 
 build_dir="${BUILD_DIR:-$(cockpit_default_debug_build_dir)}"
@@ -10,21 +14,40 @@ parallel_level="${CMAKE_BUILD_PARALLEL_LEVEL:-4}"
 repo_dir="${root_dir}"
 source_filter="^${repo_dir}/(cockpit|tests|tools)/.*"
 header_filter="^${repo_dir}/(cockpit|tests|tools)/.*"
+driver_source_dir="${COCKPIT_DRIVER_SOURCE_DIR:-${root_dir}/cockpit/drivers}"
 
-driver_dependency_errors="$(
+driver_dependency_errors=""
+if driver_dependency_errors="$(
   rg -n '#include[[:space:]]+"(cockpit/(core|modules|library|navigator)/|agent/)' \
-    "${root_dir}/cockpit/drivers" --glob '*.{cc,h}' || true
-)"
+    "${driver_source_dir}" --glob '*.{cc,h}'
+)"; then
+  :
+else
+  scan_status=$?
+  if [[ "${scan_status}" -ne 1 ]]; then
+    echo "driver dependency boundary scan failed" >&2
+    exit "${scan_status}"
+  fi
+fi
 if [[ -n "${driver_dependency_errors}" ]]; then
   echo "driver dependency boundary violated:" >&2
   echo "${driver_dependency_errors}" >&2
   exit 1
 fi
 
-driver_cmake_errors="$(
+driver_cmake_errors=""
+if driver_cmake_errors="$(
   rg -n '^[[:space:]]*(audio_|camera_|can|vehicle|config|logging|runtime|contracts|agent_)($|[[:space:]])' \
-    "${root_dir}/cockpit/drivers" --glob 'CMakeLists.txt' || true
-)"
+    "${driver_source_dir}" --glob 'CMakeLists.txt'
+)"; then
+  :
+else
+  scan_status=$?
+  if [[ "${scan_status}" -ne 1 ]]; then
+    echo "driver CMake dependency boundary scan failed" >&2
+    exit "${scan_status}"
+  fi
+fi
 if [[ -n "${driver_cmake_errors}" ]]; then
   echo "driver CMake links a cockpit project target:" >&2
   echo "${driver_cmake_errors}" >&2

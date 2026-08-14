@@ -64,6 +64,7 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
     kTransportError,
     kCancelRetry,
     kUncertain,
+    kConcurrentCancel,
     kNotFound,
   };
 
@@ -73,10 +74,16 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
   cockpit::voice::AudioPlaybackSubmitResult Submit(std::uint64_t playback_id,
                                                    const cockpit::audio::PcmBuffer&) override {
     {
-      std::lock_guard<std::mutex> lock(mutex_);
+      std::unique_lock<std::mutex> lock(mutex_);
       playback_id_ = playback_id;
       status_ = cockpit::voice::AudioPlaybackWaitStatus::kFailed;
       completed_ = false;
+      changed_.notify_all();
+      if (behavior_ == Behavior::kConcurrentCancel) {
+        changed_.wait(lock, [this] {
+          return submission_released_;
+        });
+      }
     }
     changed_.notify_all();
     return {cockpit::voice::AudioPlaybackSubmitStatus::kAccepted, {}};
@@ -113,8 +120,14 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
   bool Cancel(std::uint64_t playback_id) override {
     bool accepted = false;
     {
-      std::lock_guard<std::mutex> lock(mutex_);
+      std::unique_lock<std::mutex> lock(mutex_);
       ++cancel_calls_;
+      changed_.notify_all();
+      if (behavior_ == Behavior::kConcurrentCancel && cancel_calls_ == 1U) {
+        changed_.wait(lock, [this] {
+          return cancel_released_;
+        });
+      }
       const bool reject = behavior_ == Behavior::kUncertain ||
                           (behavior_ == Behavior::kCancelRetry && cancel_calls_ == 1U);
       if (!reject && playback_id == playback_id_) {
@@ -137,6 +150,29 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
     }
     *playback_id = playback_id_;
     return true;
+  }
+
+  bool WaitForCancelCalls(std::uint64_t count, std::chrono::milliseconds timeout) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return changed_.wait_until(lock, std::chrono::system_clock::now() + timeout, [this, count] {
+      return cancel_calls_ >= count;
+    });
+  }
+
+  void ReleaseSubmission() {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      submission_released_ = true;
+    }
+    changed_.notify_all();
+  }
+
+  void ReleaseCancel() {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      cancel_released_ = true;
+    }
+    changed_.notify_all();
   }
 
   void Complete(std::uint64_t playback_id) {
@@ -173,6 +209,8 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
   cockpit::voice::AudioPlaybackWaitStatus status_ =
       cockpit::voice::AudioPlaybackWaitStatus::kFailed;
   bool completed_ = false;
+  bool submission_released_ = false;
+  bool cancel_released_ = false;
   std::uint64_t cancel_calls_ = 0U;
   std::uint64_t wait_calls_ = 0U;
 };
@@ -379,7 +417,8 @@ int main() {
   }
   missing_client.Stop();
 
-  auto stopping_transport = std::make_unique<FakeAudioPlaybackTransport>();
+  auto stopping_transport = std::make_unique<FakeAudioPlaybackTransport>(
+      FakeAudioPlaybackTransport::Behavior::kConcurrentCancel);
   auto* stopping_control = stopping_transport.get();
   cockpit::voice::AudioPlaybackClient stopping_client(
       std::move(stopping_transport), std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
@@ -397,10 +436,28 @@ int main() {
     std::cerr << "stop-during-wait playback was not submitted\n";
     return 1;
   }
+  std::atomic_bool stop_returned{false};
+  std::thread stopper([&] {
+    stopping_client.Stop();
+    stop_returned.store(true);
+  });
+  if (!stopping_control->WaitForCancelCalls(1U, std::chrono::seconds(1))) {
+    std::cerr << "Stop did not start playback cancellation\n";
+    stopping_control->ReleaseSubmission();
+    stopping_control->ReleaseCancel();
+    stopper.join();
+    stopping_submitter.join();
+    return 1;
+  }
+  stopping_control->ReleaseSubmission();
+  const bool duplicate_cancel =
+      stopping_control->WaitForCancelCalls(2U, std::chrono::milliseconds(100));
   const auto playback_stop_started = std::chrono::steady_clock::now();
-  stopping_client.Stop();
+  stopping_control->ReleaseCancel();
+  stopper.join();
   stopping_submitter.join();
-  if (std::chrono::steady_clock::now() - playback_stop_started > std::chrono::milliseconds(300) ||
+  if (duplicate_cancel || !stop_returned.load() ||
+      std::chrono::steady_clock::now() - playback_stop_started > std::chrono::milliseconds(300) ||
       stopping_control->cancel_calls() != 1U || stopping_completions.load() != 1U ||
       stopping_status.load() != cockpit::voice::VoiceOutputStatus::kCancelled) {
     std::cerr << "Stop during Wait deadlocked or completed incorrectly\n";

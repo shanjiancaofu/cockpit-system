@@ -8,10 +8,11 @@
 
 ## 当前阶段
 
-**语音 Agent 阶段 6：会话状态机与恢复**的通用运行时逻辑已经完成。状态/事件核心、单会话、
-主动打断、ASR/Assistant/Action/TTS 分环节 deadline、provider 取消、固定错误提示、真实播放回执、
-transport uncertainty 处理及 `FOLLOW_UP` 窗口均已落地。真实 ASR、TTS、LLM、麦克风、扬声器和
-声学验证属于后续 provider/硬件阶段，不能由本阶段的 mock 自动化结果替代。
+**语音 Agent 阶段 6：会话状态机与恢复已经正式封板，下一主线是阶段 10。** 状态/事件核心、
+单会话、主动打断、ASR/Assistant/Action/TTS 分环节 deadline、request-scoped Action 取消、固定错误
+提示、真实播放回执、single-flight playback 取消、stale 结果隔离及 `FOLLOW_UP` 窗口均已落地。
+真实 ASR、TTS、LLM、麦克风、扬声器和声学验证属于后续 provider/硬件阶段，不能由本阶段的 mock
+自动化结果替代。
 
 Jetson Orin Nano Super 的构建、安装、Navigator smoke、IMX219 短稳和 CAN 内部闭环已有历史实测，
 真实音频、外部 CAN、异常掉电及小时级长稳作为并行硬件验收，不阻塞 WSL 的通用 Agent 逻辑。
@@ -48,7 +49,7 @@ Jetson、真实 CAN、麦克风、扬声器、CSI 摄像头和 AI 加速验证�
 | 稳定性基线 | Navigator 周期采样 health、RSS、线程、FD 和目录占用；支持重复故障注入，失败自动生成有界诊断快照并写入 schema 3 JSON 报告 |
 | WSL 故障矩阵 | 严格配置、Release package、临时安装、健康检查、回滚及四类故障形成机器可读报告 |
 | 单入口验证 | 详细 smoke、Qt UI 联调和 vcan smoke 均通过 Navigator 启动所需模块组合 |
-| 质量门禁 | GCC x86_64 Debug CTest、GCC Release、完整 smoke、WSL matrix、clang-tidy 和 pre-commit 形成统一工具链门禁 |
+| 质量门禁 | GCC x86_64 Debug/Release、ASan/UBSan、TSan、真实 driver dependency boundary、package validation、clang-tidy 和 pre-commit 形成统一工具链门禁 |
 | 文档体系 | 当前架构、实现状态、项目看板、配置、部署、代码风格和参考材料按职责维护 |
 
 ## 下一步要干啥事

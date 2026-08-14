@@ -27,12 +27,18 @@ GatewayVehicleStatusClient::GatewayVehicleStatusClient(const std::string& addres
       }()) {
 }
 
-bool GatewayVehicleStatusClient::GetLatest(std::chrono::steady_clock::time_point deadline,
+bool GatewayVehicleStatusClient::GetLatest(const ActionExecutionContext& action_context,
                                            VehicleStatusSnapshot* status, std::string* error) {
   const std::uint64_t generation = cancellation_generation_.load();
   std::string last_error;
   for (int attempt = 1; attempt <= kMaxAttempts; ++attempt) {
-    const auto remaining = deadline - std::chrono::steady_clock::now();
+    if (action_context.IsCancellationRequested()) {
+      if (error != nullptr) {
+        *error = "Vehicle status request cancelled.";
+      }
+      return false;
+    }
+    const auto remaining = action_context.deadline - std::chrono::steady_clock::now();
     if (remaining <= std::chrono::steady_clock::duration::zero()) {
       if (error != nullptr) {
         *error = "Vehicle status request deadline exceeded.";
@@ -55,6 +61,13 @@ bool GatewayVehicleStatusClient::GetLatest(std::chrono::steady_clock::time_point
         return false;
       }
       active_context_ = &context;
+      if (action_context.IsCancellationRequested()) {
+        active_context_ = nullptr;
+        if (error != nullptr) {
+          *error = "Vehicle status request cancelled.";
+        }
+        return false;
+      }
     }
     const grpc::Status rpc_status = stub_->GetLatestVehicleState(&context, request, &response);
     {
@@ -81,7 +94,7 @@ bool GatewayVehicleStatusClient::GetLatest(std::chrono::steady_clock::time_point
     }
 
     last_error = rpc_status.error_message();
-    if (attempt < kMaxAttempts && !WaitForRetry(generation, deadline)) {
+    if (attempt < kMaxAttempts && !WaitForRetry(generation, action_context)) {
       if (error != nullptr) {
         *error = cancellation_generation_.load() != generation
                      ? "Vehicle status request cancelled."
@@ -109,8 +122,11 @@ void GatewayVehicleStatusClient::Cancel() {
 }
 
 bool GatewayVehicleStatusClient::WaitForRetry(std::uint64_t generation,
-                                              std::chrono::steady_clock::time_point deadline) {
-  const auto remaining = deadline - std::chrono::steady_clock::now();
+                                              const ActionExecutionContext& context) {
+  if (context.IsCancellationRequested()) {
+    return false;
+  }
+  const auto remaining = context.deadline - std::chrono::steady_clock::now();
   if (remaining <= std::chrono::steady_clock::duration::zero()) {
     return false;
   }
@@ -118,10 +134,10 @@ bool GatewayVehicleStatusClient::WaitForRetry(std::uint64_t generation,
       remaining, std::chrono::duration_cast<std::chrono::steady_clock::duration>(kRetryDelay));
   std::unique_lock<std::mutex> lock(cancellation_mutex_);
   const bool cancelled = cancellation_changed_.wait_until(
-      lock, std::chrono::system_clock::now() + delay, [this, generation] {
-        return cancellation_generation_.load() != generation;
+      lock, std::chrono::system_clock::now() + delay, [this, generation, &context] {
+        return cancellation_generation_.load() != generation || context.IsCancellationRequested();
       });
-  return !cancelled && std::chrono::steady_clock::now() < deadline;
+  return !cancelled && std::chrono::steady_clock::now() < context.deadline;
 }
 
 }  // namespace voice

@@ -17,8 +17,7 @@ class CockpitActionDispatcher final : public ActionDispatcher {
   CockpitActionDispatcher(std::unique_ptr<VehicleStatusProvider> vehicle_status,
                           std::unique_ptr<HmiCommandProvider> hmi_commands);
 
-  ActionExecutionResult Execute(VoiceAction action,
-                                std::chrono::steady_clock::time_point deadline) override;
+  ActionExecutionResult Execute(VoiceAction action, const ActionExecutionContext& context) override;
   void Cancel() override;
 
  private:
@@ -28,9 +27,9 @@ class CockpitActionDispatcher final : public ActionDispatcher {
     kHmi,
   };
 
-  ActionExecutionResult QueryVehicleStatus(std::chrono::steady_clock::time_point deadline);
+  ActionExecutionResult QueryVehicleStatus(const ActionExecutionContext& context);
   ActionExecutionResult SendHmiCommand(HmiCommand command, const char* not_configured_message,
-                                       std::chrono::steady_clock::time_point deadline);
+                                       const ActionExecutionContext& context);
   void SetActiveProvider(ActiveProvider provider);
   void ClearActiveProvider(ActiveProvider provider);
 

@@ -62,6 +62,7 @@ class SpeechPipeline {
   audio::SpscRingBuffer<audio::SpeechSegment, 8> segments_;
   TranscriptHandler handler_;
   std::atomic_bool running_{false};
+  std::atomic<std::uint64_t> lifecycle_generation_{0};
   std::atomic_bool recognition_active_{false};
   std::atomic_bool recognition_cancelled_{false};
   std::thread worker_;

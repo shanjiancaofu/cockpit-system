@@ -213,6 +213,11 @@ add_executable(cockpit_action_dispatcher_test modules/voice/cockpit_action_dispa
 target_link_libraries(cockpit_action_dispatcher_test PRIVATE voice)
 add_test(NAME cockpit_action_dispatcher_test COMMAND cockpit_action_dispatcher_test)
 
+add_test(
+    NAME driver_dependency_boundary_test
+    COMMAND bash "${PROJECT_SOURCE_DIR}/scripts/tests/driver-dependency-boundaries.sh"
+)
+
 add_executable(action_provider_deadline_test agent/action_provider_deadline_test.cc)
 target_link_libraries(action_provider_deadline_test PRIVATE voice_hmi voice_vehicle_client)
 add_test(NAME action_provider_deadline_test COMMAND action_provider_deadline_test)

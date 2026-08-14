@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <thread>
 
+#include "cockpit/modules/voice/actions/cockpit_action_dispatcher.h"
 #include "cockpit/modules/voice/actions/mock_action_dispatcher.h"
 #include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
 
@@ -37,9 +38,9 @@ class CountingResponseSink final : public cockpit::voice::VoiceResponseSink {
 class BlockingActionDispatcher final : public cockpit::voice::ActionDispatcher {
  public:
   cockpit::voice::ActionExecutionResult Execute(
-      cockpit::voice::VoiceAction, std::chrono::steady_clock::time_point deadline) override {
+      cockpit::voice::VoiceAction, const cockpit::voice::ActionExecutionContext& context) override {
     std::unique_lock<std::mutex> lock(mutex_);
-    deadline_propagated_ = deadline > std::chrono::steady_clock::now();
+    deadline_propagated_ = context.deadline > std::chrono::steady_clock::now();
     entered_ = true;
     changed_.notify_all();
     changed_.wait(lock, [this] {
@@ -82,6 +83,105 @@ class BlockingActionDispatcher final : public cockpit::voice::ActionDispatcher {
   bool cancelled_ = false;
   bool deadline_propagated_ = false;
   std::uint64_t cancel_calls_ = 0U;
+};
+
+class CountingVehicleStatusProvider final : public cockpit::voice::VehicleStatusProvider {
+ public:
+  bool GetLatest(const cockpit::voice::ActionExecutionContext&,
+                 cockpit::voice::VehicleStatusSnapshot* status, std::string*) override {
+    call_count_.fetch_add(1U);
+    if (status != nullptr) {
+      status->source = "pre-dispatch-test";
+    }
+    return true;
+  }
+
+  std::uint64_t call_count() const {
+    return call_count_.load();
+  }
+
+ private:
+  std::atomic<std::uint64_t> call_count_{0U};
+};
+
+class PredispatchGateDispatcher final : public cockpit::voice::ActionDispatcher {
+ public:
+  PredispatchGateDispatcher() {
+    auto provider = std::make_unique<CountingVehicleStatusProvider>();
+    provider_observer_ = provider.get();
+    dispatcher_ = std::make_unique<cockpit::voice::CockpitActionDispatcher>(std::move(provider));
+  }
+
+  cockpit::voice::ActionExecutionResult Execute(
+      cockpit::voice::VoiceAction action,
+      const cockpit::voice::ActionExecutionContext& context) override {
+    {
+      std::unique_lock<std::mutex> lock(mutex_);
+      entered_ = true;
+      changed_.notify_all();
+      changed_.wait(lock, [this] {
+        return released_;
+      });
+    }
+    const auto result = dispatcher_->Execute(action, context);
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      finished_ = true;
+    }
+    changed_.notify_all();
+    return result;
+  }
+
+  void Cancel() override {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      ++cancel_calls_;
+    }
+    dispatcher_->Cancel();
+  }
+
+  bool WaitUntilEntered() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return changed_.wait_until(lock, std::chrono::system_clock::now() + std::chrono::seconds(1),
+                               [this] {
+                                 return entered_;
+                               });
+  }
+
+  void Release() {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      released_ = true;
+    }
+    changed_.notify_all();
+  }
+
+  bool WaitUntilFinished() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return changed_.wait_until(lock, std::chrono::system_clock::now() + std::chrono::seconds(1),
+                               [this] {
+                                 return finished_;
+                               });
+  }
+
+  std::uint64_t side_effects() const {
+    return provider_observer_->call_count();
+  }
+
+  std::uint64_t cancel_calls() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return cancel_calls_;
+  }
+
+ private:
+  mutable std::mutex mutex_;
+  std::condition_variable changed_;
+  bool entered_ = false;
+  bool released_ = false;
+  bool finished_ = false;
+  std::uint64_t cancel_calls_ = 0U;
+  CountingVehicleStatusProvider* provider_observer_ = nullptr;
+  std::unique_ptr<cockpit::voice::CockpitActionDispatcher> dispatcher_;
 };
 
 class RecoveringVoiceAssistant final : public cockpit::voice::VoiceAssistant {
@@ -621,6 +721,35 @@ int main() {
     return 1;
   }
   interrupt_service.Stop();
+
+  auto predispatch_dispatcher = std::make_unique<PredispatchGateDispatcher>();
+  auto* predispatch_observer = predispatch_dispatcher.get();
+  cockpit::voice::VoiceInteractionService predispatch_service(
+      true, std::make_unique<cockpit::voice::MockVoiceAssistant>(),
+      std::move(predispatch_dispatcher));
+  if (!predispatch_service.Start()) {
+    std::cerr << "pre-dispatch cancellation service did not start\n";
+    return 1;
+  }
+  cockpit::voice::SpeechTranscript predispatch_transcript;
+  predispatch_transcript.id = 250U;
+  predispatch_transcript.text = "show vehicle status";
+  if (predispatch_service.SubmitTranscript(predispatch_transcript) !=
+          cockpit::event::EventQueuePushResult::kAccepted ||
+      !predispatch_observer->WaitUntilEntered()) {
+    std::cerr << "action did not enter the pre-dispatch cancellation window\n";
+    return 1;
+  }
+  const auto predispatch_interrupt = predispatch_service.Interrupt();
+  predispatch_observer->Release();
+  if (!predispatch_observer->WaitUntilFinished() ||
+      !predispatch_interrupt.active_request_interrupted ||
+      predispatch_observer->cancel_calls() != 1U || predispatch_observer->side_effects() != 0U ||
+      predispatch_service.status().state != cockpit::voice::InteractionState::kIdle) {
+    std::cerr << "interrupt between action selection and provider dispatch caused a side effect\n";
+    return 1;
+  }
+  predispatch_service.Stop();
 
   auto blocking_dispatcher = std::make_unique<BlockingActionDispatcher>();
   auto* blocking_observer = blocking_dispatcher.get();

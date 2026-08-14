@@ -88,6 +88,14 @@ class StaleOnTimeoutRecognizer final : public cockpit::voice::SpeechRecognizer {
                                });
   }
 
+  bool WaitUntilEntered() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return changed_.wait_until(lock, std::chrono::system_clock::now() + std::chrono::seconds(1),
+                               [this] {
+                                 return entered_;
+                               });
+  }
+
   bool deadline_propagated() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return deadline_propagated_;
@@ -213,6 +221,33 @@ int main() {
       timeout_metrics.asr_timeouts != 1U || timeout_metrics.transcripts_published != 0U ||
       stale_transcripts.load() != 0U) {
     std::cerr << "timed-out ASR published a stale transcript or missed timeout metrics\n";
+    return 1;
+  }
+
+  auto stale_on_stop_recognizer = std::make_unique<StaleOnTimeoutRecognizer>();
+  auto* stale_on_stop_observer = stale_on_stop_recognizer.get();
+  cockpit::agent::SpeechPipeline stop_pipeline(
+      audio_config, segment_config, std::make_unique<cockpit::agent::MockVoiceActivityDetector>(),
+      std::move(stale_on_stop_recognizer), std::chrono::seconds(10));
+  std::atomic<std::uint64_t> stop_transcripts{0U};
+  if (!stop_pipeline.Start(
+          [&stop_transcripts](const cockpit::voice::SpeechTranscript&) {
+            stop_transcripts.fetch_add(1U);
+          },
+          &error)) {
+    std::cerr << "failed to start ASR stop lifecycle pipeline\n";
+    return 1;
+  }
+  stop_pipeline.Submit(
+      cockpit::audio::AudioFrame(2, 0, cockpit::audio::AudioFrameFlag::kNone, samples));
+  if (!stale_on_stop_observer->WaitUntilEntered()) {
+    std::cerr << "ASR did not enter recognition before Stop\n";
+    return 1;
+  }
+  stop_pipeline.Stop();
+  if (stale_on_stop_observer->cancel_calls() != 1U || stop_transcripts.load() != 0U ||
+      stop_pipeline.metrics().transcripts_published != 0U) {
+    std::cerr << "ASR Stop published a stale successful recognition\n";
     return 1;
   }
   std::cout << "agent speech pipeline tests passed\n";

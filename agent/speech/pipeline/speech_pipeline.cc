@@ -75,6 +75,7 @@ void SpeechPipeline::Stop() {
     PublishSegment(std::move(*final_segment));
   }
   running_.store(false);
+  lifecycle_generation_.fetch_add(1U);
   CancelActiveRecognition();
   if (worker_.joinable()) {
     worker_.join();
@@ -146,6 +147,7 @@ void SpeechPipeline::RecognizeSegments() {
       std::condition_variable deadline_changed;
       bool recognition_finished = false;
       std::atomic_bool recognition_timed_out{false};
+      const std::uint64_t lifecycle_generation = lifecycle_generation_.load();
       recognition_cancelled_.store(false);
       recognition_active_.store(true);
       std::thread watchdog([&] {
@@ -181,6 +183,10 @@ void SpeechPipeline::RecognizeSegments() {
       }
       if (!recognition.success) {
         RecordError(recognition.error.empty() ? "speech recognition failed" : recognition.error);
+        continue;
+      }
+      if (!running_.load() || lifecycle_generation_.load() != lifecycle_generation ||
+          recognition_cancelled_.load()) {
         continue;
       }
       voice::SpeechTranscript transcript;

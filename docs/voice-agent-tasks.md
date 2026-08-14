@@ -1,6 +1,6 @@
 # Cockpit Agent 与语音系统阶段任务表
 
-更新时间：2026-08-13。
+更新时间：2026-08-14。
 
 本文是语音专项的唯一任务表。稳定设计以
 [voice-agent.md](voice-agent.md) 为准；后续对话先读下面的交接信息，再按阶段标题定位，
@@ -11,17 +11,18 @@
 | 范围 | 文档 | 状态 |
 | --- | --- | --- |
 | 阶段 0–5 | 分层、Audio Driver、PCM、Agent 基础 | 已完成工程迁移；真实声学验收延后 |
-| 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | 阶段 6 进行中 |
+| 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | 阶段 6 已封板；下一主线阶段 10 |
 | 阶段 11–15 | LLM、TTS、前处理、模型发布 | 未开始 |
 | 实施顺序和优先级 | 文末 | 持续更新 |
 
 ## 当前交接信息
 
 ```text
-当前阶段：6 - 会话状态机与恢复
-已完成：显式状态/事件、单会话、打断、provider 恢复、真实播放回执/取消、FOLLOW_UP 窗口
-待完成：分环节 deadline 和固定错误提示
-下一个实现入口：agent/conversation/ 和 agent/interaction/
+当前阶段：6 - 会话状态机与恢复已正式封板
+已完成：分环节 deadline、固定错误提示、request-scoped Action 取消、single-flight playback 取消、
+        ASR Stop stale-success 隔离、真实播放回执/取消和 FOLLOW_UP 窗口
+下一主线：阶段 10 - TranscriptNormalizer、确定性命令路由、否定词和参数边界
+下一个实现入口：agent/interaction/ 与新的命令规范化/路由组件
 验证基线：Debug/Release、ASan/UBSan、TSan 和 driver dependency boundary 由 CI 持续验证
 ```
 
@@ -409,8 +410,8 @@ vad:
 
 ## 阶段 6–10：语音交互主链路
 
-状态：阶段 6 通用运行时逻辑已完成，阶段 7–10 未开始。基础仓库继续使用 mock provider；本册中的模型、版本和
-性能项目只有在独立 Agent 产品构建与 Jetson 实测完成后才能勾选。
+状态：阶段 6 已正式封板，阶段 7–9 尚未开始，下一主线直接推进阶段 10。基础仓库继续使用 mock
+provider；本册中的模型、版本和性能项目只有在独立 Agent 产品构建与 Jetson 实测完成后才能勾选。
 
 ### 阶段 6：建立会话状态机和恢复机制
 
@@ -495,6 +496,13 @@ features:
   窗口内续问具备单元测试。
 - [x] accepted playback 的 Timeout/TransportError 会执行有界取消与 terminal confirmation；取消
   失败最多重试两次，最终不确定时明确失败且不会伪报 `Cancelled`。
+- [x] 同一 playback id 的 Stop/Interrupt/uncertainty 取消使用 single-flight；只有明确失败后才允许
+  有界重试，完成回调保持 exactly once。
+- [x] Action 使用单请求 cancellation context；Interrupt 在 dispatcher/provider/RPC 各入口均可见，
+  pre-dispatch 取消不会再发送旧 HMI/vehicle RPC。
+- [x] SpeechPipeline Stop 通过生命周期 generation 拒绝 provider 在 Cancel 后返回的 stale success。
+- [x] driver dependency boundary 在缺少 `rg`、向上 include 或链接项目 target 时确定性失败，CI 不再
+  产生假通过。
 
 ---
 
@@ -943,8 +951,8 @@ Jetson 全系统压力测试
 
 ## 语音阶段实施顺序
 
-更新时间：2026-08-13。阶段 0–5 的工程迁移已完成，当前只从阶段 6 的未完成项继续；已完成项
-不在新对话中重复实现。
+更新时间：2026-08-14。阶段 0–6 已完成，阶段 6 已正式封板；下一次实现从阶段 10 开始，不再继续
+扩展阶段 6。
 
 ```text
 阶段 0  现状冻结
@@ -972,11 +980,11 @@ Jetson 全系统压力测试
 ```text
 已完成：
 分层纠正、CMake 依赖清理、Audio Driver 缩减、PCM 传输、顶层 agent/ 建立、
-VAD/Segmenter 工程迁移和会话状态机核心
+VAD/Segmenter 工程迁移、阶段 6 会话状态机、分环节 deadline、恢复和生命周期 hardening
 
 P0：
-阶段 6 分环节 deadline 和固定错误提示
-命令白名单
+阶段 10 TranscriptNormalizer
+确定性命令白名单、否定词和参数边界
 
 P1：
 KWS

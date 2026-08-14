@@ -189,6 +189,7 @@ bool AudioPlaybackClient::SubmitCancellable(
     }
     active_request_id_ = request_id;
     active_cancellation_attempts_ = 0U;
+    active_cancellation_in_flight_ = false;
     active_cancellation_confirmed_ = false;
   }
   if (synthesizer_ == nullptr) {
@@ -252,6 +253,7 @@ bool AudioPlaybackClient::SubmitCancellable(
     }
     active_playback_id_ = playback_id;
     active_cancellation_attempts_ = 0U;
+    active_cancellation_in_flight_ = false;
     active_cancellation_confirmed_ = false;
   }
   const AudioPlaybackSubmitResult submission = transport_->Submit(playback_id, synthesis.audio);
@@ -420,35 +422,62 @@ void AudioPlaybackClient::ClearActiveRequest(std::uint64_t request_id) {
     active_request_id_ = 0U;
     active_playback_id_ = 0U;
     active_cancellation_attempts_ = 0U;
+    active_cancellation_in_flight_ = false;
     active_cancellation_confirmed_ = false;
+    cancellation_changed_.notify_all();
   }
 }
 
 bool AudioPlaybackClient::RequestPlaybackCancellation(std::uint64_t request_id,
                                                       std::uint64_t playback_id) {
   constexpr std::uint32_t kMaxCancellationAttempts = 2U;
+  std::unique_lock<std::mutex> lock(state_mutex_);
+  bool owns_single_flight = false;
   while (true) {
-    {
-      std::lock_guard<std::mutex> lock(state_mutex_);
-      if (active_playback_id_ != playback_id ||
-          (request_id != 0U && active_request_id_ != request_id)) {
-        return false;
-      }
-      if (active_cancellation_confirmed_) {
-        return true;
-      }
-      if (active_cancellation_attempts_ >= kMaxCancellationAttempts) {
-        return false;
-      }
-      ++active_cancellation_attempts_;
+    if (active_playback_id_ != playback_id ||
+        (request_id != 0U && active_request_id_ != request_id)) {
+      return false;
     }
-    if (transport_->Cancel(playback_id)) {
-      std::lock_guard<std::mutex> lock(state_mutex_);
-      if (active_playback_id_ == playback_id) {
-        active_cancellation_confirmed_ = true;
-      }
+    if (active_cancellation_confirmed_) {
       return true;
     }
+    if (active_cancellation_in_flight_ && !owns_single_flight) {
+      cancellation_changed_.wait(lock, [this, request_id, playback_id] {
+        return active_playback_id_ != playback_id ||
+               (request_id != 0U && active_request_id_ != request_id) ||
+               !active_cancellation_in_flight_;
+      });
+      continue;
+    }
+    if (active_cancellation_attempts_ >= kMaxCancellationAttempts) {
+      return false;
+    }
+    if (!owns_single_flight) {
+      active_cancellation_in_flight_ = true;
+      owns_single_flight = true;
+    }
+    ++active_cancellation_attempts_;
+    lock.unlock();
+    const bool accepted = transport_->Cancel(playback_id);
+    lock.lock();
+    if (active_playback_id_ != playback_id ||
+        (request_id != 0U && active_request_id_ != request_id)) {
+      cancellation_changed_.notify_all();
+      return false;
+    }
+    if (accepted) {
+      active_cancellation_confirmed_ = true;
+      active_cancellation_in_flight_ = false;
+      cancellation_changed_.notify_all();
+      return true;
+    }
+    if (active_cancellation_attempts_ >= kMaxCancellationAttempts) {
+      active_cancellation_in_flight_ = false;
+      cancellation_changed_.notify_all();
+      return false;
+    }
+    // Keep ownership of the single flight while retrying. A second caller can observe the
+    // outcome, but cannot turn concurrency into an extra Cancel RPC.
   }
 }
 

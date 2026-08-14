@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <string>
 
+#include "cockpit/modules/voice/actions/action_dispatcher.h"
+
 namespace cockpit {
 namespace voice {
 
@@ -19,8 +21,8 @@ class VehicleStatusProvider {
  public:
   virtual ~VehicleStatusProvider() = default;
 
-  virtual bool GetLatest(std::chrono::steady_clock::time_point deadline,
-                         VehicleStatusSnapshot* status, std::string* error) = 0;
+  virtual bool GetLatest(const ActionExecutionContext& context, VehicleStatusSnapshot* status,
+                         std::string* error) = 0;
   virtual void Cancel() {
   }
 };

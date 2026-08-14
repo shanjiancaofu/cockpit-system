@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <string>
 
 #include "cockpit/modules/voice/actions/mock_action_dispatcher.h"
@@ -34,11 +35,13 @@ int main() {
   }
   cockpit::voice::MockActionDispatcher dispatcher;
   const auto action_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
-  if (dispatcher.Execute(VoiceAction::kOpenCamera, action_deadline).status !=
+  const cockpit::voice::ActionExecutionContext action_context{
+      action_deadline, std::make_shared<cockpit::voice::ActionCancellation>()};
+  if (dispatcher.Execute(VoiceAction::kOpenCamera, action_context).status !=
           cockpit::voice::ActionExecutionStatus::kSucceeded ||
-      dispatcher.Execute(VoiceAction::kNone, action_deadline).status !=
+      dispatcher.Execute(VoiceAction::kNone, action_context).status !=
           cockpit::voice::ActionExecutionStatus::kNotRequested ||
-      dispatcher.Execute(static_cast<VoiceAction>(999), action_deadline).status !=
+      dispatcher.Execute(static_cast<VoiceAction>(999), action_context).status !=
           cockpit::voice::ActionExecutionStatus::kRejected) {
     std::cerr << "mock action dispatcher policy failed\n";
     return 1;

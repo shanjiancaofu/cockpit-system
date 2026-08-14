@@ -5,9 +5,12 @@
 namespace cockpit {
 namespace voice {
 
-ActionExecutionResult MockActionDispatcher::Execute(
-    VoiceAction action, std::chrono::steady_clock::time_point deadline) {
-  if (std::chrono::steady_clock::now() >= deadline) {
+ActionExecutionResult MockActionDispatcher::Execute(VoiceAction action,
+                                                    const ActionExecutionContext& context) {
+  if (context.IsCancellationRequested()) {
+    return {ActionExecutionStatus::kFailed, "Action execution cancelled."};
+  }
+  if (std::chrono::steady_clock::now() >= context.deadline) {
     return {ActionExecutionStatus::kFailed, "Mock action deadline exceeded."};
   }
   switch (action) {

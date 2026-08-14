@@ -109,8 +109,11 @@ int main() {
   cockpit::voice::VehicleStatusSnapshot snapshot;
   std::string vehicle_error;
   const auto vehicle_started = std::chrono::steady_clock::now();
-  const bool vehicle_succeeded = vehicle_provider.GetLatest(
-      vehicle_started + std::chrono::milliseconds(40), &snapshot, &vehicle_error);
+  const cockpit::voice::ActionExecutionContext vehicle_context{
+      vehicle_started + std::chrono::milliseconds(40),
+      std::make_shared<cockpit::voice::ActionCancellation>()};
+  const bool vehicle_succeeded =
+      vehicle_provider.GetLatest(vehicle_context, &snapshot, &vehicle_error);
   const auto vehicle_elapsed = std::chrono::steady_clock::now() - vehicle_started;
   gateway_service.call().Release();
   gateway_server->Shutdown();
@@ -133,9 +136,11 @@ int main() {
   std::string hmi_response;
   std::string hmi_error;
   const auto hmi_started = std::chrono::steady_clock::now();
+  const cockpit::voice::ActionExecutionContext hmi_context{
+      hmi_started + std::chrono::milliseconds(40),
+      std::make_shared<cockpit::voice::ActionCancellation>()};
   const bool hmi_succeeded = hmi_deadline_provider.SendCommand(
-      cockpit::voice::HmiCommand::kOpenCameraPreview, hmi_started + std::chrono::milliseconds(40),
-      &hmi_response, &hmi_error);
+      cockpit::voice::HmiCommand::kOpenCameraPreview, hmi_context, &hmi_response, &hmi_error);
   const auto hmi_elapsed = std::chrono::steady_clock::now() - hmi_started;
   hmi_deadline_service.call().Release();
   hmi_deadline_server->Shutdown();
@@ -157,9 +162,12 @@ int main() {
   std::string cancelled_error;
   std::thread hmi_request([&] {
     std::string response;
-    cancelled_succeeded = hmi_cancel_provider.SendCommand(
-        cockpit::voice::HmiCommand::kOpenCameraPreview,
-        std::chrono::steady_clock::now() + std::chrono::seconds(5), &response, &cancelled_error);
+    const cockpit::voice::ActionExecutionContext action_context{
+        std::chrono::steady_clock::now() + std::chrono::seconds(5),
+        std::make_shared<cockpit::voice::ActionCancellation>()};
+    cancelled_succeeded =
+        hmi_cancel_provider.SendCommand(cockpit::voice::HmiCommand::kOpenCameraPreview,
+                                        action_context, &response, &cancelled_error);
   });
   if (!hmi_cancel_service.call().WaitUntilEntered()) {
     std::cerr << "blocking HMI request did not enter the provider\n";

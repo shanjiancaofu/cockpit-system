@@ -216,8 +216,13 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
       unknown_intents_.fetch_add(1U);
     }
     if (result.action != VoiceAction::kNone) {
+      const auto action_cancellation =
+          dispatcher_ != nullptr ? BeginActionCall() : std::shared_ptr<ActionCancellation>{};
       if (!state_machine_.Handle(ConversationEvent::kActionSelected,
                                  "deterministic action selected")) {
+        if (action_cancellation != nullptr) {
+          EndActionCall(action_cancellation);
+        }
         throw std::runtime_error("invalid conversation transition to executing");
       }
       actions_attempted_.fetch_add(1U);
@@ -234,7 +239,7 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
         std::condition_variable action_changed;
         bool action_finished = false;
         std::atomic_bool action_timed_out{false};
-        BeginActionCall();
+        const ActionExecutionContext action_context{action_deadline, action_cancellation};
         std::thread action_watchdog([&] {
           std::unique_lock<std::mutex> lock(action_mutex);
           if (!action_changed.wait_until(lock, action_watchdog_deadline, [&] {
@@ -246,13 +251,13 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
         });
         ActionExecutionResult execution;
         try {
-          execution = dispatcher_->Execute(result.action, action_deadline);
+          execution = dispatcher_->Execute(result.action, action_context);
         } catch (const std::exception& exception) {
           execution = {ActionExecutionStatus::kFailed, exception.what()};
         } catch (...) {
           execution = {ActionExecutionStatus::kFailed, "Action provider failed."};
         }
-        EndActionCall();
+        EndActionCall(action_cancellation);
         {
           std::lock_guard<std::mutex> lock(action_mutex);
           action_finished = true;
@@ -447,15 +452,21 @@ void VoiceInteractionService::CancelAssistantCall() {
   }
 }
 
-void VoiceInteractionService::BeginActionCall() {
+std::shared_ptr<ActionCancellation> VoiceInteractionService::BeginActionCall() {
   std::lock_guard<std::mutex> lock(provider_lifecycle_mutex_);
   action_call_active_ = true;
   action_cancel_requested_ = false;
+  active_action_cancellation_ = std::make_shared<ActionCancellation>();
+  return active_action_cancellation_;
 }
 
-void VoiceInteractionService::EndActionCall() {
+void VoiceInteractionService::EndActionCall(
+    const std::shared_ptr<ActionCancellation>& cancellation) {
   std::lock_guard<std::mutex> lock(provider_lifecycle_mutex_);
-  action_call_active_ = false;
+  if (active_action_cancellation_ == cancellation) {
+    action_call_active_ = false;
+    active_action_cancellation_.reset();
+  }
 }
 
 void VoiceInteractionService::CancelActionCall() {
@@ -464,6 +475,9 @@ void VoiceInteractionService::CancelActionCall() {
     std::lock_guard<std::mutex> lock(provider_lifecycle_mutex_);
     if (action_call_active_ && !action_cancel_requested_) {
       action_cancel_requested_ = true;
+      if (active_action_cancellation_ != nullptr) {
+        active_action_cancellation_->RequestCancellation();
+      }
       cancel = true;
     }
   }

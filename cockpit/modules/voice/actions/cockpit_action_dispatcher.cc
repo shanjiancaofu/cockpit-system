@@ -18,22 +18,25 @@ CockpitActionDispatcher::CockpitActionDispatcher(
     : vehicle_status_(std::move(vehicle_status)), hmi_commands_(std::move(hmi_commands)) {
 }
 
-ActionExecutionResult CockpitActionDispatcher::Execute(
-    VoiceAction action, std::chrono::steady_clock::time_point deadline) {
-  if (std::chrono::steady_clock::now() >= deadline) {
+ActionExecutionResult CockpitActionDispatcher::Execute(VoiceAction action,
+                                                       const ActionExecutionContext& context) {
+  if (context.IsCancellationRequested()) {
+    return {ActionExecutionStatus::kFailed, "Action execution cancelled."};
+  }
+  if (std::chrono::steady_clock::now() >= context.deadline) {
     return {ActionExecutionStatus::kFailed, "Action execution deadline exceeded."};
   }
   switch (action) {
     case VoiceAction::kNone:
       return {ActionExecutionStatus::kNotRequested, "No action requested."};
     case VoiceAction::kQueryVehicleStatus:
-      return QueryVehicleStatus(deadline);
+      return QueryVehicleStatus(context);
     case VoiceAction::kOpenCamera:
       return SendHmiCommand(HmiCommand::kOpenCameraPreview,
-                            "HMI camera preview provider is not configured.", deadline);
+                            "HMI camera preview provider is not configured.", context);
     case VoiceAction::kPlayMusic:
       return SendHmiCommand(HmiCommand::kPlayMusic, "HMI media provider is not configured.",
-                            deadline);
+                            context);
   }
   return {ActionExecutionStatus::kRejected, "Action is not allowlisted."};
 }
@@ -52,14 +55,18 @@ void CockpitActionDispatcher::Cancel() {
 }
 
 ActionExecutionResult CockpitActionDispatcher::QueryVehicleStatus(
-    std::chrono::steady_clock::time_point deadline) {
+    const ActionExecutionContext& context) {
   if (vehicle_status_ == nullptr) {
     return {ActionExecutionStatus::kNotImplemented, "Vehicle status provider is not configured."};
   }
   VehicleStatusSnapshot status;
   std::string error;
   SetActiveProvider(ActiveProvider::kVehicle);
-  const bool succeeded = vehicle_status_->GetLatest(deadline, &status, &error);
+  if (context.IsCancellationRequested()) {
+    ClearActiveProvider(ActiveProvider::kVehicle);
+    return {ActionExecutionStatus::kFailed, "Action execution cancelled."};
+  }
+  const bool succeeded = vehicle_status_->GetLatest(context, &status, &error);
   ClearActiveProvider(ActiveProvider::kVehicle);
   if (!succeeded) {
     return {ActionExecutionStatus::kFailed,
@@ -73,15 +80,18 @@ ActionExecutionResult CockpitActionDispatcher::QueryVehicleStatus(
 }
 
 ActionExecutionResult CockpitActionDispatcher::SendHmiCommand(
-    HmiCommand command, const char* not_configured_message,
-    std::chrono::steady_clock::time_point deadline) {
+    HmiCommand command, const char* not_configured_message, const ActionExecutionContext& context) {
   if (hmi_commands_ == nullptr) {
     return {ActionExecutionStatus::kNotImplemented, not_configured_message};
   }
   std::string response;
   std::string error;
   SetActiveProvider(ActiveProvider::kHmi);
-  const bool succeeded = hmi_commands_->SendCommand(command, deadline, &response, &error);
+  if (context.IsCancellationRequested()) {
+    ClearActiveProvider(ActiveProvider::kHmi);
+    return {ActionExecutionStatus::kFailed, "Action execution cancelled."};
+  }
+  const bool succeeded = hmi_commands_->SendCommand(command, context, &response, &error);
   ClearActiveProvider(ActiveProvider::kHmi);
   if (!succeeded) {
     return {ActionExecutionStatus::kFailed, error.empty() ? "HMI command failed." : error};

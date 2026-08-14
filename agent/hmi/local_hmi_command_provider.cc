@@ -15,10 +15,16 @@ LocalHmiCommandProvider::LocalHmiCommandProvider(const std::string& address)
 }
 
 bool LocalHmiCommandProvider::SendCommand(HmiCommand command,
-                                          std::chrono::steady_clock::time_point deadline,
+                                          const ActionExecutionContext& action_context,
                                           std::string* response, std::string* error) {
   const std::uint64_t generation = cancellation_generation_.load();
-  const auto remaining = deadline - std::chrono::steady_clock::now();
+  if (action_context.IsCancellationRequested()) {
+    if (error != nullptr) {
+      *error = "HMI command cancelled";
+    }
+    return false;
+  }
+  const auto remaining = action_context.deadline - std::chrono::steady_clock::now();
   if (remaining <= std::chrono::steady_clock::duration::zero()) {
     if (error != nullptr) {
       *error = "HMI command deadline exceeded";
@@ -48,6 +54,13 @@ bool LocalHmiCommandProvider::SendCommand(HmiCommand command,
       return false;
     }
     active_context_ = &context;
+    if (action_context.IsCancellationRequested()) {
+      active_context_ = nullptr;
+      if (error != nullptr) {
+        *error = "HMI command cancelled";
+      }
+      return false;
+    }
   }
   const grpc::Status status = stub_->Execute(&context, request, &command_response);
   {

@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -39,9 +40,11 @@ class AudioPlaybackClient final : public VoiceResponseSink {
   const std::unique_ptr<AudioPlaybackTransport> transport_;
   const std::unique_ptr<SpeechSynthesizer> synthesizer_;
   mutable std::mutex state_mutex_;
+  std::condition_variable cancellation_changed_;
   std::uint64_t active_request_id_ = 0;
   std::uint64_t active_playback_id_ = 0;
   std::uint32_t active_cancellation_attempts_ = 0U;
+  bool active_cancellation_in_flight_ = false;
   bool active_cancellation_confirmed_ = false;
   bool stopping_ = false;
   const std::chrono::milliseconds synthesis_timeout_;

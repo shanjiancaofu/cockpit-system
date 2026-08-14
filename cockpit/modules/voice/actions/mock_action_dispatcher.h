@@ -7,8 +7,7 @@ namespace voice {
 
 class MockActionDispatcher final : public ActionDispatcher {
  public:
-  ActionExecutionResult Execute(VoiceAction action,
-                                std::chrono::steady_clock::time_point deadline) override;
+  ActionExecutionResult Execute(VoiceAction action, const ActionExecutionContext& context) override;
 };
 
 }  // namespace voice

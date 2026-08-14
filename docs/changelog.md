@@ -2,6 +2,23 @@
 
 本文记录 cockpit-system 的每批实现改动。后续记录统一包含变更内容、设计决定和验证结果。
 
+## 2026-08-14 - Voice Agent 阶段 6 正式封板
+
+- `AudioPlaybackClient` 将同一 playback id 的取消改为 single-flight：并发 Stop、Interrupt 和 Submit
+  cancellation 共享一个实际 Cancel RPC；只有明确失败后才在同一 owner 内进行最多一次重试，
+  completion 保持 exactly once。
+- Action deadline 扩展为最小 request-scoped execution context。Interrupt 先标记取消 token，
+  dispatcher、vehicle/HMI provider 在提交 RPC 前复查；已活动的 gRPC 继续使用 `TryCancel`。
+- `SpeechPipeline` 增加 lifecycle generation，Stop 后即使不服从 Cancel 的 recognizer 返回 success，
+  也不会发布 stale transcript。
+- driver dependency boundary 删除 `rg || true` 假通过路径；CI 在执行检查前安装 ripgrep，并增加缺少
+  工具、向上 include、项目 CMake target 和正常目录四类自动化验证。
+- 阶段 6 到此正式封板；下一主线是阶段 10 的 TranscriptNormalizer、确定性命令路由、否定词和参数
+  边界，不继续扩展阶段 6。
+- WSL 验证：Debug 55/55、Release 55/55、ASan/UBSan 非 system-grpc 47/47、当前 CI TSan regex
+  9/9；TSan `audio_playback_client_test` 额外连续 20 次通过；真实 driver boundary 和签名 package
+  validation 通过。
+
 ## 2026-08-14 - Voice Agent 阶段 6 通用运行时收尾
 
 - 删除通用 `request_timeout_ms`，活动配置改为 ASR、Assistant、Action、TTS synthesis 四个独立预算；

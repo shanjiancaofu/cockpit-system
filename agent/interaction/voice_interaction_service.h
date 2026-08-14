@@ -100,8 +100,8 @@ class VoiceInteractionService {
   void BeginAssistantCall();
   void EndAssistantCall();
   void CancelAssistantCall();
-  void BeginActionCall();
-  void EndActionCall();
+  std::shared_ptr<ActionCancellation> BeginActionCall();
+  void EndActionCall(const std::shared_ptr<ActionCancellation>& cancellation);
   void CancelActionCall();
   void HandleOutputResult(std::uint64_t request_generation, VoiceOutputResult result);
   void ExpireFollowUpIfNeeded();
@@ -128,6 +128,7 @@ class VoiceInteractionService {
   bool assistant_cancel_requested_ = false;
   bool action_call_active_ = false;
   bool action_cancel_requested_ = false;
+  std::shared_ptr<ActionCancellation> active_action_cancellation_;
   event::EventQueue<SpeechTranscript> transcript_events_{32};
   std::atomic<bool> worker_running_{false};
   std::unique_ptr<std::thread> worker_;
