@@ -613,6 +613,7 @@ TTS：kokoro-multi-lang-v1_1
 - [ ] 保留 Navigator module 边界的 `--exclude-libs,ALL` 和 version script，限制
   Sherpa/ONNX Runtime 第三方符号。
 - [x] 主项目不出现 Sherpa、ONNX Runtime 和模型下载逻辑。
+- [x] Ubuntu x86_64 VM 下的真实 Sherpa smoke 入口已固化为 `bash scripts/tests/sherpa-voice-smoke.sh`。
 
 #### 验收
 

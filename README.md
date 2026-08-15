@@ -76,6 +76,7 @@ bash scripts/install-dependencies.sh
 bash scripts/build.sh                         # GCC Debug 开发构建和 CTest
 bash scripts/build.sh --type release          # GCC Release 正式 Linux 构建
 bash scripts/tests/smoke.sh
+bash scripts/tests/sherpa-voice-smoke.sh
 bash scripts/tests/navigator-stability.sh --duration 300 --interval 5 --fault crash --fault-count 3
 bash scripts/prepare-sherpa-runtime.sh
 bash scripts/prepare-voice-models.sh
@@ -149,6 +150,7 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 当前仓库包含 Agent 内的 mock VAD/ASR/TTS 和完整 PCM 流水线。Sherpa KWS / Silero VAD /
 SenseVoice provider 代码作为显式 Agent 产品构建的一部分交付，基础构建不下载、编译或链接其内部
 推理运行时。Ubuntu apt 只提供操作系统和平台依赖；`_output/ai` 统一放本地 runtime/model 资源。
+Ubuntu x86_64 VM 下的真实 Sherpa smoke 入口是 `bash scripts/tests/sherpa-voice-smoke.sh`。
 
 ## 提交规范
 
