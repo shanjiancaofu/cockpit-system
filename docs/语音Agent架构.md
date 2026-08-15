@@ -99,7 +99,7 @@ ASR（非流式）
   ↓
 TranscriptNormalizer
   ↓
-CommandMatcher
+DeterministicCommandRouter
   ├─ 命中 → TypedAction → ActionValidator → ActionDispatcher
   └─ 未命中 → LocalLlmClient → 回复文本 → TTS → ALSA
 ```
@@ -219,13 +219,14 @@ features:
       provider: sherpa
       cooldown_ms: 1500
       wake_word: ""
-      keywords_file: /cockpit-system/config/voice/kws-keyword.txt
-      model_dir: /cockpit-system/models/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
+      keywords_file: /cockpit-system/ai/config/kws-keywords.txt
+      model_dir: /cockpit-system/ai/models/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
 ```
 
-`wake_word` 和 `keywords_file` 二选一。普通 CI 使用 mock provider 验证 gate/cooldown，不需要
-Sherpa/ONNX Runtime；Jetson 产品构建再使用 Sherpa KWS provider 和外部模型目录。必须测试车内音乐、
-TTS 回放、远场、开窗风噪和每小时误唤醒次数。
+`wake_word` 只供 mock provider 使用；Sherpa provider 必须使用 tokenized `keywords_file`。普通 CI
+使用 mock provider 验证 gate/cooldown，不需要 Sherpa/ONNX Runtime；Jetson 产品构建再使用
+Sherpa KWS provider 和 `/cockpit-system/ai` 外部模型目录。必须测试车内音乐、TTS 回放、远场、
+开窗风噪和每小时误唤醒次数。
 
 ### 8.2 VAD
 
@@ -374,7 +375,7 @@ KWS 关闭时保持开发兼容模式：所有 PCM 直接进入 `SpeechPipeline`
 ```text
 TranscriptNormalizer
   ↓
-CommandMatcher（精确语法、同义词、否定词）
+DeterministicCommandRouter（normalized full transcript exact positive allowlist）
   ↓
 TypedAction
   ↓
@@ -394,12 +395,11 @@ LLM 未命中的请求只能进入回复通道。即使模型产生工具调用�
 Agent 运行时与模型分开版本化：
 
 ```text
-/cockpit-system/agent/current
-/cockpit-system/agent/previous
-/cockpit-system/models/speech/current
-/cockpit-system/models/speech/previous
-/cockpit-system/models/llm/current
-/cockpit-system/models/llm/previous
+/cockpit-system/releases/
+/cockpit-system/current
+/cockpit-system/ai/runtime/
+/cockpit-system/ai/models/
+/cockpit-system/ai/config/
 ```
 
 每个 manifest 至少记录：

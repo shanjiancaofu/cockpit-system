@@ -18,16 +18,16 @@ namespace {
 
 void RequireFile(const std::filesystem::path& path, const char* label) {
   if (!std::filesystem::is_regular_file(path)) {
-    throw std::invalid_argument(std::string("Sherpa ASR required ") + label + " is missing: " +
-                                path.string());
+    throw std::invalid_argument(std::string("Sherpa ASR required ") + label +
+                                " is missing: " + path.string());
   }
 }
 
 class SherpaSenseVoiceRecognizer final : public SpeechRecognizer {
  public:
   SherpaSenseVoiceRecognizer() {
-    const auto root = cockpit::agent::sherpa::ResolveAiRoot() / "models" / "asr" /
-                      "sensevoice-small-int8";
+    const auto root =
+        cockpit::agent::sherpa::ResolveAiRoot() / "models" / "asr" / "sensevoice-small-int8";
     const auto model = root / "model.int8.onnx";
     const auto tokens = root / "tokens.txt";
     RequireFile(model, "model");

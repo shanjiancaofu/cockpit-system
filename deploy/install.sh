@@ -64,7 +64,9 @@ if [[ "${install_systemd}" == "true" ]]; then
 fi
 
 install -d "${install_root}" "${install_root}/releases" "${release_dir}" \
-  "${install_root}/config" "${install_root}/data" "${install_root}/logs" "${install_root}/run"
+  "${install_root}/config" "${install_root}/data" "${install_root}/logs" "${install_root}/run" \
+  "${install_root}/ai" "${install_root}/ai/runtime" "${install_root}/ai/models" \
+  "${install_root}/ai/config"
 install -d -m 0700 "${install_root}/data/ota/incoming"
 cp -a "${package_root}/release/." "${release_dir}/"
 install -d "${release_dir}/manifest"
@@ -87,12 +89,14 @@ if [[ "${EUID}" -eq 0 ]]; then
   chmod -R u=rwX,go=rX "${release_dir}"
   if id -u "${service_user}" >/dev/null 2>&1 && getent group "${service_group}" >/dev/null; then
     chown -R "${service_user}:${service_group}" "${install_root}/data" \
-      "${install_root}/logs" "${install_root}/run"
-    chown -R root:"${service_group}" "${install_root}/config"
+      "${install_root}/logs" "${install_root}/run" "${install_root}/ai"
+    chown -R root:"${service_group}" "${install_root}/config" "${install_root}/ai/config"
   else
-    chown -R root:root "${install_root}/config"
+    chown -R root:root "${install_root}/config" "${install_root}/ai"
   fi
-  chmod 0750 "${install_root}/data" "${install_root}/logs" "${install_root}/run"
+  chmod 0750 "${install_root}/data" "${install_root}/logs" "${install_root}/run" \
+    "${install_root}/ai" "${install_root}/ai/runtime" "${install_root}/ai/models" \
+    "${install_root}/ai/config"
   chmod 0700 "${install_root}/data/ota/incoming"
   chmod 0750 "${install_root}/config"
 fi

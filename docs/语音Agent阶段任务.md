@@ -561,19 +561,24 @@ Audio Driver 依赖。算法实现使用普通 C++ 接口注入，不恢复逐�
 #### 目录
 
 ```text
-agent/
-├── speech/providers/sherpa/      # Sherpa KWS provider 已创建
-├── product/                      # 产品依赖装配与版本清单
-└── models/
-│   ├── kws/
-│   ├── vad/
-│   ├── asr/
-│   └── tts/
-product-runtime/
-├── lib/
-│   ├── libsherpa-onnx-c-api.so
-│   └── libonnxruntime.so
-└── manifest.yaml
+源码：
+agent/speech/providers/sherpa/
+
+本地产品资源：
+_output/ai/
+├── runtime/sherpa-onnx/v1.13.4/
+├── models/kws/
+├── models/vad/
+├── models/asr/
+└── config/kws-keywords.txt
+
+车端产品资源：
+/cockpit-system/ai/
+├── runtime/sherpa-onnx/v1.13.4/
+├── models/kws/
+├── models/vad/
+├── models/asr/
+└── config/kws-keywords.txt
 ```
 
 目录表示目标责任边界，不提前创建空骨架。模型文件、第三方源码和运行库不提交到主仓库。
@@ -590,14 +595,16 @@ TTS：kokoro-multi-lang-v1_1
 
 #### 任务
 
-- [x] 用 `WakeWordDetector` 普通 C++ 接口实现 Sherpa KWS provider；VAD、ASR 和 TTS provider 的真实
-      runtime 仍待 Jetson 验证。
+- [x] 用 `WakeWordDetector` 普通 C++ 接口实现 Sherpa KWS provider。
+- [x] 用 `VoiceActivityDetector` 普通 C++ 接口实现 Sherpa Silero VAD provider 代码。
+- [x] 用 `SpeechRecognizer` 普通 C++ 接口实现 Sherpa SenseVoiceSmall INT8 provider 代码。
 - [x] 增加默认关闭的 `COCKPIT_ENABLE_SHERPA_AGENT` 产品构建开关，基础 CI 不要求 Sherpa runtime/model。
 - [x] Sherpa KWS provider 对外只暴露项目接口，不传播 Sherpa 或 ONNX Runtime 类型。
 - [x] 增加 `_output/ai` 本地资源布局和 `prepare-sherpa-runtime.sh`、
   `prepare-voice-models.sh` 准备入口；运行时和模型不进 Git、不在程序启动时下载。
 - [x] 增加 Sherpa Silero VAD 与 SenseVoiceSmall INT8 provider 代码骨架，仍需产品构建和 Jetson smoke
   验证。
+- [ ] 真实执行 `COCKPIT_ENABLE_SHERPA_AGENT=ON` 产品构建。
 - [ ] 固定 Sherpa-ONNX v1.13.4 runtime 交付物，并使用其私有 ONNX Runtime；不得要求它与应用 gRPC 共用
   Protobuf。
 - [ ] 使用 `-fvisibility=hidden`。
@@ -612,6 +619,7 @@ TTS：kokoro-multi-lang-v1_1
 - [x] 基础系统只依赖稳定领域接口，Sherpa KWS 算法实现仅由 Agent 产品 target 链接。
 - [x] 主项目 CMake 中不存在 `find_package(ONNXRuntime)`。
 - [ ] Agent 产品依赖和模型可以按固定版本独立准备、构建和发布。
+- [ ] Jetson 完成 KWS → wake cue → Silero VAD → SenseVoice smoke。
 - [ ] provider 初始化失败时 Agent 能明确降级并恢复。
 - [ ] 若同进程符号或故障隔离实测不可靠，再记录升级为独立进程的条件。
 

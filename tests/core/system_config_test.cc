@@ -102,7 +102,7 @@ int main() {
       production_config.features().voice.kws.provider != "sherpa" ||
       production_config.features().voice.kws.wake_word != "" ||
       production_config.features().voice.kws.keywords_file !=
-          "/cockpit-system/config/voice/kws-keyword.txt") {
+          "/cockpit-system/ai/config/kws-keywords.txt") {
     std::cerr << "production Unix socket config was not parsed correctly" << std::endl;
     return 1;
   }
@@ -117,7 +117,7 @@ int main() {
   if (!ReplaceOnce(&enabled_sherpa_missing_model, "      enabled: false\n      provider: sherpa",
                    "      enabled: true\n      provider: sherpa") ||
       !ReplaceOnce(&enabled_sherpa_missing_model,
-                   "model_dir: /cockpit-system/models/kws/"
+                   "model_dir: /cockpit-system/ai/models/kws/"
                    "sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20",
                    "model_dir: \"\"") ||
       !ExpectRejectedConfig(enabled_sherpa_missing_model,

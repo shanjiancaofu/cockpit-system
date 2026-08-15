@@ -17,8 +17,8 @@ namespace {
 
 void RequireFile(const std::filesystem::path& path, const char* label) {
   if (!std::filesystem::is_regular_file(path)) {
-    throw std::invalid_argument(std::string("Sherpa VAD required ") + label + " is missing: " +
-                                path.string());
+    throw std::invalid_argument(std::string("Sherpa VAD required ") + label +
+                                " is missing: " + path.string());
   }
 }
 

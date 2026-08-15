@@ -7,6 +7,7 @@ Type=simple
 User=cockpit
 Group=cockpit
 WorkingDirectory=/cockpit-system
+Environment=COCKPIT_AI_ROOT=/cockpit-system/ai
 ExecStart=/cockpit-system/current/bin/cockpit-navigator --config /cockpit-system/config/config.yaml --module-dir /cockpit-system/current/lib/cockpit/modules --socket /cockpit-system/run/navigator.sock --mode normal
 Restart=on-failure
 RestartSec=2
