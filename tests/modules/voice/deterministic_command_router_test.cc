@@ -56,10 +56,16 @@ int main() {
       !ExpectRoute("打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("请打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("帮我打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("请开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("帮我开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("打开相机！", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("打开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("请打开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("帮我打开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("请开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
+      !ExpectRoute("帮我开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera) ||
       !ExpectRoute("play music", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
       !ExpectRoute("please play music", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
       !ExpectRoute("播放音乐", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||

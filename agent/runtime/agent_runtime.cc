@@ -107,7 +107,7 @@ std::unique_ptr<voice::SpeechRecognizer> CreateSpeechRecognizer(const config::As
   }
   if (config.provider == "sherpa-sensevoice") {
 #if defined(COCKPIT_ENABLE_SHERPA_AGENT)
-    return CreateSherpaSenseVoiceRecognizer();
+    return cockpit::voice::CreateSherpaSenseVoiceRecognizer();
 #else
     if (error != nullptr) {
       *error = "Sherpa ASR provider requested, but COCKPIT_ENABLE_SHERPA_AGENT is OFF";

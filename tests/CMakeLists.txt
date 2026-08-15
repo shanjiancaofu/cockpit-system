@@ -256,6 +256,16 @@ target_link_libraries(voice_pcm_e2e_test PRIVATE
 )
 add_test(NAME voice_pcm_e2e_test COMMAND voice_pcm_e2e_test)
 
+if(COCKPIT_ENABLE_SHERPA_AGENT)
+    add_executable(sherpa_voice_smoke_test agent/sherpa_voice_smoke_test.cc)
+    target_link_libraries(sherpa_voice_smoke_test PRIVATE agent_sherpa_voice voice)
+    add_test(NAME sherpa_voice_smoke_test COMMAND sherpa_voice_smoke_test)
+    set_tests_properties(sherpa_voice_smoke_test PROPERTIES
+        ENVIRONMENT
+            "COCKPIT_AI_ROOT=${PROJECT_SOURCE_DIR}/_output/ai;LD_LIBRARY_PATH=${COCKPIT_SHERPA_AGENT_RUNTIME_ROOT}/lib"
+    )
+endif()
+
 add_executable(conversation_state_machine_test agent/conversation_state_machine_test.cc)
 target_link_libraries(conversation_state_machine_test PRIVATE voice_interaction)
 add_test(NAME conversation_state_machine_test COMMAND conversation_state_machine_test)

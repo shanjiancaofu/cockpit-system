@@ -26,17 +26,17 @@ if(COCKPIT_ENABLE_SHERPA_AGENT)
         IMPORTED_LOCATION "${COCKPIT_SHERPA_AGENT_RUNTIME_ROOT}/lib/libsherpa-onnx-c-api.so"
         INTERFACE_INCLUDE_DIRECTORIES "${COCKPIT_SHERPA_AGENT_RUNTIME_ROOT}/include"
     )
-    add_library(agent_sherpa_kws STATIC
+    add_library(agent_sherpa_voice STATIC
         speech/providers/sherpa/sherpa_wake_word_detector.cc
         speech/providers/sherpa/sherpa_voice_activity_detector.cc
         speech/providers/sherpa/sherpa_sensevoice_recognizer.cc
     )
-    target_include_directories(agent_sherpa_kws
+    target_include_directories(agent_sherpa_voice
         PUBLIC
             ${PROJECT_SOURCE_DIR}
     )
-    target_compile_definitions(agent_sherpa_kws PUBLIC COCKPIT_ENABLE_SHERPA_AGENT=1)
-    target_link_libraries(agent_sherpa_kws PUBLIC agent_speech sherpa-onnx-c-api)
+    target_compile_definitions(agent_sherpa_voice PUBLIC COCKPIT_ENABLE_SHERPA_AGENT=1)
+    target_link_libraries(agent_sherpa_voice PUBLIC agent_speech sherpa-onnx-c-api)
 endif()
 
 add_library(voice_interaction STATIC
@@ -82,5 +82,5 @@ target_link_libraries(agent_runtime PUBLIC
 )
 if(COCKPIT_ENABLE_SHERPA_AGENT)
     target_compile_definitions(agent_runtime PRIVATE COCKPIT_ENABLE_SHERPA_AGENT=1)
-    target_link_libraries(agent_runtime PRIVATE agent_sherpa_kws)
+    target_link_libraries(agent_runtime PRIVATE agent_sherpa_voice)
 endif()

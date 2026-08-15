@@ -13,13 +13,19 @@ struct CommandEntry {
   VoiceAction action;
 };
 
-constexpr std::array<CommandEntry, 27> kCommands{{
+constexpr std::array<CommandEntry, 33> kCommands{{
     {"打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
     {"请打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
     {"帮我打开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
+    {"开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
+    {"请开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
+    {"帮我开相机", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
     {"打开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
     {"请打开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
     {"帮我打开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
+    {"开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
+    {"请开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
+    {"帮我开摄像头", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
     {"open camera", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
     {"please open camera", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
     {"open the camera", VoiceIntent::kOpenCamera, VoiceAction::kOpenCamera},
