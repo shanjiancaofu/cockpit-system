@@ -4,6 +4,8 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <mutex>
+#include <thread>
 
 #include "agent/interaction/voice_interaction_service.h"
 #include "agent/speech/kws/wake_prompt_player.h"
@@ -36,6 +38,7 @@ class VoiceInputGate {
   VoiceInputGate(config::KwsConfig config, voice::VoiceInteractionService* service,
                  SpeechPipeline* speech_pipeline, std::unique_ptr<WakeWordDetector> detector,
                  std::unique_ptr<WakePromptPlayer> prompt_player);
+  ~VoiceInputGate();
 
   bool ProcessFrame(const audio::AudioFrame& frame);
   void Stop();
@@ -46,6 +49,8 @@ class VoiceInputGate {
   VoiceInputMode DetermineMode() const;
   void ResetSpeechInputIfLeavingSpeech(VoiceInputMode next_mode);
   bool AcceptWakeDetection();
+  bool StartWakePrompt();
+  void JoinWakePrompt();
 
   const config::KwsConfig config_;
   voice::VoiceInteractionService* service_;
@@ -53,6 +58,10 @@ class VoiceInputGate {
   std::unique_ptr<WakeWordDetector> detector_;
   std::unique_ptr<WakePromptPlayer> prompt_player_;
   std::atomic_bool stopping_{false};
+  std::mutex wake_prompt_mutex_;
+  std::thread wake_prompt_worker_;
+  std::atomic_bool wake_prompt_done_{true};
+  std::atomic<std::uint64_t> wake_prompt_generation_{0};
   VoiceInputMode last_mode_{VoiceInputMode::kPaused};
   std::chrono::steady_clock::time_point last_wake_;
   bool has_last_wake_ = false;

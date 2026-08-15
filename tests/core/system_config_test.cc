@@ -1,9 +1,50 @@
 #include "cockpit/core/config/system_config.h"
 
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <stdexcept>
 #include <string>
+
+namespace {
+
+std::string ReadFile(const std::string& path) {
+  std::ifstream input(path);
+  return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+}
+
+bool ReplaceOnce(std::string* text, const std::string& from, const std::string& to) {
+  const std::size_t position = text->find(from);
+  if (position == std::string::npos) {
+    return false;
+  }
+  text->replace(position, from.size(), to);
+  return true;
+}
+
+bool ExpectRejectedConfig(const std::string& content, const std::string& expected_message) {
+  const std::string path = "/tmp/cockpit-system-config-test.yaml";
+  {
+    std::ofstream output(path);
+    output << content;
+  }
+  try {
+    cockpit::config::SystemConfig::LoadFromFile(path);
+    std::cerr << "invalid generated config was accepted\n";
+    return false;
+  } catch (const std::runtime_error& error) {
+    const std::string message = error.what();
+    if (message.find(expected_message) == std::string::npos) {
+      std::cerr << "generated config error did not contain '" << expected_message
+                << "': " << message << std::endl;
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
 
 int main() {
   unsetenv("COCKPIT_RUNTIME_DIR");
@@ -57,8 +98,30 @@ int main() {
           "unix:/cockpit-system/run/gateway.grpc.sock" ||
       production_config.services().camera.grpc.listen_address !=
           "unix:/cockpit-system/run/camera.grpc.sock" ||
-      production_config.paths().run_dir != "/cockpit-system/run") {
+      production_config.paths().run_dir != "/cockpit-system/run" ||
+      production_config.features().voice.kws.provider != "sherpa" ||
+      production_config.features().voice.kws.wake_word != "" ||
+      production_config.features().voice.kws.keywords_file !=
+          "/cockpit-system/config/voice/kws-keyword.txt") {
     std::cerr << "production Unix socket config was not parsed correctly" << std::endl;
+    return 1;
+  }
+
+  std::string sherpa_with_raw_wake_word = ReadFile(PRODUCTION_CONFIG_PATH);
+  if (!ReplaceOnce(&sherpa_with_raw_wake_word, "wake_word: \"\"", "wake_word: 你好小车") ||
+      !ExpectRejectedConfig(sherpa_with_raw_wake_word, "wake_word must be empty for sherpa KWS")) {
+    return 1;
+  }
+
+  std::string enabled_sherpa_missing_model = ReadFile(PRODUCTION_CONFIG_PATH);
+  if (!ReplaceOnce(&enabled_sherpa_missing_model, "      enabled: false\n      provider: sherpa",
+                   "      enabled: true\n      provider: sherpa") ||
+      !ReplaceOnce(&enabled_sherpa_missing_model,
+                   "model_dir: /cockpit-system/models/kws/"
+                   "sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20",
+                   "model_dir: \"\"") ||
+      !ExpectRejectedConfig(enabled_sherpa_missing_model,
+                            "features.voice.kws.model_dir is required for sherpa KWS")) {
     return 1;
   }
 

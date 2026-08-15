@@ -41,14 +41,42 @@ FixedPcmWakePromptPlayer::FixedPcmWakePromptPlayer(
 }
 
 bool FixedPcmWakePromptPlayer::Play(std::string* error) {
-  const std::uint64_t playback_id = next_playback_id_++;
+  if (stopping_.load()) {
+    SetError(error, "wake prompt playback stopped");
+    return false;
+  }
+  std::uint64_t playback_id = 0;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stopping_.load() || active_playback_id_ != 0U) {
+      SetError(error, "wake prompt playback is already active or stopping");
+      return false;
+    }
+    playback_id = next_playback_id_++;
+    active_playback_id_ = playback_id;
+  }
   const voice::AudioPlaybackSubmitResult submitted = transport_->Submit(playback_id, MakeWakeCue());
   if (submitted.status != voice::AudioPlaybackSubmitStatus::kAccepted) {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (active_playback_id_ == playback_id) {
+        active_playback_id_ = 0U;
+      }
+    }
     SetError(error,
              submitted.error.empty() ? "wake prompt playback was rejected" : submitted.error);
     return false;
   }
+  if (stopping_.load()) {
+    transport_->Cancel(playback_id);
+  }
   const voice::AudioPlaybackWaitResult result = transport_->Wait(playback_id, timeout_);
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (active_playback_id_ == playback_id) {
+      active_playback_id_ = 0U;
+    }
+  }
   if (result.status == voice::AudioPlaybackWaitStatus::kCompleted) {
     if (error != nullptr) {
       error->clear();
@@ -58,6 +86,18 @@ bool FixedPcmWakePromptPlayer::Play(std::string* error) {
   SetError(error, result.error.empty() ? "wake prompt playback did not complete" : result.error);
   transport_->Cancel(playback_id);
   return false;
+}
+
+void FixedPcmWakePromptPlayer::Stop() {
+  stopping_.store(true);
+  std::uint64_t playback_id = 0;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    playback_id = active_playback_id_;
+  }
+  if (playback_id != 0U) {
+    transport_->Cancel(playback_id);
+  }
 }
 
 }  // namespace agent

@@ -29,6 +29,10 @@ VoiceInputGate::VoiceInputGate(config::KwsConfig config, voice::VoiceInteraction
   }
 }
 
+VoiceInputGate::~VoiceInputGate() {
+  Stop();
+}
+
 bool VoiceInputGate::ProcessFrame(const audio::AudioFrame& frame) {
   if (stopping_.load()) {
     return false;
@@ -70,11 +74,9 @@ bool VoiceInputGate::ProcessFrame(const audio::AudioFrame& frame) {
       wake_detections_suppressed_.fetch_add(1U);
       return true;
     }
-    std::string prompt_error;
-    if (!prompt_player_->Play(&prompt_error) && !prompt_error.empty()) {
-      service_->SetLastError(prompt_error);
+    if (!StartWakePrompt()) {
+      service_->NotifyWakePromptFailed("wake prompt playback is already active or stopping");
     }
-    service_->NotifyWakePromptCompleted();
     return true;
   } catch (const std::exception& exception) {
     kws_errors_.fetch_add(1U);
@@ -86,6 +88,11 @@ bool VoiceInputGate::ProcessFrame(const audio::AudioFrame& frame) {
 
 void VoiceInputGate::Stop() {
   stopping_.store(true);
+  wake_prompt_generation_.fetch_add(1U);
+  if (prompt_player_ != nullptr) {
+    prompt_player_->Stop();
+  }
+  JoinWakePrompt();
 }
 
 VoiceInputGateMetrics VoiceInputGate::metrics() const {
@@ -138,6 +145,43 @@ bool VoiceInputGate::AcceptWakeDetection() {
   last_wake_ = now;
   has_last_wake_ = true;
   return true;
+}
+
+bool VoiceInputGate::StartWakePrompt() {
+  std::lock_guard<std::mutex> lock(wake_prompt_mutex_);
+  if (stopping_.load()) {
+    return false;
+  }
+  if (wake_prompt_worker_.joinable()) {
+    if (!wake_prompt_done_.load()) {
+      return false;
+    }
+    wake_prompt_worker_.join();
+  }
+  wake_prompt_done_.store(false);
+  const std::uint64_t generation = wake_prompt_generation_.fetch_add(1U) + 1U;
+  wake_prompt_worker_ = std::thread([this, generation] {
+    std::string prompt_error;
+    const bool played = prompt_player_->Play(&prompt_error);
+    wake_prompt_done_.store(true);
+    if (stopping_.load() || generation != wake_prompt_generation_.load()) {
+      return;
+    }
+    if (played) {
+      service_->NotifyWakePromptCompleted();
+      return;
+    }
+    service_->NotifyWakePromptFailed(prompt_error.empty() ? "wake prompt playback failed"
+                                                          : std::move(prompt_error));
+  });
+  return true;
+}
+
+void VoiceInputGate::JoinWakePrompt() {
+  std::lock_guard<std::mutex> lock(wake_prompt_mutex_);
+  if (wake_prompt_worker_.joinable()) {
+    wake_prompt_worker_.join();
+  }
 }
 
 const char* ToString(VoiceInputMode mode) {

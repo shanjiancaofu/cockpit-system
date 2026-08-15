@@ -89,6 +89,7 @@ class VoiceInteractionService {
   VoiceInterruptResult Interrupt();
   bool NotifyWakeWordDetected();
   bool NotifyWakePromptCompleted();
+  bool NotifyWakePromptFailed(std::string error);
   InteractionState state() const;
   bool WaitForResponse(std::uint64_t after_id, std::chrono::milliseconds timeout,
                        VoiceResponse* response) const;

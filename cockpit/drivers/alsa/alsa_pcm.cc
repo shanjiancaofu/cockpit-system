@@ -48,6 +48,21 @@ AlsaDeviceIo ParseIo(const std::string& io) {
   return AlsaDeviceIo::kUnknown;
 }
 
+AlsaReadResult RecoverCapture(snd_pcm_t* handle, int alsa_error, const std::string& operation) {
+  int result = snd_pcm_recover(handle, alsa_error, 1);
+  if (result < 0) {
+    return {AlsaReadStatus::kDeviceError, 0, result, AlsaError(operation, result)};
+  }
+  if (snd_pcm_state(handle) == SND_PCM_STATE_PREPARED) {
+    result = snd_pcm_start(handle);
+    if (result < 0) {
+      return {AlsaReadStatus::kDeviceError, 0, result,
+              AlsaError("failed to restart ALSA capture after recovery", result)};
+    }
+  }
+  return {AlsaReadStatus::kXrunRecovered, 0, 0, {}};
+}
+
 }  // namespace
 
 bool AlsaPcmFormat::IsValid() const {
@@ -232,12 +247,7 @@ AlsaReadResult AlsaPcm::PollReadFrames(std::int16_t* samples, std::size_t frame_
   }
   if ((revents & POLLERR) != 0U) {
     const int state_error = snd_pcm_state(handle_) == SND_PCM_STATE_XRUN ? -EPIPE : -ESTRPIPE;
-    result = snd_pcm_recover(handle_, state_error, 1);
-    if (result >= 0) {
-      return {AlsaReadStatus::kXrunRecovered, 0, 0, {}};
-    }
-    return {AlsaReadStatus::kDeviceError, 0, result,
-            AlsaError("failed to recover ALSA capture", result)};
+    return RecoverCapture(handle_, state_error, "failed to recover ALSA capture");
   }
   if ((revents & POLLIN) == 0U) {
     return {AlsaReadStatus::kTimeout, 0, 0, {}};
@@ -252,12 +262,7 @@ AlsaReadResult AlsaPcm::PollReadFrames(std::int16_t* samples, std::size_t frame_
     return {AlsaReadStatus::kTimeout, 0, 0, {}};
   }
   if (frames == -EPIPE || frames == -ESTRPIPE) {
-    result = snd_pcm_recover(handle_, static_cast<int>(frames), 1);
-    if (result >= 0) {
-      return {AlsaReadStatus::kXrunRecovered, 0, 0, {}};
-    }
-    return {AlsaReadStatus::kDeviceError, 0, result,
-            AlsaError("failed to recover ALSA capture", result)};
+    return RecoverCapture(handle_, static_cast<int>(frames), "failed to recover ALSA capture");
   }
   return {AlsaReadStatus::kDeviceError, 0, static_cast<int>(frames),
           AlsaError("ALSA capture failed", static_cast<int>(frames))};

@@ -11,9 +11,9 @@
 本目录不直接访问 ALSA、V4L2、SocketCAN 等硬件接口。音频输入和输出通过
 `cockpit/modules/audio/transport` 定义的中立协议与驱动模块交换。
 
-当前基础实现包含 PCM 流客户端、mock VAD/ASR/TTS、语音分段、交互流水线和
-`conversation/` 中的显式会话状态机。状态机统一约束识别、路由、动作、回复、打断、
-错误恢复和停机转换。
+当前基础实现包含 PCM 流客户端、mock VAD/ASR/TTS、Sherpa KWS / Silero VAD /
+SenseVoice provider 代码骨架、语音分段、交互流水线和 `conversation/` 中的显式会话状态机。
+状态机统一约束识别、路由、动作、回复、打断、错误恢复和停机转换。
 
-基础构建不引入 Sherpa-ONNX、ONNX Runtime、模型或第三方算法依赖。真实算法后续作为
+基础构建不引入 Sherpa-ONNX、ONNX Runtime、模型或第三方算法运行时依赖。真实算法后续作为
 Agent 产品构建中的普通 CMake target 接入，不增加 VAD/ASR 运行时插件层。

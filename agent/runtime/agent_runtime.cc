@@ -34,6 +34,8 @@
 #include "cockpit/modules/voice/responses/async_voice_response_sink.h"
 
 #if defined(COCKPIT_ENABLE_SHERPA_AGENT)
+#include "agent/speech/providers/sherpa/sherpa_sensevoice_recognizer.h"
+#include "agent/speech/providers/sherpa/sherpa_voice_activity_detector.h"
 #include "agent/speech/providers/sherpa/sherpa_wake_word_detector.h"
 #endif
 
@@ -73,6 +75,48 @@ std::unique_ptr<WakeWordDetector> CreateWakeWordDetector(const config::KwsConfig
   }
   if (error != nullptr) {
     *error = "unsupported KWS provider: " + config.provider;
+  }
+  return nullptr;
+}
+
+std::unique_ptr<audio::VoiceActivityDetector> CreateVoiceActivityDetector(
+    const config::VadConfig& config, std::string* error) {
+  if (config.provider == "mock" || config.provider == "disabled") {
+    return std::make_unique<MockVoiceActivityDetector>();
+  }
+  if (config.provider == "sherpa") {
+#if defined(COCKPIT_ENABLE_SHERPA_AGENT)
+    return CreateSherpaVoiceActivityDetector();
+#else
+    if (error != nullptr) {
+      *error = "Sherpa VAD provider requested, but COCKPIT_ENABLE_SHERPA_AGENT is OFF";
+    }
+    return nullptr;
+#endif
+  }
+  if (error != nullptr) {
+    *error = "unsupported VAD provider: " + config.provider;
+  }
+  return nullptr;
+}
+
+std::unique_ptr<voice::SpeechRecognizer> CreateSpeechRecognizer(const config::AsrConfig& config,
+                                                                std::string* error) {
+  if (config.provider == "mock") {
+    return std::make_unique<voice::MockSpeechRecognizer>();
+  }
+  if (config.provider == "sherpa-sensevoice") {
+#if defined(COCKPIT_ENABLE_SHERPA_AGENT)
+    return CreateSherpaSenseVoiceRecognizer();
+#else
+    if (error != nullptr) {
+      *error = "Sherpa ASR provider requested, but COCKPIT_ENABLE_SHERPA_AGENT is OFF";
+    }
+    return nullptr;
+#endif
+  }
+  if (error != nullptr) {
+    *error = "unsupported ASR provider: " + config.provider;
   }
   return nullptr;
 }
@@ -134,11 +178,23 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
 
     impl_ = std::make_unique<Impl>();
     if (enabled) {
+      std::string vad_error;
+      auto vad = CreateVoiceActivityDetector(config.features().voice.vad, &vad_error);
+      if (vad == nullptr) {
+        LOG_ERROR("failed to configure VAD: " + vad_error);
+        impl_.reset();
+        return false;
+      }
+      std::string asr_error;
+      auto asr = CreateSpeechRecognizer(config.features().voice.asr, &asr_error);
+      if (asr == nullptr) {
+        LOG_ERROR("failed to configure ASR: " + asr_error);
+        impl_.reset();
+        return false;
+      }
       impl_->speech_pipeline = std::make_unique<SpeechPipeline>(
-          config.hardware().audio, config.features().voice.speech_segment,
-          std::make_unique<MockVoiceActivityDetector>(),
-          std::make_unique<voice::MockSpeechRecognizer>(),
-          std::chrono::milliseconds(config.features().ai.asr_timeout_ms));
+          config.hardware().audio, config.features().voice.speech_segment, std::move(vad),
+          std::move(asr), std::chrono::milliseconds(config.features().ai.asr_timeout_ms));
       impl_->audio_stream = std::make_unique<AudioStreamClient>();
       impl_->audio_stream_path =
           std::filesystem::absolute(std::filesystem::path(config.paths().run_dir) /
@@ -229,14 +285,14 @@ void AgentRuntime::Stop() {
     return;
   }
   impl_->stopping.store(true);
-  if (impl_->worker.joinable()) {
-    impl_->worker.join();
+  if (impl_->input_gate != nullptr) {
+    impl_->input_gate->Stop();
   }
   if (impl_->audio_stream != nullptr) {
     impl_->audio_stream->Close();
   }
-  if (impl_->input_gate != nullptr) {
-    impl_->input_gate->Stop();
+  if (impl_->worker.joinable()) {
+    impl_->worker.join();
   }
   if (impl_->speech_pipeline != nullptr) {
     impl_->speech_pipeline->Stop();

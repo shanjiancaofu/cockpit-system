@@ -28,6 +28,8 @@ if(COCKPIT_ENABLE_SHERPA_AGENT)
     )
     add_library(agent_sherpa_kws STATIC
         speech/providers/sherpa/sherpa_wake_word_detector.cc
+        speech/providers/sherpa/sherpa_voice_activity_detector.cc
+        speech/providers/sherpa/sherpa_sensevoice_recognizer.cc
     )
     target_include_directories(agent_sherpa_kws
         PUBLIC

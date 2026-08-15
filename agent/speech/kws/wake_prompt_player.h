@@ -10,6 +10,8 @@ class WakePromptPlayer {
   virtual ~WakePromptPlayer() = default;
 
   virtual bool Play(std::string* error) = 0;
+  virtual void Stop() {
+  }
 };
 
 class NoopWakePromptPlayer final : public WakePromptPlayer {

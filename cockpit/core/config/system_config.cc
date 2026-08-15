@@ -561,30 +561,44 @@ void SystemConfig::Validate() const {
   if (features_.voice.kws.cooldown_ms > 60000) {
     throw std::runtime_error("features.voice.kws.cooldown_ms must not exceed 60000");
   }
-  if (!features_.voice.kws.wake_word.empty() && !features_.voice.kws.keywords_file.empty()) {
-    throw std::runtime_error("features.voice.kws must set only one of wake_word or keywords_file");
-  }
   if (features_.voice.kws.enabled && features_.voice.kws.provider == "disabled") {
     throw std::runtime_error(
         "features.voice.kws.provider must not be disabled when features.voice.kws.enabled is true");
   }
-  if (features_.voice.kws.enabled && features_.voice.kws.wake_word.empty() &&
-      features_.voice.kws.keywords_file.empty()) {
-    throw std::runtime_error("features.voice.kws requires wake_word or keywords_file when enabled");
+  if (features_.voice.kws.provider == "mock") {
+    if (!features_.voice.kws.keywords_file.empty()) {
+      throw std::runtime_error("features.voice.kws.keywords_file is only supported for sherpa KWS");
+    }
+    if (!features_.voice.kws.model_dir.empty()) {
+      throw std::runtime_error("features.voice.kws.model_dir is only supported for sherpa KWS");
+    }
+    if (features_.voice.kws.enabled && features_.voice.kws.wake_word.empty()) {
+      throw std::runtime_error("features.voice.kws.wake_word is required for mock KWS");
+    }
   }
-  if (features_.voice.kws.enabled && features_.voice.kws.provider == "sherpa" &&
-      features_.voice.kws.model_dir.empty()) {
-    throw std::runtime_error("features.voice.kws.model_dir is required for sherpa KWS");
+  if (features_.voice.kws.provider == "sherpa") {
+    if (!features_.voice.kws.wake_word.empty()) {
+      throw std::runtime_error(
+          "features.voice.kws.wake_word must be empty for sherpa KWS; use keywords_file");
+    }
+    if (features_.voice.kws.enabled && features_.voice.kws.keywords_file.empty()) {
+      throw std::runtime_error("features.voice.kws.keywords_file is required for sherpa KWS");
+    }
+    if (features_.voice.kws.enabled && features_.voice.kws.model_dir.empty()) {
+      throw std::runtime_error("features.voice.kws.model_dir is required for sherpa KWS");
+    }
   }
-  if (!IsOneOf(features_.voice.vad.provider, "disabled", "mock")) {
-    throw std::runtime_error("features.voice.vad.provider must be disabled or mock");
+  if (!IsOneOf(features_.voice.vad.provider, "disabled", "mock") &&
+      features_.voice.vad.provider != "sherpa") {
+    throw std::runtime_error("features.voice.vad.provider must be disabled, mock, or sherpa");
   }
-  if (features_.voice.asr.provider != "mock") {
-    throw std::runtime_error("features.voice.asr.provider must be mock");
+  if (features_.voice.asr.provider != "mock" &&
+      features_.voice.asr.provider != "sherpa-sensevoice") {
+    throw std::runtime_error("features.voice.asr.provider must be mock or sherpa-sensevoice");
   }
   if (features_.voice.enabled && features_.voice.vad.provider == "disabled") {
     throw std::runtime_error(
-        "features.voice.vad.provider must be mock when features.voice.enabled is true");
+        "features.voice.vad.provider must be mock or sherpa when features.voice.enabled is true");
   }
   if (features_.voice.enabled && !services_.audio.auto_start) {
     throw std::runtime_error(

@@ -10,7 +10,7 @@
 - SocketCAN/mock 车辆数据和 VehicleState gRPC streaming。
 - ROS 风格 `topic list/info/echo/hz` 调试。
 - ALSA 录音/播放、AudioFrame、SPSC ring、PCM 进程间传输、mock VAD 和语音分段。
-- mock ASR/TTS 语音链路。
+- mock ASR/TTS 语音链路，以及可选的 Sherpa KWS / Silero VAD / SenseVoice provider 代码骨架。
 - 语音意图、动作分发、车辆状态查询和 Qt 相机页面控制。
 - V4L2/GStreamer USB 摄像头和 Jetson Argus CSI 摄像头预览。
 - 相机帧 POSIX shared memory 双缓冲。
@@ -77,6 +77,8 @@ bash scripts/build.sh                         # GCC Debug 开发构建和 CTest
 bash scripts/build.sh --type release          # GCC Release 正式 Linux 构建
 bash scripts/tests/smoke.sh
 bash scripts/tests/navigator-stability.sh --duration 300 --interval 5 --fault crash --fault-count 3
+bash scripts/prepare-sherpa-runtime.sh
+bash scripts/prepare-voice-models.sh
 ```
 
 `build.sh` 统一使用 GCC：Debug 用于开发、CTest 和 smoke，Release 用于正式构建和发布包。
@@ -144,9 +146,9 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 
 ## ASR
 
-当前仓库包含 Agent 内的 mock VAD/ASR/TTS 和完整 PCM 流水线。真实 ASR 作为 Agent 产品构建
-的一部分交付，基础构建不下载、编译或链接其内部推理运行时。Ubuntu apt 只提供操作系统和平台
-依赖。
+当前仓库包含 Agent 内的 mock VAD/ASR/TTS 和完整 PCM 流水线。Sherpa KWS / Silero VAD /
+SenseVoice provider 代码作为显式 Agent 产品构建的一部分交付，基础构建不下载、编译或链接其内部
+推理运行时。Ubuntu apt 只提供操作系统和平台依赖；`_output/ai` 统一放本地 runtime/model 资源。
 
 ## 提交规范
 

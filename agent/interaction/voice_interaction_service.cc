@@ -365,6 +365,23 @@ bool VoiceInteractionService::NotifyWakePromptCompleted() {
   return accepted;
 }
 
+bool VoiceInteractionService::NotifyWakePromptFailed(std::string error) {
+  if (!enabled_ || !worker_running_.load()) {
+    return false;
+  }
+  if (error.empty()) {
+    error = "wake prompt playback failed";
+  }
+  const bool accepted = state_machine_.Handle(ConversationEvent::kFailure, error);
+  if (!accepted) {
+    SetLastError("wake prompt failure ignored in current interaction state: " + error);
+    return false;
+  }
+  SetLastError(std::move(error));
+  ReturnToIdle("wake prompt failure cleanup completed");
+  return true;
+}
+
 InteractionState VoiceInteractionService::state() const {
   return state_machine_.snapshot().state;
 }

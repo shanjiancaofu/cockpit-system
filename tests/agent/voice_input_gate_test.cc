@@ -1,9 +1,12 @@
 #include "agent/runtime/voice_input_gate.h"
 
+#include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <thread>
 
 #include "agent/speech/asr/mock_speech_recognizer.h"
@@ -19,19 +22,72 @@ namespace {
 class FakeWakePromptPlayer final : public cockpit::agent::WakePromptPlayer {
  public:
   bool Play(std::string* error) override {
+    {
+      std::unique_lock<std::mutex> lock(mutex_);
+      started_ = true;
+      changed_.notify_all();
+      changed_.wait(lock, [this] {
+        return !block_ || stopped_;
+      });
+    }
+    if (stopped_.load()) {
+      if (error != nullptr) {
+        *error = "fake wake prompt stopped";
+      }
+      return false;
+    }
     if (error != nullptr) {
       error->clear();
     }
-    played_ = true;
-    return true;
+    played_.store(true);
+    return succeeds_;
+  }
+
+  void Stop() override {
+    stopped_.store(true);
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      block_ = false;
+    }
+    changed_.notify_all();
+  }
+
+  void BlockUntilReleased() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    block_ = true;
+  }
+
+  bool WaitUntilStarted() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return changed_.wait_for(lock, std::chrono::seconds(1), [this] {
+      return started_;
+    });
+  }
+
+  void Release() {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      block_ = false;
+    }
+    changed_.notify_all();
+  }
+
+  void set_succeeds(bool succeeds) {
+    succeeds_ = succeeds;
   }
 
   bool played() const {
-    return played_;
+    return played_.load();
   }
 
  private:
-  bool played_ = false;
+  std::mutex mutex_;
+  std::condition_variable changed_;
+  bool block_ = false;
+  bool started_ = false;
+  bool succeeds_ = true;
+  std::atomic_bool played_{false};
+  std::atomic_bool stopped_{false};
 };
 
 cockpit::audio::AudioFrame MakeFrame(std::uint64_t sequence) {
@@ -148,6 +204,65 @@ int main() {
     std::cerr << "cooldown did not suppress repeated wake detection\n";
     return 1;
   }
+
+  service.Interrupt();
+  if (!WaitForState(service, cockpit::voice::InteractionState::kIdle)) {
+    std::cerr << "voice service did not return to idle before async wake prompt check\n";
+    return 1;
+  }
+  cockpit::config::KwsConfig async_kws = kws_enabled;
+  async_kws.cooldown_ms = 1;
+  auto async_detector = std::make_unique<cockpit::agent::MockWakeWordDetector>("你好小车");
+  auto* async_detector_ptr = async_detector.get();
+  auto async_prompt = std::make_unique<FakeWakePromptPlayer>();
+  auto* async_prompt_ptr = async_prompt.get();
+  async_prompt_ptr->BlockUntilReleased();
+  cockpit::agent::VoiceInputGate async_gate(async_kws, &service, &speech_pipeline,
+                                            std::move(async_detector), std::move(async_prompt));
+  async_detector_ptr->ArmAfterFrames(1U);
+  const auto async_before_frames = speech_pipeline.metrics().frames_processed;
+  if (!async_gate.ProcessFrame(MakeFrame(5)) || !async_prompt_ptr->WaitUntilStarted()) {
+    std::cerr << "async wake prompt did not start\n";
+    return 1;
+  }
+  if (service.state() != cockpit::voice::InteractionState::kWaking) {
+    std::cerr << "service did not remain waking while wake prompt was active\n";
+    return 1;
+  }
+  if (!async_gate.ProcessFrame(MakeFrame(6)) ||
+      speech_pipeline.metrics().frames_processed != async_before_frames) {
+    std::cerr << "PCM was not drained/paused during async wake prompt\n";
+    return 1;
+  }
+  async_prompt_ptr->Release();
+  if (!WaitForState(service, cockpit::voice::InteractionState::kListening)) {
+    std::cerr << "async wake prompt did not advance to listening\n";
+    return 1;
+  }
+  async_gate.Stop();
+
+  service.Interrupt();
+  if (!WaitForState(service, cockpit::voice::InteractionState::kIdle)) {
+    std::cerr << "voice service did not return to idle before wake failure check\n";
+    return 1;
+  }
+  auto fail_detector = std::make_unique<cockpit::agent::MockWakeWordDetector>("你好小车");
+  auto* fail_detector_ptr = fail_detector.get();
+  auto fail_prompt = std::make_unique<FakeWakePromptPlayer>();
+  auto* fail_prompt_ptr = fail_prompt.get();
+  fail_prompt_ptr->set_succeeds(false);
+  cockpit::agent::VoiceInputGate fail_gate(async_kws, &service, &speech_pipeline,
+                                           std::move(fail_detector), std::move(fail_prompt));
+  fail_detector_ptr->ArmAfterFrames(1U);
+  if (!fail_gate.ProcessFrame(MakeFrame(7))) {
+    std::cerr << "wake failure frame was rejected\n";
+    return 1;
+  }
+  if (!WaitForState(service, cockpit::voice::InteractionState::kIdle)) {
+    std::cerr << "wake prompt failure entered listening or did not recover\n";
+    return 1;
+  }
+  fail_gate.Stop();
 
   speech_pipeline.Stop();
   service.Stop();

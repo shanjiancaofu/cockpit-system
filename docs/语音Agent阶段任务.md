@@ -22,7 +22,9 @@
 已完成：分环节 deadline、固定错误提示、request-scoped Action 取消、single-flight playback 取消、
         ASR Stop stale-success 隔离、真实播放回执/取消和 FOLLOW_UP 窗口；TranscriptNormalizer、
         现有三种 Action 的显式正向整句 allowlist；所有非白名单 transcript fail closed；
-        WakeWordDetector 接口、VoiceInputGate、cooldown、固定 PCM wake prompt、自定义唤醒词配置
+        WakeWordDetector 接口、VoiceInputGate、cooldown、异步固定 PCM wake prompt、自定义唤醒词配置；
+        Sherpa KWS provider 的文件布局校验；Sherpa Silero VAD / SenseVoice provider 代码骨架已起
+        步，但仍未做 Jetson 实机验证
 下一主线：Jetson Sherpa KWS smoke；随后按产品顺序推进 ASR/VAD/TTS provider
 当前实现入口：agent/runtime/voice_input_gate.*, agent/speech/kws/, agent/speech/providers/sherpa/,
              cockpit/modules/voice/assistant/
@@ -588,9 +590,14 @@ TTS：kokoro-multi-lang-v1_1
 
 #### 任务
 
-- [x] 用 `WakeWordDetector` 普通 C++ 接口实现 Sherpa KWS provider；VAD、ASR 和 TTS provider 未完成。
+- [x] 用 `WakeWordDetector` 普通 C++ 接口实现 Sherpa KWS provider；VAD、ASR 和 TTS provider 的真实
+      runtime 仍待 Jetson 验证。
 - [x] 增加默认关闭的 `COCKPIT_ENABLE_SHERPA_AGENT` 产品构建开关，基础 CI 不要求 Sherpa runtime/model。
 - [x] Sherpa KWS provider 对外只暴露项目接口，不传播 Sherpa 或 ONNX Runtime 类型。
+- [x] 增加 `_output/ai` 本地资源布局和 `prepare-sherpa-runtime.sh`、
+  `prepare-voice-models.sh` 准备入口；运行时和模型不进 Git、不在程序启动时下载。
+- [x] 增加 Sherpa Silero VAD 与 SenseVoiceSmall INT8 provider 代码骨架，仍需产品构建和 Jetson smoke
+  验证。
 - [ ] 固定 Sherpa-ONNX v1.13.4 runtime 交付物，并使用其私有 ONNX Runtime；不得要求它与应用 gRPC 共用
   Protobuf。
 - [ ] 使用 `-fvisibility=hidden`。
@@ -633,6 +640,8 @@ SpeechSegmenter
 #### 任务
 
 - [ ] 接入 SenseVoiceSmall INT8 作为稳定回退。
+  - 当前已有 Sherpa SenseVoice provider 代码骨架和固定 `_output/ai/models/asr/sensevoice-small-int8`
+    资源路径；产品构建、真实模型加载和 Jetson smoke 仍未完成。
 - [ ] 接入 Qwen3-ASR-0.6B INT8 作为候选。
 - [ ] 统一 ASR 输出结构。
 - [ ] 开启 ITN 或文本规范化。

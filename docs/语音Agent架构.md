@@ -42,10 +42,10 @@
 | Agent 侧 PCM Client | 已实现并接入语音流水线 |
 | VAD/ASR 插件加载器 | 已删除 |
 | Energy VAD | 已移除 |
-| Sherpa-ONNX/SenseVoice | 不进入默认构建；Sherpa KWS provider 仅在显式 Agent 产品构建中编译 |
-| KWS | 接口、mock 实现、input gate、cooldown、固定 PCM wake prompt 和 Sherpa KWS provider 代码已落地；Jetson 真机声学验收待完成 |
-| 真实 VAD 实现 | 未实现 |
-| 真实 ASR 实现 | 未实现 |
+| Sherpa-ONNX/SenseVoice | 不进入默认构建；Sherpa provider 仅在显式 Agent 产品构建中编译 |
+| KWS | 接口、mock 实现、input gate、cooldown、异步固定 PCM wake prompt 和 Sherpa KWS provider 代码已落地；Jetson 真机声学验收待完成 |
+| 真实 VAD 实现 | Sherpa Silero VAD provider 代码骨架已落地；产品构建和 Jetson smoke 待完成 |
+| 真实 ASR 实现 | Sherpa SenseVoiceSmall INT8 provider 代码骨架已落地；产品构建和 Jetson smoke 待完成 |
 | TTS 与 PCM 回放 | mock TTS 已在 Agent，Driver 只播放 PCM |
 | 本地 LLM client | 未实现 |
 | 语音会话状态机 | 状态/事件核心已实现，KWS wake 事件已通过 `VoiceInteractionService` 公开入口接入 |
@@ -71,7 +71,7 @@ features:
       provider: mock
 ```
 
-未接入真实 VAD 和 ASR 时，不得通过配置伪装成生产语音链路。
+未完成 Jetson 真实模型加载和声学 smoke 前，不得把这些 provider 代码骨架伪装成生产语音链路。
 
 ## 4. 目标数据流
 
