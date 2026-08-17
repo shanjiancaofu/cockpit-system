@@ -368,7 +368,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   const YAML::Node ai = ChildMap(features, "ai", "features.ai");
   ValidateKeys(ai, "features.ai",
                {"asr_timeout_ms", "assistant_timeout_ms", "command_execution_timeout_ms",
-                "tts_synthesis_timeout_ms", "follow_up_window_ms"});
+                "tts_synthesis_timeout_ms", "follow_up_window_ms", "local_llm"});
   config.features_.ai.asr_timeout_ms =
       Read(ai, "asr_timeout_ms", config.features_.ai.asr_timeout_ms, "features.ai.asr_timeout_ms");
   config.features_.ai.assistant_timeout_ms =
@@ -383,6 +383,32 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.features_.ai.follow_up_window_ms =
       Read(ai, "follow_up_window_ms", config.features_.ai.follow_up_window_ms,
            "features.ai.follow_up_window_ms");
+  const YAML::Node local_llm = ChildMap(ai, "local_llm", "features.ai.local_llm");
+  ValidateKeys(local_llm, "features.ai.local_llm",
+               {"enabled", "provider", "host", "port", "path", "model", "system_prompt",
+                "max_tokens", "temperature"});
+  config.features_.ai.local_llm.enabled = Read(
+      local_llm, "enabled", config.features_.ai.local_llm.enabled, "features.ai.local_llm.enabled");
+  config.features_.ai.local_llm.provider =
+      Read(local_llm, "provider", config.features_.ai.local_llm.provider,
+           "features.ai.local_llm.provider");
+  config.features_.ai.local_llm.host =
+      Read(local_llm, "host", config.features_.ai.local_llm.host, "features.ai.local_llm.host");
+  config.features_.ai.local_llm.port =
+      Read(local_llm, "port", config.features_.ai.local_llm.port, "features.ai.local_llm.port");
+  config.features_.ai.local_llm.path =
+      Read(local_llm, "path", config.features_.ai.local_llm.path, "features.ai.local_llm.path");
+  config.features_.ai.local_llm.model =
+      Read(local_llm, "model", config.features_.ai.local_llm.model, "features.ai.local_llm.model");
+  config.features_.ai.local_llm.system_prompt =
+      Read(local_llm, "system_prompt", config.features_.ai.local_llm.system_prompt,
+           "features.ai.local_llm.system_prompt");
+  config.features_.ai.local_llm.max_tokens =
+      Read(local_llm, "max_tokens", config.features_.ai.local_llm.max_tokens,
+           "features.ai.local_llm.max_tokens");
+  config.features_.ai.local_llm.temperature =
+      Read(local_llm, "temperature", config.features_.ai.local_llm.temperature,
+           "features.ai.local_llm.temperature");
 
   const YAML::Node tools = ChildMap(root, "tools", "tools");
   ValidateKeys(tools, "tools", {"topic"});
@@ -553,6 +579,33 @@ void SystemConfig::Validate() const {
                   "features.ai.command_execution_timeout_ms");
   RequirePositive(features_.ai.tts_synthesis_timeout_ms, "features.ai.tts_synthesis_timeout_ms");
   RequirePositive(features_.ai.follow_up_window_ms, "features.ai.follow_up_window_ms");
+  const auto& local_llm = features_.ai.local_llm;
+  if (local_llm.provider != "disabled" && local_llm.provider != "mock" &&
+      local_llm.provider != "llama-server") {
+    throw std::runtime_error(
+        "features.ai.local_llm.provider must be disabled, mock, or llama-server");
+  }
+  if (local_llm.enabled && local_llm.provider == "disabled") {
+    throw std::runtime_error(
+        "features.ai.local_llm.provider must not be disabled when enabled is true");
+  }
+  if (local_llm.enabled) {
+    RequireNotEmpty(local_llm.host, "features.ai.local_llm.host");
+    RequireNotEmpty(local_llm.path, "features.ai.local_llm.path");
+    RequireNotEmpty(local_llm.model, "features.ai.local_llm.model");
+    RequireNotEmpty(local_llm.system_prompt, "features.ai.local_llm.system_prompt");
+    if (local_llm.provider == "llama-server" && local_llm.host != "127.0.0.1" &&
+        local_llm.host != "localhost" && local_llm.host != "::1") {
+      throw std::runtime_error("features.ai.local_llm.host must be a loopback address");
+    }
+  }
+  if (local_llm.port < 1 || local_llm.port > 65535) {
+    throw std::runtime_error("features.ai.local_llm.port must be between 1 and 65535");
+  }
+  RequirePositive(local_llm.max_tokens, "features.ai.local_llm.max_tokens");
+  if (local_llm.temperature < 0.0 || local_llm.temperature > 2.0) {
+    throw std::runtime_error("features.ai.local_llm.temperature must be between 0 and 2");
+  }
   if (!IsOneOf(features_.voice.kws.provider, "disabled", "mock") &&
       features_.voice.kws.provider != "sherpa") {
     throw std::runtime_error("features.voice.kws.provider must be disabled, mock, or sherpa");

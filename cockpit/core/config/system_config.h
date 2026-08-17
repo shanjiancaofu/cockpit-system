@@ -141,12 +141,25 @@ struct VoiceConfig {
   AsrConfig asr;
 };
 
+struct LocalLlmConfig {
+  bool enabled = false;
+  std::string provider = "disabled";
+  std::string host = "127.0.0.1";
+  int port = 8080;
+  std::string path = "/v1/chat/completions";
+  std::string model = "Qwen3-4B-Instruct-2507";
+  std::string system_prompt = "You are a cockpit assistant.";
+  int max_tokens = 128;
+  double temperature = 0.2;
+};
+
 struct AiConfig {
   int asr_timeout_ms = 3000;
   int assistant_timeout_ms = 10000;
   int command_execution_timeout_ms = 3000;
   int tts_synthesis_timeout_ms = 5000;
   int follow_up_window_ms = 8000;
+  LocalLlmConfig local_llm;
 };
 
 struct FeaturesConfig {

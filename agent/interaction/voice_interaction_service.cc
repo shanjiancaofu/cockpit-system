@@ -19,11 +19,13 @@ VoiceInteractionService::VoiceInteractionService(
     bool enabled, std::unique_ptr<VoiceAssistant> assistant,
     std::unique_ptr<ActionDispatcher> dispatcher, std::unique_ptr<VoiceResponseSink> output,
     ResponseObserver response_observer, std::chrono::milliseconds assistant_timeout,
-    std::chrono::milliseconds action_timeout, std::chrono::milliseconds follow_up_window)
+    std::chrono::milliseconds action_timeout, std::chrono::milliseconds follow_up_window,
+    std::unique_ptr<LocalLlmClient> llm_client)
     : enabled_(enabled),
       assistant_(std::move(assistant)),
       dispatcher_(std::move(dispatcher)),
       output_(std::move(output)),
+      llm_client_(std::move(llm_client)),
       response_observer_(std::move(response_observer)),
       assistant_timeout_(assistant_timeout),
       action_timeout_(action_timeout),
@@ -67,6 +69,9 @@ void VoiceInteractionService::Stop() {
   transcript_events_.Close();
   transcript_events_.DiscardPending();
   CancelAssistantCall();
+  if (llm_client_ != nullptr) {
+    llm_client_->Cancel();
+  }
   CancelActionCall();
   if (output_ != nullptr) {
     output_->Stop();
@@ -212,6 +217,16 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
     response.intent = result.intent;
     response.action = result.action;
     response.response_text = result.response_text;
+    if (response.intent == VoiceIntent::kUnknown && response.action == VoiceAction::kNone &&
+        llm_client_ != nullptr) {
+      const auto llm_result = llm_client_->GenerateResponse(transcript, provider_deadline);
+      if (request_generation != interrupt_generation_.load()) {
+        return std::nullopt;
+      }
+      if (llm_result.success && !llm_result.response_text.empty()) {
+        response.response_text = llm_result.response_text;
+      }
+    }
     if (result.intent == VoiceIntent::kUnknown) {
       unknown_intents_.fetch_add(1U);
     }
@@ -332,6 +347,9 @@ VoiceInterruptResult VoiceInteractionService::Interrupt() {
     }
     SetLastError("voice request interrupted");
     CancelAssistantCall();
+    if (llm_client_ != nullptr) {
+      llm_client_->Cancel();
+    }
     CancelActionCall();
     if (output_ != nullptr) {
       output_->Interrupt();

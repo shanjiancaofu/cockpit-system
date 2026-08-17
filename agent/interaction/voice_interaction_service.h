@@ -13,6 +13,7 @@
 #include <thread>
 
 #include "agent/conversation/conversation_state_machine.h"
+#include "agent/llm/local_llm_client.h"
 #include "cockpit/core/base/macros.h"
 #include "cockpit/core/event/event_queue.h"
 #include "cockpit/modules/voice/actions/action_dispatcher.h"
@@ -77,7 +78,8 @@ class VoiceInteractionService {
                           ResponseObserver response_observer = nullptr,
                           std::chrono::milliseconds assistant_timeout = std::chrono::seconds(10),
                           std::chrono::milliseconds action_timeout = std::chrono::seconds(3),
-                          std::chrono::milliseconds follow_up_window = std::chrono::seconds(8));
+                          std::chrono::milliseconds follow_up_window = std::chrono::seconds(8),
+                          std::unique_ptr<LocalLlmClient> llm_client = nullptr);
   ~VoiceInteractionService();
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(VoiceInteractionService);
@@ -122,6 +124,7 @@ class VoiceInteractionService {
   const std::unique_ptr<VoiceAssistant> assistant_;
   const std::unique_ptr<ActionDispatcher> dispatcher_;
   const std::unique_ptr<VoiceResponseSink> output_;
+  const std::unique_ptr<LocalLlmClient> llm_client_;
   const ResponseObserver response_observer_;
   const std::chrono::milliseconds assistant_timeout_;
   const std::chrono::milliseconds action_timeout_;

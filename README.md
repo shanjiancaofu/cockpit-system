@@ -80,6 +80,10 @@ bash scripts/tests/sherpa-voice-smoke.sh
 bash scripts/tests/navigator-stability.sh --duration 300 --interval 5 --fault crash --fault-count 3
 bash scripts/prepare-sherpa-runtime.sh
 bash scripts/prepare-voice-models.sh
+# 设置已审查的 llama.cpp commit 和源码/模型来源后执行：
+bash scripts/prepare-llama-runtime.sh
+bash scripts/prepare-llm-model.sh
+bash scripts/tests/llama-server-smoke.sh
 ```
 
 `build.sh` 统一使用 GCC：Debug 用于开发、CTest 和 smoke，Release 用于正式构建和发布包。
@@ -151,6 +155,8 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 SenseVoice provider 代码作为显式 Agent 产品构建的一部分交付，基础构建不下载、编译或链接其内部
 推理运行时。Ubuntu apt 只提供操作系统和平台依赖；`_output/ai` 统一放本地 runtime/model 资源。
 Ubuntu x86_64 VM 下的真实 Sherpa smoke 入口是 `bash scripts/tests/sherpa-voice-smoke.sh`。
+本地 LLM 默认关闭；显式准备 llama.cpp runtime 和 Qwen3 GGUF 后，使用
+`bash scripts/tests/llama-server-smoke.sh` 验证真实 server 与项目 client 的接口。
 
 ## 提交规范
 

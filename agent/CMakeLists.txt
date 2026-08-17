@@ -2,6 +2,13 @@ add_library(agent_audio_stream STATIC audio/audio_stream_client.cc)
 target_include_directories(agent_audio_stream PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(agent_audio_stream PUBLIC audio_stream_protocol)
 
+add_library(agent_llm STATIC
+    llm/llama_server_local_llm_client.cc
+    llm/mock_local_llm_client.cc
+)
+target_include_directories(agent_llm PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(agent_llm PUBLIC json_util)
+
 add_library(agent_speech STATIC
     speech/asr/mock_speech_recognizer.cc
     speech/kws/fixed_pcm_wake_prompt_player.cc
@@ -45,6 +52,7 @@ add_library(voice_interaction STATIC
 )
 target_include_directories(voice_interaction PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(voice_interaction PUBLIC event voice)
+target_link_libraries(voice_interaction PUBLIC agent_llm)
 
 add_library(voice_audio_clients STATIC audio/audio_playback_client.cc)
 target_link_libraries(voice_audio_clients PUBLIC agent_speech contracts voice)

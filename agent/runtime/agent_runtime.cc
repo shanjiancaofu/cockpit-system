@@ -17,6 +17,8 @@
 #include "agent/grpc/voice_grpc_service.h"
 #include "agent/hmi/local_hmi_command_provider.h"
 #include "agent/interaction/voice_interaction_service.h"
+#include "agent/llm/llama_server_local_llm_client.h"
+#include "agent/llm/mock_local_llm_client.h"
 #include "agent/runtime/voice_input_gate.h"
 #include "agent/speech/asr/mock_speech_recognizer.h"
 #include "agent/speech/kws/fixed_pcm_wake_prompt_player.h"
@@ -121,6 +123,32 @@ std::unique_ptr<voice::SpeechRecognizer> CreateSpeechRecognizer(const config::As
   return nullptr;
 }
 
+std::unique_ptr<voice::LocalLlmClient> CreateLocalLlmClient(const config::LocalLlmConfig& config,
+                                                            std::string* error) {
+  if (!config.enabled || config.provider == "disabled") {
+    return nullptr;
+  }
+  if (config.provider == "mock") {
+    return std::make_unique<voice::MockLocalLlmClient>();
+  }
+  if (config.provider == "llama-server") {
+    voice::LocalLlmConfig client_config;
+    client_config.provider = config.provider;
+    client_config.host = config.host;
+    client_config.port = static_cast<std::uint16_t>(config.port);
+    client_config.path = config.path;
+    client_config.model = config.model;
+    client_config.system_prompt = config.system_prompt;
+    client_config.max_tokens = static_cast<std::size_t>(config.max_tokens);
+    client_config.temperature = config.temperature;
+    return std::make_unique<voice::LlamaServerLocalLlmClient>(std::move(client_config));
+  }
+  if (error != nullptr) {
+    *error = "unsupported local LLM provider: " + config.provider;
+  }
+  return nullptr;
+}
+
 }  // namespace
 
 class AgentRuntime::Impl {
@@ -161,6 +189,7 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
     std::unique_ptr<voice::VoiceAssistant> assistant;
     std::unique_ptr<voice::ActionDispatcher> dispatcher;
     std::unique_ptr<voice::VoiceResponseSink> output;
+    std::unique_ptr<voice::LocalLlmClient> llm_client;
     if (enabled) {
       const std::string hmi_address =
           "unix:" + std::filesystem::absolute(std::filesystem::path(config.paths().run_dir) /
@@ -174,6 +203,12 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
           std::make_unique<voice::AudioPlaybackClient>(
               interaction_config.audio_address, std::make_unique<voice::MockSpeechSynthesizer>(),
               std::chrono::milliseconds(config.features().ai.tts_synthesis_timeout_ms)));
+      std::string llm_error;
+      llm_client = CreateLocalLlmClient(config.features().ai.local_llm, &llm_error);
+      if (config.features().ai.local_llm.enabled && llm_client == nullptr) {
+        LOG_ERROR("failed to configure local LLM: " + llm_error);
+        return false;
+      }
     }
 
     impl_ = std::make_unique<Impl>();
@@ -212,7 +247,7 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
         },
         std::chrono::milliseconds(config.features().ai.assistant_timeout_ms),
         std::chrono::milliseconds(config.features().ai.command_execution_timeout_ms),
-        std::chrono::milliseconds(config.features().ai.follow_up_window_ms));
+        std::chrono::milliseconds(config.features().ai.follow_up_window_ms), std::move(llm_client));
     impl_->grpc = std::make_unique<voice::VoiceGrpcService>(*impl_->service);
     if (!impl_->grpc->Start(interaction_config.grpc.listen_address)) {
       impl_.reset();

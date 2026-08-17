@@ -1,0 +1,224 @@
+#include "agent/llm/llama_server_local_llm_client.h"
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <cstdint>
+#include <cstring>
+#include <iostream>
+#include <mutex>
+#include <stdexcept>
+#include <string>
+#include <thread>
+
+namespace {
+
+class FakeHttpServer {
+ public:
+  FakeHttpServer(std::string response_body, int delay_ms = 0)
+      : response_body_(std::move(response_body)), delay_ms_(delay_ms) {
+    listen_fd_ = ::socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (listen_fd_ < 0) {
+      throw std::runtime_error(std::string("socket failed: ") + std::strerror(errno));
+    }
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    address.sin_port = htons(0);
+    if (bind(listen_fd_, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0) {
+      throw std::runtime_error(std::string("bind failed: ") + std::strerror(errno));
+    }
+    socklen_t length = sizeof(address);
+    if (getsockname(listen_fd_, reinterpret_cast<sockaddr*>(&address), &length) < 0) {
+      throw std::runtime_error(std::string("getsockname failed: ") + std::strerror(errno));
+    }
+    port_ = ntohs(address.sin_port);
+    if (listen(listen_fd_, 1) < 0) {
+      throw std::runtime_error(std::string("listen failed: ") + std::strerror(errno));
+    }
+    worker_ = std::thread([this] {
+      Run();
+    });
+  }
+
+  ~FakeHttpServer() {
+    stop_.store(true);
+    if (listen_fd_ >= 0) {
+      ::shutdown(listen_fd_, SHUT_RDWR);
+      ::close(listen_fd_);
+      listen_fd_ = -1;
+    }
+    if (worker_.joinable()) {
+      worker_.join();
+    }
+  }
+
+  int port() const {
+    return port_;
+  }
+
+  std::string request() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return request_;
+  }
+
+  bool WaitForRequest(std::chrono::milliseconds timeout) const {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return request_changed_.wait_for(lock, timeout, [this] {
+      return !request_.empty();
+    });
+  }
+
+ private:
+  static std::size_t ContentLength(const std::string& request) {
+    const std::string key = "Content-Length:";
+    const std::size_t pos = request.find(key);
+    if (pos == std::string::npos) {
+      return 0;
+    }
+    const std::size_t line_end = request.find("\r\n", pos);
+    return static_cast<std::size_t>(std::stoul(request.substr(pos + key.size(), line_end - pos)));
+  }
+
+  void Run() {
+    const int client_fd = ::accept4(listen_fd_, nullptr, nullptr, SOCK_CLOEXEC);
+    if (client_fd < 0) {
+      return;
+    }
+    std::string request;
+    char buffer[4096];
+    while (true) {
+      const ssize_t bytes = ::recv(client_fd, buffer, sizeof(buffer), 0);
+      if (bytes <= 0) {
+        break;
+      }
+      request.append(buffer, buffer + bytes);
+      if (request.find("\r\n\r\n") != std::string::npos) {
+        const std::size_t header_end = request.find("\r\n\r\n");
+        const std::size_t body_length = ContentLength(request);
+        if (request.size() >= header_end + 4U + body_length) {
+          break;
+        }
+      }
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      request_ = request;
+    }
+    request_changed_.notify_all();
+
+    if (delay_ms_ > 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms_));
+    }
+    const std::string response =
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " +
+        std::to_string(response_body_.size()) + "\r\nConnection: close\r\n\r\n" + response_body_;
+    (void)::send(client_fd, response.data(), response.size(), MSG_NOSIGNAL);
+    ::shutdown(client_fd, SHUT_RDWR);
+    ::close(client_fd);
+  }
+
+  std::string response_body_;
+  int delay_ms_ = 0;
+  int listen_fd_ = -1;
+  int port_ = 0;
+  std::atomic_bool stop_{false};
+  std::thread worker_;
+  mutable std::mutex mutex_;
+  mutable std::condition_variable request_changed_;
+  std::string request_;
+};
+
+bool Check(bool condition, const char* message) {
+  if (!condition) {
+    std::cerr << message << '\n';
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
+
+int main() {
+  FakeHttpServer server(R"({"choices":[{"message":{"content":"local llama response"}}]})");
+  cockpit::voice::LocalLlmConfig config;
+  config.provider = "llama-server";
+  config.host = "127.0.0.1";
+  config.port = static_cast<std::uint16_t>(server.port());
+  config.model = "Qwen3-4B-Instruct-2507";
+  cockpit::voice::LlamaServerLocalLlmClient client(config);
+
+  cockpit::voice::SpeechTranscript transcript;
+  transcript.text = "tell me a joke";
+  const auto result = client.GenerateResponse(
+      transcript, std::chrono::steady_clock::now() + std::chrono::seconds(1));
+  if (!Check(result.success, "llama-server client did not succeed") ||
+      !Check(result.response_text == "local llama response",
+             "llama-server client did not parse response content") ||
+      !Check(result.provider == "llama-server", "llama-server provider name mismatch")) {
+    return 1;
+  }
+
+  const std::string request = server.request();
+  if (!Check(request.find("POST /v1/chat/completions HTTP/1.1") != std::string::npos,
+             "llama-server client used the wrong endpoint") ||
+      !Check(request.find("\"model\":\"Qwen3-4B-Instruct-2507\"") != std::string::npos,
+             "llama-server client did not send model name") ||
+      !Check(request.find("\"role\":\"user\",\"content\":\"tell me a joke\"") != std::string::npos,
+             "llama-server client did not send transcript text")) {
+    return 1;
+  }
+
+  FakeHttpServer unicode_server(R"({"choices": [{"message": {"content": "\u4f60\u597d"}}]})");
+  config.port = static_cast<std::uint16_t>(unicode_server.port());
+  cockpit::voice::LlamaServerLocalLlmClient unicode_client(config);
+  const auto unicode_result = unicode_client.GenerateResponse(
+      transcript, std::chrono::steady_clock::now() + std::chrono::seconds(1));
+  if (!Check(unicode_result.success, "escaped Unicode llama-server response did not succeed") ||
+      !Check(unicode_result.response_text == "你好",
+             "escaped Unicode llama-server response was not decoded")) {
+    return 1;
+  }
+
+  FakeHttpServer slow_server(R"({"choices":[{"message":{"content":"too late"}}]})", 300);
+  config.port = static_cast<std::uint16_t>(slow_server.port());
+  cockpit::voice::LlamaServerLocalLlmClient slow_client(config);
+  const auto failed = slow_client.GenerateResponse(
+      transcript, std::chrono::steady_clock::now() + std::chrono::milliseconds(50));
+  if (!Check(!failed.success, "llama-server deadline was not enforced")) {
+    return 1;
+  }
+
+  FakeHttpServer cancelled_server(R"({"choices":[{"message":{"content":"too late"}}]})", 300);
+  config.port = static_cast<std::uint16_t>(cancelled_server.port());
+  cockpit::voice::LlamaServerLocalLlmClient cancelled_client(config);
+  cockpit::voice::LocalLlmResult cancelled_result;
+  std::thread request_thread([&] {
+    cancelled_result = cancelled_client.GenerateResponse(
+        transcript, std::chrono::steady_clock::now() + std::chrono::seconds(2));
+  });
+  if (!Check(cancelled_server.WaitForRequest(std::chrono::seconds(1)),
+             "llama-server cancellation test did not receive a request")) {
+    cancelled_client.Cancel();
+    request_thread.join();
+    return 1;
+  }
+  const auto cancel_started = std::chrono::steady_clock::now();
+  cancelled_client.Cancel();
+  request_thread.join();
+  const auto cancel_elapsed = std::chrono::steady_clock::now() - cancel_started;
+  if (!Check(!cancelled_result.success, "cancelled llama-server request succeeded") ||
+      !Check(cancel_elapsed < std::chrono::milliseconds(200),
+             "llama-server cancellation did not unblock the request promptly")) {
+    return 1;
+  }
+
+  std::cout << "llama-server local LLM client tests passed\n";
+  return 0;
+}

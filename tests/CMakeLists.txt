@@ -256,6 +256,19 @@ target_link_libraries(voice_pcm_e2e_test PRIVATE
 )
 add_test(NAME voice_pcm_e2e_test COMMAND voice_pcm_e2e_test)
 
+add_executable(local_llm_client_test agent/local_llm_client_test.cc)
+target_link_libraries(local_llm_client_test PRIVATE agent_llm voice_interaction voice)
+add_test(NAME local_llm_client_test COMMAND local_llm_client_test)
+
+add_executable(llama_server_local_llm_client_test
+    agent/llama_server_local_llm_client_test.cc
+)
+target_link_libraries(llama_server_local_llm_client_test PRIVATE agent_llm)
+add_test(NAME llama_server_local_llm_client_test COMMAND llama_server_local_llm_client_test)
+
+add_executable(llama_server_live_smoke agent/llama_server_live_smoke.cc)
+target_link_libraries(llama_server_live_smoke PRIVATE agent_llm)
+
 if(COCKPIT_ENABLE_SHERPA_AGENT)
     add_executable(sherpa_voice_smoke_test agent/sherpa_voice_smoke_test.cc)
     target_link_libraries(sherpa_voice_smoke_test PRIVATE agent_sherpa_voice voice)

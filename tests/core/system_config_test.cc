@@ -76,7 +76,11 @@ int main() {
       config.features().ai.assistant_timeout_ms != 10000 ||
       config.features().ai.command_execution_timeout_ms != 3000 ||
       config.features().ai.tts_synthesis_timeout_ms != 5000 ||
-      config.features().ai.follow_up_window_ms != 8000 || config.tools().topic.backend != "file") {
+      config.features().ai.follow_up_window_ms != 8000 || config.features().ai.local_llm.enabled ||
+      config.features().ai.local_llm.provider != "disabled" ||
+      config.features().ai.local_llm.port != 8080 ||
+      config.features().ai.local_llm.model != "Qwen3-4B-Instruct-2507" ||
+      config.tools().topic.backend != "file") {
     std::cerr << "typed config fields do not match config.yaml" << std::endl;
     return 1;
   }
@@ -122,6 +126,30 @@ int main() {
                    "model_dir: \"\"") ||
       !ExpectRejectedConfig(enabled_sherpa_missing_model,
                             "features.voice.kws.model_dir is required for sherpa KWS")) {
+    return 1;
+  }
+
+  std::string enabled_llm_without_provider = ReadFile(VALID_CONFIG_PATH);
+  if (!ReplaceOnce(&enabled_llm_without_provider, "    local_llm:\n      enabled: false",
+                   "    local_llm:\n      enabled: true") ||
+      !ExpectRejectedConfig(enabled_llm_without_provider,
+                            "features.ai.local_llm.provider must not be disabled")) {
+    return 1;
+  }
+
+  std::string invalid_llm_temperature = ReadFile(VALID_CONFIG_PATH);
+  if (!ReplaceOnce(&invalid_llm_temperature, "      temperature: 0.2", "      temperature: 2.1") ||
+      !ExpectRejectedConfig(invalid_llm_temperature,
+                            "features.ai.local_llm.temperature must be between 0 and 2")) {
+    return 1;
+  }
+
+  std::string remote_llm_host = ReadFile(VALID_CONFIG_PATH);
+  if (!ReplaceOnce(&remote_llm_host, "      enabled: false\n      provider: disabled",
+                   "      enabled: true\n      provider: llama-server") ||
+      !ReplaceOnce(&remote_llm_host, "      host: 127.0.0.1", "      host: llm.example.com") ||
+      !ExpectRejectedConfig(remote_llm_host,
+                            "features.ai.local_llm.host must be a loopback address")) {
     return 1;
   }
 

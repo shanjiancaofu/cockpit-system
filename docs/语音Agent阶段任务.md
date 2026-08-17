@@ -741,7 +741,8 @@ LightOff
 
 ## 阶段 11–15：模型接入与产品化
 
-状态：未开始。所有指标必须来自固定模型、固定配置和 Jetson 真机，不用 WSL 结果替代。
+状态：阶段 11 进行中，阶段 12–15 未开始。功能接口可先在 Ubuntu x86_64 验证，性能与声学指标
+仍必须来自固定模型、固定配置和 Jetson 真机。
 
 ### 阶段 11：接入本地 LLM
 
@@ -772,7 +773,10 @@ GPU offload：尽可能全部
 
 - [ ] 固定验证过的 llama.cpp commit。
 - [ ] 使用独立 `llama-server` 进程。
-- [ ] Agent 只通过本地接口获取回复文本。
+- [x] Agent 本地 LLM 访问已抽象为 `LocalLlmClient`，业务层不直接依赖具体推理实现。
+- [x] 已有 `LlamaServerLocalLlmClient` 原型，按 OpenAI-compatible HTTP 请求到本地 server。
+- [x] Agent runtime 已通过 `features.ai.local_llm` 创建 client，只通过本地接口获取回复文本；默认关闭。
+- [x] 增加 llama.cpp runtime、GGUF 模型准备脚本和真实 llama-server smoke 入口。
 - [ ] 支持 Token 流式输出。
 - [ ] 设置首 Token 和总超时。
 - [ ] 不启用工具调用。

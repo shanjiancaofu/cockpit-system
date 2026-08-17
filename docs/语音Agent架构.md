@@ -47,7 +47,7 @@
 | 真实 VAD 实现 | Sherpa Silero VAD provider 代码骨架已落地；产品构建和 Jetson smoke 待完成 |
 | 真实 ASR 实现 | Sherpa SenseVoiceSmall INT8 provider 代码骨架已落地；产品构建和 Jetson smoke 待完成 |
 | TTS 与 PCM 回放 | mock TTS 已在 Agent，Driver 只播放 PCM |
-| 本地 LLM client | 未实现 |
+| 本地 LLM client | `LocalLlmClient`、llama-server HTTP 实现、严格配置和真实 server smoke 已实现；固定 runtime/model 与进程托管待完成 |
 | 语音会话状态机 | 状态/事件核心已实现，KWS wake 事件已通过 `VoiceInteractionService` 公开入口接入 |
 
 默认配置保持：
@@ -134,6 +134,10 @@ cockpit-navigator.service
 - 停止时清理剩余进程组。
 
 Navigator 的 child subreaper 和进程组清理能力继续作为兜底。
+
+当前第一批先完成 client 和配置链路。`features.ai.local_llm.enabled` 默认关闭；显式选择
+`llama-server` 后，Agent 只连接 loopback endpoint，确定性命令仍先经过 allowlist router。
+server 子进程托管、异常重启和流式输出仍属于阶段 11 后续任务，不能把当前 HTTP client 误写成已完成托管。
 
 ## 6. Driver 与 Agent 音频协议
 
