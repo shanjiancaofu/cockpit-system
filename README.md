@@ -87,6 +87,10 @@ bash scripts/prepare-voice-models.sh
 bash scripts/prepare-llama-runtime.sh
 bash scripts/prepare-llm-model.sh
 bash scripts/tests/llama-server-smoke.sh
+# 一次准备 runtime、2B/4B 模型并运行 smoke（禁止 sudo）：
+bash scripts/llm.sh
+# Hugging Face 直连不可用时：
+COCKPIT_HF_ENDPOINT=https://hf-mirror.com bash scripts/llm.sh
 ```
 
 `build.sh` 统一使用 GCC：Debug 用于开发、CTest 和 smoke，Release 用于正式构建和发布包。
