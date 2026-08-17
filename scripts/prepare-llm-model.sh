@@ -4,10 +4,35 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd -- "${script_dir}/.." && pwd)"
 ai_root="${COCKPIT_AI_ROOT:-${project_root}/_output/ai}"
-model_dir="${ai_root}/models/llm/qwen3-4b-instruct-2507-q4_k_m"
+profile="${COCKPIT_LLM_MODEL_PROFILE:-production}"
+case "${profile}" in
+  production)
+    model_name="Qwen3.5-2B"
+    model_slug="qwen3.5-2b-q4_k_m"
+    ;;
+  comparison)
+    model_name="Qwen3.5-4B"
+    model_slug="qwen3.5-4b-q4_k_m"
+    ;;
+  *)
+    echo "COCKPIT_LLM_MODEL_PROFILE must be production or comparison" >&2
+    exit 2
+    ;;
+esac
+model_dir="${ai_root}/models/llm/${model_slug}"
 model_file="${model_dir}/model.gguf"
+expected_sha256="${COCKPIT_LLM_MODEL_SHA256:-}"
+
+if [[ ! "${expected_sha256}" =~ ^[0-9a-fA-F]{64}$ ]]; then
+  echo "COCKPIT_LLM_MODEL_SHA256 must be the reviewed GGUF SHA-256" >&2
+  exit 2
+fi
 
 if [[ -f "${model_file}" ]]; then
+  printf '%s  %s\n' "${expected_sha256}" "${model_file}" | sha256sum --check --status || {
+    echo "existing local LLM model SHA-256 verification failed" >&2
+    exit 1
+  }
   printf 'local LLM model already prepared: %s\n' "${model_file}"
   exit 0
 fi
@@ -22,7 +47,7 @@ if [[ -z "${source_file}" && -n "${source_url}" ]]; then
 fi
 if [[ -z "${source_file}" || ! -f "${source_file}" ]]; then
   cat >&2 <<EOF
-Qwen3-4B-Instruct-2507 GGUF Q4_K_M is required. Provide one of:
+${model_name} GGUF Q4_K_M is required. Provide one of:
   COCKPIT_LLM_MODEL_FILE=/path/to/model.gguf
   COCKPIT_LLM_MODEL_URL=https://.../model.gguf
 EOF
@@ -32,14 +57,19 @@ if [[ "${source_file}" != *.gguf ]]; then
   printf 'local LLM model must be a GGUF file: %s\n' "${source_file}" >&2
   exit 2
 fi
+printf '%s  %s\n' "${expected_sha256}" "${source_file}" | sha256sum --check --status || {
+  echo "local LLM model SHA-256 verification failed" >&2
+  exit 1
+}
 
 mkdir -p "${model_dir}"
 cp -f "${source_file}" "${model_file}"
 {
-  printf 'model=Qwen3-4B-Instruct-2507\n'
+  printf 'profile=%s\n' "${profile}"
+  printf 'model=%s\n' "${model_name}"
   printf 'quantization=Q4_K_M\n'
   printf 'source=%s\n' "${source_file}"
-  sha256sum "${model_file}"
+  printf 'sha256=%s\n' "${expected_sha256,,}"
 } >"${model_dir}/MANIFEST.txt"
 
 printf 'local LLM model prepared: %s\n' "${model_file}"

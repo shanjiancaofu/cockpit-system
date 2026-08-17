@@ -12,6 +12,7 @@
 #include <cstring>
 #include <iostream>
 #include <mutex>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -20,8 +21,8 @@ namespace {
 
 class FakeHttpServer {
  public:
-  FakeHttpServer(std::string response_body, int delay_ms = 0)
-      : response_body_(std::move(response_body)), delay_ms_(delay_ms) {
+  FakeHttpServer(std::string response_body, int delay_ms = 0, bool chunked = false)
+      : response_body_(std::move(response_body)), delay_ms_(delay_ms), chunked_(chunked) {
     listen_fd_ = ::socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (listen_fd_ < 0) {
       throw std::runtime_error(std::string("socket failed: ") + std::strerror(errno));
@@ -116,9 +117,16 @@ class FakeHttpServer {
     if (delay_ms_ > 0) {
       std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms_));
     }
-    const std::string response =
-        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " +
-        std::to_string(response_body_.size()) + "\r\nConnection: close\r\n\r\n" + response_body_;
+    std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n";
+    if (chunked_) {
+      std::ostringstream chunk_size;
+      chunk_size << std::hex << response_body_.size();
+      response += "Transfer-Encoding: chunked\r\nConnection: close\r\n\r\n" + chunk_size.str() +
+                  "\r\n" + response_body_ + "\r\n0\r\n\r\n";
+    } else {
+      response += "Content-Length: " + std::to_string(response_body_.size()) +
+                  "\r\nConnection: close\r\n\r\n" + response_body_;
+    }
     (void)::send(client_fd, response.data(), response.size(), MSG_NOSIGNAL);
     ::shutdown(client_fd, SHUT_RDWR);
     ::close(client_fd);
@@ -126,6 +134,7 @@ class FakeHttpServer {
 
   std::string response_body_;
   int delay_ms_ = 0;
+  bool chunked_ = false;
   int listen_fd_ = -1;
   int port_ = 0;
   std::atomic_bool stop_{false};
@@ -146,12 +155,17 @@ bool Check(bool condition, const char* message) {
 }  // namespace
 
 int main() {
-  FakeHttpServer server(R"({"choices":[{"message":{"content":"local llama response"}}]})");
+  FakeHttpServer server(
+      "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\",\"content\":null}}]}\n\n"
+      "data: {\"choices\":[{\"delta\":{\"content\":\"local \"}}]}\n\n"
+      "data: {\"choices\":[{\"delta\":{\"content\":\"llama response\"}}]}\n\n"
+      "data: [DONE]\n\n",
+      0, true);
   cockpit::voice::LocalLlmConfig config;
   config.provider = "llama-server";
   config.host = "127.0.0.1";
   config.port = static_cast<std::uint16_t>(server.port());
-  config.model = "Qwen3-4B-Instruct-2507";
+  config.model = "Qwen3.5-2B";
   cockpit::voice::LlamaServerLocalLlmClient client(config);
 
   cockpit::voice::SpeechTranscript transcript;
@@ -168,14 +182,19 @@ int main() {
   const std::string request = server.request();
   if (!Check(request.find("POST /v1/chat/completions HTTP/1.1") != std::string::npos,
              "llama-server client used the wrong endpoint") ||
-      !Check(request.find("\"model\":\"Qwen3-4B-Instruct-2507\"") != std::string::npos,
+      !Check(request.find("\"model\":\"Qwen3.5-2B\"") != std::string::npos,
              "llama-server client did not send model name") ||
+      !Check(request.find("\"stream\":true") != std::string::npos,
+             "llama-server client did not request token streaming") ||
       !Check(request.find("\"role\":\"user\",\"content\":\"tell me a joke\"") != std::string::npos,
              "llama-server client did not send transcript text")) {
     return 1;
   }
 
-  FakeHttpServer unicode_server(R"({"choices": [{"message": {"content": "\u4f60\u597d"}}]})");
+  FakeHttpServer unicode_server(
+      "data: {\"choices\":[{\"delta\":{\"content\":\"\\u4f60\"}}]}\n\n"
+      "data: {\"choices\":[{\"delta\":{\"content\":\"\\u597d\"}}]}\n\n"
+      "data: [DONE]\n\n");
   config.port = static_cast<std::uint16_t>(unicode_server.port());
   cockpit::voice::LlamaServerLocalLlmClient unicode_client(config);
   const auto unicode_result = unicode_client.GenerateResponse(
@@ -186,17 +205,38 @@ int main() {
     return 1;
   }
 
-  FakeHttpServer slow_server(R"({"choices":[{"message":{"content":"too late"}}]})", 300);
-  config.port = static_cast<std::uint16_t>(slow_server.port());
-  cockpit::voice::LlamaServerLocalLlmClient slow_client(config);
-  const auto failed = slow_client.GenerateResponse(
-      transcript, std::chrono::steady_clock::now() + std::chrono::milliseconds(50));
-  if (!Check(!failed.success, "llama-server deadline was not enforced")) {
+  FakeHttpServer fallback_server(R"({"choices":[{"message":{"content":"non-stream fallback"}}]})");
+  config.port = static_cast<std::uint16_t>(fallback_server.port());
+  cockpit::voice::LlamaServerLocalLlmClient fallback_client(config);
+  const auto fallback_result = fallback_client.GenerateResponse(
+      transcript, std::chrono::steady_clock::now() + std::chrono::seconds(1));
+  if (!Check(fallback_result.success, "non-stream llama-server fallback did not succeed") ||
+      !Check(fallback_result.response_text == "non-stream fallback",
+             "non-stream llama-server fallback response mismatch")) {
     return 1;
   }
 
-  FakeHttpServer cancelled_server(R"({"choices":[{"message":{"content":"too late"}}]})", 300);
+  FakeHttpServer slow_server(
+      "data: {\"choices\":[{\"delta\":{\"content\":\"too late\"}}]}\n\n"
+      "data: [DONE]\n\n",
+      300);
+  config.port = static_cast<std::uint16_t>(slow_server.port());
+  config.first_token_timeout = std::chrono::milliseconds(50);
+  cockpit::voice::LlamaServerLocalLlmClient slow_client(config);
+  const auto failed = slow_client.GenerateResponse(
+      transcript, std::chrono::steady_clock::now() + std::chrono::seconds(2));
+  if (!Check(!failed.success, "llama-server first-token deadline was not enforced") ||
+      !Check(failed.error == "local LLM first-token deadline exceeded",
+             "llama-server returned the wrong first-token timeout error")) {
+    return 1;
+  }
+
+  FakeHttpServer cancelled_server(
+      "data: {\"choices\":[{\"delta\":{\"content\":\"too late\"}}]}\n\n"
+      "data: [DONE]\n\n",
+      300);
   config.port = static_cast<std::uint16_t>(cancelled_server.port());
+  config.first_token_timeout = std::chrono::seconds(1);
   cockpit::voice::LlamaServerLocalLlmClient cancelled_client(config);
   cockpit::voice::LocalLlmResult cancelled_result;
   std::thread request_thread([&] {

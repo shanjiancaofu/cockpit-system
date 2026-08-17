@@ -78,8 +78,12 @@ int main() {
       config.features().ai.tts_synthesis_timeout_ms != 5000 ||
       config.features().ai.follow_up_window_ms != 8000 || config.features().ai.local_llm.enabled ||
       config.features().ai.local_llm.provider != "disabled" ||
+      config.features().ai.local_llm.manage_process ||
       config.features().ai.local_llm.port != 8080 ||
-      config.features().ai.local_llm.model != "Qwen3-4B-Instruct-2507" ||
+      config.features().ai.local_llm.model != "Qwen3.5-2B" ||
+      config.features().ai.local_llm.first_token_timeout_ms != 5000 ||
+      config.features().ai.local_llm.response_timeout_ms != 30000 ||
+      config.features().ai.local_llm.context_size != 2048 ||
       config.tools().topic.backend != "file") {
     std::cerr << "typed config fields do not match config.yaml" << std::endl;
     return 1;
@@ -150,6 +154,37 @@ int main() {
       !ReplaceOnce(&remote_llm_host, "      host: 127.0.0.1", "      host: llm.example.com") ||
       !ExpectRejectedConfig(remote_llm_host,
                             "features.ai.local_llm.host must be a loopback address")) {
+    return 1;
+  }
+
+  std::string managed_llm_without_paths = ReadFile(VALID_CONFIG_PATH);
+  if (!ReplaceOnce(&managed_llm_without_paths,
+                   "    local_llm:\n      enabled: false\n      provider: disabled\n"
+                   "      manage_process: false",
+                   "    local_llm:\n      enabled: true\n      provider: llama-server\n"
+                   "      manage_process: true") ||
+      !ReplaceOnce(&managed_llm_without_paths,
+                   "      executable: _output/ai/runtime/llama.cpp/current/bin/llama-server",
+                   "      executable: \"\"") ||
+      !ExpectRejectedConfig(managed_llm_without_paths,
+                            "features.ai.local_llm.executable must not be empty")) {
+    return 1;
+  }
+
+  std::string unmanaged_llama_server = ReadFile(VALID_CONFIG_PATH);
+  if (!ReplaceOnce(&unmanaged_llama_server,
+                   "    local_llm:\n      enabled: false\n      provider: disabled",
+                   "    local_llm:\n      enabled: true\n      provider: llama-server") ||
+      !ExpectRejectedConfig(unmanaged_llama_server,
+                            "features.ai.local_llm.manage_process must be true")) {
+    return 1;
+  }
+
+  std::string invalid_llm_deadlines = ReadFile(VALID_CONFIG_PATH);
+  if (!ReplaceOnce(&invalid_llm_deadlines, "      first_token_timeout_ms: 5000",
+                   "      first_token_timeout_ms: 31000") ||
+      !ExpectRejectedConfig(invalid_llm_deadlines,
+                            "first_token_timeout_ms must not exceed response_timeout_ms")) {
     return 1;
   }
 

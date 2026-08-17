@@ -47,7 +47,7 @@
 | 真实 VAD 实现 | Sherpa Silero VAD provider 代码骨架已落地；产品构建和 Jetson smoke 待完成 |
 | 真实 ASR 实现 | Sherpa SenseVoiceSmall INT8 provider 代码骨架已落地；产品构建和 Jetson smoke 待完成 |
 | TTS 与 PCM 回放 | mock TTS 已在 Agent，Driver 只播放 PCM |
-| 本地 LLM client | `LocalLlmClient`、llama-server HTTP 实现、严格配置和真实 server smoke 已实现；固定 runtime/model 与进程托管待完成 |
+| 本地 LLM client | `LocalLlmClient`、llama-server SSE、首 token/总超时、进程托管和真实 server smoke 入口已实现；固定 runtime/model 实测待完成 |
 | 语音会话状态机 | 状态/事件核心已实现，KWS wake 事件已通过 `VoiceInteractionService` 公开入口接入 |
 
 默认配置保持：
@@ -135,9 +135,11 @@ cockpit-navigator.service
 
 Navigator 的 child subreaper 和进程组清理能力继续作为兜底。
 
-当前第一批先完成 client 和配置链路。`features.ai.local_llm.enabled` 默认关闭；显式选择
-`llama-server` 后，Agent 只连接 loopback endpoint，确定性命令仍先经过 allowlist router。
-server 子进程托管、异常重启和流式输出仍属于阶段 11 后续任务，不能把当前 HTTP client 误写成已完成托管。
+当前已完成 client、配置和 server 子进程托管。`features.ai.local_llm.enabled` 默认关闭；显式选择
+`llama-server` 时必须同时启用 `manage_process`，Agent 只连接 loopback endpoint。托管器负责资源
+预检、独立进程组、readiness、周期 health、指数退避重启上限和有界退出回收。确定性命令仍先经过
+allowlist router。client 增量解析 chunked/非 chunked SSE，并将 token 聚合为回复文本；首 token deadline
+和总回复 deadline 独立，取消时主动关闭当前 socket。固定 runtime/model 实测仍属于阶段 11 后续任务。
 
 ## 6. Driver 与 Agent 音频协议
 
@@ -280,23 +282,23 @@ sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25
 
 ```text
 llama.cpp 固定 commit
-Qwen3-4B-Instruct-2507
+Qwen3.5-2B
 GGUF Q4_K_M
 context 2048/4096
 并发 1
 最大输出 128
 ```
 
-该模型原生为 non-thinking，不需要解析 `<think>`。
-
-升级实验：
+对照候选：
 
 ```text
 Qwen3.5-4B GGUF Q4_K_M
 ```
 
-Qwen3.5-4B 是多模态模型，当前阶段只测文本，不加载视觉投影。社区 GGUF 的来源、转换 commit、
-SHA-256 和许可证必须记录。vLLM 只做真机对比，Ollama 不使用。
+2B 是 Jetson Orin Nano 8GB 的默认生产候选，优先保证与 KWS、ASR、TTS、摄像头并发时的内存余量。
+4B 只用于回答质量、首 token、tokens/s、RSS 和全系统压力对照，不进入默认配置。当前阶段两者都只
+使用文本能力，不加载视觉投影。GGUF 的来源、转换 commit、SHA-256 和许可证必须分别记录；对照结论
+必须来自相同 prompt、context、量化和运行时。vLLM 只做真机对比，Ollama 不使用。
 
 ### 8.5 TTS
 
@@ -471,4 +473,4 @@ config_version: 1
 - Qwen3-ASR：https://k2-fsa.github.io/sherpa/onnx/c-api/html/offline_asr.html
 - Kokoro：https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html
 - llama.cpp：https://github.com/ggml-org/llama.cpp
-- Qwen3-4B-Instruct-2507：https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507
+- Qwen 官方模型：https://huggingface.co/Qwen

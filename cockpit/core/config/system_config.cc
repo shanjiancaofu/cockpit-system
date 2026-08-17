@@ -384,14 +384,25 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(ai, "follow_up_window_ms", config.features_.ai.follow_up_window_ms,
            "features.ai.follow_up_window_ms");
   const YAML::Node local_llm = ChildMap(ai, "local_llm", "features.ai.local_llm");
-  ValidateKeys(local_llm, "features.ai.local_llm",
-               {"enabled", "provider", "host", "port", "path", "model", "system_prompt",
-                "max_tokens", "temperature"});
+  ValidateKeys(
+      local_llm, "features.ai.local_llm",
+      {"enabled", "provider", "manage_process", "executable", "model_path", "host", "port", "path",
+       "model", "system_prompt", "max_tokens", "temperature", "first_token_timeout_ms",
+       "response_timeout_ms", "context_size", "gpu_layers", "startup_timeout_ms"});
   config.features_.ai.local_llm.enabled = Read(
       local_llm, "enabled", config.features_.ai.local_llm.enabled, "features.ai.local_llm.enabled");
   config.features_.ai.local_llm.provider =
       Read(local_llm, "provider", config.features_.ai.local_llm.provider,
            "features.ai.local_llm.provider");
+  config.features_.ai.local_llm.manage_process =
+      Read(local_llm, "manage_process", config.features_.ai.local_llm.manage_process,
+           "features.ai.local_llm.manage_process");
+  config.features_.ai.local_llm.executable =
+      Read(local_llm, "executable", config.features_.ai.local_llm.executable,
+           "features.ai.local_llm.executable");
+  config.features_.ai.local_llm.model_path =
+      Read(local_llm, "model_path", config.features_.ai.local_llm.model_path,
+           "features.ai.local_llm.model_path");
   config.features_.ai.local_llm.host =
       Read(local_llm, "host", config.features_.ai.local_llm.host, "features.ai.local_llm.host");
   config.features_.ai.local_llm.port =
@@ -409,6 +420,21 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.features_.ai.local_llm.temperature =
       Read(local_llm, "temperature", config.features_.ai.local_llm.temperature,
            "features.ai.local_llm.temperature");
+  config.features_.ai.local_llm.first_token_timeout_ms = Read(
+      local_llm, "first_token_timeout_ms", config.features_.ai.local_llm.first_token_timeout_ms,
+      "features.ai.local_llm.first_token_timeout_ms");
+  config.features_.ai.local_llm.response_timeout_ms =
+      Read(local_llm, "response_timeout_ms", config.features_.ai.local_llm.response_timeout_ms,
+           "features.ai.local_llm.response_timeout_ms");
+  config.features_.ai.local_llm.context_size =
+      Read(local_llm, "context_size", config.features_.ai.local_llm.context_size,
+           "features.ai.local_llm.context_size");
+  config.features_.ai.local_llm.gpu_layers =
+      Read(local_llm, "gpu_layers", config.features_.ai.local_llm.gpu_layers,
+           "features.ai.local_llm.gpu_layers");
+  config.features_.ai.local_llm.startup_timeout_ms =
+      Read(local_llm, "startup_timeout_ms", config.features_.ai.local_llm.startup_timeout_ms,
+           "features.ai.local_llm.startup_timeout_ms");
 
   const YAML::Node tools = ChildMap(root, "tools", "tools");
   ValidateKeys(tools, "tools", {"topic"});
@@ -599,6 +625,18 @@ void SystemConfig::Validate() const {
       throw std::runtime_error("features.ai.local_llm.host must be a loopback address");
     }
   }
+  if (local_llm.manage_process) {
+    if (!local_llm.enabled || local_llm.provider != "llama-server") {
+      throw std::runtime_error(
+          "features.ai.local_llm.manage_process requires enabled llama-server provider");
+    }
+    RequireNotEmpty(local_llm.executable, "features.ai.local_llm.executable");
+    RequireNotEmpty(local_llm.model_path, "features.ai.local_llm.model_path");
+  }
+  if (local_llm.enabled && local_llm.provider == "llama-server" && !local_llm.manage_process) {
+    throw std::runtime_error(
+        "features.ai.local_llm.manage_process must be true for llama-server provider");
+  }
   if (local_llm.port < 1 || local_llm.port > 65535) {
     throw std::runtime_error("features.ai.local_llm.port must be between 1 and 65535");
   }
@@ -606,6 +644,20 @@ void SystemConfig::Validate() const {
   if (local_llm.temperature < 0.0 || local_llm.temperature > 2.0) {
     throw std::runtime_error("features.ai.local_llm.temperature must be between 0 and 2");
   }
+  RequirePositive(local_llm.first_token_timeout_ms, "features.ai.local_llm.first_token_timeout_ms");
+  RequirePositive(local_llm.response_timeout_ms, "features.ai.local_llm.response_timeout_ms");
+  if (local_llm.first_token_timeout_ms > local_llm.response_timeout_ms) {
+    throw std::runtime_error(
+        "features.ai.local_llm.first_token_timeout_ms must not exceed response_timeout_ms");
+  }
+  RequirePositive(local_llm.context_size, "features.ai.local_llm.context_size");
+  if (local_llm.context_size > 32768) {
+    throw std::runtime_error("features.ai.local_llm.context_size must not exceed 32768");
+  }
+  if (local_llm.gpu_layers < -1) {
+    throw std::runtime_error("features.ai.local_llm.gpu_layers must be -1 or greater");
+  }
+  RequirePositive(local_llm.startup_timeout_ms, "features.ai.local_llm.startup_timeout_ms");
   if (!IsOneOf(features_.voice.kws.provider, "disabled", "mock") &&
       features_.voice.kws.provider != "sherpa") {
     throw std::runtime_error("features.voice.kws.provider must be disabled, mock, or sherpa");

@@ -79,7 +79,8 @@ class VoiceInteractionService {
                           std::chrono::milliseconds assistant_timeout = std::chrono::seconds(10),
                           std::chrono::milliseconds action_timeout = std::chrono::seconds(3),
                           std::chrono::milliseconds follow_up_window = std::chrono::seconds(8),
-                          std::unique_ptr<LocalLlmClient> llm_client = nullptr);
+                          std::unique_ptr<LocalLlmClient> llm_client = nullptr,
+                          std::chrono::milliseconds llm_timeout = std::chrono::seconds(30));
   ~VoiceInteractionService();
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(VoiceInteractionService);
@@ -129,6 +130,7 @@ class VoiceInteractionService {
   const std::chrono::milliseconds assistant_timeout_;
   const std::chrono::milliseconds action_timeout_;
   const std::chrono::milliseconds follow_up_window_;
+  const std::chrono::milliseconds llm_timeout_;
   mutable std::mutex processing_mutex_;
   std::mutex provider_lifecycle_mutex_;
   bool assistant_call_active_ = false;

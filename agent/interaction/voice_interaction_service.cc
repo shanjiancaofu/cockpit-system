@@ -20,7 +20,7 @@ VoiceInteractionService::VoiceInteractionService(
     std::unique_ptr<ActionDispatcher> dispatcher, std::unique_ptr<VoiceResponseSink> output,
     ResponseObserver response_observer, std::chrono::milliseconds assistant_timeout,
     std::chrono::milliseconds action_timeout, std::chrono::milliseconds follow_up_window,
-    std::unique_ptr<LocalLlmClient> llm_client)
+    std::unique_ptr<LocalLlmClient> llm_client, std::chrono::milliseconds llm_timeout)
     : enabled_(enabled),
       assistant_(std::move(assistant)),
       dispatcher_(std::move(dispatcher)),
@@ -30,11 +30,14 @@ VoiceInteractionService::VoiceInteractionService(
       assistant_timeout_(assistant_timeout),
       action_timeout_(action_timeout),
       follow_up_window_(follow_up_window),
+      llm_timeout_(llm_timeout),
       state_machine_(enabled) {
   if (assistant_timeout_ <= std::chrono::milliseconds::zero() ||
       action_timeout_ <= std::chrono::milliseconds::zero() ||
-      follow_up_window_ <= std::chrono::milliseconds::zero()) {
-    throw std::invalid_argument("voice assistant, action, and follow-up timeouts must be positive");
+      follow_up_window_ <= std::chrono::milliseconds::zero() ||
+      llm_timeout_ <= std::chrono::milliseconds::zero()) {
+    throw std::invalid_argument(
+        "voice assistant, action, follow-up, and LLM timeouts must be positive");
   }
 }
 
@@ -219,7 +222,8 @@ std::optional<VoiceResponse> VoiceInteractionService::HandleTranscript(
     response.response_text = result.response_text;
     if (response.intent == VoiceIntent::kUnknown && response.action == VoiceAction::kNone &&
         llm_client_ != nullptr) {
-      const auto llm_result = llm_client_->GenerateResponse(transcript, provider_deadline);
+      const auto llm_result = llm_client_->GenerateResponse(
+          transcript, std::chrono::steady_clock::now() + llm_timeout_);
       if (request_generation != interrupt_generation_.load()) {
         return std::nullopt;
       }

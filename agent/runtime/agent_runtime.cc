@@ -18,6 +18,7 @@
 #include "agent/hmi/local_hmi_command_provider.h"
 #include "agent/interaction/voice_interaction_service.h"
 #include "agent/llm/llama_server_local_llm_client.h"
+#include "agent/llm/llama_server_process.h"
 #include "agent/llm/mock_local_llm_client.h"
 #include "agent/runtime/voice_input_gate.h"
 #include "agent/speech/asr/mock_speech_recognizer.h"
@@ -141,6 +142,7 @@ std::unique_ptr<voice::LocalLlmClient> CreateLocalLlmClient(const config::LocalL
     client_config.system_prompt = config.system_prompt;
     client_config.max_tokens = static_cast<std::size_t>(config.max_tokens);
     client_config.temperature = config.temperature;
+    client_config.first_token_timeout = std::chrono::milliseconds(config.first_token_timeout_ms);
     return std::make_unique<voice::LlamaServerLocalLlmClient>(std::move(client_config));
   }
   if (error != nullptr) {
@@ -149,11 +151,29 @@ std::unique_ptr<voice::LocalLlmClient> CreateLocalLlmClient(const config::LocalL
   return nullptr;
 }
 
+std::unique_ptr<voice::LlamaServerProcess> CreateLlamaServerProcess(
+    const config::LocalLlmConfig& config) {
+  if (!config.enabled || config.provider != "llama-server" || !config.manage_process) {
+    return nullptr;
+  }
+  voice::LlamaServerProcessConfig process_config;
+  process_config.executable = config.executable;
+  process_config.model_path = config.model_path;
+  process_config.model_alias = config.model;
+  process_config.host = config.host;
+  process_config.port = static_cast<std::uint16_t>(config.port);
+  process_config.context_size = config.context_size;
+  process_config.gpu_layers = config.gpu_layers;
+  process_config.startup_timeout = std::chrono::milliseconds(config.startup_timeout_ms);
+  return std::make_unique<voice::LlamaServerProcess>(std::move(process_config));
+}
+
 }  // namespace
 
 class AgentRuntime::Impl {
  public:
   std::unique_ptr<recording::RecordingEventPublisher> recording_events;
+  std::unique_ptr<voice::LlamaServerProcess> llm_server;
   std::unique_ptr<voice::VoiceInteractionService> service;
   std::unique_ptr<voice::VoiceGrpcService> grpc;
   std::unique_ptr<SpeechPipeline> speech_pipeline;
@@ -190,6 +210,7 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
     std::unique_ptr<voice::ActionDispatcher> dispatcher;
     std::unique_ptr<voice::VoiceResponseSink> output;
     std::unique_ptr<voice::LocalLlmClient> llm_client;
+    std::unique_ptr<voice::LlamaServerProcess> llm_server;
     if (enabled) {
       const std::string hmi_address =
           "unix:" + std::filesystem::absolute(std::filesystem::path(config.paths().run_dir) /
@@ -204,6 +225,11 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
               interaction_config.audio_address, std::make_unique<voice::MockSpeechSynthesizer>(),
               std::chrono::milliseconds(config.features().ai.tts_synthesis_timeout_ms)));
       std::string llm_error;
+      llm_server = CreateLlamaServerProcess(config.features().ai.local_llm);
+      if (llm_server != nullptr && !llm_server->Start(&llm_error)) {
+        LOG_ERROR("failed to start local LLM server: " + llm_error);
+        return false;
+      }
       llm_client = CreateLocalLlmClient(config.features().ai.local_llm, &llm_error);
       if (config.features().ai.local_llm.enabled && llm_client == nullptr) {
         LOG_ERROR("failed to configure local LLM: " + llm_error);
@@ -212,6 +238,7 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
     }
 
     impl_ = std::make_unique<Impl>();
+    impl_->llm_server = std::move(llm_server);
     if (enabled) {
       std::string vad_error;
       auto vad = CreateVoiceActivityDetector(config.features().voice.vad, &vad_error);
@@ -247,7 +274,8 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
         },
         std::chrono::milliseconds(config.features().ai.assistant_timeout_ms),
         std::chrono::milliseconds(config.features().ai.command_execution_timeout_ms),
-        std::chrono::milliseconds(config.features().ai.follow_up_window_ms), std::move(llm_client));
+        std::chrono::milliseconds(config.features().ai.follow_up_window_ms), std::move(llm_client),
+        std::chrono::milliseconds(config.features().ai.local_llm.response_timeout_ms));
     impl_->grpc = std::make_unique<voice::VoiceGrpcService>(*impl_->service);
     if (!impl_->grpc->Start(interaction_config.grpc.listen_address)) {
       impl_.reset();
@@ -334,6 +362,9 @@ void AgentRuntime::Stop() {
   }
   impl_->service->Stop();
   impl_->grpc->Shutdown();
+  if (impl_->llm_server != nullptr) {
+    impl_->llm_server->Stop();
+  }
   impl_.reset();
 }
 

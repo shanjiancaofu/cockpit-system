@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cstring>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -34,7 +35,7 @@ std::string BuildRequestBody(const LocalLlmConfig& config, const SpeechTranscrip
   std::ostringstream body;
   body << "{"
        << "\"model\":\"" << EscapeJsonString(config.model) << "\","
-       << "\"stream\":false,"
+       << "\"stream\":true,"
        << "\"temperature\":" << config.temperature << ',' << "\"max_tokens\":" << config.max_tokens
        << ',' << "\"messages\":["
        << "{\"role\":\"system\",\"content\":\"" << EscapeJsonString(config.system_prompt) << "\"},"
@@ -169,6 +170,9 @@ std::string ExtractContent(const std::string& body, std::string* error) {
   while (start < body.size() && std::isspace(static_cast<unsigned char>(body[start]))) {
     ++start;
   }
+  if (body.compare(start, 4U, "null") == 0) {
+    return {};
+  }
   if (start >= body.size() || body[start++] != '"') {
     if (error != nullptr) {
       *error = "llama-server response content was not a string";
@@ -243,6 +247,119 @@ class ActiveSocketRegistration {
   int socket_;
 };
 
+class HttpBodyDecoder {
+ public:
+  explicit HttpBodyDecoder(bool chunked) : chunked_(chunked) {
+  }
+
+  bool Feed(std::string_view input, std::string* decoded, std::string* error) {
+    if (!chunked_) {
+      decoded->append(input);
+      return true;
+    }
+    pending_.append(input);
+    while (!complete_) {
+      if (!chunk_size_.has_value()) {
+        const std::size_t line_end = pending_.find("\r\n");
+        if (line_end == std::string::npos) {
+          return true;
+        }
+        std::string size_text = pending_.substr(0, line_end);
+        const std::size_t extension = size_text.find(';');
+        if (extension != std::string::npos) {
+          size_text.resize(extension);
+        }
+        try {
+          std::size_t consumed = 0;
+          chunk_size_ = std::stoull(size_text, &consumed, 16);
+          if (consumed != size_text.size()) {
+            throw std::invalid_argument("trailing chunk size data");
+          }
+        } catch (const std::exception&) {
+          if (error != nullptr) {
+            *error = "llama-server response had an invalid HTTP chunk size";
+          }
+          return false;
+        }
+        pending_.erase(0, line_end + 2U);
+        if (*chunk_size_ == 0U) {
+          complete_ = true;
+          return true;
+        }
+      }
+      if (pending_.size() < *chunk_size_ + 2U) {
+        return true;
+      }
+      if (pending_.compare(*chunk_size_, 2U, "\r\n") != 0) {
+        if (error != nullptr) {
+          *error = "llama-server response had an invalid HTTP chunk terminator";
+        }
+        return false;
+      }
+      decoded->append(pending_, 0, *chunk_size_);
+      pending_.erase(0, *chunk_size_ + 2U);
+      chunk_size_.reset();
+    }
+    return true;
+  }
+
+ private:
+  const bool chunked_;
+  std::string pending_;
+  std::optional<std::size_t> chunk_size_;
+  bool complete_ = false;
+};
+
+bool UsesChunkedEncoding(std::string headers) {
+  std::transform(headers.begin(), headers.end(), headers.begin(), [](unsigned char character) {
+    return static_cast<char>(std::tolower(character));
+  });
+  return headers.find("\r\ntransfer-encoding: chunked") != std::string::npos;
+}
+
+bool ConsumeSseLines(std::string* pending, std::string* output, bool* received_content, bool* done,
+                     std::string* error) {
+  while (true) {
+    const std::size_t line_end = pending->find('\n');
+    if (line_end == std::string::npos) {
+      return true;
+    }
+    std::string line = pending->substr(0, line_end);
+    pending->erase(0, line_end + 1U);
+    if (!line.empty() && line.back() == '\r') {
+      line.pop_back();
+    }
+    if (line.rfind("data:", 0) != 0) {
+      continue;
+    }
+    std::string payload = line.substr(5U);
+    while (!payload.empty() && payload.front() == ' ') {
+      payload.erase(payload.begin());
+    }
+    if (payload == "[DONE]") {
+      *done = true;
+      return true;
+    }
+    std::string parse_error;
+    if (!cockpit::json::IsValidValue(payload, &parse_error)) {
+      if (error != nullptr) {
+        *error = "invalid streamed local LLM JSON response: " + parse_error;
+      }
+      return false;
+    }
+    const std::string content = ExtractContent(payload, &parse_error);
+    if (!content.empty()) {
+      output->append(content);
+      *received_content = true;
+    } else if (payload.find("\"content\"") != std::string::npos && !parse_error.empty()) {
+      if (error != nullptr) {
+        *error = parse_error;
+      }
+      return false;
+    }
+  }
+}
+
 }  // namespace
 
 LlamaServerLocalLlmClient::LlamaServerLocalLlmClient(LocalLlmConfig config)
@@ -252,7 +369,8 @@ LlamaServerLocalLlmClient::LlamaServerLocalLlmClient(LocalLlmConfig config)
 LocalLlmResult LlamaServerLocalLlmClient::GenerateResponse(
     const SpeechTranscript& transcript, std::chrono::steady_clock::time_point deadline) {
   const std::uint64_t request_generation = cancel_generation_.load();
-  if (std::chrono::steady_clock::now() >= deadline) {
+  const auto request_started = std::chrono::steady_clock::now();
+  if (request_started >= deadline) {
     return {false, {}, "llama-server", "local LLM deadline exceeded"};
   }
 
@@ -317,20 +435,38 @@ LocalLlmResult LlamaServerLocalLlmClient::GenerateResponse(
     written += static_cast<std::size_t>(bytes);
   }
 
-  std::string response;
+  const auto first_token_deadline =
+      std::min(deadline, request_started + config_.first_token_timeout);
+  std::string headers;
+  std::string undecoded_response;
+  std::string decoded_body;
+  std::string sse_pending;
+  std::string response_text;
+  std::optional<HttpBodyDecoder> body_decoder;
+  bool received_content = false;
+  bool stream_done = false;
+  int status_code = 0;
   char buffer[4096];
   while (true) {
     if (request_generation != cancel_generation_.load()) {
       return {false, {}, "llama-server", "local LLM request cancelled"};
     }
     const auto now = std::chrono::steady_clock::now();
-    if (now >= deadline) {
-      return {false, {}, "llama-server", "local LLM deadline exceeded"};
+    const auto active_deadline = received_content ? deadline : first_token_deadline;
+    if (now >= active_deadline) {
+      return {false,
+              {},
+              "llama-server",
+              received_content ? "local LLM deadline exceeded"
+                               : "local LLM first-token deadline exceeded"};
     }
-    const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
+    const auto remaining =
+        std::chrono::duration_cast<std::chrono::milliseconds>(active_deadline - now);
     pollfd descriptor{socket.get(), POLLIN, 0};
     const int wait_ms = static_cast<int>(
-        std::min(remaining, std::chrono::milliseconds(kRequestPollStepMs)).count());
+        std::max(std::chrono::milliseconds(1),
+                 std::min(remaining, std::chrono::milliseconds(kRequestPollStepMs)))
+            .count());
     const int poll_result = ::poll(&descriptor, 1, wait_ms);
     if (poll_result < 0) {
       if (errno == EINTR) {
@@ -360,27 +496,68 @@ LocalLlmResult LlamaServerLocalLlmClient::GenerateResponse(
       }
       break;
     }
-    response.append(buffer, buffer + bytes);
+    const auto received_at = std::chrono::steady_clock::now();
+    if ((!received_content && received_at >= first_token_deadline) || received_at >= deadline) {
+      return {false,
+              {},
+              "llama-server",
+              received_content ? "local LLM deadline exceeded"
+                               : "local LLM first-token deadline exceeded"};
+    }
+    std::string_view received(buffer, static_cast<std::size_t>(bytes));
+    if (!body_decoder.has_value()) {
+      undecoded_response.append(received);
+      const std::size_t header_end = undecoded_response.find("\r\n\r\n");
+      if (header_end == std::string::npos) {
+        continue;
+      }
+      headers = undecoded_response.substr(0, header_end + 2U);
+      if (!ParseHttpStatus(headers, &status_code)) {
+        return {false, {}, "llama-server", "local LLM response had an invalid status line"};
+      }
+      body_decoder.emplace(UsesChunkedEncoding(headers));
+      received = std::string_view(undecoded_response).substr(header_end + 4U);
+    }
+
+    std::string decoded;
+    std::string decode_error;
+    if (!body_decoder->Feed(received, &decoded, &decode_error)) {
+      return {false, {}, "llama-server", decode_error};
+    }
+    decoded_body.append(decoded);
+    if (status_code >= 200 && status_code < 300) {
+      sse_pending.append(decoded);
+      if (!ConsumeSseLines(&sse_pending, &response_text, &received_content, &stream_done,
+                           &decode_error)) {
+        return {false, {}, "llama-server", decode_error};
+      }
+      if (stream_done) {
+        break;
+      }
+    }
   }
 
-  const std::size_t header_end = response.find("\r\n\r\n");
-  if (header_end == std::string::npos) {
+  if (!body_decoder.has_value()) {
     return {false, {}, "llama-server", "local LLM response missing HTTP headers"};
   }
-  int status_code = 0;
-  if (!ParseHttpStatus(response, &status_code)) {
-    return {false, {}, "llama-server", "local LLM response had an invalid status line"};
-  }
-  const std::string body_text = response.substr(header_end + 4U);
   if (status_code < 200 || status_code >= 300) {
-    return {false, {}, "llama-server", body_text.empty() ? "local LLM request failed" : body_text};
+    return {false,
+            {},
+            "llama-server",
+            decoded_body.empty() ? "local LLM request failed" : decoded_body};
+  }
+  if (stream_done) {
+    if (response_text.empty()) {
+      return {false, {}, "llama-server", "local LLM stream completed without content"};
+    }
+    return {true, response_text, "llama-server", {}};
   }
 
   std::string parse_error;
-  if (!cockpit::json::IsValidValue(body_text, &parse_error)) {
+  if (!cockpit::json::IsValidValue(decoded_body, &parse_error)) {
     return {false, {}, "llama-server", "invalid local LLM JSON response: " + parse_error};
   }
-  const std::string content = ExtractContent(body_text, &parse_error);
+  const std::string content = ExtractContent(decoded_body, &parse_error);
   if (content.empty()) {
     return {false, {}, "llama-server", parse_error};
   }

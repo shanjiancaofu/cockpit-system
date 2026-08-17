@@ -1,6 +1,6 @@
 # Cockpit Agent 与语音系统阶段任务表
 
-更新时间：2026-08-15。
+更新时间：2026-08-17。
 
 本文是语音专项的唯一任务表。稳定设计以
 [语音Agent架构](语音Agent架构.md) 为准；后续对话先读下面的交接信息，再按阶段标题定位，
@@ -12,21 +12,22 @@
 | --- | --- | --- |
 | 阶段 0–5 | 分层、Audio Driver、PCM、Agent 基础 | 已完成工程迁移；真实声学验收延后 |
 | 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | 阶段 6、阶段 10 第一批已封板；阶段 7 KWS 主链路已起步；整体进行中 |
-| 阶段 11–15 | LLM、TTS、前处理、模型发布 | 未开始 |
+| 阶段 11–15 | LLM、TTS、前处理、模型发布 | 阶段 11 进行中，其余未开始 |
 | 实施顺序和优先级 | 文末 | 持续更新 |
 
 ## 当前交接信息
 
 ```text
-当前阶段：7/8 - KWS 主链路与 Sherpa KWS 产品边界起步，真实 Jetson 声学验收未完成
+当前开发主线：阶段 11 本地 LLM；阶段 7–9 的 Jetson 声学与性能验收并行待办
 已完成：分环节 deadline、固定错误提示、request-scoped Action 取消、single-flight playback 取消、
         ASR Stop stale-success 隔离、真实播放回执/取消和 FOLLOW_UP 窗口；TranscriptNormalizer、
         现有三种 Action 的显式正向整句 allowlist；所有非白名单 transcript fail closed；
         WakeWordDetector 接口、VoiceInputGate、cooldown、异步固定 PCM wake prompt、自定义唤醒词配置；
-        Sherpa KWS provider 的文件布局校验；Sherpa Silero VAD / SenseVoice provider 代码骨架已起
-        步，但仍未做 Jetson 实机验证
-下一主线：Jetson Sherpa KWS smoke；随后按产品顺序推进 ASR/VAD/TTS provider
-当前实现入口：agent/runtime/voice_input_gate.*, agent/speech/kws/, agent/speech/providers/sherpa/,
+        Sherpa KWS/Silero VAD/SenseVoice provider 代码；LocalLlmClient、llama-server SSE、首 token/
+        总超时，以及 Agent 托管 server 的 readiness、health、restart 和进程组回收
+下一主线：固定审查过的 llama.cpp commit 与 Qwen3.5 GGUF 哈希，完成 Ubuntu VM 真实模型 smoke；
+          Jetson 继续完成 Sherpa/音频硬件声学和性能验收
+当前实现入口：agent/llm/, agent/runtime/agent_runtime.cc, agent/speech/providers/sherpa/,
              cockpit/modules/voice/assistant/
 验证基线：Debug/Release、ASan/UBSan、TSan 和 driver dependency boundary 由 CI 持续验证
 ```
@@ -754,8 +755,8 @@ LightOff
 
 ```text
 运行时：llama.cpp
-模型：Qwen3-4B-Instruct-2507 GGUF Q4_K_M
-候选：Qwen3.5-4B 社区 GGUF Q4_K_M
+生产候选：Qwen3.5-2B GGUF Q4_K_M
+对照候选：Qwen3.5-4B GGUF Q4_K_M
 ```
 
 #### 初始参数
@@ -772,24 +773,25 @@ GPU offload：尽可能全部
 #### 任务
 
 - [ ] 固定验证过的 llama.cpp commit。
-- [ ] 使用独立 `llama-server` 进程。
+- [x] 使用 Agent 托管的独立 `llama-server` 进程，不增加 systemd service。
 - [x] Agent 本地 LLM 访问已抽象为 `LocalLlmClient`，业务层不直接依赖具体推理实现。
 - [x] 已有 `LlamaServerLocalLlmClient` 原型，按 OpenAI-compatible HTTP 请求到本地 server。
 - [x] Agent runtime 已通过 `features.ai.local_llm` 创建 client，只通过本地接口获取回复文本；默认关闭。
 - [x] 增加 llama.cpp runtime、GGUF 模型准备脚本和真实 llama-server smoke 入口。
-- [ ] 支持 Token 流式输出。
-- [ ] 设置首 Token 和总超时。
-- [ ] 不启用工具调用。
-- [ ] 不给 LLM Shell、RPC 或动作接口。
-- [ ] 对比 Qwen3 与 Qwen3.5 的内存和延迟。
+- [x] 完成 readiness、周期 health、异常退出/失健康重启、指数退避上限和进程组清理。
+- [x] 通过 chunked/非 chunked SSE 增量消费并聚合 Token 流式输出。
+- [x] 分别设置首 Token 和总响应超时，取消时关闭当前请求 socket。
+- [x] 请求不启用工具调用，只发送 system/user 文本消息。
+- [x] `LocalLlmClient` 只返回回复文本，不持有 Shell、RPC、`ActionDispatcher` 或车辆接口。
+- [ ] 在相同参数下对比 Qwen3.5-2B 与 4B 的回答质量、首 token、tokens/s 和 RSS。
 
 #### 验收
 
 - [ ] 无网络时可以运行。
-- [ ] LLM 异常时不会影响确定性车控命令。
-- [ ] LLM 只能生成回复文本。
+- [x] LLM 只处理 deterministic router 未命中的 Unknown；已有命令隔离测试保持通过。
+- [x] LLM 接口只能生成回复文本，无法构造或下发 `VoiceAction`。
 - [ ] 与 ASR、摄像头并发时不发生 OOM。
-- [ ] 具备超时取消和进程重启能力。
+- [x] 具备请求超时取消和进程重启能力；真实模型压力验证待完成。
 
 ---
 
@@ -987,8 +989,8 @@ Jetson 全系统压力测试
 
 ## 语音阶段实施顺序
 
-更新时间：2026-08-15。阶段 0–6 已完成，阶段 6、阶段 10 第一批已正式封板但整体未完成，
-阶段 7 KWS 主链路已起步，阶段 8 只完成 Sherpa KWS provider 边界代码，不再继续扩展阶段 6。
+更新时间：2026-08-17。阶段 0–6 已完成，阶段 6、阶段 10 第一批已正式封板但整体未完成；
+阶段 7–9 等待 Jetson 声学/性能验收，阶段 11 在 Ubuntu VM 并行推进，不再继续扩展阶段 6。
 
 ```text
 阶段 0  现状冻结
@@ -1017,16 +1019,18 @@ Jetson 全系统压力测试
 已完成：
 分层纠正、CMake 依赖清理、Audio Driver 缩减、PCM 传输、顶层 agent/ 建立、
 VAD/Segmenter 工程迁移、阶段 6 会话状态机、分环节 deadline、恢复和生命周期 hardening、
-阶段 7 KWS input gate / cooldown / 可配置唤醒词、阶段 10 第一批 TranscriptNormalizer 与确定性正向整句白名单
+阶段 7 KWS input gate / cooldown / 可配置唤醒词、阶段 10 第一批 TranscriptNormalizer 与确定性正向整句白名单、
+阶段 11 llama-server client/进程托管/SSE/deadline/cancel
 
 P1：
+固定 llama.cpp commit、源码归档哈希和 Qwen3.5 2B/4B GGUF 哈希
+Ubuntu VM 真实 llama-server/Qwen3.5-2B smoke，并运行 4B 对照
 Jetson Sherpa KWS smoke
 Sherpa Agent 产品实现剩余 provider
 SenseVoice 恢复
 Qwen3-ASR 对比
 
 P2：
-llama.cpp
 Kokoro TTS
 
 P3：

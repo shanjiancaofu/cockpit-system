@@ -8,8 +8,8 @@
 #include "agent/llm/llama_server_local_llm_client.h"
 
 int main(int argc, char** argv) {
-  if (argc != 3) {
-    std::cerr << "usage: llama_server_live_smoke HOST PORT\n";
+  if (argc != 4) {
+    std::cerr << "usage: llama_server_live_smoke HOST PORT MODEL\n";
     return 2;
   }
 
@@ -22,6 +22,7 @@ int main(int argc, char** argv) {
     return 2;
   }
   config.port = static_cast<std::uint16_t>(port);
+  config.model = argv[3];
   config.max_tokens = 32;
   config.temperature = 0.0;
 

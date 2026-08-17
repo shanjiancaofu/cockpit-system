@@ -144,13 +144,21 @@ struct VoiceConfig {
 struct LocalLlmConfig {
   bool enabled = false;
   std::string provider = "disabled";
+  bool manage_process = false;
+  std::string executable;
+  std::string model_path;
   std::string host = "127.0.0.1";
   int port = 8080;
   std::string path = "/v1/chat/completions";
-  std::string model = "Qwen3-4B-Instruct-2507";
+  std::string model = "Qwen3.5-2B";
   std::string system_prompt = "You are a cockpit assistant.";
   int max_tokens = 128;
   double temperature = 0.2;
+  int first_token_timeout_ms = 5000;
+  int response_timeout_ms = 30000;
+  int context_size = 2048;
+  int gpu_layers = 0;
+  int startup_timeout_ms = 60000;
 };
 
 struct AiConfig {

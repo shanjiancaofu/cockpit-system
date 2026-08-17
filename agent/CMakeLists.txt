@@ -4,10 +4,11 @@ target_link_libraries(agent_audio_stream PUBLIC audio_stream_protocol)
 
 add_library(agent_llm STATIC
     llm/llama_server_local_llm_client.cc
+    llm/llama_server_process.cc
     llm/mock_local_llm_client.cc
 )
 target_include_directories(agent_llm PUBLIC ${PROJECT_SOURCE_DIR})
-target_link_libraries(agent_llm PUBLIC json_util)
+target_link_libraries(agent_llm PUBLIC json_util PRIVATE logging Threads::Threads)
 
 add_library(agent_speech STATIC
     speech/asr/mock_speech_recognizer.cc

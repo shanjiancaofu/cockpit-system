@@ -269,6 +269,14 @@ add_test(NAME llama_server_local_llm_client_test COMMAND llama_server_local_llm_
 add_executable(llama_server_live_smoke agent/llama_server_live_smoke.cc)
 target_link_libraries(llama_server_live_smoke PRIVATE agent_llm)
 
+add_executable(fake_llama_server agent/fake_llama_server.cc)
+add_executable(llama_server_process_test agent/llama_server_process_test.cc)
+target_link_libraries(llama_server_process_test PRIVATE agent_llm)
+add_dependencies(llama_server_process_test fake_llama_server)
+add_test(NAME llama_server_process_test
+    COMMAND llama_server_process_test $<TARGET_FILE:fake_llama_server>
+)
+
 if(COCKPIT_ENABLE_SHERPA_AGENT)
     add_executable(sherpa_voice_smoke_test agent/sherpa_voice_smoke_test.cc)
     target_link_libraries(sherpa_voice_smoke_test PRIVATE agent_sherpa_voice voice)

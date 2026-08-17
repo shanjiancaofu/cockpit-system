@@ -23,10 +23,11 @@ struct LocalLlmConfig {
   std::string host = "127.0.0.1";
   std::uint16_t port = 8080;
   std::string path = "/v1/chat/completions";
-  std::string model = "Qwen3-4B-Instruct-2507";
+  std::string model = "Qwen3.5-2B";
   std::string system_prompt = "You are a cockpit assistant.";
   std::size_t max_tokens = 128;
   double temperature = 0.2;
+  std::chrono::milliseconds first_token_timeout{5000};
 };
 
 class LocalLlmClient {

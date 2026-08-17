@@ -102,13 +102,21 @@ features:
     local_llm:
       enabled: false
       provider: disabled
+      manage_process: false
+      executable: _output/ai/runtime/llama.cpp/current/bin/llama-server
+      model_path: _output/ai/models/llm/qwen3.5-2b-q4_k_m/model.gguf
       host: 127.0.0.1
       port: 8080
       path: /v1/chat/completions
-      model: Qwen3-4B-Instruct-2507
+      model: Qwen3.5-2B
       system_prompt: "You are a cockpit assistant."
       max_tokens: 128
       temperature: 0.2
+      first_token_timeout_ms: 5000
+      response_timeout_ms: 30000
+      context_size: 2048
+      gpu_layers: 0
+      startup_timeout_ms: 60000
 
 tools:
   topic:

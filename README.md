@@ -80,7 +80,10 @@ bash scripts/tests/sherpa-voice-smoke.sh
 bash scripts/tests/navigator-stability.sh --duration 300 --interval 5 --fault crash --fault-count 3
 bash scripts/prepare-sherpa-runtime.sh
 bash scripts/prepare-voice-models.sh
-# 设置已审查的 llama.cpp commit 和源码/模型来源后执行：
+# 设置已审查的 commit、源码来源及两个 SHA-256 后执行：
+# COCKPIT_LLAMA_CPP_REVISION / COCKPIT_LLAMA_CPP_SOURCE_SHA256
+# COCKPIT_LLM_MODEL_FILE（或 URL）/ COCKPIT_LLM_MODEL_SHA256
+# 默认准备 Qwen3.5-2B；4B 对照需设置 COCKPIT_LLM_MODEL_PROFILE=comparison
 bash scripts/prepare-llama-runtime.sh
 bash scripts/prepare-llm-model.sh
 bash scripts/tests/llama-server-smoke.sh
@@ -155,8 +158,11 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 SenseVoice provider 代码作为显式 Agent 产品构建的一部分交付，基础构建不下载、编译或链接其内部
 推理运行时。Ubuntu apt 只提供操作系统和平台依赖；`_output/ai` 统一放本地 runtime/model 资源。
 Ubuntu x86_64 VM 下的真实 Sherpa smoke 入口是 `bash scripts/tests/sherpa-voice-smoke.sh`。
-本地 LLM 默认关闭；显式准备 llama.cpp runtime 和 Qwen3 GGUF 后，使用
+本地 LLM 默认关闭；生产候选为 Qwen3.5-2B Q4_K_M，Qwen3.5-4B Q4_K_M 仅作资源/质量对照。
+显式准备 llama.cpp runtime 和对应 GGUF 后，使用
 `bash scripts/tests/llama-server-smoke.sh` 验证真实 server 与项目 client 的接口。
+产品启用时由 Agent 托管 `llama-server` 子进程及其 health/restart/cleanup，不增加独立 systemd service。
+client 增量消费 SSE token stream，分别执行首 token 超时和整次回复总超时；取消会关闭当前本地连接。
 
 ## 提交规范
 
