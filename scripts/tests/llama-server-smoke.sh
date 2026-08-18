@@ -25,8 +25,14 @@ case "${profile}" in
 esac
 model_file="${COCKPIT_LLM_MODEL_FILE:-${ai_root}/models/llm/${model_slug}/model.gguf}"
 port="${COCKPIT_LLAMA_SERVER_PORT:-18080}"
+ready_timeout_seconds="${COCKPIT_LLAMA_SERVER_READY_TIMEOUT_SECONDS:-120}"
 build_dir="${BUILD_DIR:-$(cockpit_output_dir)/build/x86_64-debug}"
 log_file="${build_dir}/llama-server-${profile}-smoke.log"
+
+if [[ ! "${ready_timeout_seconds}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "COCKPIT_LLAMA_SERVER_READY_TIMEOUT_SECONDS must be a positive integer" >&2
+  exit 2
+fi
 
 for required in "${server_bin}" "${model_file}"; do
   if [[ ! -f "${required}" ]]; then
@@ -47,13 +53,14 @@ cleanup() {
 trap cleanup EXIT
 
 ready=false
-for _ in $(seq 1 120); do
+ready_deadline=$((SECONDS + ready_timeout_seconds))
+while ((SECONDS < ready_deadline)); do
   if ! kill -0 "${server_pid}" 2>/dev/null; then
     echo "llama-server exited during startup" >&2
     tail -100 "${log_file}" >&2
     exit 1
   fi
-  if curl -fsS --max-time 1 "http://127.0.0.1:${port}/health" >/dev/null; then
+  if curl -fsS --max-time 1 "http://127.0.0.1:${port}/health" >/dev/null 2>&1; then
     ready=true
     break
   fi

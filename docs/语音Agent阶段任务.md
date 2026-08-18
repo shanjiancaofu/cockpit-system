@@ -772,7 +772,7 @@ GPU offload：尽可能全部
 
 #### 任务
 
-- [ ] 固定验证过的 llama.cpp commit。
+- [x] 固定并验证 llama.cpp `b10456` / `f275595dd16f7ed3d644d4d8159b14b305960479`。
 - [x] 使用 Agent 托管的独立 `llama-server` 进程，不增加 systemd service。
 - [x] Agent 本地 LLM 访问已抽象为 `LocalLlmClient`，业务层不直接依赖具体推理实现。
 - [x] 已有 `LlamaServerLocalLlmClient` 原型，按 OpenAI-compatible HTTP 请求到本地 server。
@@ -782,8 +782,10 @@ GPU offload：尽可能全部
 - [x] 通过 chunked/非 chunked SSE 增量消费并聚合 Token 流式输出。
 - [x] 分别设置首 Token 和总响应超时，取消时关闭当前请求 socket。
 - [x] 请求不启用工具调用，只发送 system/user 文本消息。
+- [x] Qwen3.5 请求通过 `chat_template_kwargs.enable_thinking=false` 关闭 thinking，推理字段不进入播报正文。
 - [x] `LocalLlmClient` 只返回回复文本，不持有 Shell、RPC、`ActionDispatcher` 或车辆接口。
 - [ ] 在相同参数下对比 Qwen3.5-2B 与 4B 的回答质量、首 token、tokens/s 和 RSS。
+- [x] Ubuntu x86_64 CPU 完成 2B/4B 真实功能 smoke；Jetson ARM64/CUDA 和性能结论仍待真机。
 
 #### 验收
 

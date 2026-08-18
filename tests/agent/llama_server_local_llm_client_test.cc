@@ -186,6 +186,9 @@ int main() {
              "llama-server client did not send model name") ||
       !Check(request.find("\"stream\":true") != std::string::npos,
              "llama-server client did not request token streaming") ||
+      !Check(
+          request.find("\"chat_template_kwargs\":{\"enable_thinking\":false}") != std::string::npos,
+          "llama-server client did not disable thinking") ||
       !Check(request.find("\"role\":\"user\",\"content\":\"tell me a joke\"") != std::string::npos,
              "llama-server client did not send transcript text")) {
     return 1;
@@ -202,6 +205,38 @@ int main() {
   if (!Check(unicode_result.success, "escaped Unicode llama-server response did not succeed") ||
       !Check(unicode_result.response_text == "你好",
              "escaped Unicode llama-server response was not decoded")) {
+    return 1;
+  }
+
+  FakeHttpServer reasoning_only_server(
+      "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"hidden reasoning\"},"
+      "\"finish_reason\":null}]}\n\n"
+      "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\n"
+      "data: [DONE]\n\n");
+  config.port = static_cast<std::uint16_t>(reasoning_only_server.port());
+  cockpit::voice::LlamaServerLocalLlmClient reasoning_only_client(config);
+  const auto reasoning_only_result = reasoning_only_client.GenerateResponse(
+      transcript, std::chrono::steady_clock::now() + std::chrono::seconds(1));
+  if (!Check(!reasoning_only_result.success, "reasoning-only llama-server response succeeded") ||
+      !Check(reasoning_only_result.response_text.empty(),
+             "reasoning-only content was exposed to the user") ||
+      !Check(reasoning_only_result.error ==
+                 "local LLM stream completed with reasoning but without user-visible content",
+             "reasoning-only llama-server response returned the wrong error")) {
+    return 1;
+  }
+
+  FakeHttpServer finish_reason_server(
+      "data: {\"choices\":[{\"delta\":{\"content\":\"finished response\"},"
+      "\"finish_reason\":null}]}\n\n"
+      "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n");
+  config.port = static_cast<std::uint16_t>(finish_reason_server.port());
+  cockpit::voice::LlamaServerLocalLlmClient finish_reason_client(config);
+  const auto finish_reason_result = finish_reason_client.GenerateResponse(
+      transcript, std::chrono::steady_clock::now() + std::chrono::seconds(1));
+  if (!Check(finish_reason_result.success, "finish_reason response did not succeed") ||
+      !Check(finish_reason_result.response_text == "finished response",
+             "finish_reason response content mismatch")) {
     return 1;
   }
 

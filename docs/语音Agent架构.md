@@ -281,12 +281,13 @@ sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25
 产品候选：
 
 ```text
-llama.cpp 固定 commit
+llama.cpp b10456 / f275595dd16f7ed3d644d4d8159b14b305960479
 Qwen3.5-2B
 GGUF Q4_K_M
 context 2048/4096
 并发 1
 最大输出 128
+thinking 关闭
 ```
 
 对照候选：
@@ -299,6 +300,8 @@ Qwen3.5-4B GGUF Q4_K_M
 4B 只用于回答质量、首 token、tokens/s、RSS 和全系统压力对照，不进入默认配置。当前阶段两者都只
 使用文本能力，不加载视觉投影。GGUF 的来源、转换 commit、SHA-256 和许可证必须分别记录；对照结论
 必须来自相同 prompt、context、量化和运行时。vLLM 只做真机对比，Ollama 不使用。
+客户端通过 llama.cpp b10456 支持的 `chat_template_kwargs.enable_thinking=false` 关闭 thinking，
+只将 SSE `delta.content` 送入用户回复或 TTS；`reasoning_content` 仅用于识别异常空正文，不能播报。
 
 ### 8.5 TTS
 

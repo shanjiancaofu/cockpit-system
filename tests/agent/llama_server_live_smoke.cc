@@ -23,8 +23,9 @@ int main(int argc, char** argv) {
   }
   config.port = static_cast<std::uint16_t>(port);
   config.model = argv[3];
-  config.max_tokens = 32;
+  config.max_tokens = 64;
   config.temperature = 0.0;
+  config.first_token_timeout = std::chrono::seconds(30);
 
   cockpit::voice::LlamaServerLocalLlmClient client(std::move(config));
   cockpit::voice::SpeechTranscript transcript;

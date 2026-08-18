@@ -36,6 +36,7 @@ std::string BuildRequestBody(const LocalLlmConfig& config, const SpeechTranscrip
   body << "{"
        << "\"model\":\"" << EscapeJsonString(config.model) << "\","
        << "\"stream\":true,"
+       << "\"chat_template_kwargs\":{\"enable_thinking\":false},"
        << "\"temperature\":" << config.temperature << ',' << "\"max_tokens\":" << config.max_tokens
        << ',' << "\"messages\":["
        << "{\"role\":\"system\",\"content\":\"" << EscapeJsonString(config.system_prompt) << "\"},"
@@ -148,25 +149,48 @@ std::string DecodeJsonString(std::string_view value) {
   return output;
 }
 
-std::string ExtractContent(const std::string& body, std::string* error) {
-  const std::string key = "\"content\"";
-  const std::size_t key_pos = body.find(key);
-  if (key_pos == std::string::npos) {
-    if (error != nullptr) {
-      *error = "llama-server response did not contain message content";
+std::optional<std::size_t> FindJsonFieldValue(const std::string& body, const std::string& field) {
+  for (std::size_t start = 0; start < body.size(); ++start) {
+    if (body[start] != '"') {
+      continue;
     }
+    std::size_t end = start + 1U;
+    bool escaped = false;
+    for (; end < body.size(); ++end) {
+      const char character = body[end];
+      if (!escaped && character == '"') {
+        break;
+      }
+      if (!escaped && character == '\\') {
+        escaped = true;
+      } else {
+        escaped = false;
+      }
+    }
+    if (end == body.size()) {
+      return std::nullopt;
+    }
+    std::size_t value = end + 1U;
+    while (value < body.size() && std::isspace(static_cast<unsigned char>(body[value]))) {
+      ++value;
+    }
+    if (body.compare(start + 1U, end - start - 1U, field) == 0 && value < body.size() &&
+        body[value] == ':') {
+      return value + 1U;
+    }
+    start = end;
+  }
+  return std::nullopt;
+}
+
+std::string ExtractStringField(const std::string& body, const std::string& field, bool* found,
+                               std::string* error) {
+  const std::optional<std::size_t> value_start = FindJsonFieldValue(body, field);
+  if (!value_start.has_value()) {
     return {};
   }
-  std::size_t start = key_pos + key.size();
-  while (start < body.size() && std::isspace(static_cast<unsigned char>(body[start]))) {
-    ++start;
-  }
-  if (start >= body.size() || body[start++] != ':') {
-    if (error != nullptr) {
-      *error = "llama-server response content field was invalid";
-    }
-    return {};
-  }
+  *found = true;
+  std::size_t start = *value_start;
   while (start < body.size() && std::isspace(static_cast<unsigned char>(body[start]))) {
     ++start;
   }
@@ -175,7 +199,7 @@ std::string ExtractContent(const std::string& body, std::string* error) {
   }
   if (start >= body.size() || body[start++] != '"') {
     if (error != nullptr) {
-      *error = "llama-server response content was not a string";
+      *error = "llama-server response " + field + " was not a string";
     }
     return {};
   }
@@ -195,7 +219,7 @@ std::string ExtractContent(const std::string& body, std::string* error) {
     raw.push_back(ch);
   }
   if (error != nullptr) {
-    *error = "llama-server response content was not terminated";
+    *error = "llama-server response " + field + " was not terminated";
   }
   return {};
 }
@@ -317,8 +341,8 @@ bool UsesChunkedEncoding(std::string headers) {
   return headers.find("\r\ntransfer-encoding: chunked") != std::string::npos;
 }
 
-bool ConsumeSseLines(std::string* pending, std::string* output, bool* received_content, bool* done,
-                     std::string* error) {
+bool ConsumeSseLines(std::string* pending, std::string* output, bool* received_content,
+                     bool* received_reasoning, bool* finished, bool* done, std::string* error) {
   while (true) {
     const std::size_t line_end = pending->find('\n');
     if (line_end == std::string::npos) {
@@ -347,15 +371,44 @@ bool ConsumeSseLines(std::string* pending, std::string* output, bool* received_c
       }
       return false;
     }
-    const std::string content = ExtractContent(payload, &parse_error);
-    if (!content.empty()) {
-      output->append(content);
-      *received_content = true;
-    } else if (payload.find("\"content\"") != std::string::npos && !parse_error.empty()) {
+    bool content_found = false;
+    const std::string content =
+        ExtractStringField(payload, "content", &content_found, &parse_error);
+    if (!parse_error.empty()) {
       if (error != nullptr) {
         *error = parse_error;
       }
       return false;
+    }
+    if (!content.empty()) {
+      output->append(content);
+      *received_content = true;
+    }
+
+    bool reasoning_found = false;
+    const std::string reasoning =
+        ExtractStringField(payload, "reasoning_content", &reasoning_found, &parse_error);
+    if (!parse_error.empty()) {
+      if (error != nullptr) {
+        *error = parse_error;
+      }
+      return false;
+    }
+    if (reasoning_found && !reasoning.empty()) {
+      *received_reasoning = true;
+    }
+
+    bool finish_reason_found = false;
+    const std::string finish_reason =
+        ExtractStringField(payload, "finish_reason", &finish_reason_found, &parse_error);
+    if (!parse_error.empty()) {
+      if (error != nullptr) {
+        *error = parse_error;
+      }
+      return false;
+    }
+    if (finish_reason_found && !finish_reason.empty()) {
+      *finished = true;
     }
   }
 }
@@ -444,6 +497,8 @@ LocalLlmResult LlamaServerLocalLlmClient::GenerateResponse(
   std::string response_text;
   std::optional<HttpBodyDecoder> body_decoder;
   bool received_content = false;
+  bool received_reasoning = false;
+  bool stream_finished = false;
   bool stream_done = false;
   int status_code = 0;
   char buffer[4096];
@@ -527,8 +582,8 @@ LocalLlmResult LlamaServerLocalLlmClient::GenerateResponse(
     decoded_body.append(decoded);
     if (status_code >= 200 && status_code < 300) {
       sse_pending.append(decoded);
-      if (!ConsumeSseLines(&sse_pending, &response_text, &received_content, &stream_done,
-                           &decode_error)) {
+      if (!ConsumeSseLines(&sse_pending, &response_text, &received_content, &received_reasoning,
+                           &stream_finished, &stream_done, &decode_error)) {
         return {false, {}, "llama-server", decode_error};
       }
       if (stream_done) {
@@ -546,9 +601,14 @@ LocalLlmResult LlamaServerLocalLlmClient::GenerateResponse(
             "llama-server",
             decoded_body.empty() ? "local LLM request failed" : decoded_body};
   }
-  if (stream_done) {
+  if (stream_done || stream_finished) {
     if (response_text.empty()) {
-      return {false, {}, "llama-server", "local LLM stream completed without content"};
+      return {false,
+              {},
+              "llama-server",
+              received_reasoning
+                  ? "local LLM stream completed with reasoning but without user-visible content"
+                  : "local LLM stream completed without content"};
     }
     return {true, response_text, "llama-server", {}};
   }
@@ -557,9 +617,15 @@ LocalLlmResult LlamaServerLocalLlmClient::GenerateResponse(
   if (!cockpit::json::IsValidValue(decoded_body, &parse_error)) {
     return {false, {}, "llama-server", "invalid local LLM JSON response: " + parse_error};
   }
-  const std::string content = ExtractContent(decoded_body, &parse_error);
+  bool content_found = false;
+  const std::string content =
+      ExtractStringField(decoded_body, "content", &content_found, &parse_error);
   if (content.empty()) {
-    return {false, {}, "llama-server", parse_error};
+    return {false,
+            {},
+            "llama-server",
+            parse_error.empty() ? "llama-server response did not contain message content"
+                                : parse_error};
   }
   return {true, content, "llama-server", {}};
 }

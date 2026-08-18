@@ -252,8 +252,15 @@ bash scripts/prepare-llm-model.sh
 # --------------------------------------------------
 
 echo "[7/8] Checking llama-server runtime dependencies"
-ldd _output/ai/runtime/llama.cpp/current/bin/llama-server |
-  tee _output/ai/llama-server-ldd.txt
+runtime_bin_dir="${ai_root}/runtime/llama.cpp/current/bin"
+server_bin="${runtime_bin_dir}/llama-server"
+ldd_log="${ai_root}/llama-server-ldd.txt"
+LD_LIBRARY_PATH="${runtime_bin_dir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" \
+  ldd "${server_bin}" | tee "${ldd_log}"
+if grep -Fq 'not found' "${ldd_log}"; then
+  echo "llama-server runtime dependency resolution failed" >&2
+  exit 1
+fi
 
 # --------------------------------------------------
 # 8. 依次运行 2B 和 4B 真实 smoke

@@ -93,6 +93,11 @@ bash scripts/llm.sh
 COCKPIT_HF_ENDPOINT=https://hf-mirror.com bash scripts/llm.sh
 ```
 
+本地 LLM 基线固定为 llama.cpp `b10456`（`f275595dd16f7ed3d644d4d8159b14b305960479`）。
+production 使用 `unsloth/Qwen3.5-2B-GGUF` 的 `Qwen3.5-2B-Q4_K_M.gguf`，comparison 使用
+`unsloth/Qwen3.5-4B-GGUF` 的 `Qwen3.5-4B-Q4_K_M.gguf`；精确模型 revision 和 SHA-256 见
+[部署说明](docs/部署说明.md)。`scripts/llm.sh` 必须以普通用户运行，已有校验正确的下载缓存会直接复用。
+
 `build.sh` 统一使用 GCC：Debug 用于开发、CTest 和 smoke，Release 用于正式构建和发布包。
 
 构建目录：
@@ -167,6 +172,8 @@ Ubuntu x86_64 VM 下的真实 Sherpa smoke 入口是 `bash scripts/tests/sherpa-
 `bash scripts/tests/llama-server-smoke.sh` 验证真实 server 与项目 client 的接口。
 产品启用时由 Agent 托管 `llama-server` 子进程及其 health/restart/cleanup，不增加独立 systemd service。
 client 增量消费 SSE token stream，分别执行首 token 超时和整次回复总超时；取消会关闭当前本地连接。
+Qwen3.5 的语音请求显式设置 `chat_template_kwargs.enable_thinking=false`，只把 `delta.content` 作为
+用户可见或可播报正文；`reasoning_content` 不会进入回复。
 
 ## 提交规范
 

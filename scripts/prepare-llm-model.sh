@@ -28,15 +28,6 @@ if [[ ! "${expected_sha256}" =~ ^[0-9a-fA-F]{64}$ ]]; then
   exit 2
 fi
 
-if [[ -f "${model_file}" ]]; then
-  printf '%s  %s\n' "${expected_sha256}" "${model_file}" | sha256sum --check --status || {
-    echo "existing local LLM model SHA-256 verification failed" >&2
-    exit 1
-  }
-  printf 'local LLM model already prepared: %s\n' "${model_file}"
-  exit 0
-fi
-
 source_file="${COCKPIT_LLM_MODEL_FILE:-}"
 source_url="${COCKPIT_LLM_MODEL_URL:-}"
 tmp_dir="$(mktemp -d)"
@@ -63,7 +54,25 @@ printf '%s  %s\n' "${expected_sha256}" "${source_file}" | sha256sum --check --st
 }
 
 mkdir -p "${model_dir}"
-cp -f "${source_file}" "${model_file}"
+if [[ -f "${model_file}" ]] &&
+   printf '%s  %s\n' "${expected_sha256}" "${model_file}" | sha256sum --check --status; then
+  printf 'local LLM model already prepared: %s\n' "${model_file}"
+  exit 0
+fi
+if [[ -e "${model_file}" ]]; then
+  printf 'existing local LLM model SHA-256 verification failed; replacing from verified source: %s\n' \
+    "${model_file}" >&2
+fi
+
+tmp_model="$(mktemp "${model_dir}/.model.gguf.tmp.XXXXXX")"
+trap 'rm -rf --one-file-system "${tmp_dir}"; rm -f "${tmp_model:-}"' EXIT
+cp "${source_file}" "${tmp_model}"
+printf '%s  %s\n' "${expected_sha256}" "${tmp_model}" | sha256sum --check --status || {
+  echo "copied local LLM model SHA-256 verification failed" >&2
+  exit 1
+}
+mv -f "${tmp_model}" "${model_file}"
+tmp_model=""
 {
   printf 'profile=%s\n' "${profile}"
   printf 'model=%s\n' "${model_name}"
