@@ -172,7 +172,10 @@ PCM samples
 创建且 inode 匹配的 socket。
 
 播放方向使用 Audio gRPC 的有界 `PlayPcm` 请求。文本合成在 Agent 内完成，Audio Driver
-只校验 PCM16/16 kHz/mono 和负载大小并异步播放，不接收 `Speak(text)`，也不持有 TTS 实现。
+只接受 PCM16 mono、16 kHz 固定提示音或 24 kHz Kokoro 原生输出，并校验负载大小后异步播放；它
+不接收 `Speak(text)`，也不持有 TTS 实现。采集协议仍严格固定为 16 kHz mono，播放格式不复用采集
+帧合同。当前 Ubuntu USB PCM2902 的物理端只支持 44.1/48 kHz，`plughw` 实测将 16 kHz 采集合同与
+24 kHz Kokoro 输出分别转换到物理 48 kHz；不额外执行会损失带宽的 24→16→48 转换。
 
 ## 7. 依赖隔离
 
