@@ -11,8 +11,10 @@
 #include <stdexcept>
 #include <thread>
 #include <utility>
+#include <vector>
 
 #include "agent/speech/tts/mock_speech_synthesizer.h"
+#include "agent/speech/tts/speech_text_segmenter.h"
 #include "audio.grpc.pb.h"
 
 namespace cockpit {
@@ -177,6 +179,51 @@ bool AudioPlaybackClient::Submit(std::uint64_t request_id, std::string text,
 }
 
 bool AudioPlaybackClient::SubmitCancellable(
+    std::uint64_t request_id, std::string text,
+    const std::shared_ptr<const VoiceOutputCancellation>& cancellation,
+    VoiceOutputCompletion completion) {
+  if (request_id == 0U || !completion) {
+    dropped_.fetch_add(1U);
+    return false;
+  }
+  const std::vector<std::string> segments = SplitSpeechText(text);
+  if (segments.empty()) {
+    dropped_.fetch_add(1U);
+    return false;
+  }
+  for (std::size_t index = 0U; index < segments.size(); ++index) {
+    VoiceOutputResult segment_result;
+    bool callback_called = false;
+    const bool accepted =
+        SubmitSingleSegment(request_id, segments[index], cancellation,
+                            [&segment_result, &callback_called](VoiceOutputResult result) {
+                              segment_result = std::move(result);
+                              callback_called = true;
+                            });
+    if (!accepted) {
+      if (index == 0U) {
+        return false;
+      }
+      const bool cancelled = cancellation != nullptr && cancellation->IsCancellationRequested();
+      completion({request_id,
+                  cancelled ? VoiceOutputStatus::kCancelled : VoiceOutputStatus::kFailed,
+                  cancelled ? "voice output interrupted" : "speech segment was rejected"});
+      return true;
+    }
+    if (!callback_called || segment_result.status != VoiceOutputStatus::kCompleted) {
+      if (callback_called) {
+        completion(std::move(segment_result));
+      } else {
+        completion({request_id, VoiceOutputStatus::kFailed, "speech segment was rejected"});
+      }
+      return true;
+    }
+  }
+  completion({request_id, VoiceOutputStatus::kCompleted, {}});
+  return true;
+}
+
+bool AudioPlaybackClient::SubmitSingleSegment(
     std::uint64_t request_id, std::string text,
     const std::shared_ptr<const VoiceOutputCancellation>& cancellation,
     VoiceOutputCompletion completion) {

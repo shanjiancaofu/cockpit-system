@@ -815,8 +815,8 @@ GPU offload：尽可能全部
 
 - [ ] 固定提示音直接走 Audio Playback。
 - [x] 动态回复通过 Kokoro 生成 PCM（显式 Sherpa Agent 产品构建，Ubuntu x86_64 已 smoke）。
-- [ ] LLM 输出按句号、问号或长度切分。
-- [ ] TTS 分句生成，ALSA 边生成边播放。
+- [x] LLM 输出按中英文句末标点、换行或有界 UTF-8 长度切分。
+- [x] TTS 分句生成并逐段提交 Audio Driver，前一段播放回执完成后才生成下一段。
 - [ ] 播放队列设置容量上限。
 - [ ] 第一阶段播放期间暂停 KWS、VAD 和 ASR。
 - [ ] Qwen3-TTS 作为独立实验实现，不进入第一阶段 Sherpa 产品 target。

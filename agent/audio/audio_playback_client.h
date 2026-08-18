@@ -36,6 +36,9 @@ class AudioPlaybackClient final : public VoiceResponseSink {
   void ClearActiveRequest(std::uint64_t request_id);
   void MarkReachable();
   bool RequestPlaybackCancellation(std::uint64_t request_id, std::uint64_t playback_id);
+  bool SubmitSingleSegment(std::uint64_t request_id, std::string text,
+                           const std::shared_ptr<const VoiceOutputCancellation>& cancellation,
+                           VoiceOutputCompletion completion);
 
   const std::unique_ptr<AudioPlaybackTransport> transport_;
   const std::unique_ptr<SpeechSynthesizer> synthesizer_;

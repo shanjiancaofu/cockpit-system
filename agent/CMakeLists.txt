@@ -18,6 +18,7 @@ add_library(agent_speech STATIC
     speech/pipeline/speech_pipeline.cc
     speech/segment/speech_segmenter.cc
     speech/tts/mock_speech_synthesizer.cc
+    speech/tts/speech_text_segmenter.cc
     speech/vad/mock_voice_activity_detector.cc
 )
 target_include_directories(agent_speech PUBLIC ${PROJECT_SOURCE_DIR})

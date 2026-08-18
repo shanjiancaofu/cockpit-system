@@ -60,6 +60,7 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
  public:
   enum class Behavior {
     kManual,
+    kAutoComplete,
     kWaitTimeout,
     kTransportError,
     kCancelRetry,
@@ -78,6 +79,10 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
       playback_id_ = playback_id;
       status_ = cockpit::voice::AudioPlaybackWaitStatus::kFailed;
       completed_ = false;
+      if (behavior_ == Behavior::kAutoComplete) {
+        status_ = cockpit::voice::AudioPlaybackWaitStatus::kCompleted;
+        completed_ = true;
+      }
       changed_.notify_all();
       if (behavior_ == Behavior::kConcurrentCancel) {
         changed_.wait(lock, [this] {
@@ -285,6 +290,26 @@ int main() {
       completion_status.load() != cockpit::voice::VoiceOutputStatus::kCompleted ||
       playback_client.metrics().played != 1U) {
     std::cerr << "real playback completion was not reported exactly once\n";
+    return 1;
+  }
+
+  auto segmented_transport = std::make_unique<FakeAudioPlaybackTransport>(
+      FakeAudioPlaybackTransport::Behavior::kAutoComplete);
+  auto* segmented_control = segmented_transport.get();
+  cockpit::voice::AudioPlaybackClient segmented_client(
+      std::move(segmented_transport), std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
+  std::atomic<std::uint64_t> segmented_completions{0};
+  cockpit::voice::VoiceOutputStatus segmented_status = cockpit::voice::VoiceOutputStatus::kFailed;
+  if (!segmented_client.Submit(
+          5U, "First sentence. Second sentence!",
+          [&segmented_completions, &segmented_status](cockpit::voice::VoiceOutputResult result) {
+            segmented_status = result.status;
+            segmented_completions.fetch_add(1U);
+          }) ||
+      segmented_completions.load() != 1U ||
+      segmented_status != cockpit::voice::VoiceOutputStatus::kCompleted ||
+      segmented_control->wait_calls() != 2U || segmented_client.metrics().played != 2U) {
+    std::cerr << "sentence-segmented playback did not complete each segment exactly once\n";
     return 1;
   }
 
