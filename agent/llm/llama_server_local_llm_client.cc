@@ -500,6 +500,7 @@ LocalLlmResult LlamaServerLocalLlmClient::GenerateResponse(
   bool received_reasoning = false;
   bool stream_finished = false;
   bool stream_done = false;
+  std::optional<std::chrono::steady_clock::time_point> first_content_at;
   int status_code = 0;
   char buffer[4096];
   while (true) {
@@ -582,9 +583,13 @@ LocalLlmResult LlamaServerLocalLlmClient::GenerateResponse(
     decoded_body.append(decoded);
     if (status_code >= 200 && status_code < 300) {
       sse_pending.append(decoded);
+      const bool had_content = received_content;
       if (!ConsumeSseLines(&sse_pending, &response_text, &received_content, &received_reasoning,
                            &stream_finished, &stream_done, &decode_error)) {
         return {false, {}, "llama-server", decode_error};
+      }
+      if (!had_content && received_content) {
+        first_content_at = std::chrono::steady_clock::now();
       }
       if (stream_done) {
         break;
@@ -610,7 +615,14 @@ LocalLlmResult LlamaServerLocalLlmClient::GenerateResponse(
                   ? "local LLM stream completed with reasoning but without user-visible content"
                   : "local LLM stream completed without content"};
     }
-    return {true, response_text, "llama-server", {}};
+    const auto completed_at = std::chrono::steady_clock::now();
+    return {
+        true,
+        response_text,
+        "llama-server",
+        {},
+        std::chrono::duration_cast<std::chrono::milliseconds>(*first_content_at - request_started),
+        std::chrono::duration_cast<std::chrono::milliseconds>(completed_at - request_started)};
   }
 
   std::string parse_error;
@@ -627,7 +639,10 @@ LocalLlmResult LlamaServerLocalLlmClient::GenerateResponse(
             parse_error.empty() ? "llama-server response did not contain message content"
                                 : parse_error};
   }
-  return {true, content, "llama-server", {}};
+  const auto completed_at = std::chrono::steady_clock::now();
+  const auto latency =
+      std::chrono::duration_cast<std::chrono::milliseconds>(completed_at - request_started);
+  return {true, content, "llama-server", {}, latency, latency};
 }
 
 void LlamaServerLocalLlmClient::Cancel() {

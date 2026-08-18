@@ -175,7 +175,9 @@ int main() {
   if (!Check(result.success, "llama-server client did not succeed") ||
       !Check(result.response_text == "local llama response",
              "llama-server client did not parse response content") ||
-      !Check(result.provider == "llama-server", "llama-server provider name mismatch")) {
+      !Check(result.provider == "llama-server", "llama-server provider name mismatch") ||
+      !Check(result.total_latency >= result.first_content_latency,
+             "llama-server timing order was invalid")) {
     return 1;
   }
 
@@ -247,7 +249,9 @@ int main() {
       transcript, std::chrono::steady_clock::now() + std::chrono::seconds(1));
   if (!Check(fallback_result.success, "non-stream llama-server fallback did not succeed") ||
       !Check(fallback_result.response_text == "non-stream fallback",
-             "non-stream llama-server fallback response mismatch")) {
+             "non-stream llama-server fallback response mismatch") ||
+      !Check(fallback_result.first_content_latency == fallback_result.total_latency,
+             "non-stream fallback timing did not use completion latency")) {
     return 1;
   }
 

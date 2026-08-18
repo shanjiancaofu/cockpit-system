@@ -16,6 +16,8 @@ struct LocalLlmResult {
   std::string response_text;
   std::string provider;
   std::string error;
+  std::chrono::milliseconds first_content_latency{0};
+  std::chrono::milliseconds total_latency{0};
 };
 
 struct LocalLlmConfig {

@@ -37,5 +37,7 @@ int main(int argc, char** argv) {
     return 1;
   }
   std::cout << result.response_text << '\n';
+  std::cout << "first_content_ms=" << result.first_content_latency.count() << '\n';
+  std::cout << "total_response_ms=" << result.total_latency.count() << '\n';
   return 0;
 }
