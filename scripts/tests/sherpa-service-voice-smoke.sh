@@ -67,6 +67,7 @@ sed \
   -e '/^    vad:$/,/^    speech_segment:$/s/^      provider: mock$/      provider: sherpa/' \
   -e '/^    speech_segment:$/,/^    asr:$/s/^      pre_roll_ms:.*$/      pre_roll_ms: 300/' \
   -e '/^    asr:$/,/^    tts:$/s/^      provider: mock$/      provider: sherpa-sensevoice/' \
+  -e '/^    tts:$/,/^  ai:$/s/^      provider: mock$/      provider: sherpa-kokoro/' \
   -e 's/^    asr_timeout_ms:.*$/    asr_timeout_ms: 10000/' \
   -e 's/^    tts_synthesis_timeout_ms:.*$/    tts_synthesis_timeout_ms: 30000/' \
   "${source_config}" | \
@@ -172,9 +173,10 @@ if [[ "${audio_status}" != *"stream frames sent:"* ||
   exit 1
 fi
 
-# Reuse the same live service to prove a negative follow-up does not dispatch another action,
-# then prove the retired wake word remains ignored after the follow-up window expires.
-for _ in $(seq 1 200); do
+# Reuse the same live service to prove a negative follow-up cannot complete a second
+# action. The current recording is recognized as the typed play_music intent; the
+# media boundary is intentionally absent, so the action must fail rather than succeed.
+for _ in $(seq 1 450); do
   status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
   if [[ "${status}" == *"state: follow_up"* ]]; then
     break
@@ -183,6 +185,7 @@ for _ in $(seq 1 200); do
 done
 if [[ "${status}" != *"state: follow_up"* ]]; then
   echo "positive command did not enter the follow-up window" >&2
+  printf '%s\n' "${status}" >&2
   exit 1
 fi
 "${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null 2>&1 || true
@@ -200,16 +203,17 @@ done
 negative_passed=false
 for _ in $(seq 1 200); do
   status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
-  if [[ "${status}" == *"transcripts received: 2"* &&
+  if [[ "${status}" == *"transcripts received: 3"* &&
         "${status}" == *"unknown intents: 1"* &&
-        "${status}" == *"actions succeeded: 1"* ]]; then
+        "${status}" == *"actions succeeded: 1"* &&
+        "${status}" == *"actions failed: 1"* ]]; then
     negative_passed=true
     break
   fi
   sleep 0.1
 done
 if [[ "${negative_passed}" != "true" ]]; then
-  echo "negative command dispatched an unexpected action" >&2
+  echo "negative follow-up completed an unexpected action" >&2
   printf '%s\n' "${status}" >&2
   exit 1
 fi
@@ -238,12 +242,12 @@ done
 sleep 1
 status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
 if [[ "${status}" != *"actions succeeded: 1"* ||
-      "${status}" != *"transcripts received: 2"* ]]; then
+      "${status}" != *"transcripts received: 3"* ]]; then
   echo "retired wake word caused an unexpected interaction" >&2
   printf '%s\n' "${status}" >&2
   exit 1
 fi
-echo "service safety replay passed: negative intent remained unknown and retired wake was ignored"
+echo "service safety replay passed: no second action succeeded and retired wake was ignored"
 
 "${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null || true
 echo "Sherpa Navigator service voice replay passed; log: ${navigator_log}"

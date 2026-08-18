@@ -63,6 +63,12 @@ proto::audio::PlaybackStatus ToProtoPlaybackStatus(AudioPlaybackStatus status) {
   return proto::audio::PLAYBACK_STATUS_UNSPECIFIED;
 }
 
+bool IsSupportedPlaybackRate(std::uint32_t sample_rate_hz) {
+  // Capture remains fixed at 16 kHz. Playback also accepts Kokoro's native
+  // 24 kHz output without permitting arbitrary device reconfiguration.
+  return sample_rate_hz == 16000U || sample_rate_hz == 24000U;
+}
+
 void FillHealth(const AudioCaptureControllerStatus& status, proto::common::ServiceHealth* health) {
   health->set_service_name("audio-driver");
   health->set_checked_at_ms(time::NowMs());
@@ -140,10 +146,10 @@ grpc::Status AudioGrpcServer::PlayPcm(grpc::ServerContext*,
                                       const proto::audio::PlayPcmRequest* request,
                                       proto::audio::PlayPcmResponse* response) {
   constexpr std::size_t kMaxPcmBytes = 2U * 1024U * 1024U;
-  if (request->sample_rate_hz() != 16000U || request->channels() != 1U) {
+  if (!IsSupportedPlaybackRate(request->sample_rate_hz()) || request->channels() != 1U) {
     response->set_accepted(false);
     return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                        "PCM playback currently requires signed 16-bit 16 kHz mono audio");
+                        "PCM playback requires signed 16-bit 16 or 24 kHz mono audio");
   }
   const std::string& bytes = request->samples_s16le();
   if (bytes.empty() || bytes.size() > kMaxPcmBytes || bytes.size() % 2U != 0U) {
@@ -151,7 +157,7 @@ grpc::Status AudioGrpcServer::PlayPcm(grpc::ServerContext*,
     return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "invalid PCM payload size");
   }
   PcmBuffer buffer;
-  buffer.format.sample_rate_hz = 16000;
+  buffer.format.sample_rate_hz = static_cast<int>(request->sample_rate_hz());
   buffer.format.channels = 1;
   buffer.format.frame_ms = 20;
   buffer.samples.resize(bytes.size() / 2U);

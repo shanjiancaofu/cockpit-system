@@ -62,11 +62,13 @@ class ControllablePlayer final : public cockpit::audio::AudioPlayer {
   std::atomic_bool released_{false};
 };
 
-cockpit::proto::audio::PlayPcmRequest MakeRequest(std::uint64_t playback_id) {
+cockpit::proto::audio::PlayPcmRequest MakeRequest(std::uint64_t playback_id,
+                                                  std::uint32_t sample_rate_hz = 16000U,
+                                                  std::uint32_t channels = 1U) {
   cockpit::proto::audio::PlayPcmRequest request;
   request.set_playback_id(playback_id);
-  request.set_sample_rate_hz(16000U);
-  request.set_channels(1U);
+  request.set_sample_rate_hz(sample_rate_hz);
+  request.set_channels(channels);
   std::int16_t samples[320]{};
   request.set_samples_s16le(samples, sizeof(samples));
   return request;
@@ -109,6 +111,40 @@ int main() {
   if (!first_status.ok() || !first_response.accepted() || first_response.playback_id() != 101U ||
       !player_observer->WaitUntilEntered()) {
     std::cerr << "PlayPcm did not accept and correlate the first request\n";
+    return 1;
+  }
+
+  cockpit::proto::audio::PlayPcmResponse native_rate_response;
+  grpc::ClientContext native_rate_context;
+  native_rate_context.set_initial_metadata_corked(false);
+  const grpc::Status native_rate_status =
+      stub->PlayPcm(&native_rate_context, MakeRequest(103U, 24000U), &native_rate_response);
+  if (!native_rate_status.ok() || !native_rate_response.accepted()) {
+    std::cerr << "24 kHz mono playback was rejected\n";
+    return 1;
+  }
+  cockpit::proto::audio::CancelPlaybackRequest native_rate_cancel;
+  native_rate_cancel.set_playback_id(103U);
+  cockpit::proto::audio::CancelPlaybackResponse native_rate_cancel_response;
+  grpc::ClientContext native_rate_cancel_context;
+  native_rate_cancel_context.set_initial_metadata_corked(false);
+  if (!cancel_stub
+           ->CancelPlayback(&native_rate_cancel_context, native_rate_cancel,
+                            &native_rate_cancel_response)
+           .ok() ||
+      !native_rate_cancel_response.accepted()) {
+    std::cerr << "24 kHz playback cancellation was rejected\n";
+    return 1;
+  }
+
+  cockpit::proto::audio::PlayPcmResponse invalid_rate_response;
+  grpc::ClientContext invalid_rate_context;
+  invalid_rate_context.set_initial_metadata_corked(false);
+  const grpc::Status invalid_rate_status =
+      stub->PlayPcm(&invalid_rate_context, MakeRequest(104U, 48000U), &invalid_rate_response);
+  if (invalid_rate_status.error_code() != grpc::StatusCode::INVALID_ARGUMENT ||
+      invalid_rate_response.accepted()) {
+    std::cerr << "unsupported playback rate was accepted\n";
     return 1;
   }
 

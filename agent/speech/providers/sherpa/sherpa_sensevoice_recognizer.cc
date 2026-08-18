@@ -2,9 +2,11 @@
 
 #include <sherpa-onnx/c-api/c-api.h>
 
+#include <atomic>
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -102,10 +104,50 @@ class SherpaSenseVoiceRecognizer final : public SpeechRecognizer {
   const SherpaOnnxOfflineRecognizer* recognizer_ = nullptr;
 };
 
+class LazySherpaSenseVoiceRecognizer final : public SpeechRecognizer {
+ public:
+  LazySherpaSenseVoiceRecognizer() {
+    const auto root =
+        cockpit::agent::sherpa::ResolveAiRoot() / "models" / "asr" / "sensevoice-small-int8";
+    RequireFile(root / "model.int8.onnx", "model");
+    RequireFile(root / "tokens.txt", "tokens");
+  }
+
+  SpeechRecognitionResult Recognize(const audio::SpeechSegment& segment,
+                                    std::chrono::steady_clock::time_point deadline) override {
+    cancelled_.store(false);
+    SherpaSenseVoiceRecognizer* implementation = nullptr;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (implementation_ == nullptr) {
+        implementation_ = std::make_unique<SherpaSenseVoiceRecognizer>();
+      }
+      implementation = implementation_.get();
+    }
+    if (cancelled_.load()) {
+      return {false, {}, "sherpa-sensevoice", 0.0F, "speech recognition cancelled"};
+    }
+    return implementation->Recognize(segment, deadline);
+  }
+
+  void Cancel() override {
+    cancelled_.store(true);
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (implementation_ != nullptr) {
+      implementation_->Cancel();
+    }
+  }
+
+ private:
+  std::mutex mutex_;
+  std::unique_ptr<SherpaSenseVoiceRecognizer> implementation_;
+  std::atomic_bool cancelled_{false};
+};
+
 }  // namespace
 
 std::unique_ptr<SpeechRecognizer> CreateSherpaSenseVoiceRecognizer() {
-  return std::make_unique<SherpaSenseVoiceRecognizer>();
+  return std::make_unique<LazySherpaSenseVoiceRecognizer>();
 }
 
 }  // namespace voice

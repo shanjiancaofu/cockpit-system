@@ -10,8 +10,10 @@
 #include <filesystem>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include "agent/speech/providers/sherpa/sherpa_runtime_paths.h"
 
@@ -26,12 +28,28 @@ void RequireFile(const std::filesystem::path& path, const char* label) {
   }
 }
 
-class SherpaKokoroSpeechSynthesizer final : public SpeechSynthesizer {
+std::filesystem::path KokoroRoot() {
+  return cockpit::agent::sherpa::ResolveAiRoot() / "models" / "tts" / "kokoro-multi-lang-v1_1";
+}
+
+void ValidateKokoroResources() {
+  const auto root = KokoroRoot();
+  RequireFile(root / "model.onnx", "model");
+  RequireFile(root / "voices.bin", "voices");
+  RequireFile(root / "tokens.txt", "tokens");
+  RequireFile(root / "lexicon-us-en.txt", "English lexicon");
+  RequireFile(root / "lexicon-zh.txt", "Chinese lexicon");
+  if (!std::filesystem::is_directory(root / "espeak-ng-data")) {
+    throw std::invalid_argument("Sherpa Kokoro espeak-ng-data is missing: " +
+                                (root / "espeak-ng-data").string());
+  }
+}
+
+class SherpaKokoroSpeechSynthesizerImpl final : public SpeechSynthesizer {
  public:
-  explicit SherpaKokoroSpeechSynthesizer(const config::TtsConfig& config)
+  explicit SherpaKokoroSpeechSynthesizerImpl(const config::TtsConfig& config)
       : speaker_id_(config.speaker_id), speed_(static_cast<float>(config.speed)) {
-    const auto root =
-        cockpit::agent::sherpa::ResolveAiRoot() / "models" / "tts" / "kokoro-multi-lang-v1_1";
+    const auto root = KokoroRoot();
     const auto model = root / "model.onnx";
     const auto voices = root / "voices.bin";
     const auto tokens = root / "tokens.txt";
@@ -66,7 +84,7 @@ class SherpaKokoroSpeechSynthesizer final : public SpeechSynthesizer {
     }
   }
 
-  ~SherpaKokoroSpeechSynthesizer() override {
+  ~SherpaKokoroSpeechSynthesizerImpl() override {
     Cancel();
     if (tts_ != nullptr) {
       SherpaOnnxDestroyOfflineTts(tts_);
@@ -148,11 +166,53 @@ class SherpaKokoroSpeechSynthesizer final : public SpeechSynthesizer {
   std::atomic_bool cancelled_{false};
 };
 
+class LazySherpaKokoroSpeechSynthesizer final : public SpeechSynthesizer {
+ public:
+  explicit LazySherpaKokoroSpeechSynthesizer(config::TtsConfig config)
+      : config_(std::move(config)) {
+    ValidateKokoroResources();
+  }
+
+  SpeechSynthesisResult Synthesize(const std::string& text,
+                                   std::chrono::steady_clock::time_point deadline) override {
+    cancelled_.store(false);
+    SherpaKokoroSpeechSynthesizerImpl* implementation = nullptr;
+    try {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (implementation_ == nullptr) {
+        implementation_ = std::make_unique<SherpaKokoroSpeechSynthesizerImpl>(config_);
+      }
+      implementation = implementation_.get();
+    } catch (const std::exception& exception) {
+      return {false, {}, "sherpa-kokoro", exception.what()};
+    }
+    if (cancelled_.load()) {
+      implementation->Cancel();
+      return {false, {}, "sherpa-kokoro", "speech synthesis cancelled"};
+    }
+    return implementation->Synthesize(text, deadline);
+  }
+
+  void Cancel() override {
+    cancelled_.store(true);
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (implementation_ != nullptr) {
+      implementation_->Cancel();
+    }
+  }
+
+ private:
+  const config::TtsConfig config_;
+  std::mutex mutex_;
+  std::unique_ptr<SherpaKokoroSpeechSynthesizerImpl> implementation_;
+  std::atomic_bool cancelled_{false};
+};
+
 }  // namespace
 
 std::unique_ptr<SpeechSynthesizer> CreateSherpaKokoroSpeechSynthesizer(
     const config::TtsConfig& config) {
-  return std::make_unique<SherpaKokoroSpeechSynthesizer>(config);
+  return std::make_unique<LazySherpaKokoroSpeechSynthesizer>(config);
 }
 
 }  // namespace voice

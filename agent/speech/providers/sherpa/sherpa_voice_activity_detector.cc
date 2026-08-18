@@ -5,6 +5,7 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -80,10 +81,37 @@ class SherpaVoiceActivityDetector final : public audio::VoiceActivityDetector {
   bool detected_ = false;
 };
 
+class LazySherpaVoiceActivityDetector final : public audio::VoiceActivityDetector {
+ public:
+  LazySherpaVoiceActivityDetector() {
+    RequireFile(sherpa::ResolveAiRoot() / "models" / "vad" / "silero-vad" / "silero_vad.onnx",
+                "model");
+  }
+
+  audio::VoiceActivityResult Analyze(const audio::AudioFrame& frame) override {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (implementation_ == nullptr) {
+      implementation_ = std::make_unique<SherpaVoiceActivityDetector>();
+    }
+    return implementation_->Analyze(frame);
+  }
+
+  void Reset() override {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (implementation_ != nullptr) {
+      implementation_->Reset();
+    }
+  }
+
+ private:
+  std::mutex mutex_;
+  std::unique_ptr<SherpaVoiceActivityDetector> implementation_;
+};
+
 }  // namespace
 
 std::unique_ptr<audio::VoiceActivityDetector> CreateSherpaVoiceActivityDetector() {
-  return std::make_unique<SherpaVoiceActivityDetector>();
+  return std::make_unique<LazySherpaVoiceActivityDetector>();
 }
 
 }  // namespace agent
