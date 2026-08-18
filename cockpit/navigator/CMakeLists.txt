@@ -31,6 +31,8 @@ function(add_navigator_module target_name module_name entry_source)
         )
     endif()
     set_target_properties(${target_name} PROPERTIES
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN YES
         OUTPUT_NAME ${module_name}
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/cockpit/modules
         INSTALL_RPATH "$ORIGIN/../.."

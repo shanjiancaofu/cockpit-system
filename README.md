@@ -197,6 +197,10 @@ ASR、确定性 action、Kokoro、Audio Driver playback receipt 一一完成，�
 client 增量消费 SSE token stream，分别执行首 token 超时和整次回复总超时；取消会关闭当前本地连接。
 Qwen3.5 的语音请求显式设置 `chat_template_kwargs.enable_thinking=false`，只把 `delta.content` 作为
 用户可见或可播报正文；`reasoning_content` 不会进入回复。
+显式 Sherpa Agent 构建的 Navigator modules 在编译阶段启用 hidden visibility，链接阶段只导出
+`CockpitModuleGetApi`；`--exclude-libs,ALL`、version script 和安装态 `$ORIGIN/../..` RPATH 继续限制
+模块符号和相对依赖。Sherpa/ONNX Runtime 仍必须作为独立、固定版本的 `_output/ai` 交付物提供，
+不安装到系统目录，也不进入默认构建。
 
 ## 提交规范
 
