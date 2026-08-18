@@ -45,6 +45,7 @@ required_files=(
   "${ai_root}/fixtures/nihao-xiaoshan.wav"
   "${ai_root}/fixtures/nihao-xiaoche.wav"
   "${ai_root}/fixtures/open-camera-zh.wav"
+  "${ai_root}/fixtures/live/segment-02-wake-open-camera.wav"
   "${ai_root}/fixtures/silence.wav"
 )
 
@@ -93,6 +94,6 @@ BUILD_DIR="${build_dir}" bash "${root_dir}/scripts/build.sh" --arch x86_64 --typ
 
 COCKPIT_AI_ROOT="${ai_root}" LD_LIBRARY_PATH="${runtime_root}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" \
   ctest --test-dir "${build_dir}" --output-on-failure \
-    -R '^(sherpa_voice_smoke_test|sherpa_tts_smoke_test|deterministic_command_router_test)$'
+    -R '^(sherpa_voice_smoke_test|sherpa_voice_gate_smoke_test|sherpa_tts_smoke_test|deterministic_command_router_test)$'
 
 echo "Sherpa voice VM smoke passed"
