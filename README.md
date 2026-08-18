@@ -177,6 +177,10 @@ Kokoro TTS 模型使用 `bash scripts/prepare-kokoro-tts.sh` 准备；该脚本�
 `bash scripts/tests/kokoro-tts-stability.sh`；默认 16 轮，可通过
 `COCKPIT_KOKORO_STABILITY_ITERATIONS=32` 增加到 32 轮。该入口复用已有 runtime/model，不下载资源，
 也不进入默认 CI。
+固定中文、英文、中英混读、数字单位、标点和长回复的延迟/RTF 基线使用
+`bash scripts/tests/kokoro-tts-benchmark.sh`。它还比较整段回复和首个可播放分段，验证空文本、过期
+deadline、异常符号、真实取消以及取消后的 provider 恢复；默认每类 3 轮，可用
+`COCKPIT_KOKORO_BENCHMARK_REPETITIONS` 调整为 1-10 轮。
 真实服务级重复播放可设置 `COCKPIT_SERVICE_VOICE_REPETITIONS=8` 后运行
 `bash scripts/tests/sherpa-service-voice-smoke.sh`。首轮经过唤醒，后续轮次复用 follow-up，逐轮要求
 ASR、确定性 action、Kokoro、Audio Driver playback receipt 一一完成，并检查播放错误、xrun、设备错误
