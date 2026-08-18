@@ -97,8 +97,14 @@ prepare_model() {
 }
 
 mkdir -p "${config_dir}"
-if [[ ! -f "${config_dir}/kws-keywords-raw.txt" ]]; then
-  printf '你好小车 @你好小车\n' >"${config_dir}/kws-keywords-raw.txt"
+default_keywords_raw='你好小山 @你好小山'
+default_keywords_tokenized='n ǐ h ǎo x iǎo sh ān @你好小山'
+if [[ ! -f "${config_dir}/kws-keywords-raw.txt" ]] ||
+  [[ "$(<"${config_dir}/kws-keywords-raw.txt")" != "${default_keywords_raw}" ]] ||
+  [[ ! -f "${config_dir}/kws-keywords.txt" ]] ||
+  [[ "$(<"${config_dir}/kws-keywords.txt")" != "${default_keywords_tokenized}" ]]; then
+  printf '%s\n' "${default_keywords_raw}" >"${config_dir}/kws-keywords-raw.txt"
+  printf '%s\n' "${default_keywords_tokenized}" >"${config_dir}/kws-keywords.txt"
 fi
 
 prepare_model "kws" "${kws_dir}" COCKPIT_KWS_MODEL_ARCHIVE COCKPIT_KWS_MODEL_URL \

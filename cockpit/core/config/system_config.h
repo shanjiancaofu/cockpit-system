@@ -49,7 +49,7 @@ struct KwsConfig {
   bool enabled = false;
   std::string provider = "mock";
   int cooldown_ms = 1500;
-  std::string wake_word = "你好小车";
+  std::string wake_word = "你好小山";
   std::string keywords_file;
   std::string model_dir;
 };

@@ -42,7 +42,7 @@ required_files=(
   "${ai_root}/models/tts/kokoro-multi-lang-v1_1/lexicon-us-en.txt"
   "${ai_root}/models/tts/kokoro-multi-lang-v1_1/lexicon-zh.txt"
   "${ai_root}/config/kws-keywords.txt"
-  "${ai_root}/fixtures/nihao-xiaoche.wav"
+  "${ai_root}/fixtures/nihao-xiaoshan.wav"
   "${ai_root}/fixtures/open-camera-zh.wav"
   "${ai_root}/fixtures/silence.wav"
 )

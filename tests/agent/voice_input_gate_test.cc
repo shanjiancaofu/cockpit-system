@@ -116,7 +116,7 @@ int main() {
   segment_config.pre_roll_ms = 0;
   segment_config.max_segment_ms = 100;
 
-  cockpit::agent::MockWakeWordDetector disabled_detector("你好小车");
+  cockpit::agent::MockWakeWordDetector disabled_detector("你好小山");
   auto disabled_prompt = std::make_unique<FakeWakePromptPlayer>();
   cockpit::voice::VoiceInteractionService service(
       true, std::make_unique<cockpit::voice::MockVoiceAssistant>(), nullptr);
@@ -159,8 +159,8 @@ int main() {
   kws_enabled.enabled = true;
   kws_enabled.provider = "mock";
   kws_enabled.cooldown_ms = 1500;
-  kws_enabled.wake_word = "你好小车";
-  auto detector = std::make_unique<cockpit::agent::MockWakeWordDetector>("你好小车");
+  kws_enabled.wake_word = "你好小山";
+  auto detector = std::make_unique<cockpit::agent::MockWakeWordDetector>("你好小山");
   auto* detector_ptr = detector.get();
   auto prompt = std::make_unique<FakeWakePromptPlayer>();
   auto* prompt_ptr = prompt.get();
@@ -212,7 +212,7 @@ int main() {
   }
   cockpit::config::KwsConfig async_kws = kws_enabled;
   async_kws.cooldown_ms = 1;
-  auto async_detector = std::make_unique<cockpit::agent::MockWakeWordDetector>("你好小车");
+  auto async_detector = std::make_unique<cockpit::agent::MockWakeWordDetector>("你好小山");
   auto* async_detector_ptr = async_detector.get();
   auto async_prompt = std::make_unique<FakeWakePromptPlayer>();
   auto* async_prompt_ptr = async_prompt.get();
@@ -246,7 +246,7 @@ int main() {
     std::cerr << "voice service did not return to idle before wake failure check\n";
     return 1;
   }
-  auto fail_detector = std::make_unique<cockpit::agent::MockWakeWordDetector>("你好小车");
+  auto fail_detector = std::make_unique<cockpit::agent::MockWakeWordDetector>("你好小山");
   auto* fail_detector_ptr = fail_detector.get();
   auto fail_prompt = std::make_unique<FakeWakePromptPlayer>();
   auto* fail_prompt_ptr = fail_prompt.get();

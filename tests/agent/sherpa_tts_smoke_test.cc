@@ -8,11 +8,12 @@
 #include "cockpit/modules/audio/wav/wav_file.h"
 
 int main(int argc, char** argv) {
-  if (argc > 2) {
-    std::cerr << "usage: " << argv[0] << " [output.wav]\n";
+  if (argc > 3) {
+    std::cerr << "usage: " << argv[0] << " [output.wav] [text]\n";
     return 2;
   }
-  const std::string output = argc == 2 ? argv[1] : "/tmp/cockpit-kokoro-smoke.wav";
+  const std::string output = argc >= 2 ? argv[1] : "/tmp/cockpit-kokoro-smoke.wav";
+  const std::string text = argc == 3 ? argv[2] : "你好，我是座舱助手。Hello, cockpit system.";
   cockpit::config::TtsConfig config;
   config.provider = "sherpa-kokoro";
   config.speaker_id = 3;
@@ -20,8 +21,7 @@ int main(int argc, char** argv) {
   try {
     auto synthesizer = cockpit::voice::CreateSherpaKokoroSpeechSynthesizer(config);
     const auto result =
-        synthesizer->Synthesize("你好 我是座舱助手 Hello cockpit system",
-                                std::chrono::steady_clock::now() + std::chrono::seconds(30));
+        synthesizer->Synthesize(text, std::chrono::steady_clock::now() + std::chrono::seconds(30));
     if (!result.success) {
       std::cerr << "Kokoro synthesis failed: " << result.error << '\n';
       return 1;

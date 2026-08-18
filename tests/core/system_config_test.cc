@@ -57,7 +57,7 @@ int main() {
       config.services().audio.grpc.listen_address != "127.0.0.1:50052" ||
       config.features().voice.kws.provider != "mock" ||
       config.features().voice.kws.cooldown_ms != 1500 ||
-      config.features().voice.kws.wake_word != "你好小车" ||
+      config.features().voice.kws.wake_word != "你好小山" ||
       config.features().voice.kws.model_dir != "" ||
       config.features().voice.vad.provider != "mock" ||
       config.features().voice.speech_segment.max_segment_ms != 15000 ||
@@ -118,7 +118,7 @@ int main() {
   }
 
   std::string sherpa_with_raw_wake_word = ReadFile(PRODUCTION_CONFIG_PATH);
-  if (!ReplaceOnce(&sherpa_with_raw_wake_word, "wake_word: \"\"", "wake_word: 你好小车") ||
+  if (!ReplaceOnce(&sherpa_with_raw_wake_word, "wake_word: \"\"", "wake_word: 你好小山") ||
       !ExpectRejectedConfig(sherpa_with_raw_wake_word, "wake_word must be empty for sherpa KWS")) {
     return 1;
   }
