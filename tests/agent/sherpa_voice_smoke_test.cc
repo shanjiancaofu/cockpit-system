@@ -213,7 +213,10 @@ bool RunOpenCameraPipeline(const std::filesystem::path& wav_path,
     const std::string normalized =
         cockpit::voice::TranscriptNormalizer::Normalize(transcripts[index].text);
     const auto route = cockpit::voice::DeterministicCommandRouter().Route(normalized);
-    std::cout << "transcript[" << index << "]: " << transcripts[index].text << '\n';
+    std::cout << "transcript[" << index << "]: start_frame=" << transcripts[index].start_sequence
+              << " end_frame=" << transcripts[index].end_sequence
+              << " duration_ms=" << transcripts[index].duration_ms
+              << " text=" << transcripts[index].text << '\n';
     std::cout << "normalized[" << index << "]: " << normalized << '\n';
     std::cout << "route[" << index << "]: intent=" << cockpit::voice::ToString(route.intent)
               << " action=" << cockpit::voice::ToString(route.action) << '\n';
@@ -299,6 +302,15 @@ int main(int argc, char** argv) {
     return 1;
   }
   std::cout << "KWS detected: " << wake_result.keyword << '\n';
+
+  cockpit::agent::WakeWordResult old_wake_result;
+  if (!DetectWakeWord(fixture_root / "nihao-xiaoche.wav", wake_detector.get(), &old_wake_result)) {
+    return 1;
+  }
+  if (!Check(!old_wake_result.detected,
+             "Sherpa KWS falsely detected the retired wake word 你好小车")) {
+    return 1;
+  }
 
   cockpit::agent::WakeWordResult silence_result;
   if (!DetectWakeWord(fixture_root / "silence.wav", wake_detector.get(), &silence_result)) {
