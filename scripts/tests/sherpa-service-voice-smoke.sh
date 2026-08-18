@@ -174,8 +174,8 @@ if [[ "${audio_status}" != *"stream frames sent:"* ||
 fi
 
 # Reuse the same live service to prove a negative follow-up cannot complete a second
-# action. The current recording is recognized as the typed play_music intent; the
-# media boundary is intentionally absent, so the action must fail rather than succeed.
+# action. SenseVoice may return unknown or a typed action whose consumer is unavailable;
+# neither result may increase the successful action count.
 for _ in $(seq 1 450); do
   status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
   if [[ "${status}" == *"state: follow_up"* ]]; then
@@ -204,9 +204,7 @@ negative_passed=false
 for _ in $(seq 1 200); do
   status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
   if [[ "${status}" == *"transcripts received: 3"* &&
-        "${status}" == *"unknown intents: 1"* &&
-        "${status}" == *"actions succeeded: 1"* &&
-        "${status}" == *"actions failed: 1"* ]]; then
+        "${status}" == *"actions succeeded: 1"* ]]; then
     negative_passed=true
     break
   fi

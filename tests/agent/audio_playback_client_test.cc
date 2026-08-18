@@ -56,6 +56,25 @@ class CancellableSynthesizer final : public cockpit::voice::SpeechSynthesizer {
   bool deadline_propagated_ = false;
 };
 
+class FailingSynthesizer final : public cockpit::voice::SpeechSynthesizer {
+ public:
+  cockpit::voice::SpeechSynthesisResult Synthesize(const std::string&,
+                                                   std::chrono::steady_clock::time_point) override {
+    calls_.fetch_add(1U);
+    return {false, {}, "failing", "primary TTS failed"};
+  }
+
+  void Cancel() override {
+  }
+
+  std::uint64_t calls() const {
+    return calls_.load();
+  }
+
+ private:
+  std::atomic<std::uint64_t> calls_{0U};
+};
+
 class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTransport {
  public:
   enum class Behavior {
@@ -310,6 +329,30 @@ int main() {
       segmented_status != cockpit::voice::VoiceOutputStatus::kCompleted ||
       segmented_control->wait_calls() != 2U || segmented_client.metrics().played != 2U) {
     std::cerr << "sentence-segmented playback did not complete each segment exactly once\n";
+    return 1;
+  }
+
+  auto fallback_transport = std::make_unique<FakeAudioPlaybackTransport>(
+      FakeAudioPlaybackTransport::Behavior::kAutoComplete);
+  auto* fallback_control = fallback_transport.get();
+  auto failing_synthesizer = std::make_unique<FailingSynthesizer>();
+  auto* failing_observer = failing_synthesizer.get();
+  cockpit::voice::AudioPlaybackClient fallback_client(
+      std::move(fallback_transport), std::move(failing_synthesizer), std::chrono::seconds(1),
+      std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
+  std::atomic<std::uint64_t> fallback_completions{0U};
+  cockpit::voice::VoiceOutputStatus fallback_status = cockpit::voice::VoiceOutputStatus::kFailed;
+  if (!fallback_client.Submit(
+          6U, "First sentence. Second sentence!",
+          [&fallback_completions, &fallback_status](cockpit::voice::VoiceOutputResult result) {
+            fallback_status = result.status;
+            fallback_completions.fetch_add(1U);
+          }) ||
+      fallback_completions.load() != 1U ||
+      fallback_status != cockpit::voice::VoiceOutputStatus::kCompleted ||
+      failing_observer->calls() != 1U || fallback_control->wait_calls() != 1U ||
+      fallback_client.metrics().played != 1U || fallback_client.metrics().failed != 0U) {
+    std::cerr << "primary TTS failure did not play exactly one fixed fallback prompt\n";
     return 1;
   }
 

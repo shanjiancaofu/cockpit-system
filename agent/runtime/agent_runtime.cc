@@ -258,7 +258,8 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
       output = std::make_unique<voice::AsyncVoiceResponseSink>(
           std::make_unique<voice::AudioPlaybackClient>(
               interaction_config.audio_address, std::move(synthesizer),
-              std::chrono::milliseconds(config.features().ai.tts_synthesis_timeout_ms)));
+              std::chrono::milliseconds(config.features().ai.tts_synthesis_timeout_ms),
+              std::make_unique<voice::MockSpeechSynthesizer>()));
       std::string llm_error;
       llm_server = CreateLlamaServerProcess(config.features().ai.local_llm);
       if (llm_server != nullptr && !llm_server->Start(&llm_error)) {

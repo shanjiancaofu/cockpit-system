@@ -18,10 +18,12 @@ class AudioPlaybackClient final : public VoiceResponseSink {
  public:
   explicit AudioPlaybackClient(const std::string& address);
   AudioPlaybackClient(const std::string& address, std::unique_ptr<SpeechSynthesizer> synthesizer,
-                      std::chrono::milliseconds synthesis_timeout = std::chrono::seconds(5));
+                      std::chrono::milliseconds synthesis_timeout = std::chrono::seconds(5),
+                      std::unique_ptr<SpeechSynthesizer> fallback_synthesizer = nullptr);
   AudioPlaybackClient(std::unique_ptr<AudioPlaybackTransport> transport,
                       std::unique_ptr<SpeechSynthesizer> synthesizer,
-                      std::chrono::milliseconds synthesis_timeout = std::chrono::seconds(5));
+                      std::chrono::milliseconds synthesis_timeout = std::chrono::seconds(5),
+                      std::unique_ptr<SpeechSynthesizer> fallback_synthesizer = nullptr);
 
   bool Submit(std::uint64_t request_id, std::string text,
               VoiceOutputCompletion completion) override;
@@ -38,10 +40,11 @@ class AudioPlaybackClient final : public VoiceResponseSink {
   bool RequestPlaybackCancellation(std::uint64_t request_id, std::uint64_t playback_id);
   bool SubmitSingleSegment(std::uint64_t request_id, std::string text,
                            const std::shared_ptr<const VoiceOutputCancellation>& cancellation,
-                           VoiceOutputCompletion completion);
+                           VoiceOutputCompletion completion, bool* used_fallback);
 
   const std::unique_ptr<AudioPlaybackTransport> transport_;
   const std::unique_ptr<SpeechSynthesizer> synthesizer_;
+  const std::unique_ptr<SpeechSynthesizer> fallback_synthesizer_;
   mutable std::mutex state_mutex_;
   std::condition_variable cancellation_changed_;
   std::uint64_t active_request_id_ = 0;

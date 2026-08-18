@@ -151,16 +151,19 @@ AudioPlaybackClient::AudioPlaybackClient(const std::string& address)
 
 AudioPlaybackClient::AudioPlaybackClient(const std::string& address,
                                          std::unique_ptr<SpeechSynthesizer> synthesizer,
-                                         std::chrono::milliseconds synthesis_timeout)
+                                         std::chrono::milliseconds synthesis_timeout,
+                                         std::unique_ptr<SpeechSynthesizer> fallback_synthesizer)
     : AudioPlaybackClient(CreateGrpcAudioPlaybackTransport(address), std::move(synthesizer),
-                          synthesis_timeout) {
+                          synthesis_timeout, std::move(fallback_synthesizer)) {
 }
 
 AudioPlaybackClient::AudioPlaybackClient(std::unique_ptr<AudioPlaybackTransport> transport,
                                          std::unique_ptr<SpeechSynthesizer> synthesizer,
-                                         std::chrono::milliseconds synthesis_timeout)
+                                         std::chrono::milliseconds synthesis_timeout,
+                                         std::unique_ptr<SpeechSynthesizer> fallback_synthesizer)
     : transport_(std::move(transport)),
       synthesizer_(std::move(synthesizer)),
+      fallback_synthesizer_(std::move(fallback_synthesizer)),
       synthesis_timeout_(synthesis_timeout) {
   if (transport_ == nullptr || synthesis_timeout_ <= std::chrono::milliseconds::zero()) {
     throw std::invalid_argument("audio playback requires a transport and positive timeout");
@@ -194,12 +197,14 @@ bool AudioPlaybackClient::SubmitCancellable(
   for (std::size_t index = 0U; index < segments.size(); ++index) {
     VoiceOutputResult segment_result;
     bool callback_called = false;
-    const bool accepted =
-        SubmitSingleSegment(request_id, segments[index], cancellation,
-                            [&segment_result, &callback_called](VoiceOutputResult result) {
-                              segment_result = std::move(result);
-                              callback_called = true;
-                            });
+    bool used_fallback = false;
+    const bool accepted = SubmitSingleSegment(
+        request_id, segments[index], cancellation,
+        [&segment_result, &callback_called](VoiceOutputResult result) {
+          segment_result = std::move(result);
+          callback_called = true;
+        },
+        &used_fallback);
     if (!accepted) {
       if (index == 0U) {
         return false;
@@ -218,6 +223,10 @@ bool AudioPlaybackClient::SubmitCancellable(
       }
       return true;
     }
+    if (used_fallback) {
+      completion(std::move(segment_result));
+      return true;
+    }
   }
   completion({request_id, VoiceOutputStatus::kCompleted, {}});
   return true;
@@ -226,7 +235,10 @@ bool AudioPlaybackClient::SubmitCancellable(
 bool AudioPlaybackClient::SubmitSingleSegment(
     std::uint64_t request_id, std::string text,
     const std::shared_ptr<const VoiceOutputCancellation>& cancellation,
-    VoiceOutputCompletion completion) {
+    VoiceOutputCompletion completion, bool* used_fallback) {
+  if (used_fallback != nullptr) {
+    *used_fallback = false;
+  }
   if (request_id == 0U || !completion) {
     dropped_.fetch_add(1U);
     return false;
@@ -283,6 +295,23 @@ bool AudioPlaybackClient::SubmitSingleSegment(
     tts_timeouts_.fetch_add(1U);
     synthesis.success = false;
     synthesis.error = "speech synthesis deadline exceeded";
+  }
+  if ((!synthesis.success || synthesis.audio.samples.empty()) && fallback_synthesizer_ != nullptr &&
+      request_generation == interrupt_generation_.load() &&
+      (cancellation == nullptr || !cancellation->IsCancellationRequested())) {
+    constexpr char kFallbackPrompt[] = "Voice response unavailable.";
+    constexpr auto kFallbackTimeout = std::chrono::seconds(1);
+    try {
+      synthesis = fallback_synthesizer_->Synthesize(
+          kFallbackPrompt, std::chrono::steady_clock::now() + kFallbackTimeout);
+    } catch (const std::exception& exception) {
+      synthesis.error = exception.what();
+    } catch (...) {
+      synthesis.error = "fixed voice prompt synthesis failed";
+    }
+    if (synthesis.success && !synthesis.audio.samples.empty() && used_fallback != nullptr) {
+      *used_fallback = true;
+    }
   }
   if (!synthesis.success || synthesis.audio.samples.empty()) {
     failed_.fetch_add(1U);
@@ -453,6 +482,9 @@ void AudioPlaybackClient::Interrupt() {
   }
   if (synthesizer_ != nullptr) {
     synthesizer_->Cancel();
+  }
+  if (fallback_synthesizer_ != nullptr) {
+    fallback_synthesizer_->Cancel();
   }
   if (playback_id != 0U) {
     RequestPlaybackCancellation(0U, playback_id);
