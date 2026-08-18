@@ -96,4 +96,8 @@ COCKPIT_AI_ROOT="${ai_root}" LD_LIBRARY_PATH="${runtime_root}/lib${LD_LIBRARY_PA
   ctest --test-dir "${build_dir}" --output-on-failure \
     -R '^(sherpa_voice_smoke_test|sherpa_voice_gate_smoke_test|sherpa_tts_smoke_test|deterministic_command_router_test)$'
 
+BUILD_DIR="${build_dir}" COCKPIT_AI_ROOT="${ai_root}" \
+  COCKPIT_SHERPA_AGENT_RUNTIME_ROOT="${runtime_root}" \
+  bash "${root_dir}/scripts/tests/sherpa-service-voice-smoke.sh"
+
 echo "Sherpa voice VM smoke passed"

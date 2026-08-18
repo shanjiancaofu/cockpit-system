@@ -92,15 +92,17 @@ bool RunGateCase(const std::filesystem::path& wav, bool expect_wake, bool expect
       audio, segment, cockpit::agent::CreateSherpaVoiceActivityDetector(),
       cockpit::voice::CreateSherpaSenseVoiceRecognizer(), std::chrono::seconds(10));
   std::string error;
-  if (!pipeline.Start([&](const cockpit::voice::SpeechTranscript& transcript) {
-        service.SubmitTranscript(transcript);
-      }, &error)) {
+  if (!pipeline.Start(
+          [&](const cockpit::voice::SpeechTranscript& transcript) {
+            service.SubmitTranscript(transcript);
+          },
+          &error)) {
     std::cerr << "failed to start speech pipeline: " << error << '\n';
     service.Stop();
     return false;
   }
-  cockpit::agent::VoiceInputGate gate(
-      kws, &service, &pipeline, cockpit::agent::CreateSherpaWakeWordDetector(kws), nullptr);
+  cockpit::agent::VoiceInputGate gate(kws, &service, &pipeline,
+                                      cockpit::agent::CreateSherpaWakeWordDetector(kws), nullptr);
 
   for (const auto& frame : frames) {
     if (!gate.ProcessFrame(frame)) {

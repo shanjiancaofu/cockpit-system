@@ -2,12 +2,14 @@
 
 #include <chrono>
 #include <exception>
+#include <string_view>
 #include <thread>
 #include <utility>
 
 #include "cockpit/modules/audio/analysis/audio_level_meter.h"
 #include "cockpit/modules/audio/capture/alsa_capture_source.h"
 #include "cockpit/modules/audio/capture/audio_capture_stream.h"
+#include "cockpit/modules/audio/capture/wav_capture_source.h"
 
 namespace cockpit {
 namespace audio {
@@ -23,7 +25,12 @@ PcmFormat ToPcmFormat(const config::AudioConfig& config) {
 
 AudioCaptureController::SourceFactory DefaultSourceFactory() {
   return [](const std::string& device, const PcmFormat& format) {
-    return std::make_unique<AlsaCaptureSource>(device, format);
+    constexpr std::string_view kWavPrefix = "wav:";
+    if (device.rfind(kWavPrefix, 0) == 0) {
+      return std::unique_ptr<AudioCaptureSource>(
+          std::make_unique<WavCaptureSource>(device.substr(kWavPrefix.size()), format));
+    }
+    return std::unique_ptr<AudioCaptureSource>(std::make_unique<AlsaCaptureSource>(device, format));
   };
 }
 

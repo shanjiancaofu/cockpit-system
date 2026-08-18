@@ -6,14 +6,15 @@ target_link_libraries(audio_stream_protocol PUBLIC audio_frames)
 add_library(audio_analysis STATIC analysis/audio_level_meter.cc)
 target_link_libraries(audio_analysis PUBLIC audio_frames)
 
+add_library(audio_wav STATIC wav/wav_file.cc)
+target_link_libraries(audio_wav PUBLIC audio_frames)
+
 add_library(audio_capture STATIC
     capture/alsa_capture_source.cc
     capture/audio_capture_stream.cc
+    capture/wav_capture_source.cc
 )
-target_link_libraries(audio_capture PUBLIC audio_frames alsa_audio Threads::Threads)
-
-add_library(audio_wav STATIC wav/wav_file.cc)
-target_link_libraries(audio_wav PUBLIC audio_frames)
+target_link_libraries(audio_capture PUBLIC audio_frames audio_wav alsa_audio Threads::Threads)
 
 add_library(audio_playback STATIC playback/alsa_audio_player.cc)
 target_link_libraries(audio_playback PUBLIC audio_wav alsa_audio)

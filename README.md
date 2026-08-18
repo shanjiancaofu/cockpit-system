@@ -167,6 +167,10 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 SenseVoice provider 代码作为显式 Agent 产品构建的一部分交付，基础构建不下载、编译或链接其内部
 推理运行时。Ubuntu apt 只提供操作系统和平台依赖；`_output/ai` 统一放本地 runtime/model 资源。
 Ubuntu x86_64 下的真实 Sherpa KWS/VAD/ASR/TTS smoke 入口是 `bash scripts/tests/sherpa-voice-smoke.sh`。
+该入口还会启动真实 Navigator UI mode，并使用已有 WAV fixture 通过 Audio Driver 的
+`wav:/绝对路径` capture source 重放 `你好小山` 和命令，验证进程间音频传输、VoiceInputGate、ASR、
+安全 action 和响应播放；可单独运行 `bash scripts/tests/sherpa-service-voice-smoke.sh`。该 replay
+不需要重新录音，且不替代真实 ALSA 环境下的声学验收。
 Kokoro TTS 模型使用 `bash scripts/prepare-kokoro-tts.sh` 准备；该脚本只安装到 `_output/ai`，
 不使用 sudo。默认构建仍不下载或加载 Sherpa/TTS 模型。
 本地 LLM 默认关闭；生产候选为 Qwen3.5-2B Q4_K_M，Qwen3.5-4B Q4_K_M 仅作资源/质量对照。
