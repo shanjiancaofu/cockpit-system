@@ -173,6 +173,10 @@ Ubuntu x86_64 下的真实 Sherpa KWS/VAD/ASR/TTS smoke 入口是 `bash scripts/
 不需要重新录音，且不替代真实 ALSA 环境下的声学验收。
 Kokoro TTS 模型使用 `bash scripts/prepare-kokoro-tts.sh` 准备；该脚本只安装到 `_output/ai`，
 不使用 sudo。默认构建仍不下载或加载 Sherpa/TTS 模型。
+同一 Kokoro provider 实例的重复合成和 RSS 基线可运行
+`bash scripts/tests/kokoro-tts-stability.sh`；默认 16 轮，可通过
+`COCKPIT_KOKORO_STABILITY_ITERATIONS=32` 增加到 32 轮。该入口复用已有 runtime/model，不下载资源，
+也不进入默认 CI。
 本地 LLM 默认关闭；生产候选为 Qwen3.5-2B Q4_K_M，Qwen3.5-4B Q4_K_M 仅作资源/质量对照。
 显式准备 llama.cpp runtime 和对应 GGUF 后，使用
 `bash scripts/tests/llama-server-smoke.sh` 验证真实 server 与项目 client 的接口。

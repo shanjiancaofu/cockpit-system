@@ -956,6 +956,8 @@ Jetson 全系统压力测试
 
 #### TTS
 
+- [x] Ubuntu x86_64 同一 Kokoro provider 真实重复合成/RSS 基线；默认 16 轮且可显式增加轮数，
+  warm-up 后增长有界。Jetson 和真实 ALSA 并发播放长稳仍未验收。
 - [ ] 首包延迟。
 - [ ] RTF。
 - [ ] 中文自然度。

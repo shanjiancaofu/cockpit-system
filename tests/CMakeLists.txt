@@ -299,6 +299,8 @@ if(COCKPIT_ENABLE_SHERPA_AGENT)
         ENVIRONMENT
             "COCKPIT_AI_ROOT=${PROJECT_SOURCE_DIR}/_output/ai;LD_LIBRARY_PATH=${COCKPIT_SHERPA_AGENT_RUNTIME_ROOT}/lib"
     )
+    add_executable(sherpa_tts_stability_test agent/sherpa_tts_stability_test.cc)
+    target_link_libraries(sherpa_tts_stability_test PRIVATE agent_sherpa_voice)
 endif()
 
 add_executable(conversation_state_machine_test agent/conversation_state_machine_test.cc)

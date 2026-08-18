@@ -95,6 +95,7 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
                                                    const cockpit::audio::PcmBuffer&) override {
     {
       std::unique_lock<std::mutex> lock(mutex_);
+      ++submit_calls_;
       playback_id_ = playback_id;
       status_ = cockpit::voice::AudioPlaybackWaitStatus::kFailed;
       completed_ = false;
@@ -220,6 +221,11 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
     return wait_calls_;
   }
 
+  std::uint64_t submit_calls() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return submit_calls_;
+  }
+
   cockpit::voice::AudioPlaybackWaitStatus status() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return status_;
@@ -237,6 +243,7 @@ class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTra
   bool cancel_released_ = false;
   std::uint64_t cancel_calls_ = 0U;
   std::uint64_t wait_calls_ = 0U;
+  std::uint64_t submit_calls_ = 0U;
 };
 
 }  // namespace
@@ -329,6 +336,72 @@ int main() {
       segmented_status != cockpit::voice::VoiceOutputStatus::kCompleted ||
       segmented_control->wait_calls() != 2U || segmented_client.metrics().played != 2U) {
     std::cerr << "sentence-segmented playback did not complete each segment exactly once\n";
+    return 1;
+  }
+
+  auto segmented_cancel_transport = std::make_unique<FakeAudioPlaybackTransport>();
+  auto* segmented_cancel_control = segmented_cancel_transport.get();
+  cockpit::voice::AudioPlaybackClient segmented_cancel_client(
+      std::move(segmented_cancel_transport),
+      std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
+  std::atomic<std::uint64_t> segmented_cancel_completions{0U};
+  std::atomic<cockpit::voice::VoiceOutputStatus> segmented_cancel_status{
+      cockpit::voice::VoiceOutputStatus::kFailed};
+  std::thread segmented_cancel_submitter([&] {
+    segmented_cancel_client.Submit(50U, "First sentence. Second sentence. Third sentence.",
+                                   [&segmented_cancel_completions, &segmented_cancel_status](
+                                       cockpit::voice::VoiceOutputResult result) {
+                                     segmented_cancel_status.store(result.status);
+                                     segmented_cancel_completions.fetch_add(1U);
+                                   });
+  });
+  std::uint64_t first_segment_id = 0U;
+  if (!segmented_cancel_control->WaitForSubmission(0U, &first_segment_id)) {
+    std::cerr << "first segmented playback was not submitted\n";
+    return 1;
+  }
+  segmented_cancel_control->Complete(first_segment_id);
+  std::uint64_t second_segment_id = 0U;
+  if (!segmented_cancel_control->WaitForSubmission(first_segment_id, &second_segment_id)) {
+    std::cerr << "second segmented playback was not submitted\n";
+    return 1;
+  }
+  segmented_cancel_client.Interrupt();
+  segmented_cancel_submitter.join();
+  if (segmented_cancel_completions.load() != 1U ||
+      segmented_cancel_status.load() != cockpit::voice::VoiceOutputStatus::kCancelled ||
+      segmented_cancel_control->submit_calls() != 2U ||
+      segmented_cancel_control->wait_calls() != 2U ||
+      segmented_cancel_control->cancel_calls() != 1U ||
+      segmented_cancel_client.metrics().played != 1U) {
+    std::cerr << "segmented playback interrupt did not stop before the third segment\n";
+    return 1;
+  }
+
+  auto repeated_transport = std::make_unique<FakeAudioPlaybackTransport>(
+      FakeAudioPlaybackTransport::Behavior::kAutoComplete);
+  auto* repeated_control = repeated_transport.get();
+  cockpit::voice::AudioPlaybackClient repeated_client(
+      std::move(repeated_transport), std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
+  std::uint64_t repeated_completions = 0U;
+  constexpr std::uint64_t kRepeatedRequests = 128U;
+  for (std::uint64_t request = 1U; request <= kRepeatedRequests; ++request) {
+    if (!repeated_client.Submit(1000U + request, "First sentence. Second sentence. Third sentence.",
+                                [&repeated_completions](cockpit::voice::VoiceOutputResult result) {
+                                  if (result.status ==
+                                      cockpit::voice::VoiceOutputStatus::kCompleted) {
+                                    ++repeated_completions;
+                                  }
+                                })) {
+      std::cerr << "repeated segmented playback was rejected\n";
+      return 1;
+    }
+  }
+  const auto repeated_metrics = repeated_client.metrics();
+  if (repeated_completions != kRepeatedRequests || repeated_control->submit_calls() != 384U ||
+      repeated_metrics.queued != 384U || repeated_metrics.played != 384U ||
+      repeated_metrics.failed != 0U || repeated_metrics.dropped != 0U) {
+    std::cerr << "repeated segmented playback did not recycle bounded request state\n";
     return 1;
   }
 
