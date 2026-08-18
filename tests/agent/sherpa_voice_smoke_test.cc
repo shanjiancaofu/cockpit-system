@@ -99,7 +99,8 @@ bool DetectWakeWord(const std::filesystem::path& wav_path,
 }
 
 bool RunOpenCameraPipeline(const std::filesystem::path& wav_path,
-                           const std::filesystem::path& trailing_silence_path) {
+                           const std::filesystem::path& trailing_silence_path,
+                           bool require_open_camera) {
   cockpit::audio::PcmBuffer buffer;
   if (!ReadFixture(wav_path, &buffer)) {
     return false;
@@ -111,7 +112,7 @@ bool RunOpenCameraPipeline(const std::filesystem::path& wav_path,
 
   cockpit::config::AudioConfig audio_config;
   cockpit::config::SpeechSegmentConfig segment_config;
-  segment_config.pre_roll_ms = 0;
+  segment_config.pre_roll_ms = 300;
   segment_config.max_segment_ms = 15000;
 
   cockpit::agent::SpeechPipeline pipeline(
@@ -120,13 +121,13 @@ bool RunOpenCameraPipeline(const std::filesystem::path& wav_path,
 
   std::mutex mutex;
   std::condition_variable changed;
-  std::optional<cockpit::voice::SpeechTranscript> transcript;
+  std::vector<cockpit::voice::SpeechTranscript> transcripts;
   std::string error;
   if (!pipeline.Start(
           [&](const cockpit::voice::SpeechTranscript& value) {
             {
               std::lock_guard<std::mutex> lock(mutex);
-              transcript = value;
+              transcripts.push_back(value);
             }
             changed.notify_all();
           },
@@ -157,17 +158,11 @@ bool RunOpenCameraPipeline(const std::filesystem::path& wav_path,
       pipeline.Stop();
       return false;
     }
-    {
-      std::lock_guard<std::mutex> lock(mutex);
-      if (transcript.has_value()) {
-        break;
-      }
-    }
   }
   {
     std::unique_lock<std::mutex> lock(mutex);
-    changed.wait_for(lock, std::chrono::seconds(10), [&transcript] {
-      return transcript.has_value();
+    changed.wait_for(lock, std::chrono::seconds(10), [&transcripts] {
+      return !transcripts.empty();
     });
   }
   pipeline.Stop();
@@ -177,7 +172,7 @@ bool RunOpenCameraPipeline(const std::filesystem::path& wav_path,
       !Check(metrics.speech_frames != 0U, "Sherpa VAD did not detect speech") ||
       !Check(metrics.segments_completed != 0U, "SpeechSegmenter did not complete a segment") ||
       !Check(metrics.transcripts_published != 0U, "Sherpa ASR did not publish a transcript") ||
-      !Check(transcript.has_value(), "missing Sherpa ASR transcript")) {
+      !Check(!transcripts.empty(), "missing Sherpa ASR transcript")) {
     std::cerr << "Sherpa pipeline metrics: frames=" << metrics.frames_processed
               << " speech=" << metrics.speech_frames << " segments=" << metrics.segments_completed
               << " transcripts=" << metrics.transcripts_published << " errors=" << metrics.errors
@@ -185,12 +180,25 @@ bool RunOpenCameraPipeline(const std::filesystem::path& wav_path,
     return false;
   }
 
-  const std::string normalized = cockpit::voice::TranscriptNormalizer::Normalize(transcript->text);
+  std::string transcript_text;
+  for (const auto& value : transcripts) {
+    if (!transcript_text.empty()) {
+      transcript_text += ' ';
+    }
+    transcript_text += value.text;
+  }
+  const std::string normalized = cockpit::voice::TranscriptNormalizer::Normalize(transcript_text);
   const auto route = cockpit::voice::DeterministicCommandRouter().Route(normalized);
-  std::cout << "SenseVoice transcript: " << transcript->text << '\n';
+  std::cout << "pipeline metrics: frames=" << metrics.frames_processed
+            << " speech=" << metrics.speech_frames << " segments=" << metrics.segments_completed
+            << " transcripts=" << metrics.transcripts_published << " errors=" << metrics.errors
+            << '\n';
+  std::cout << "SenseVoice transcript: " << transcript_text << '\n';
   std::cout << "normalized transcript: " << normalized << '\n';
-  if (route.intent != cockpit::voice::VoiceIntent::kOpenCamera ||
-      route.action != cockpit::voice::VoiceAction::kOpenCamera) {
+  std::cout << "routed intent=" << cockpit::voice::ToString(route.intent)
+            << " action=" << cockpit::voice::ToString(route.action) << '\n';
+  if (require_open_camera && (route.intent != cockpit::voice::VoiceIntent::kOpenCamera ||
+                              route.action != cockpit::voice::VoiceAction::kOpenCamera)) {
     std::cerr << "transcript did not route to OpenCamera: intent="
               << cockpit::voice::ToString(route.intent)
               << " action=" << cockpit::voice::ToString(route.action) << '\n';
@@ -235,7 +243,7 @@ int main(int argc, char** argv) {
     return RunDirectRecognition(argv[1]) ? 0 : 1;
   }
   if (argc == 3 && std::string(argv[1]) == "--pipeline") {
-    return RunOpenCameraPipeline(argv[2], AiRoot() / "fixtures" / "silence.wav") ? 0 : 1;
+    return RunOpenCameraPipeline(argv[2], AiRoot() / "fixtures" / "silence.wav", false) ? 0 : 1;
   }
   if (argc != 1) {
     std::cerr << "usage: " << argv[0]
@@ -284,7 +292,8 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if (!RunOpenCameraPipeline(fixture_root / "open-camera-zh.wav", fixture_root / "silence.wav")) {
+  if (!RunOpenCameraPipeline(fixture_root / "open-camera-zh.wav", fixture_root / "silence.wav",
+                             true)) {
     return 1;
   }
 
