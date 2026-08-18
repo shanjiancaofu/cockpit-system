@@ -18,6 +18,16 @@ silence_fixture="${COCKPIT_SILENCE_FIXTURE:-${ai_root}/fixtures/silence.wav}"
 negative_fixture="${COCKPIT_NEGATIVE_FIXTURE:-${ai_root}/fixtures/live/segment-06-negative-commands.wav}"
 retired_wake_fixture="${COCKPIT_RETIRED_WAKE_FIXTURE:-${ai_root}/fixtures/nihao-xiaoche.wav}"
 source_config="${CONFIG_PATH:-${root_dir}/configs/development.yaml}"
+service_repetitions="${COCKPIT_SERVICE_VOICE_REPETITIONS:-1}"
+
+if ! [[ "${service_repetitions}" =~ ^[1-9][0-9]*$ ]] || ((service_repetitions > 32)); then
+  echo "COCKPIT_SERVICE_VOICE_REPETITIONS must be an integer from 1 through 32" >&2
+  exit 2
+fi
+warmup_repetition=3
+if ((service_repetitions < warmup_repetition)); then
+  warmup_repetition=${service_repetitions}
+fi
 
 for required in \
   "${runtime_root}/lib/libsherpa-onnx-c-api.so" \
@@ -113,65 +123,151 @@ if [[ "${ready}" != "true" ]]; then
   exit 1
 fi
 
-"${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null
-"${build_dir}/bin/audio-probe" --start --device "wav:${wake_fixture}" \
-  --config "${config_path}" >/dev/null
-
-listening=false
-for _ in $(seq 1 200); do
-  wake_status="$("${build_dir}/bin/voice-ctl" --status --config "${config_path}" 2>/dev/null)"
-  if [[ "${wake_status}" == *"state: listening"* ]]; then
-    listening=true
-    break
+peak_service_rss_kib=0
+current_service_rss_kib=0
+warmup_service_rss_kib=0
+update_service_rss() {
+  local child_pids
+  local process_pids
+  local rss_kib
+  child_pids="$(<"/proc/${navigator_pid}/task/${navigator_pid}/children")"
+  process_pids="${navigator_pid}${child_pids:+,${child_pids// /,}}"
+  rss_kib="$(ps -o rss= -p "${process_pids%,}" 2>/dev/null | awk '{total += $1} END {print total + 0}')"
+  if [[ "${rss_kib}" =~ ^[0-9]+$ ]]; then
+    current_service_rss_kib=${rss_kib}
+    if ((rss_kib > peak_service_rss_kib)); then
+      peak_service_rss_kib=${rss_kib}
+    fi
   fi
-  sleep 0.1
+}
+
+run_positive_replay() {
+  local expected_actions="$1"
+  local listening=false
+  local passed=false
+  local playback_completed=false
+  local status=""
+  local audio_status=""
+
+  if ((expected_actions == 1)); then
+    "${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null 2>&1 || true
+    "${build_dir}/bin/audio-probe" --start --device "wav:${wake_fixture}" \
+      --config "${config_path}" >/dev/null
+    for _ in $(seq 1 200); do
+      update_service_rss
+      wake_status="$("${build_dir}/bin/voice-ctl" --status --config "${config_path}" 2>/dev/null)"
+      if [[ "${wake_status}" == *"state: listening"* ]]; then
+        listening=true
+        break
+      fi
+      sleep 0.1
+    done
+    if [[ "${listening}" != "true" ]]; then
+      echo "Sherpa service voice replay did not enter listening state" >&2
+      printf '%s\n' "${wake_status}" >&2
+      return 1
+    fi
+  else
+    for _ in $(seq 1 450); do
+      status="$("${build_dir}/bin/voice-ctl" --status --config "${config_path}" 2>/dev/null)"
+      if [[ "${status}" == *"state: follow_up"* ]]; then
+        break
+      fi
+      sleep 0.1
+    done
+    if [[ "${status}" != *"state: follow_up"* ]]; then
+      echo "previous positive replay did not enter the follow-up window" >&2
+      printf '%s\n' "${status}" >&2
+      return 1
+    fi
+  fi
+
+  "${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null 2>&1 || true
+  "${build_dir}/bin/audio-probe" --start --device "wav:${command_fixture}" \
+    --config "${config_path}" >/dev/null
+  for _ in $(seq 1 100); do
+    command_audio_status="$("${build_dir}/bin/audio-probe" --status --config "${config_path}" 2>/dev/null)"
+    if [[ "${command_audio_status}" == *"state: stopped"* ]]; then
+      break
+    fi
+    sleep 0.1
+  done
+  "${build_dir}/bin/audio-probe" --start --device "wav:${silence_fixture}" \
+    --config "${config_path}" >/dev/null
+
+  for _ in $(seq 1 600); do
+    update_service_rss
+    status="$("${build_dir}/bin/voice-ctl" --status --config "${config_path}" 2>/dev/null)"
+    if [[ "${status}" == *"actions succeeded: ${expected_actions}"* &&
+          "${status}" == *"action_status=succeeded"* &&
+          "${status}" == *"action=open_camera"* ]]; then
+      passed=true
+      break
+    fi
+    sleep 0.1
+  done
+
+  for _ in $(seq 1 450); do
+    update_service_rss
+    audio_status="$("${build_dir}/bin/audio-probe" --status --config "${config_path}" 2>/dev/null)"
+    if [[ "${audio_status}" == *"playback played: ${expected_actions}"* &&
+          "${audio_status}" == *"playback failed: 0"* &&
+          "${audio_status}" == *"playback dropped: 0"* ]]; then
+      playback_completed=true
+      break
+    fi
+    sleep 0.1
+  done
+  if ((expected_actions == 1 || expected_actions == service_repetitions)); then
+    printf 'positive replay %s/%s\n%s\n%s\n' "${expected_actions}" "${service_repetitions}" \
+      "${status}" "${audio_status}"
+  else
+    printf 'positive replay %s/%s passed\n' "${expected_actions}" "${service_repetitions}"
+  fi
+  if [[ "${passed}" != "true" ]]; then
+    echo "Sherpa service voice replay did not execute open_camera; log: ${navigator_log}" >&2
+    tail -100 "${navigator_log}" >&2 || true
+    return 1
+  fi
+  if [[ "${playback_completed}" != "true" ]]; then
+    echo "Sherpa service voice replay did not receive successful playback completion" >&2
+    return 1
+  fi
+  if [[ "${audio_status}" != *"stream frames sent:"* ||
+        "${audio_status}" == *"stream frames sent: 0"* ]]; then
+    echo "Audio Driver did not send replay frames to Agent" >&2
+    return 1
+  fi
+}
+
+for repetition in $(seq 1 "${service_repetitions}"); do
+  run_positive_replay "${repetition}"
+  update_service_rss
+  if ((repetition == warmup_repetition)); then
+    warmup_service_rss_kib=${current_service_rss_kib}
+  fi
 done
-if [[ "${listening}" != "true" ]]; then
-  echo "Sherpa service voice replay did not enter listening state" >&2
-  printf '%s\n' "${wake_status}" >&2
+update_service_rss
+final_service_rss_kib=${current_service_rss_kib}
+post_warmup_growth_kib=0
+if ((final_service_rss_kib > warmup_service_rss_kib)); then
+  post_warmup_growth_kib=$((final_service_rss_kib - warmup_service_rss_kib))
+fi
+echo "service RSS: warmup_repetition=${warmup_repetition} warmup_service_rss_kib=${warmup_service_rss_kib} final_service_rss_kib=${final_service_rss_kib} peak_service_rss_kib=${peak_service_rss_kib} post_warmup_growth_kib=${post_warmup_growth_kib}"
+if ((post_warmup_growth_kib > 64 * 1024)); then
+  echo "service process tree RSS grew more than 64 MiB after warm-up" >&2
   exit 1
 fi
-
-"${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null 2>&1 || true
-"${build_dir}/bin/audio-probe" --start --device "wav:${command_fixture}" \
-  --config "${config_path}" >/dev/null
-
-for _ in $(seq 1 100); do
-  command_audio_status="$("${build_dir}/bin/audio-probe" --status --config "${config_path}" 2>/dev/null)"
-  if [[ "${command_audio_status}" == *"state: stopped"* ]]; then
-    break
-  fi
-  sleep 0.1
-done
-"${build_dir}/bin/audio-probe" --start --device "wav:${silence_fixture}" \
-  --config "${config_path}" >/dev/null
-
-status=""
-passed=false
-for _ in $(seq 1 600); do
-  status="$("${build_dir}/bin/voice-ctl" --status --config "${config_path}" 2>/dev/null)"
-  if [[ "${status}" == *"actions succeeded: 1"* &&
-        "${status}" == *"action_status=succeeded"* &&
-        "${status}" == *"action=open_camera"* ]]; then
-    passed=true
-    break
-  fi
-  sleep 0.1
-done
-
 audio_status="$("${build_dir}/bin/audio-probe" --status --config "${config_path}" 2>/dev/null)"
-printf '%s\n' "${status}"
-printf '%s\n' "${audio_status}"
-if [[ "${passed}" != "true" ]]; then
-  echo "Sherpa service voice replay did not execute open_camera; log: ${navigator_log}" >&2
-  tail -100 "${navigator_log}" >&2 || true
+if [[ "${audio_status}" != *"playback failed: 0"* ||
+      "${audio_status}" != *"playback dropped: 0"* ||
+      "${audio_status}" != *"xruns: 0"* ||
+      "${audio_status}" != *"device errors: 0"* ]]; then
+  echo "Audio Driver reported playback/capture errors during repeated replay" >&2
+  printf '%s\n' "${audio_status}" >&2
   exit 1
 fi
-if [[ "${audio_status}" != *"stream frames sent:"* ||
-      "${audio_status}" == *"stream frames sent: 0"* ]]; then
-  echo "Audio Driver did not send replay frames to Agent" >&2
-  exit 1
-fi
+echo "repeated positive replay passed: repetitions=${service_repetitions} warmup_service_rss_kib=${warmup_service_rss_kib} final_service_rss_kib=${final_service_rss_kib} peak_service_rss_kib=${peak_service_rss_kib} post_warmup_growth_kib=${post_warmup_growth_kib}"
 
 # Reuse the same live service to prove a negative follow-up cannot complete a second
 # action. SenseVoice may return unknown or a typed action whose consumer is unavailable;
@@ -203,8 +299,8 @@ done
 negative_passed=false
 for _ in $(seq 1 200); do
   status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
-  if [[ "${status}" == *"transcripts received: 3"* &&
-        "${status}" == *"actions succeeded: 1"* ]]; then
+  if [[ "${status}" == *"actions succeeded: ${service_repetitions}"* ]] &&
+     { ((service_repetitions > 1)) || [[ "${status}" == *"transcripts received: 3"* ]]; }; then
     negative_passed=true
     break
   fi
@@ -239,13 +335,13 @@ for _ in $(seq 1 100); do
 done
 sleep 1
 status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
-if [[ "${status}" != *"actions succeeded: 1"* ||
-      "${status}" != *"transcripts received: 3"* ]]; then
+if [[ "${status}" != *"actions succeeded: ${service_repetitions}"* ||
+      ("${service_repetitions}" == "1" && "${status}" != *"transcripts received: 3"*) ]]; then
   echo "retired wake word caused an unexpected interaction" >&2
   printf '%s\n' "${status}" >&2
   exit 1
 fi
-echo "service safety replay passed: no second action succeeded and retired wake was ignored"
+echo "service safety replay passed: no unexpected action succeeded and retired wake was ignored"
 
 "${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null || true
 echo "Sherpa Navigator service voice replay passed; log: ${navigator_log}"

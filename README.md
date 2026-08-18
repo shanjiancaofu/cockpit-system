@@ -177,6 +177,10 @@ Kokoro TTS 模型使用 `bash scripts/prepare-kokoro-tts.sh` 准备；该脚本�
 `bash scripts/tests/kokoro-tts-stability.sh`；默认 16 轮，可通过
 `COCKPIT_KOKORO_STABILITY_ITERATIONS=32` 增加到 32 轮。该入口复用已有 runtime/model，不下载资源，
 也不进入默认 CI。
+真实服务级重复播放可设置 `COCKPIT_SERVICE_VOICE_REPETITIONS=8` 后运行
+`bash scripts/tests/sherpa-service-voice-smoke.sh`。首轮经过唤醒，后续轮次复用 follow-up，逐轮要求
+ASR、确定性 action、Kokoro、Audio Driver playback receipt 一一完成，并检查播放错误、xrun、设备错误
+和服务进程树 RSS；该模式不下载资源，也不替代并发队列或现场回声测试。
 本地 LLM 默认关闭；生产候选为 Qwen3.5-2B Q4_K_M，Qwen3.5-4B Q4_K_M 仅作资源/质量对照。
 显式准备 llama.cpp runtime 和对应 GGUF 后，使用
 `bash scripts/tests/llama-server-smoke.sh` 验证真实 server 与项目 client 的接口。
