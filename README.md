@@ -166,7 +166,9 @@ _output/build/x86_64-debug/bin/camera-preview-probe \
 当前仓库包含 Agent 内的 mock VAD/ASR/TTS 和完整 PCM 流水线。Sherpa KWS / Silero VAD /
 SenseVoice provider 代码作为显式 Agent 产品构建的一部分交付，基础构建不下载、编译或链接其内部
 推理运行时。Ubuntu apt 只提供操作系统和平台依赖；`_output/ai` 统一放本地 runtime/model 资源。
-Ubuntu x86_64 VM 下的真实 Sherpa smoke 入口是 `bash scripts/tests/sherpa-voice-smoke.sh`。
+Ubuntu x86_64 下的真实 Sherpa KWS/VAD/ASR/TTS smoke 入口是 `bash scripts/tests/sherpa-voice-smoke.sh`。
+Kokoro TTS 模型使用 `bash scripts/prepare-kokoro-tts.sh` 准备；该脚本只安装到 `_output/ai`，
+不使用 sudo。默认构建仍不下载或加载 Sherpa/TTS 模型。
 本地 LLM 默认关闭；生产候选为 Qwen3.5-2B Q4_K_M，Qwen3.5-4B Q4_K_M 仅作资源/质量对照。
 显式准备 llama.cpp runtime 和对应 GGUF 后，使用
 `bash scripts/tests/llama-server-smoke.sh` 验证真实 server 与项目 client 的接口。

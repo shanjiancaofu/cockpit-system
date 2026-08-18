@@ -814,7 +814,7 @@ GPU offload：尽可能全部
 #### 任务
 
 - [ ] 固定提示音直接走 Audio Playback。
-- [ ] 动态回复通过 Kokoro 生成 PCM。
+- [x] 动态回复通过 Kokoro 生成 PCM（显式 Sherpa Agent 产品构建，Ubuntu x86_64 已 smoke）。
 - [ ] LLM 输出按句号、问号或长度切分。
 - [ ] TTS 分句生成，ALSA 边生成边播放。
 - [ ] 播放队列设置容量上限。

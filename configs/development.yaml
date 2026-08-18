@@ -93,6 +93,10 @@ features:
       max_segment_ms: 15000
     asr:
       provider: mock
+    tts:
+      provider: mock
+      speaker_id: 3
+      speed: 1.0
   ai:
     asr_timeout_ms: 3000
     assistant_timeout_ms: 10000

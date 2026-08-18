@@ -37,6 +37,7 @@
 #include "cockpit/modules/voice/responses/async_voice_response_sink.h"
 
 #if defined(COCKPIT_ENABLE_SHERPA_AGENT)
+#include "agent/speech/providers/sherpa/sherpa_kokoro_speech_synthesizer.h"
 #include "agent/speech/providers/sherpa/sherpa_sensevoice_recognizer.h"
 #include "agent/speech/providers/sherpa/sherpa_voice_activity_detector.h"
 #include "agent/speech/providers/sherpa/sherpa_wake_word_detector.h"
@@ -120,6 +121,34 @@ std::unique_ptr<voice::SpeechRecognizer> CreateSpeechRecognizer(const config::As
   }
   if (error != nullptr) {
     *error = "unsupported ASR provider: " + config.provider;
+  }
+  return nullptr;
+}
+
+std::unique_ptr<voice::SpeechSynthesizer> CreateSpeechSynthesizer(const config::TtsConfig& config,
+                                                                  std::string* error) {
+  if (config.provider == "mock") {
+    return std::make_unique<voice::MockSpeechSynthesizer>();
+  }
+  if (config.provider == "sherpa-kokoro") {
+#if defined(COCKPIT_ENABLE_SHERPA_AGENT)
+    try {
+      return voice::CreateSherpaKokoroSpeechSynthesizer(config);
+    } catch (const std::exception& exception) {
+      if (error != nullptr) {
+        *error = exception.what();
+      }
+      return nullptr;
+    }
+#else
+    if (error != nullptr) {
+      *error = "Sherpa Kokoro TTS requested, but COCKPIT_ENABLE_SHERPA_AGENT is OFF";
+    }
+    return nullptr;
+#endif
+  }
+  if (error != nullptr) {
+    *error = "unsupported TTS provider: " + config.provider;
   }
   return nullptr;
 }
@@ -220,9 +249,15 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
       dispatcher = std::make_unique<voice::CockpitActionDispatcher>(
           std::make_unique<voice::GatewayVehicleStatusClient>(interaction_config.gateway_address),
           std::make_unique<voice::LocalHmiCommandProvider>(hmi_address));
+      std::string tts_error;
+      auto synthesizer = CreateSpeechSynthesizer(config.features().voice.tts, &tts_error);
+      if (synthesizer == nullptr) {
+        LOG_ERROR("failed to configure TTS: " + tts_error);
+        return false;
+      }
       output = std::make_unique<voice::AsyncVoiceResponseSink>(
           std::make_unique<voice::AudioPlaybackClient>(
-              interaction_config.audio_address, std::make_unique<voice::MockSpeechSynthesizer>(),
+              interaction_config.audio_address, std::move(synthesizer),
               std::chrono::milliseconds(config.features().ai.tts_synthesis_timeout_ms)));
       std::string llm_error;
       llm_server = CreateLlamaServerProcess(config.features().ai.local_llm);

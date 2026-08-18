@@ -285,6 +285,13 @@ if(COCKPIT_ENABLE_SHERPA_AGENT)
         ENVIRONMENT
             "COCKPIT_AI_ROOT=${PROJECT_SOURCE_DIR}/_output/ai;LD_LIBRARY_PATH=${COCKPIT_SHERPA_AGENT_RUNTIME_ROOT}/lib"
     )
+    add_executable(sherpa_tts_smoke_test agent/sherpa_tts_smoke_test.cc)
+    target_link_libraries(sherpa_tts_smoke_test PRIVATE agent_sherpa_voice)
+    add_test(NAME sherpa_tts_smoke_test COMMAND sherpa_tts_smoke_test)
+    set_tests_properties(sherpa_tts_smoke_test PROPERTIES
+        ENVIRONMENT
+            "COCKPIT_AI_ROOT=${PROJECT_SOURCE_DIR}/_output/ai;LD_LIBRARY_PATH=${COCKPIT_SHERPA_AGENT_RUNTIME_ROOT}/lib"
+    )
 endif()
 
 add_executable(conversation_state_machine_test agent/conversation_state_machine_test.cc)

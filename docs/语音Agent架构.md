@@ -44,10 +44,10 @@
 | Energy VAD | 已移除 |
 | Sherpa-ONNX/SenseVoice | 不进入默认构建；Sherpa provider 仅在显式 Agent 产品构建中编译 |
 | KWS | 接口、mock 实现、input gate、cooldown、异步固定 PCM wake prompt 和 Sherpa KWS provider 代码已落地；Jetson 真机声学验收待完成 |
-| 真实 VAD 实现 | Sherpa Silero VAD provider 代码骨架已落地；产品构建和 Jetson smoke 待完成 |
-| 真实 ASR 实现 | Sherpa SenseVoiceSmall INT8 provider 代码骨架已落地；产品构建和 Jetson smoke 待完成 |
-| TTS 与 PCM 回放 | mock TTS 已在 Agent，Driver 只播放 PCM |
-| 本地 LLM client | `LocalLlmClient`、llama-server SSE、首 token/总超时、进程托管和真实 server smoke 入口已实现；固定 runtime/model 实测待完成 |
+| 真实 VAD 实现 | Sherpa Silero VAD provider 已在 Ubuntu x86_64 产品构建和 fixture smoke 中验证；Jetson 与真实麦克风声学验收待完成 |
+| 真实 ASR 实现 | Sherpa SenseVoiceSmall INT8 provider 已在 Ubuntu x86_64 fixture smoke 中验证；真实麦克风讲话和 Jetson smoke 待完成 |
+| TTS 与 PCM 回放 | Sherpa Kokoro `kokoro-multi-lang-v1_1` 已加入显式 Agent 产品构建；Ubuntu x86_64 中英混读和 USB PCM 回放通过，默认构建仍为 mock |
+| 本地 LLM client | `LocalLlmClient`、llama-server SSE、首 token/总超时、进程托管和 Ubuntu x86_64 固定 runtime/model 真实 smoke 已完成；Jetson 性能与长稳待验收 |
 | 语音会话状态机 | 状态/事件核心已实现，KWS wake 事件已通过 `VoiceInteractionService` 公开入口接入 |
 
 默认配置保持：
@@ -139,7 +139,8 @@ Navigator 的 child subreaper 和进程组清理能力继续作为兜底。
 `llama-server` 时必须同时启用 `manage_process`，Agent 只连接 loopback endpoint。托管器负责资源
 预检、独立进程组、readiness、周期 health、指数退避重启上限和有界退出回收。确定性命令仍先经过
 allowlist router。client 增量解析 chunked/非 chunked SSE，并将 token 聚合为回复文本；首 token deadline
-和总回复 deadline 独立，取消时主动关闭当前 socket。固定 runtime/model 实测仍属于阶段 11 后续任务。
+和总回复 deadline 独立，取消时主动关闭当前 socket。llama.cpp 固定 runtime/model 的 Ubuntu x86_64
+实测已完成；Jetson 性能和长稳仍属于后续验收。
 
 ## 6. Driver 与 Agent 音频协议
 

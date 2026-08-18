@@ -72,6 +72,8 @@ int main() {
       config.services().recording.min_free_bytes != 536870912ULL ||
       config.hardware().can.interface != "vcan0" ||
       config.features().voice.asr.provider != "mock" ||
+      config.features().voice.tts.provider != "mock" ||
+      config.features().voice.tts.speaker_id != 3 || config.features().voice.tts.speed != 1.0 ||
       config.features().ai.asr_timeout_ms != 3000 ||
       config.features().ai.assistant_timeout_ms != 10000 ||
       config.features().ai.command_execution_timeout_ms != 3000 ||
@@ -138,6 +140,19 @@ int main() {
                    "    local_llm:\n      enabled: true") ||
       !ExpectRejectedConfig(enabled_llm_without_provider,
                             "features.ai.local_llm.provider must not be disabled")) {
+    return 1;
+  }
+
+  std::string invalid_tts_speaker = ReadFile(VALID_CONFIG_PATH);
+  if (!ReplaceOnce(&invalid_tts_speaker, "      speaker_id: 3", "      speaker_id: 103") ||
+      !ExpectRejectedConfig(invalid_tts_speaker,
+                            "features.voice.tts.speaker_id must be in [0, 102]")) {
+    return 1;
+  }
+
+  std::string invalid_tts_speed = ReadFile(VALID_CONFIG_PATH);
+  if (!ReplaceOnce(&invalid_tts_speed, "      speed: 1.0", "      speed: 0.0") ||
+      !ExpectRejectedConfig(invalid_tts_speed, "features.voice.tts.speed must be in [0.5, 2.0]")) {
     return 1;
   }
 

@@ -329,7 +329,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   const YAML::Node features = ChildMap(root, "features", "features");
   ValidateKeys(features, "features", {"voice", "ai"});
   const YAML::Node voice = ChildMap(features, "voice", "features.voice");
-  ValidateKeys(voice, "features.voice", {"enabled", "kws", "vad", "speech_segment", "asr"});
+  ValidateKeys(voice, "features.voice", {"enabled", "kws", "vad", "speech_segment", "asr", "tts"});
   config.features_.voice.enabled =
       Read(voice, "enabled", config.features_.voice.enabled, "features.voice.enabled");
   const YAML::Node kws = ChildMap(voice, "kws", "features.voice.kws");
@@ -365,6 +365,14 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   ValidateKeys(asr, "features.voice.asr", {"provider"});
   config.features_.voice.asr.provider =
       Read(asr, "provider", config.features_.voice.asr.provider, "features.voice.asr.provider");
+  const YAML::Node tts = ChildMap(voice, "tts", "features.voice.tts");
+  ValidateKeys(tts, "features.voice.tts", {"provider", "speaker_id", "speed"});
+  config.features_.voice.tts.provider =
+      Read(tts, "provider", config.features_.voice.tts.provider, "features.voice.tts.provider");
+  config.features_.voice.tts.speaker_id = Read(
+      tts, "speaker_id", config.features_.voice.tts.speaker_id, "features.voice.tts.speaker_id");
+  config.features_.voice.tts.speed =
+      Read(tts, "speed", config.features_.voice.tts.speed, "features.voice.tts.speed");
   const YAML::Node ai = ChildMap(features, "ai", "features.ai");
   ValidateKeys(ai, "features.ai",
                {"asr_timeout_ms", "assistant_timeout_ms", "command_execution_timeout_ms",
@@ -700,6 +708,15 @@ void SystemConfig::Validate() const {
   if (features_.voice.asr.provider != "mock" &&
       features_.voice.asr.provider != "sherpa-sensevoice") {
     throw std::runtime_error("features.voice.asr.provider must be mock or sherpa-sensevoice");
+  }
+  if (features_.voice.tts.provider != "mock" && features_.voice.tts.provider != "sherpa-kokoro") {
+    throw std::runtime_error("features.voice.tts.provider must be mock or sherpa-kokoro");
+  }
+  if (features_.voice.tts.speaker_id < 0 || features_.voice.tts.speaker_id > 102) {
+    throw std::runtime_error("features.voice.tts.speaker_id must be in [0, 102]");
+  }
+  if (features_.voice.tts.speed < 0.5 || features_.voice.tts.speed > 2.0) {
+    throw std::runtime_error("features.voice.tts.speed must be in [0.5, 2.0]");
   }
   if (features_.voice.enabled && features_.voice.vad.provider == "disabled") {
     throw std::runtime_error(

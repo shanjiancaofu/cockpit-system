@@ -38,6 +38,7 @@ if(COCKPIT_ENABLE_SHERPA_AGENT)
         speech/providers/sherpa/sherpa_wake_word_detector.cc
         speech/providers/sherpa/sherpa_voice_activity_detector.cc
         speech/providers/sherpa/sherpa_sensevoice_recognizer.cc
+        speech/providers/sherpa/sherpa_kokoro_speech_synthesizer.cc
     )
     target_include_directories(agent_sherpa_voice
         PUBLIC

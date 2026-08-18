@@ -133,12 +133,19 @@ struct AsrConfig {
   std::string provider = "mock";
 };
 
+struct TtsConfig {
+  std::string provider = "mock";
+  int speaker_id = 3;
+  double speed = 1.0;
+};
+
 struct VoiceConfig {
   bool enabled = false;
   KwsConfig kws;
   VadConfig vad;
   SpeechSegmentConfig speech_segment;
   AsrConfig asr;
+  TtsConfig tts;
 };
 
 struct LocalLlmConfig {

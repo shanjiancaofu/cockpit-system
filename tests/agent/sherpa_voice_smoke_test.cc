@@ -199,9 +199,50 @@ bool RunOpenCameraPipeline(const std::filesystem::path& wav_path,
   return true;
 }
 
+bool RunDirectRecognition(const std::filesystem::path& wav_path) {
+  cockpit::audio::PcmBuffer buffer;
+  if (!ReadFixture(wav_path, &buffer)) {
+    return false;
+  }
+
+  cockpit::audio::SpeechSegment segment;
+  segment.samples = std::move(buffer.samples);
+  segment.end_sequence = static_cast<std::uint64_t>(segment.FrameCount());
+  segment.end_time_ns = static_cast<std::int64_t>(segment.DurationMs() * 1'000'000ULL);
+
+  auto recognizer = cockpit::voice::CreateSherpaSenseVoiceRecognizer();
+  const auto result =
+      recognizer->Recognize(segment, std::chrono::steady_clock::now() + std::chrono::seconds(30));
+  if (!result.success) {
+    std::cerr << "direct SenseVoice recognition failed: " << result.error << '\n';
+    return false;
+  }
+  if (result.text.empty()) {
+    std::cerr << "direct SenseVoice recognition returned an empty transcript\n";
+    return false;
+  }
+
+  std::cout << "SenseVoice direct transcript: " << result.text << '\n';
+  std::cout << "normalized transcript: "
+            << cockpit::voice::TranscriptNormalizer::Normalize(result.text) << '\n';
+  return true;
+}
+
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
+  if (argc == 2) {
+    return RunDirectRecognition(argv[1]) ? 0 : 1;
+  }
+  if (argc == 3 && std::string(argv[1]) == "--pipeline") {
+    return RunOpenCameraPipeline(argv[2], AiRoot() / "fixtures" / "silence.wav") ? 0 : 1;
+  }
+  if (argc != 1) {
+    std::cerr << "usage: " << argv[0]
+              << " [16-kHz-mono-PCM16.wav | --pipeline 16-kHz-mono-PCM16.wav]\n";
+    return 2;
+  }
+
   const std::filesystem::path ai_root = AiRoot();
   const std::filesystem::path fixture_root = ai_root / "fixtures";
   const std::filesystem::path kws_model =
