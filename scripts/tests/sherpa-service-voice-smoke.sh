@@ -15,6 +15,8 @@ build_dir="${BUILD_DIR:-$(cockpit_output_dir)/build/x86_64-sherpa-debug}"
 wake_fixture="${COCKPIT_WAKE_FIXTURE:-${ai_root}/fixtures/nihao-xiaoshan.wav}"
 command_fixture="${COCKPIT_COMMAND_FIXTURE:-${ai_root}/fixtures/open-camera-zh.wav}"
 silence_fixture="${COCKPIT_SILENCE_FIXTURE:-${ai_root}/fixtures/silence.wav}"
+negative_fixture="${COCKPIT_NEGATIVE_FIXTURE:-${ai_root}/fixtures/live/segment-06-negative-commands.wav}"
+retired_wake_fixture="${COCKPIT_RETIRED_WAKE_FIXTURE:-${ai_root}/fixtures/nihao-xiaoche.wav}"
 source_config="${CONFIG_PATH:-${root_dir}/configs/development.yaml}"
 
 for required in \
@@ -22,7 +24,9 @@ for required in \
   "${ai_root}/config/kws-keywords.txt" \
   "${wake_fixture}" \
   "${command_fixture}" \
-  "${silence_fixture}"; do
+  "${silence_fixture}" \
+  "${negative_fixture}" \
+  "${retired_wake_fixture}"; do
   if [[ ! -f "${required}" ]]; then
     echo "missing required Sherpa service smoke resource: ${required}" >&2
     exit 2
@@ -167,6 +171,79 @@ if [[ "${audio_status}" != *"stream frames sent:"* ||
   echo "Audio Driver did not send replay frames to Agent" >&2
   exit 1
 fi
+
+# Reuse the same live service to prove a negative follow-up does not dispatch another action,
+# then prove the retired wake word remains ignored after the follow-up window expires.
+for _ in $(seq 1 200); do
+  status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
+  if [[ "${status}" == *"state: follow_up"* ]]; then
+    break
+  fi
+  sleep 0.1
+done
+if [[ "${status}" != *"state: follow_up"* ]]; then
+  echo "positive command did not enter the follow-up window" >&2
+  exit 1
+fi
+"${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null 2>&1 || true
+"${build_dir}/bin/audio-probe" --start --device "wav:${negative_fixture}" \
+  --config "${config_path}" >/dev/null
+for _ in $(seq 1 100); do
+  command_audio_status="$(${build_dir}/bin/audio-probe --status --config "${config_path}" 2>/dev/null)"
+  if [[ "${command_audio_status}" == *"state: stopped"* ]]; then
+    break
+  fi
+  sleep 0.1
+done
+"${build_dir}/bin/audio-probe" --start --device "wav:${silence_fixture}" \
+  --config "${config_path}" >/dev/null
+negative_passed=false
+for _ in $(seq 1 200); do
+  status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
+  if [[ "${status}" == *"transcripts received: 2"* &&
+        "${status}" == *"unknown intents: 1"* &&
+        "${status}" == *"actions succeeded: 1"* ]]; then
+    negative_passed=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "${negative_passed}" != "true" ]]; then
+  echo "negative command dispatched an unexpected action" >&2
+  printf '%s\n' "${status}" >&2
+  exit 1
+fi
+
+for _ in $(seq 1 200); do
+  status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
+  if [[ "${status}" == *"state: idle"* ]]; then
+    break
+  fi
+  sleep 0.1
+done
+if [[ "${status}" != *"state: idle"* ]]; then
+  echo "negative response did not leave the follow-up window" >&2
+  exit 1
+fi
+"${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null 2>&1 || true
+"${build_dir}/bin/audio-probe" --start --device "wav:${retired_wake_fixture}" \
+  --config "${config_path}" >/dev/null
+for _ in $(seq 1 100); do
+  retired_audio_status="$(${build_dir}/bin/audio-probe --status --config "${config_path}" 2>/dev/null)"
+  if [[ "${retired_audio_status}" == *"state: stopped"* ]]; then
+    break
+  fi
+  sleep 0.1
+done
+sleep 1
+status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
+if [[ "${status}" != *"actions succeeded: 1"* ||
+      "${status}" != *"transcripts received: 2"* ]]; then
+  echo "retired wake word caused an unexpected interaction" >&2
+  printf '%s\n' "${status}" >&2
+  exit 1
+fi
+echo "service safety replay passed: negative intent remained unknown and retired wake was ignored"
 
 "${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null || true
 echo "Sherpa Navigator service voice replay passed; log: ${navigator_log}"
