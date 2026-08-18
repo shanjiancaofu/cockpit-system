@@ -171,6 +171,11 @@ Ubuntu x86_64 下的真实 Sherpa KWS/VAD/ASR/TTS smoke 入口是 `bash scripts/
 `wav:/绝对路径` capture source 重放 `你好小山` 和命令，验证进程间音频传输、VoiceInputGate、ASR、
 安全 action 和响应播放；可单独运行 `bash scripts/tests/sherpa-service-voice-smoke.sh`。该 replay
 不需要重新录音，且不替代真实 ALSA 环境下的声学验收。
+SenseVoice 固定录音性能与安全路由基线可运行
+`bash scripts/tests/sensevoice-asr-benchmark.sh`。该入口复用已有 Sherpa runtime、模型和 8 条真实录音，
+不下载资源、不进入默认 CI；默认重复 3 轮，可通过 `COCKPIT_SENSEVOICE_BENCHMARK_REPETITIONS=10`
+运行 80 次识别。CER 和整句准确率只统计两条有可靠人工参考文本的中英文 `open camera` fixture，
+其余录音用于重复输出、延迟、RSS 和 fail-closed 路由验证，不能冒充完整车控语料准确率。
 Kokoro TTS 模型使用 `bash scripts/prepare-kokoro-tts.sh` 准备；该脚本只安装到 `_output/ai`，
 不使用 sudo。默认构建仍不下载或加载 Sherpa/TTS 模型。
 同一 Kokoro provider 实例的重复合成和 RSS 基线可运行

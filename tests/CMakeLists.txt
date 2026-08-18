@@ -303,6 +303,8 @@ if(COCKPIT_ENABLE_SHERPA_AGENT)
     target_link_libraries(sherpa_tts_stability_test PRIVATE agent_sherpa_voice)
     add_executable(sherpa_tts_benchmark_test agent/sherpa_tts_benchmark_test.cc)
     target_link_libraries(sherpa_tts_benchmark_test PRIVATE agent_sherpa_voice agent_speech)
+    add_executable(sherpa_asr_benchmark_test agent/sherpa_asr_benchmark_test.cc)
+    target_link_libraries(sherpa_asr_benchmark_test PRIVATE agent_sherpa_voice voice_assistant)
 endif()
 
 add_executable(conversation_state_machine_test agent/conversation_state_machine_test.cc)

@@ -603,9 +603,9 @@ TTS：kokoro-multi-lang-v1_1
 - [x] Sherpa KWS provider 对外只暴露项目接口，不传播 Sherpa 或 ONNX Runtime 类型。
 - [x] 增加 `_output/ai` 本地资源布局和 `prepare-sherpa-runtime.sh`、
   `prepare-voice-models.sh` 准备入口；运行时和模型不进 Git、不在程序启动时下载。
-- [x] 增加 Sherpa Silero VAD 与 SenseVoiceSmall INT8 provider 代码骨架，仍需产品构建和 Jetson smoke
-  验证。
-- [ ] 真实执行 `COCKPIT_ENABLE_SHERPA_AGENT=ON` 产品构建。
+- [x] 增加 Sherpa Silero VAD 与 SenseVoiceSmall INT8 provider；Ubuntu x86_64 产品构建、真实模型
+  smoke 和固定录音基准已通过，Jetson smoke 仍待验证。
+- [x] 在 Ubuntu x86_64 真实执行 `COCKPIT_ENABLE_SHERPA_AGENT=ON` 产品构建；Jetson 产品构建待验收。
 - [ ] 固定 Sherpa-ONNX v1.13.4 runtime 交付物，并使用其私有 ONNX Runtime；不得要求它与应用 gRPC 共用
   Protobuf。
 - [ ] 使用 `-fvisibility=hidden`。
@@ -649,27 +649,28 @@ SpeechSegmenter
 
 #### 任务
 
-- [ ] 接入 SenseVoiceSmall INT8 作为稳定回退。
-  - 当前已有 Sherpa SenseVoice provider 代码骨架和固定 `_output/ai/models/asr/sensevoice-small-int8`
-    资源路径；产品构建、真实模型加载和 Jetson smoke 仍未完成。
+- [x] 接入 SenseVoiceSmall INT8 作为稳定回退。
+  - Ubuntu x86_64 已完成 Sherpa 产品构建、真实模型加载、8 条固定录音和服务级 replay；Jetson
+    ARM64/CUDA 与现场声学 smoke 仍未完成。
 - [ ] 接入 Qwen3-ASR-0.6B INT8 作为候选。
-- [ ] 统一 ASR 输出结构。
-- [ ] 开启 ITN 或文本规范化。
-- [ ] 建立固定车控命令测试集。
+- [x] 统一 ASR 最终输出结构；车控只消费非流式完整识别结果。
+- [x] 通过 `TranscriptNormalizer` 执行确定性文本规范化；SenseVoice provider 不向路由泄漏中间结果。
+- [x] 建立首批 8 条固定真实录音基准，覆盖中英文开相机、唤醒加命令、多命令、混合命令、否定命令、
+  车辆状态措辞和不支持的停车命令；可靠逐字参考仅覆盖两条开相机录音，数据集仍需扩充。
 - [ ] 测试：
-  - [ ] 中文 CER
-  - [ ] 命令整句准确率
+  - [x] 首批可靠参考的中文 CER；当前仅 1 条中文录音重复 10 轮为 CER 0，不代表广泛中文 CER。
+  - [x] 首批可靠参考的命令整句准确率；中英文开相机共 20/20，其余录音无人工逐字标注。
   - [ ] 数字和单位准确率
-  - [ ] 否定词准确率
-  - [ ] 平均延迟
-  - [ ] P95 延迟
-  - [ ] 峰值 RSS
-  - [ ] 连续识别稳定性
+  - [x] 固定否定/多命令录音经最终文本路由保持 fail-closed；否定词逐字准确率仍需人工标注集。
+  - [x] Ubuntu x86_64 固定集平均延迟；80 次识别最终复测平均 307 ms。
+  - [x] Ubuntu x86_64 固定集观测 P95 延迟；80 次识别最终复测为 694 ms。
+  - [x] Ubuntu x86_64 峰值 RSS；最终复测 `VmHWM=369744 KiB`。
+  - [x] Ubuntu x86_64 连续识别稳定性；同一 recognizer 80 次输出稳定，首轮后 RSS 增长 0 KiB。
 
 #### 验收
 
-- [ ] ASR 只接收切好的完整语音段。
-- [ ] 车控只使用最终 ASR 文本。
+- [x] SenseVoice ASR 只接收切好的完整语音段。
+- [x] 车控只使用最终 ASR 文本。
 - [ ] Qwen3-ASR 只有在关键指标不下降时才能替换 SenseVoice。
 - [ ] 普通 CER 提升不能抵消车控命令准确率下降。
 
@@ -948,14 +949,14 @@ Jetson 全系统压力测试
 
 #### ASR
 
-- [ ] 中文 CER。
+- [ ] 扩展语料后的中文 CER；当前仅有 1 条可靠中文参考录音，重复 10 轮 CER 0。
 - [ ] 车控命令整句准确率。
 - [ ] 动作分类准确率。
 - [ ] 数字和单位准确率。
 - [ ] 否定词准确率。
-- [ ] 平均和 P95 延迟。
-- [ ] 峰值 RSS。
-- [ ] 长时间稳定性。
+- [x] Ubuntu x86_64 首批固定集平均和观测 P95 延迟最终复测为 307/694 ms；Jetson 和扩展语料待验收。
+- [x] Ubuntu x86_64 首批固定集最终复测 `VmHWM=369744 KiB`；Jetson 并发内存待验收。
+- [x] Ubuntu x86_64 同一 recognizer 80 次稳定识别且首轮后 RSS 增长 0 KiB；长时间服务稳定性待验收。
 
 #### TTS
 
@@ -1036,7 +1037,7 @@ P1：
 Ubuntu VM 真实 llama-server/Qwen3.5-2B smoke，并运行 4B 对照
 Jetson Sherpa KWS smoke
 Sherpa Agent 产品实现剩余 provider
-SenseVoice 恢复
+SenseVoice 扩展标注语料与 Jetson 验收
 Qwen3-ASR 对比
 
 P2：
