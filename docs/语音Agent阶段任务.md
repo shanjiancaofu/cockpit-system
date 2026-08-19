@@ -1,6 +1,6 @@
 # Cockpit Agent 与语音系统阶段任务表
 
-更新时间：2026-08-18。
+更新时间：2026-08-19。
 
 本文是语音专项的唯一任务表。稳定设计以
 [语音Agent架构](语音Agent架构.md) 为准；后续对话先读下面的交接信息，再按阶段标题定位，
@@ -11,14 +11,14 @@
 | 范围 | 文档 | 状态 |
 | --- | --- | --- |
 | 阶段 0–5 | 分层、Audio Driver、PCM、Agent 基础 | 工程迁移完成；真实声学验收延后 |
-| 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | Ubuntu x86_64 主链路和固定基准已完成；Jetson/扩展语料/Qwen3-ASR 待做 |
+| 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | Ubuntu x86_64 主链路和固定基准已完成；Jetson/扩展语料待做 |
 | 阶段 11–15 | LLM、TTS、前处理、模型发布 | Stage 11/12 Ubuntu 功能基线完成；Stage 8 发布加固进行中；13–15 未完成 |
 | 实施顺序和优先级 | 文末 | 持续更新 |
 
 ## 当前交接信息
 
 ```text
-当前开发主线：Sherpa Agent 发布加固和 ASR/Qwen3-ASR 对比；阶段 7–9 的 Jetson 声学与性能验收并行待办
+当前开发主线：Sherpa Agent 发布加固和 SenseVoice ASR 扩展语料；阶段 7–9 的 Jetson 声学与性能验收并行待办
 已完成：分环节 deadline、固定错误提示、request-scoped Action 取消、single-flight playback 取消、
         ASR Stop stale-success 隔离、真实播放回执/取消和 FOLLOW_UP 窗口；TranscriptNormalizer、
         现有三种 Action 的显式正向整句 allowlist；所有非白名单 transcript fail closed；
@@ -28,8 +28,8 @@
 已完成：Ubuntu x86_64 SenseVoice 8 条固定录音/80 次稳定基准；Kokoro 24 kHz 合成、分段播放、
         服务级回放和 RSS 基准；Qwen3.5-2B/4B 真实 llama-server smoke；Navigator module hidden
         visibility、version script、`--exclude-libs,ALL` 和安装态 `$ORIGIN` RPATH
-下一主线：补齐可追踪人工 ASR 标注并运行 Qwen3-ASR 对比；完成 Sherpa runtime 独立交付和 provider
-          降级恢复；Jetson 继续完成 Sherpa/音频硬件声学和性能验收
+下一主线：补齐可追踪人工 ASR 标注；扩展长时间服务稳定性；
+          Jetson 继续完成 Sherpa/音频硬件声学和性能验收
 当前实现入口：agent/llm/, agent/runtime/agent_runtime.cc, agent/speech/providers/sherpa/,
              cockpit/modules/voice/assistant/
 验证基线：Debug/Release、ASan/UBSan、TSan 和 driver dependency boundary 由 CI 持续验证
@@ -593,7 +593,7 @@ _output/ai/
 Sherpa-ONNX：v1.13.4
 VAD：Sherpa 官方 silero_vad.onnx
 ASR 回退：SenseVoiceSmall INT8 2024-07-17
-ASR 候选：Qwen3-ASR-0.6B INT8
+ASR 候选：暂无；继续使用 SenseVoiceSmall INT8
 TTS：kokoro-multi-lang-v1_1
 ```
 
@@ -609,7 +609,7 @@ TTS：kokoro-multi-lang-v1_1
 - [x] 增加 Sherpa Silero VAD 与 SenseVoiceSmall INT8 provider；Ubuntu x86_64 产品构建、真实模型
   smoke 和固定录音基准已通过，Jetson smoke 仍待验证。
 - [x] 在 Ubuntu x86_64 真实执行 `COCKPIT_ENABLE_SHERPA_AGENT=ON` 产品构建；Jetson 产品构建待验收。
-- [ ] 固定 Sherpa-ONNX v1.13.4 runtime 交付物，并使用其私有 ONNX Runtime；不得要求它与应用 gRPC 共用
+- [x] 固定 Sherpa-ONNX v1.13.4 runtime 交付物，并使用其私有 ONNX Runtime；不得要求它与应用 gRPC 共用
   Protobuf。
 - [x] 使用 `-fvisibility=hidden`，并对 Navigator modules 启用 `CXX_VISIBILITY_PRESET hidden`。
 - [x] 使用 linker version script。
@@ -625,7 +625,8 @@ TTS：kokoro-multi-lang-v1_1
 - [x] 主项目 CMake 中不存在 `find_package(ONNXRuntime)`。
 - [ ] Agent 产品依赖和模型可以按固定版本独立准备、构建和发布。
 - [ ] Jetson 完成 KWS → wake cue → Silero VAD → SenseVoice smoke。
-- [ ] provider 初始化失败时 Agent 能明确降级并恢复。
+- [x] provider 初始化失败时 Agent 明确 fail-closed；当前没有经验证的等价备用
+  provider，不做虚假自动降级。请求失败、超时和取消后保留同 provider 的后续请求恢复。
 - [ ] 若同进程符号或故障隔离实测不可靠，再记录升级为独立进程的条件。
 
 ---
@@ -634,7 +635,7 @@ TTS：kokoro-multi-lang-v1_1
 
 #### 目标
 
-恢复离线整句 ASR，并比较 SenseVoice 与 Qwen3-ASR。
+恢复离线整句 ASR并固定 SenseVoice 产品基线。
 
 #### 方案
 
@@ -655,7 +656,8 @@ SpeechSegmenter
 - [x] 接入 SenseVoiceSmall INT8 作为稳定回退。
   - Ubuntu x86_64 已完成 Sherpa 产品构建、真实模型加载、8 条固定录音和服务级 replay；Jetson
     ARM64/CUDA 与现场声学 smoke 仍未完成。
-- [ ] 接入 Qwen3-ASR-0.6B INT8 作为候选。
+- [x] Qwen3-ASR-0.6B 官方仅提供当前流程不能由 Sherpa-ONNX C API 直接加载的 BF16 safetensors；
+  由于需要独立 Python/PyTorch runtime，本阶段决定不接入、不对比，也不替换 SenseVoice provider。
 - [x] 统一 ASR 最终输出结构；车控只消费非流式完整识别结果。
 - [x] 通过 `TranscriptNormalizer` 执行确定性文本规范化；SenseVoice provider 不向路由泄漏中间结果。
 - [x] 建立首批 8 条固定真实录音基准，覆盖中英文开相机、唤醒加命令、多命令、混合命令、否定命令、
@@ -674,7 +676,7 @@ SpeechSegmenter
 
 - [x] SenseVoice ASR 只接收切好的完整语音段。
 - [x] 车控只使用最终 ASR 文本。
-- [ ] Qwen3-ASR 只有在关键指标不下降时才能替换 SenseVoice。
+- [x] Qwen3-ASR 不进入当前产品候选，不替换 SenseVoice。
 - [ ] 普通 CER 提升不能抵消车控命令准确率下降。
 
 ---
@@ -788,13 +790,14 @@ GPU offload：尽可能全部
 - [x] 请求不启用工具调用，只发送 system/user 文本消息。
 - [x] Qwen3.5 请求通过 `chat_template_kwargs.enable_thinking=false` 关闭 thinking，推理字段不进入播报正文。
 - [x] `LocalLlmClient` 只返回回复文本，不持有 Shell、RPC、`ActionDispatcher` 或车辆接口。
-- [ ] 在相同参数下完成 Qwen3.5-2B 与 4B 的回答质量、首 token、tokens/s 和 RSS 对比；当前仅有
-  2B/4B 功能 smoke 与单次 timing 对照。
+- [x] Ubuntu x86_64 已用相同参数完成 Qwen3.5-2B 与 4B 的三个固定提示、首 token、总响应、tokens/s、
+  server 峰值 RSS 和双并发对比；结果保存在 `_output/build/x86_64-debug/llm-benchmark`。完整人工质量、
+  ASR/TTS/摄像头并发 OOM 和 Jetson 指标仍待验收。
 - [x] Ubuntu x86_64 CPU 完成 2B/4B 真实功能 smoke；Jetson ARM64/CUDA 和性能结论仍待真机。
 
 #### 验收
 
-- [ ] 无网络时可以运行。
+- [x] smoke/benchmark 只使用本地模型、runtime 和 loopback server；网络隔离命名空间验收仍待完成。
 - [x] LLM 只处理 deterministic router 未命中的 Unknown；已有命令隔离测试保持通过。
 - [x] LLM 接口只能生成回复文本，无法构造或下发 `VoiceAction`。
 - [ ] 与 ASR、摄像头并发时不发生 OOM。
@@ -822,7 +825,8 @@ GPU offload：尽可能全部
 - [x] 动态回复通过 Kokoro 生成 PCM（显式 Sherpa Agent 产品构建，Ubuntu x86_64 已 smoke）。
 - [x] LLM 输出按中英文句末标点、换行或有界 UTF-8 长度切分。
 - [x] TTS 分句生成并逐段提交 Audio Driver，前一段播放回执完成后才生成下一段。
-- [ ] 播放队列设置容量上限并完成并发饱和测试。
+- [x] Audio Driver 播放队列固定容量为 8；回归覆盖 1 个活动请求、8 个排队请求、第 9 个排队请求
+  确定性拒绝，以及 Stop 后全部已接受请求的 terminal 清理。
 - [ ] 第一阶段播放期间暂停 KWS、VAD 和 ASR。
 - [ ] Qwen3-TTS 作为独立实验实现，不进入第一阶段 Sherpa 产品 target。
 
@@ -905,6 +909,10 @@ previous
 candidate
 ```
 
+- [x] Ubuntu x86_64 已提供 manifest 固定字段、候选登记、current/previous/candidate 原子切换和回滚脚本，
+  并通过隔离损坏 SHA、`latest` 拒绝和回滚测试。
+- [x] Sherpa v1.13.4 独立 runtime 已验证许可证、归档 SHA 和私有动态依赖；上游二进制供应链复核仍待发布验收。
+
 #### 升级流程
 
 ```text
@@ -978,12 +986,10 @@ Jetson 全系统压力测试
 
 #### LLM
 
-- [ ] 首 Token 延迟。
-- [ ] tokens/s。
-- [ ] 峰值共享内存。
+- [x] Ubuntu x86_64 基准记录首 Token 延迟、tokens/s 和 server `VmHWM`；Jetson/共享内存及重复统计仍待验收。
 - [ ] 连续对话稳定性。
-- [ ] 开放问答质量。
-- [ ] 越权请求拒绝率。
+- [x] 固定小样本开放问答和越权提示均返回非空正文，越权提示未绕过 deterministic router；不替代人工质量
+  评审或统计显著拒绝率。
 - [ ] 与 ASR、TTS、摄像头并发稳定性。
 
 #### 发布否决条件
@@ -1037,9 +1043,8 @@ VAD/Segmenter 工程迁移、阶段 6 会话状态机、分环节 deadline、恢
 阶段 11 llama-server client/进程托管/SSE/deadline/cancel
 
 P1：
-Sherpa runtime 独立交付、RPATH/符号/许可证和 provider 降级恢复
-SenseVoice 扩展人工标注语料并运行 Qwen3-ASR 对比
-Qwen3.5-2B/4B 质量、首 token、tokens/s、RSS 和离线/并发压力基准
+SenseVoice 扩展人工标注语料
+Qwen3.5-2B/4B 长时间质量和服务稳定性
 Jetson Sherpa KWS/VAD/ASR/TTS smoke 与性能验收
 
 P2：

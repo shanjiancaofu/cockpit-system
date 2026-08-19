@@ -477,7 +477,6 @@ config_version: 1
 - Sherpa-ONNX C API：https://k2-fsa.github.io/sherpa/onnx/c-api/html/
 - KWS 模型：https://k2-fsa.github.io/sherpa/onnx/kws/pretrained_models/
 - Silero/TEN VAD：https://k2-fsa.github.io/sherpa/onnx/c-api/html/vad.html
-- Qwen3-ASR：https://k2-fsa.github.io/sherpa/onnx/c-api/html/offline_asr.html
 - Kokoro：https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html
 - llama.cpp：https://github.com/ggml-org/llama.cpp
 - Qwen 官方模型：https://huggingface.co/Qwen

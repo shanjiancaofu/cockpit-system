@@ -173,6 +173,41 @@ int main() {
     std::cerr << "speech output cancellation was not bounded\n";
     return 1;
   }
+
+  auto queue_player = std::make_unique<BlockingAudioPlayer>();
+  auto* queue_player_observer = queue_player.get();
+  cockpit::audio::AudioPlayback bounded_queue("test-output", std::move(queue_player));
+  cockpit::audio::PcmBuffer queue_buffer;
+  queue_buffer.format.sample_rate_hz = 16000;
+  queue_buffer.format.channels = 1;
+  queue_buffer.samples.assign(160, 0);
+  if (!bounded_queue.Start(&error)) {
+    std::cerr << "bounded playback queue failed to start: " << error << '\n';
+    return 1;
+  }
+  const auto active_id = bounded_queue.Submit(queue_buffer);
+  if (!active_id.has_value() || !queue_player_observer->WaitUntilEntered()) {
+    std::cerr << "bounded playback queue did not start its active request\n";
+    return 1;
+  }
+  std::size_t accepted_queued = 0U;
+  for (; accepted_queued < 8U; ++accepted_queued) {
+    if (!bounded_queue.Submit(queue_buffer).has_value()) {
+      std::cerr << "bounded playback queue rejected an item before reaching capacity\n";
+      return 1;
+    }
+  }
+  if (bounded_queue.Submit(queue_buffer).has_value()) {
+    std::cerr << "bounded playback queue accepted an item beyond capacity\n";
+    return 1;
+  }
+  bounded_queue.Stop();
+  const auto bounded_metrics = bounded_queue.metrics();
+  if (bounded_metrics.queued != 9U || bounded_metrics.dropped != 10U) {
+    std::cerr << "bounded playback queue did not drop active and queued items on stop: queued="
+              << bounded_metrics.queued << " dropped=" << bounded_metrics.dropped << '\n';
+    return 1;
+  }
   std::cout << "audio playback tests passed\n";
   return 0;
 }

@@ -8,8 +8,8 @@
 #include "agent/llm/llama_server_local_llm_client.h"
 
 int main(int argc, char** argv) {
-  if (argc != 4) {
-    std::cerr << "usage: llama_server_live_smoke HOST PORT MODEL\n";
+  if (argc != 4 && argc != 5) {
+    std::cerr << "usage: llama_server_live_smoke HOST PORT MODEL [PROMPT]\n";
     return 2;
   }
 
@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
 
   cockpit::voice::LlamaServerLocalLlmClient client(std::move(config));
   cockpit::voice::SpeechTranscript transcript;
-  transcript.text = "Reply with exactly: cockpit ready";
+  transcript.text = argc == 5 ? argv[4] : "Reply with exactly: cockpit ready";
   const auto result = client.GenerateResponse(
       transcript, std::chrono::steady_clock::now() + std::chrono::seconds(60));
   if (!result.success || result.response_text.empty()) {
