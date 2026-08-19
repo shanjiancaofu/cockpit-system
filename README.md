@@ -10,7 +10,8 @@
 - SocketCAN/mock 车辆数据和 VehicleState gRPC streaming。
 - ROS 风格 `topic list/info/echo/hz` 调试。
 - ALSA 录音/播放、AudioFrame、SPSC ring、PCM 进程间传输、mock VAD 和语音分段。
-- mock ASR/TTS 语音链路，以及可选的 Sherpa KWS / Silero VAD / SenseVoice provider 代码骨架。
+- mock ASR/TTS 语音链路，以及显式 Agent 构建中的 Sherpa KWS / Silero VAD / SenseVoice / Kokoro
+  provider；Ubuntu x86_64 已有固定资源 smoke，默认构建仍不加载模型。
 - 语音意图、动作分发、车辆状态查询和 Qt 相机页面控制。
 - V4L2/GStreamer USB 摄像头和 Jetson Argus CSI 摄像头预览。
 - 相机帧 POSIX shared memory 双缓冲。
@@ -22,6 +23,8 @@
 - Navigator 统一入口、动态业务模块、运行模式切换、有界本地 IPC 和故障重启限制。
 - Navigator 周期状态/健康采样、受控故障注入、JSON 稳定性报告和失败自动诊断快照。
 - systemd、Release 打包，以及 `safe-ota` 校验、安装、健康检查和失败回滚原型。
+- llama.cpp b10456 托管的 Qwen3.5-2B production 与 4B comparison smoke；Qwen3.5 语音请求关闭
+  thinking，LLM 只能生成用户可见正文，不能执行车辆动作。
 
 ## 架构
 
@@ -111,6 +114,9 @@ _output/build/arm64-release/
 
 WSL 生成物统一放在 `_output/{build,install,runtime}`。可通过 `COCKPIT_OUTPUT_DIR` 修改整个输出根目录；
 运行脚本会自动把日志、数据和报告写入 `_output/runtime`。
+不要在仓库根目录运行 `cmake -B build`；CMake 会拒绝该目录。VS Code CMake Tools 已固定使用
+`_output/build/vscode-${buildType}`。历史根目录 `build/` 和 `logs/` 已分别迁入
+`_output/build/legacy/`、`_output/runtime/logs/legacy/`。
 
 ## 常用工具
 

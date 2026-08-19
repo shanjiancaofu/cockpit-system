@@ -12,13 +12,13 @@
 | --- | --- | --- |
 | 阶段 0–5 | 分层、Audio Driver、PCM、Agent 基础 | 工程迁移完成；真实声学验收延后 |
 | 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | Ubuntu x86_64 主链路和固定基准已完成；Jetson/扩展语料待做 |
-| 阶段 11–15 | LLM、TTS、前处理、模型发布 | Stage 11/12 Ubuntu 功能基线完成；Stage 8 发布加固进行中；13–15 未完成 |
+| 阶段 11–15 | LLM、TTS、前处理、模型发布 | Stage 11/12 Ubuntu 功能基线和 Stage 14 资源回滚原型完成；Stage 13/15 未完成 |
 | 实施顺序和优先级 | 文末 | 持续更新 |
 
 ## 当前交接信息
 
 ```text
-当前开发主线：Sherpa Agent 发布加固和 SenseVoice ASR 扩展语料；阶段 7–9 的 Jetson 声学与性能验收并行待办
+当前开发主线：用户车机 UI；语音侧保留 SenseVoice 扩展标注、长稳和 Jetson 声学/性能验收
 已完成：分环节 deadline、固定错误提示、request-scoped Action 取消、single-flight playback 取消、
         ASR Stop stale-success 隔离、真实播放回执/取消和 FOLLOW_UP 窗口；TranscriptNormalizer、
         现有三种 Action 的显式正向整句 allowlist；所有非白名单 transcript fail closed；
@@ -28,7 +28,7 @@
 已完成：Ubuntu x86_64 SenseVoice 8 条固定录音/80 次稳定基准；Kokoro 24 kHz 合成、分段播放、
         服务级回放和 RSS 基准；Qwen3.5-2B/4B 真实 llama-server smoke；Navigator module hidden
         visibility、version script、`--exclude-libs,ALL` 和安装态 `$ORIGIN` RPATH
-下一主线：补齐可追踪人工 ASR 标注；扩展长时间服务稳定性；
+下一主线：不新增 Python ASR provider；补齐可追踪人工 ASR 标注并扩展长时间服务稳定性；
           Jetson 继续完成 Sherpa/音频硬件声学和性能验收
 当前实现入口：agent/llm/, agent/runtime/agent_runtime.cc, agent/speech/providers/sherpa/,
              cockpit/modules/voice/assistant/
@@ -419,10 +419,9 @@ vad:
 
 ## 阶段 6–10：语音交互主链路
 
-状态：阶段 6 已正式封板；阶段 7 KWS 主链路已起步；阶段 8 仅 Sherpa KWS provider 边界代码已落地；
-阶段 9 尚未开始；阶段 10 第一批已完成但整体仍在进行。基础仓库继续
-使用 mock provider；本册中的模型、版本和性能项目只有在独立 Agent 产品构建与 Jetson 实测完成后
-才能勾选。
+状态：阶段 6 已正式封板；阶段 7–10 已形成 Ubuntu x86_64 主链路和固定录音基准。
+基础仓库继续使用 mock provider，Sherpa 只进入显式 Agent 产品构建；Ubuntu 已完成项可勾选，
+Jetson 声学、性能和现场验收必须保留为未完成。
 
 ### 阶段 6：建立会话状态机和恢复机制
 
@@ -748,8 +747,9 @@ LightOff
 
 ## 阶段 11–15：模型接入与产品化
 
-状态：阶段 11/12 的 Ubuntu x86_64 功能和资源基线已完成，产品化与真机验收仍未完成。阶段 13–15 未完成。功能接口可先在 Ubuntu x86_64 验证，性能与声学指标
-仍必须来自固定模型、固定配置和 Jetson 真机。
+状态：阶段 11/12 的 Ubuntu x86_64 功能和资源基线已完成，阶段 14 已有资源切换/回滚原型；
+产品化与真机验收仍未完成，阶段 13/15 未完成。功能接口可先在 Ubuntu x86_64 验证，性能与声学
+指标仍必须来自固定模型、固定配置和 Jetson 真机。
 
 ### 阶段 11：接入本地 LLM
 
@@ -1009,8 +1009,8 @@ Jetson 全系统压力测试
 
 ## 语音阶段实施顺序
 
-更新时间：2026-08-18。阶段 0–6 已完成，阶段 7–10 已具备 Ubuntu x86_64 主链路和有限基准；
-阶段 11/12 已具备 Ubuntu 功能基线但未完成产品化，阶段 7–9 仍等待 Jetson 声学/性能验收。
+更新时间：2026-08-19。阶段 0–6 已完成，阶段 7–12 已具备 Ubuntu x86_64 主链路和固定基准；
+阶段 14 已有资源回滚原型，阶段 8 发布加固、阶段 13/15 和 Jetson 声学/性能验收仍待完成。
 
 ```text
 阶段 0  现状冻结
@@ -1040,7 +1040,8 @@ Jetson 全系统压力测试
 分层纠正、CMake 依赖清理、Audio Driver 缩减、PCM 传输、顶层 agent/ 建立、
 VAD/Segmenter 工程迁移、阶段 6 会话状态机、分环节 deadline、恢复和生命周期 hardening、
 阶段 7 KWS input gate / cooldown / 可配置唤醒词、阶段 10 第一批 TranscriptNormalizer 与确定性正向整句白名单、
-阶段 11 llama-server client/进程托管/SSE/deadline/cancel
+阶段 11 llama-server client/进程托管/SSE/deadline/cancel、阶段 12 Kokoro 和有界播放、
+Stage 14 模型 current/previous/candidate 原子切换与回滚、播放队列容量和饱和回归
 
 P1：
 SenseVoice 扩展人工标注语料
@@ -1048,7 +1049,7 @@ Qwen3.5-2B/4B 长时间质量和服务稳定性
 Jetson Sherpa KWS/VAD/ASR/TTS smoke 与性能验收
 
 P2：
-播放队列容量与并发饱和、Stage 14 模型 current/previous/candidate 回滚
+真实 ALSA 并发播放与 Jetson 声学标定
 WebRTC NS
 Qwen3-TTS 实验
 AEC3
