@@ -241,7 +241,8 @@ install -m 0644 "${source_root}/configs/development.yaml" \
 sed -i "s|shared_memory_name: /cockpit_camera_preview|shared_memory_name: /cockpit_camera_ota_${$}|" \
   "${install_root}/config/config.yaml"
 socket_path="${install_root}/run/navigator.sock"
-"${navigator}" --config "${install_root}/config/config.yaml" --module-dir "${module_dir}" \
+COCKPIT_RUNTIME_DIR="${install_root}" "${navigator}" \
+  --config "${install_root}/config/config.yaml" --module-dir "${module_dir}" \
   --socket "${socket_path}" >"${work_dir}/navigator.log" 2>&1 &
 navigator_pid=$!
 for _ in $(seq 1 50); do
