@@ -22,8 +22,9 @@ topic pub /dev/test '{"ok":true}'
 gRPC topic 的可用状态是稳定枚举：`available`、`waiting_for_data`、`stale`。自动化应判断该字段，
 `error reason` 只用于补充现场信息。
 
-开发 topic 可以使用 file backend。YAML 默认目录是 `logs/topics`；WSL 脚本设置运行目录覆盖后写入
-`_output/runtime/logs/topics`。file backend 只用于单机调试，不是正式 Runtime MessageBus。
+开发 topic 可以使用 file backend。开发 YAML 默认目录是
+`_output/runtime/logs/topics`；设置 `COCKPIT_RUNTIME_DIR` 后会覆盖到该运行目录下的
+`logs/topics`。file backend 只用于单机调试，不是正式 Runtime MessageBus。
 
 ## 文件组织
 

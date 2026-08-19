@@ -50,8 +50,12 @@ int main() {
   unsetenv("COCKPIT_RUNTIME_DIR");
   const auto config = cockpit::config::SystemConfig::LoadFromFile(VALID_CONFIG_PATH);
   if (config.system().name != "cockpit-system" || config.system().vehicle_id != "car_001" ||
-      config.paths().run_dir != "run" || config.logging().dump_time_secs != 5 ||
-      config.logging().cut_off_time_mins != 5 || config.logging().max_files != 10 ||
+      config.paths().data_dir != "_output/runtime/data" ||
+      config.paths().log_dir != "_output/runtime/logs" ||
+      config.paths().run_dir != "_output/runtime/run" ||
+      config.tools().topic.dir != "_output/runtime/logs/topics" ||
+      config.logging().dump_time_secs != 5 || config.logging().cut_off_time_mins != 5 ||
+      config.logging().max_files != 10 ||
       config.services().vehicle_data.grpc.listen_address != "127.0.0.1:50050" ||
       config.services().gateway.stream_timeout_ms != 10000 ||
       config.services().audio.grpc.listen_address != "127.0.0.1:50052" ||

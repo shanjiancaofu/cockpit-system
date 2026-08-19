@@ -57,9 +57,9 @@ navigator_socket="${run_root}/navigator.sock"
 navigator_log="${run_root}/navigator.log"
 
 sed \
-  -e "s|^  data_dir: data$|  data_dir: ${run_root}/data|" \
-  -e "s|^  log_dir: logs$|  log_dir: ${run_root}/logs|" \
-  -e "s|^  run_dir: run$|  run_dir: ${run_root}/run|" \
+  -e "s|^  data_dir: _output/runtime/data$|  data_dir: ${run_root}/data|" \
+  -e "s|^  log_dir: _output/runtime/logs$|  log_dir: ${run_root}/logs|" \
+  -e "s|^  run_dir: _output/runtime/run$|  run_dir: ${run_root}/run|" \
   -e "s|127.0.0.1:50050|unix:${run_root}/vehicle.sock|g" \
   -e "s|127.0.0.1:50051|unix:${run_root}/gateway.sock|g" \
   -e "s|127.0.0.1:50052|unix:${run_root}/audio.sock|g" \

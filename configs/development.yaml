@@ -3,9 +3,9 @@ system:
   vehicle_id: car_001
 
 paths:
-  data_dir: data
-  log_dir: logs
-  run_dir: run
+  data_dir: _output/runtime/data
+  log_dir: _output/runtime/logs
+  run_dir: _output/runtime/run
 
 logging:
   level: info
@@ -125,4 +125,4 @@ features:
 tools:
   topic:
     backend: file
-    dir: logs/topics
+    dir: _output/runtime/logs/topics

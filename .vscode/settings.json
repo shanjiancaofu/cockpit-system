@@ -1,0 +1,4 @@
+{
+  "cmake.buildDirectory": "${workspaceFolder}/_output/build/vscode-${buildType}",
+  "cmake.generator": "Ninja"
+}
