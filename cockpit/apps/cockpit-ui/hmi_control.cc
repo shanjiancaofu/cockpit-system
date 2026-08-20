@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 
+#include "cockpit/apps/cockpit-ui/media/media_control_model.h"
 #include "cockpit/core/logging/logger.h"
 #include "hmi.grpc.pb.h"
 
@@ -15,8 +16,8 @@ namespace ui {
 
 class HmiControl::Impl final : public proto::hmi::HmiControl::Service {
  public:
-  Impl(HmiControl* owner, std::string socket_path)
-      : owner_(owner), socket_path_(std::move(socket_path)) {
+  Impl(HmiControl* owner, MediaControlModel* media_control, std::string socket_path)
+      : owner_(owner), media_control_(media_control), socket_path_(std::move(socket_path)) {
   }
 
   ~Impl() override {
@@ -60,10 +61,23 @@ class HmiControl::Impl final : public proto::hmi::HmiControl::Service {
         response->set_message("Camera view opened.");
         return grpc::Status::OK;
       }
-      case proto::hmi::HMI_COMMAND_PLAY_MUSIC:
-        response->set_executed(false);
-        response->set_message("Media player is not connected.");
+      case proto::hmi::HMI_COMMAND_PLAY_MUSIC: {
+        bool accepted = false;
+        const bool invoked = QMetaObject::invokeMethod(
+            owner_,
+            [this, &accepted] {
+              accepted = media_control_ != nullptr && media_control_->requestPlayDefault();
+            },
+            Qt::BlockingQueuedConnection);
+        if (!invoked || !accepted) {
+          response->set_executed(false);
+          response->set_message("Media player is unavailable or cannot start playback.");
+          return grpc::Status::OK;
+        }
+        response->set_executed(true);
+        response->set_message("Music playback requested.");
         return grpc::Status::OK;
+      }
       case proto::hmi::HMI_COMMAND_UNSPECIFIED:
       default:
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "HMI command is invalid");
@@ -71,11 +85,13 @@ class HmiControl::Impl final : public proto::hmi::HmiControl::Service {
   }
 
   HmiControl* owner_;
+  MediaControlModel* media_control_;
   const std::string socket_path_;
   std::unique_ptr<grpc::Server> server_;
 };
 
-HmiControl::HmiControl(QObject* parent) : QObject(parent) {
+HmiControl::HmiControl(MediaControlModel* media_control, QObject* parent)
+    : QObject(parent), media_control_(media_control) {
 }
 
 HmiControl::~HmiControl() {
@@ -99,7 +115,7 @@ bool HmiControl::Start(const std::string& socket_path) {
     return false;
   }
 
-  auto impl = std::make_unique<Impl>(this, absolute_path.string());
+  auto impl = std::make_unique<Impl>(this, media_control_, absolute_path.string());
   if (!impl->Start()) {
     LOG_ERROR("failed to start HMI control server socket=" + absolute_path.string());
     return false;

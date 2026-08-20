@@ -397,7 +397,7 @@ if(TARGET ui_model)
 
     add_executable(hmi_control_test apps/cockpit-ui/hmi_control_test.cc)
     set_target_properties(hmi_control_test PROPERTIES AUTOMOC ON)
-    target_link_libraries(hmi_control_test PRIVATE Qt6::Test ui_hmi voice_hmi)
+    target_link_libraries(hmi_control_test PRIVATE Qt6::Test ui_hmi ui_media voice_hmi)
     add_test(NAME hmi_control_test COMMAND hmi_control_test)
     set_tests_properties(hmi_control_test PROPERTIES LABELS "system-grpc")
 

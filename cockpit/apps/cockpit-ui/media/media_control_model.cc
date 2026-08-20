@@ -99,17 +99,22 @@ void MediaControlModel::Stop() {
 }
 
 void MediaControlModel::playDefault() {
+  requestPlayDefault();
+}
+
+bool MediaControlModel::requestPlayDefault() {
   if (!running_.load()) {
     SetLastError(QStringLiteral("媒体控制尚未启动"));
-    return;
+    return false;
   }
   if (!canPlay()) {
     SetLastError(!available_ ? (status_message_.isEmpty() ? QStringLiteral("媒体后端不可用")
                                                           : status_message_)
                              : QStringLiteral("当前状态不能开始播放"));
-    return;
+    return false;
   }
   Enqueue(CommandType::kPlay);
+  return true;
 }
 
 void MediaControlModel::togglePause() {

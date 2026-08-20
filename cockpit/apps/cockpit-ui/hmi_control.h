@@ -7,6 +7,8 @@
 namespace cockpit {
 namespace ui {
 
+class MediaControlModel;
+
 class HmiControl final : public QObject {
   Q_OBJECT
   Q_PROPERTY(int currentView READ currentView WRITE setCurrentView NOTIFY currentViewChanged)
@@ -22,7 +24,7 @@ class HmiControl final : public QObject {
   };
   Q_ENUM(View)
 
-  explicit HmiControl(QObject* parent = nullptr);
+  explicit HmiControl(MediaControlModel* media_control = nullptr, QObject* parent = nullptr);
   ~HmiControl() override;
 
   bool Start(const std::string& socket_path);
@@ -39,6 +41,7 @@ class HmiControl final : public QObject {
   class Impl;
 
   std::unique_ptr<Impl> impl_;
+  MediaControlModel* media_control_ = nullptr;
   int current_view_{kDashboardView};
 };
 

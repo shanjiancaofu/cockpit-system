@@ -52,10 +52,10 @@ int main(int argc, char** argv) {
        runtime.config().services().recording.grpc.listen_address},
   };
   cockpit::ui::ServiceHealthModel service_health(std::move(health_endpoints));
-  cockpit::ui::HmiControl hmi_control;
   auto media_backend = cockpit::ui::CreateGrpcMediaPlayerBackend(
       runtime.config().services().media.grpc.listen_address);
   cockpit::ui::MediaControlModel media_control(std::move(media_backend));
+  cockpit::ui::HmiControl hmi_control(&media_control);
   cockpit::ui::VoiceStatusModel voice_status(
       runtime.config().services().voice_interaction.grpc.listen_address);
 

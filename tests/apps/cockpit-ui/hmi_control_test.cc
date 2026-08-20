@@ -48,15 +48,26 @@ int main(int argc, char** argv) {
 
   std::string music_response;
   std::string music_error;
-  const cockpit::voice::ActionExecutionContext music_context{
-      std::chrono::steady_clock::now() + std::chrono::seconds(1),
-      std::make_shared<cockpit::voice::ActionCancellation>()};
-  const bool music_succeeded = provider.SendCommand(cockpit::voice::HmiCommand::kPlayMusic,
-                                                    music_context, &music_response, &music_error);
-  const bool result = camera_succeeded && camera_error.empty() &&
-                      camera_response == "Camera view opened." &&
-                      control.currentView() == cockpit::ui::HmiControl::kCameraView &&
-                      !music_succeeded && music_error == "Media player is not connected.";
+  std::atomic_bool music_completed{false};
+  bool music_succeeded = false;
+  std::thread music_request([&] {
+    const cockpit::voice::ActionExecutionContext music_context{
+        std::chrono::steady_clock::now() + std::chrono::seconds(1),
+        std::make_shared<cockpit::voice::ActionCancellation>()};
+    music_succeeded = provider.SendCommand(cockpit::voice::HmiCommand::kPlayMusic, music_context,
+                                           &music_response, &music_error);
+    music_completed.store(true);
+  });
+  const auto music_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+  while (!music_completed.load() && std::chrono::steady_clock::now() < music_deadline) {
+    QCoreApplication::processEvents();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  music_request.join();
+  const bool result =
+      camera_succeeded && camera_error.empty() && camera_response == "Camera view opened." &&
+      control.currentView() == cockpit::ui::HmiControl::kCameraView && !music_succeeded &&
+      music_error == "Media player is unavailable or cannot start playback.";
   control.setCurrentView(cockpit::ui::HmiControl::kSettingsView);
   const bool local_navigation_succeeded =
       control.currentView() == cockpit::ui::HmiControl::kSettingsView;
