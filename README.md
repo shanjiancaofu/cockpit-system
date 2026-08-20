@@ -125,6 +125,16 @@ WSL 生成物统一放在 `_output/{build,install,runtime}`。可通过 `COCKPIT
 `_output/build/vscode-${buildType}`。历史根目录 `build/` 和 `logs/` 已分别迁入
 `_output/build/legacy/`、`_output/runtime/logs/legacy/`。
 
+查看并归档历史构建和 smoke/stability 运行目录：
+
+```bash
+bash scripts/cleanup-output.sh
+bash scripts/cleanup-output.sh --apply
+```
+
+脚本默认只预览，不删除文件；`--apply` 只把明确的历史目录移动到 `_output/build/archive/` 或
+`_output/runtime/reports/archive/`，不会处理 `_output/ai` 模型、下载缓存或临时资源。
+
 ## 常用工具
 
 ```bash
