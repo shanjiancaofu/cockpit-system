@@ -347,6 +347,11 @@ add_test(NAME system_config_test COMMAND system_config_test)
 
 if(TARGET ui_model)
     find_package(Qt6 6.2 REQUIRED COMPONENTS Gui Qml Quick Test)
+    add_executable(app_launcher_model_test apps/cockpit-ui/app_launcher_model_test.cc)
+    set_target_properties(app_launcher_model_test PROPERTIES AUTOMOC ON)
+    target_link_libraries(app_launcher_model_test PRIVATE Qt6::Test ui_app_launcher)
+    add_test(NAME app_launcher_model_test COMMAND app_launcher_model_test)
+
     add_executable(vehicle_state_model_test apps/cockpit-ui/vehicle_state_model_test.cc)
     set_target_properties(vehicle_state_model_test PROPERTIES AUTOMOC ON)
     target_link_libraries(vehicle_state_model_test PRIVATE Qt6::Test ui_model)
@@ -383,6 +388,7 @@ if(TARGET ui_model)
         Qt6::Gui
         Qt6::Qml
         Qt6::Quick
+        ui_app_launcher
         ui_camera
         ui_health
         ui_hmi

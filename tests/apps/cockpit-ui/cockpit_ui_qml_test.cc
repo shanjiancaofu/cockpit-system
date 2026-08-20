@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "cockpit/apps/cockpit-ui/apps/app_launcher_model.h"
 #include "cockpit/apps/cockpit-ui/camera/camera_control_model.h"
 #include "cockpit/apps/cockpit-ui/camera/camera_frame_model.h"
 #include "cockpit/apps/cockpit-ui/camera/camera_image_provider.h"
@@ -23,6 +24,7 @@
 int main(int argc, char** argv) {
   QGuiApplication app(argc, argv);
 
+  cockpit::ui::AppLauncherModel app_launcher;
   cockpit::ui::VehicleStateModel vehicle_state;
   vehicle_state.SetConnected(true);
   vehicle_state.Update(1, 42.0, 3, 78, false, QStringLiteral("qml-test"));
@@ -32,6 +34,7 @@ int main(int argc, char** argv) {
   cockpit::ui::ServiceHealthModel service_health(std::vector<cockpit::ui::ServiceHealthEndpoint>{});
   cockpit::ui::HmiControl hmi_control;
   cockpit::ui::VoiceStatusModel voice_status("unix:/tmp/cockpit-ui-qml-test-voice.sock");
+  app_launcher.Start();
 
   QQmlApplicationEngine engine;
   bool qml_warning = false;
@@ -40,6 +43,7 @@ int main(int argc, char** argv) {
                      qml_warning = qml_warning || !warnings.empty();
                    });
   engine.addImageProvider(QStringLiteral("camera"), camera_image_provider);
+  engine.rootContext()->setContextProperty(QStringLiteral("appLauncher"), &app_launcher);
   engine.rootContext()->setContextProperty(QStringLiteral("vehicleState"), &vehicle_state);
   engine.rootContext()->setContextProperty(QStringLiteral("cameraFrame"), &camera_frame);
   engine.rootContext()->setContextProperty(QStringLiteral("cameraControl"), &camera_control);

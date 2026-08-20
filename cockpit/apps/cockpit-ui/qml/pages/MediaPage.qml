@@ -38,7 +38,7 @@ Item {
                         }
 
                         Label {
-                            text: "播放器后端尚未接入，当前不会误报播放成功"
+                            text: "应用入口受固定 allowlist 管理，后端不可用时不会误报成功"
                             color: root.palette.textSecondary
                             font.pixelSize: 12
                         }
@@ -52,7 +52,7 @@ Item {
 
                         Label {
                             anchors.centerIn: parent
-                            text: "未连接"
+                            text: "受控入口"
                             color: root.palette.textMuted
                             font.pixelSize: 11
                             font.weight: Font.DemiBold
@@ -107,8 +107,11 @@ Item {
 
                     Label {
                         anchors.centerIn: parent
-                        text: "受控 App Launcher 尚未实现 · 禁止任意 Shell 启动"
-                        color: root.palette.textMuted
+                        text: appLauncher.lastError.length > 0
+                              ? appLauncher.lastError
+                              : "App Launcher 只接受固定应用 ID · 禁止路径、参数和 Shell"
+                        color: appLauncher.lastError.length > 0 ? root.palette.amber
+                                                                : root.palette.textMuted
                         font.pixelSize: 12
                     }
                 }
@@ -123,17 +126,23 @@ Item {
             spacing: 14
 
             Repeater {
-                model: [
-                    {"mark": "L", "title": "本地音乐", "detail": "等待原生播放器后端", "state": "待接入"},
-                    {"mark": "P", "title": "手机互联", "detail": "等待投屏与音频焦点方案", "state": "待选型"},
-                    {"mark": "A", "title": "Android 应用", "detail": "当前 Ubuntu 不运行 APK", "state": "不可用"}
-                ]
+                model: appLauncher
 
                 delegate: SurfaceCard {
-                    required property var modelData
+                    required property string appId
+                    required property string displayName
+                    required property string appMark
+                    required property string description
+                    required property string appState
+                    required property string stateLabel
+                    required property string appMessage
+                    required property bool appAvailable
+                    required property bool appRunning
+                    required property bool appBusy
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     palette: root.palette
+                    strokeColor: appState === "FAILED" ? root.palette.red : root.palette.border
 
                     RowLayout {
                         anchors.fill: parent
@@ -148,7 +157,7 @@ Item {
 
                             Label {
                                 anchors.centerIn: parent
-                                text: modelData.mark
+                                text: appMark
                                 color: root.palette.accent
                                 font.pixelSize: 18
                                 font.weight: Font.Bold
@@ -164,25 +173,61 @@ Item {
 
                                 Label {
                                     Layout.fillWidth: true
-                                    text: modelData.title
+                                    text: displayName
                                     color: root.palette.textPrimary
                                     font.pixelSize: 14
                                     font.weight: Font.DemiBold
                                 }
 
                                 Label {
-                                    text: modelData.state
-                                    color: root.palette.textMuted
+                                    text: stateLabel
+                                    color: appState === "RUNNING" ? root.palette.green
+                                           : (appState === "FAILED" ? root.palette.red
+                                                                    : root.palette.textMuted)
                                     font.pixelSize: 10
                                 }
                             }
 
                             Label {
                                 Layout.fillWidth: true
-                                text: modelData.detail
+                                text: appMessage.length > 0 ? appMessage : description
                                 color: root.palette.textSecondary
                                 font.pixelSize: 11
                                 wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.preferredWidth: 62
+                            Layout.preferredHeight: 32
+                            radius: 12
+                            visible: appAvailable
+                            color: appBusy ? root.palette.surfaceRaised
+                                           : (appButtonMouse.containsMouse
+                                              ? root.palette.surfaceHover : root.palette.backgroundRaised)
+                            border.width: 1
+                            border.color: appRunning ? root.palette.amber : root.palette.accentStrong
+
+                            Label {
+                                anchors.centerIn: parent
+                                text: appBusy ? "处理中" : (appRunning ? "停止" : "启动")
+                                color: appBusy ? root.palette.textMuted : root.palette.textPrimary
+                                font.pixelSize: 10
+                                font.weight: Font.DemiBold
+                            }
+
+                            MouseArea {
+                                id: appButtonMouse
+                                anchors.fill: parent
+                                enabled: !appBusy
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (appRunning) {
+                                        appLauncher.stop(appId)
+                                    } else {
+                                        appLauncher.launch(appId)
+                                    }
+                                }
                             }
                         }
                     }

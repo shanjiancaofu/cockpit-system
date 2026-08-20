@@ -1,5 +1,10 @@
 find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2)
 
+add_library(ui_app_launcher STATIC apps/app_launcher_model.cc)
+set_target_properties(ui_app_launcher PROPERTIES AUTOMOC ON)
+target_include_directories(ui_app_launcher PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(ui_app_launcher PUBLIC Qt6::Core)
+
 add_library(ui_hmi STATIC hmi_control.cc)
 set_target_properties(ui_hmi PROPERTIES AUTOMOC ON)
 target_include_directories(ui_hmi PUBLIC ${PROJECT_SOURCE_DIR})
@@ -31,7 +36,7 @@ target_include_directories(ui_voice PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(ui_voice PUBLIC Qt6::Core contracts)
 
 add_library(ui_model INTERFACE)
-target_link_libraries(ui_model INTERFACE ui_vehicle ui_health ui_voice)
+target_link_libraries(ui_model INTERFACE ui_app_launcher ui_vehicle ui_health ui_voice)
 
 add_executable(cockpit-ui main.cc qml.qrc)
 set_target_properties(cockpit-ui PROPERTIES AUTOMOC ON AUTORCC ON)
@@ -43,6 +48,7 @@ target_link_libraries(cockpit-ui PRIVATE
     Qt6::QuickControls2
     logging
     runtime
+    ui_app_launcher
     ui_camera
     ui_health
     ui_hmi

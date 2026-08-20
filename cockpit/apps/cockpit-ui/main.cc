@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "cockpit/apps/cockpit-ui/apps/app_launcher_model.h"
 #include "cockpit/apps/cockpit-ui/camera/camera_control_model.h"
 #include "cockpit/apps/cockpit-ui/camera/camera_frame_client.h"
 #include "cockpit/apps/cockpit-ui/camera/camera_frame_model.h"
@@ -23,6 +24,7 @@ int main(int argc, char** argv) {
   QGuiApplication::setApplicationName(QStringLiteral("Smart Cockpit System"));
 
   auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "cockpit-ui");
+  cockpit::ui::AppLauncherModel app_launcher;
   cockpit::ui::VehicleStateModel vehicle_state;
   cockpit::ui::GatewayClient gateway_client(runtime.config().services().gateway.grpc.listen_address,
                                             &vehicle_state);
@@ -52,6 +54,7 @@ int main(int argc, char** argv) {
 
   QQmlApplicationEngine engine;
   engine.addImageProvider(QStringLiteral("camera"), camera_image_provider);
+  engine.rootContext()->setContextProperty(QStringLiteral("appLauncher"), &app_launcher);
   engine.rootContext()->setContextProperty(QStringLiteral("vehicleState"), &vehicle_state);
   engine.rootContext()->setContextProperty(QStringLiteral("cameraFrame"), &camera_frame);
   engine.rootContext()->setContextProperty(QStringLiteral("cameraControl"), &camera_control);
@@ -71,9 +74,10 @@ int main(int argc, char** argv) {
   }
 
   QObject::connect(&app, &QCoreApplication::aboutToQuit,
-                   [&gateway_client, &camera_client, &camera_control, &service_health, &hmi_control,
-                    &voice_status] {
+                   [&app_launcher, &gateway_client, &camera_client, &camera_control,
+                    &service_health, &hmi_control, &voice_status] {
                      hmi_control.Stop();
+                     app_launcher.Stop();
                      voice_status.Stop();
                      service_health.Stop();
                      camera_control.Stop();
@@ -89,6 +93,7 @@ int main(int argc, char** argv) {
   });
   shutdown_timer.start();
 
+  app_launcher.Start();
   gateway_client.Start();
   camera_client.Start();
   camera_control.Start();
