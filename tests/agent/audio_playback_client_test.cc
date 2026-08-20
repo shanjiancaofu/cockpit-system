@@ -75,6 +75,21 @@ class FailingSynthesizer final : public cockpit::voice::SpeechSynthesizer {
   std::atomic<std::uint64_t> calls_{0U};
 };
 
+class FakeAudioFocusController final : public cockpit::voice::AudioFocusController {
+ public:
+  bool AcquireTts() override {
+    ++acquires;
+    return true;
+  }
+
+  void ReleaseTts() override {
+    ++releases;
+  }
+
+  std::atomic<int> acquires{0};
+  std::atomic<int> releases{0};
+};
+
 class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTransport {
  public:
   enum class Behavior {
@@ -316,6 +331,24 @@ int main() {
       completion_status.load() != cockpit::voice::VoiceOutputStatus::kCompleted ||
       playback_client.metrics().played != 1U) {
     std::cerr << "real playback completion was not reported exactly once\n";
+    return 1;
+  }
+
+  auto focus_transport = std::make_unique<FakeAudioPlaybackTransport>(
+      FakeAudioPlaybackTransport::Behavior::kAutoComplete);
+  auto focus = std::make_unique<FakeAudioFocusController>();
+  FakeAudioFocusController* focus_observer = focus.get();
+  cockpit::voice::AudioPlaybackClient focused_client(
+      std::move(focus_transport), std::make_unique<cockpit::voice::MockSpeechSynthesizer>(),
+      std::chrono::seconds(5), nullptr, std::move(focus));
+  cockpit::voice::VoiceOutputStatus focused_status = cockpit::voice::VoiceOutputStatus::kFailed;
+  if (!focused_client.Submit(4U, "focused playback",
+                             [&focused_status](cockpit::voice::VoiceOutputResult result) {
+                               focused_status = result.status;
+                             }) ||
+      focused_status != cockpit::voice::VoiceOutputStatus::kCompleted ||
+      focus_observer->acquires.load() != 1 || focus_observer->releases.load() != 1) {
+    std::cerr << "TTS audio focus was not acquired and released exactly once\n";
     return 1;
   }
 

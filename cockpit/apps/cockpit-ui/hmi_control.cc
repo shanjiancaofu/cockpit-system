@@ -78,6 +78,32 @@ class HmiControl::Impl final : public proto::hmi::HmiControl::Service {
         response->set_message("Music playback requested.");
         return grpc::Status::OK;
       }
+      case proto::hmi::HMI_COMMAND_PAUSE_MUSIC: {
+        bool accepted = false;
+        const bool invoked = QMetaObject::invokeMethod(
+            owner_,
+            [this, &accepted] {
+              accepted = media_control_ != nullptr && media_control_->requestPause();
+            },
+            Qt::BlockingQueuedConnection);
+        response->set_executed(invoked && accepted);
+        response->set_message(response->executed() ? "Music pause requested."
+                                                   : "Media player is not playing.");
+        return grpc::Status::OK;
+      }
+      case proto::hmi::HMI_COMMAND_RESUME_MUSIC: {
+        bool accepted = false;
+        const bool invoked = QMetaObject::invokeMethod(
+            owner_,
+            [this, &accepted] {
+              accepted = media_control_ != nullptr && media_control_->requestResume();
+            },
+            Qt::BlockingQueuedConnection);
+        response->set_executed(invoked && accepted);
+        response->set_message(response->executed() ? "Music resume requested."
+                                                   : "Media player is not paused.");
+        return grpc::Status::OK;
+      }
       case proto::hmi::HMI_COMMAND_UNSPECIFIED:
       default:
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "HMI command is invalid");

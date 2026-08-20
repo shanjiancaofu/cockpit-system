@@ -112,6 +112,8 @@ class MediaControlModel final : public QObject {
   // Returns whether the request was accepted by the current UI/media state. The actual backend
   // operation remains serialized on MediaControlModel's worker and is reported through status.
   bool requestPlayDefault();
+  bool requestPause();
+  bool requestResume();
 
  signals:
   void statusChanged();

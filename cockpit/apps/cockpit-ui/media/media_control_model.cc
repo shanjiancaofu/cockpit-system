@@ -117,6 +117,22 @@ bool MediaControlModel::requestPlayDefault() {
   return true;
 }
 
+bool MediaControlModel::requestPause() {
+  if (!running_.load() || state_ != QStringLiteral("PLAYING") || busy_) {
+    return false;
+  }
+  Enqueue(CommandType::kPause);
+  return true;
+}
+
+bool MediaControlModel::requestResume() {
+  if (!running_.load() || state_ != QStringLiteral("PAUSED") || busy_) {
+    return false;
+  }
+  Enqueue(CommandType::kResume);
+  return true;
+}
+
 void MediaControlModel::togglePause() {
   if (!running_.load() || !canPause()) {
     SetLastError(QStringLiteral("当前状态不能暂停或继续"));

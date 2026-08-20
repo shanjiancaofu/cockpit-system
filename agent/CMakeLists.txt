@@ -57,8 +57,11 @@ target_include_directories(voice_interaction PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(voice_interaction PUBLIC event voice)
 target_link_libraries(voice_interaction PUBLIC agent_llm)
 
-add_library(voice_audio_clients STATIC audio/audio_playback_client.cc)
-target_link_libraries(voice_audio_clients PUBLIC agent_speech contracts voice)
+add_library(voice_audio_clients STATIC
+    audio/audio_focus_controller.cc
+    audio/audio_playback_client.cc
+)
+target_link_libraries(voice_audio_clients PUBLIC agent_speech contracts voice voice_hmi)
 
 add_library(voice_vehicle_client STATIC vehicle/gateway_vehicle_status_client.cc)
 target_link_libraries(voice_vehicle_client PUBLIC contracts voice)

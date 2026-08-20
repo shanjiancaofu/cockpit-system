@@ -39,6 +39,12 @@ bool LocalHmiCommandProvider::SendCommand(HmiCommand command,
     case HmiCommand::kPlayMusic:
       request.set_command(proto::hmi::HMI_COMMAND_PLAY_MUSIC);
       break;
+    case HmiCommand::kPauseMusic:
+      request.set_command(proto::hmi::HMI_COMMAND_PAUSE_MUSIC);
+      break;
+    case HmiCommand::kResumeMusic:
+      request.set_command(proto::hmi::HMI_COMMAND_RESUME_MUSIC);
+      break;
   }
 
   proto::hmi::ExecuteHmiCommandResponse command_response;

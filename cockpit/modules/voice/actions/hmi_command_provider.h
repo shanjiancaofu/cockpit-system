@@ -11,6 +11,8 @@ namespace voice {
 enum class HmiCommand {
   kOpenCameraPreview,
   kPlayMusic,
+  kPauseMusic,
+  kResumeMusic,
 };
 
 class HmiCommandProvider {

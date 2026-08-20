@@ -142,6 +142,23 @@ class GrpcAudioPlaybackTransport final : public AudioPlaybackTransport {
   const std::unique_ptr<proto::audio::AudioControl::Stub> cancel_stub_;
 };
 
+class AudioFocusLease final {
+ public:
+  explicit AudioFocusLease(AudioFocusController* controller)
+      : controller_(controller), acquired_(controller_ != nullptr && controller_->AcquireTts()) {
+  }
+
+  ~AudioFocusLease() {
+    if (acquired_) {
+      controller_->ReleaseTts();
+    }
+  }
+
+ private:
+  AudioFocusController* controller_;
+  bool acquired_;
+};
+
 }  // namespace
 
 AudioPlaybackClient::AudioPlaybackClient(const std::string& address)
@@ -152,18 +169,22 @@ AudioPlaybackClient::AudioPlaybackClient(const std::string& address)
 AudioPlaybackClient::AudioPlaybackClient(const std::string& address,
                                          std::unique_ptr<SpeechSynthesizer> synthesizer,
                                          std::chrono::milliseconds synthesis_timeout,
-                                         std::unique_ptr<SpeechSynthesizer> fallback_synthesizer)
+                                         std::unique_ptr<SpeechSynthesizer> fallback_synthesizer,
+                                         std::unique_ptr<AudioFocusController> focus_controller)
     : AudioPlaybackClient(CreateGrpcAudioPlaybackTransport(address), std::move(synthesizer),
-                          synthesis_timeout, std::move(fallback_synthesizer)) {
+                          synthesis_timeout, std::move(fallback_synthesizer),
+                          std::move(focus_controller)) {
 }
 
 AudioPlaybackClient::AudioPlaybackClient(std::unique_ptr<AudioPlaybackTransport> transport,
                                          std::unique_ptr<SpeechSynthesizer> synthesizer,
                                          std::chrono::milliseconds synthesis_timeout,
-                                         std::unique_ptr<SpeechSynthesizer> fallback_synthesizer)
+                                         std::unique_ptr<SpeechSynthesizer> fallback_synthesizer,
+                                         std::unique_ptr<AudioFocusController> focus_controller)
     : transport_(std::move(transport)),
       synthesizer_(std::move(synthesizer)),
       fallback_synthesizer_(std::move(fallback_synthesizer)),
+      focus_controller_(std::move(focus_controller)),
       synthesis_timeout_(synthesis_timeout) {
   if (transport_ == nullptr || synthesis_timeout_ <= std::chrono::milliseconds::zero()) {
     throw std::invalid_argument("audio playback requires a transport and positive timeout");
@@ -261,6 +282,7 @@ bool AudioPlaybackClient::SubmitSingleSegment(
     ClearActiveRequest(request_id);
     return false;
   }
+  AudioFocusLease focus_lease(focus_controller_.get());
   const auto synthesis_deadline = std::chrono::steady_clock::now() + synthesis_timeout_;
   const auto synthesis_remaining = synthesis_deadline - std::chrono::steady_clock::now();
   const auto watchdog_deadline = std::chrono::system_clock::now() + synthesis_remaining;

@@ -9,6 +9,10 @@ const char* ToString(HmiCommand command) {
       return "open_camera_preview";
     case HmiCommand::kPlayMusic:
       return "play_music";
+    case HmiCommand::kPauseMusic:
+      return "pause_music";
+    case HmiCommand::kResumeMusic:
+      return "resume_music";
   }
   return "unknown";
 }
