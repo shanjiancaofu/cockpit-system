@@ -38,7 +38,8 @@ Item {
                         }
 
                         Label {
-                            text: "应用入口受固定 allowlist 管理，后端不可用时不会误报成功"
+                            text: mediaControl.available ? "本地媒体控制已连接"
+                                                         : "媒体 owner 未接入，当前不会误报播放成功"
                             color: root.palette.textSecondary
                             font.pixelSize: 12
                         }
@@ -52,8 +53,10 @@ Item {
 
                         Label {
                             anchors.centerIn: parent
-                            text: "受控入口"
-                            color: root.palette.textMuted
+                            text: mediaControl.stateLabel
+                            color: mediaControl.state === "PLAYING" ? root.palette.green
+                                   : (mediaControl.state === "ERROR" ? root.palette.red
+                                                                     : root.palette.textMuted)
                             font.pixelSize: 11
                             font.weight: Font.DemiBold
                         }
@@ -88,11 +91,54 @@ Item {
 
                 Label {
                     Layout.fillWidth: true
-                    text: "选择音乐后端后，这里将显示封面、曲目和播放控制"
+                    text: mediaControl.title.length > 0 ? mediaControl.title
+                                                        : "等待本地媒体后端"
+                    color: root.palette.textPrimary
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: mediaControl.artist.length > 0 ? mediaControl.artist
+                                                         : "现有 Audio PCM RPC 不作为长音乐播放器"
                     color: root.palette.textSecondary
-                    font.pixelSize: 14
+                    font.pixelSize: 12
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
+                }
+
+                RowLayout {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: mediaControl.available
+                    spacing: 10
+
+                    Button {
+                        text: mediaControl.state === "PLAYING" ? "暂停"
+                              : (mediaControl.state === "PAUSED" ? "继续" : "播放")
+                        enabled: mediaControl.canPlay || mediaControl.canPause
+                        onClicked: {
+                            if (mediaControl.canPlay) {
+                                mediaControl.playDefault()
+                            } else {
+                                mediaControl.togglePause()
+                            }
+                        }
+                    }
+
+                    Button {
+                        text: "下一首"
+                        enabled: mediaControl.canPause
+                        onClicked: mediaControl.next()
+                    }
+
+                    Button {
+                        text: "停止"
+                        enabled: mediaControl.canStop
+                        onClicked: mediaControl.stopPlayback()
+                    }
                 }
 
                 Item { Layout.fillHeight: true }
@@ -107,11 +153,11 @@ Item {
 
                     Label {
                         anchors.centerIn: parent
-                        text: appLauncher.lastError.length > 0
-                              ? appLauncher.lastError
-                              : "App Launcher 只接受固定应用 ID · 禁止路径、参数和 Shell"
-                        color: appLauncher.lastError.length > 0 ? root.palette.amber
-                                                                : root.palette.textMuted
+                        text: mediaControl.lastError.length > 0 ? mediaControl.lastError
+                              : (appLauncher.lastError.length > 0 ? appLauncher.lastError
+                                 : "媒体和 App Launcher 只接受固定 ID · 禁止路径、URL、参数和 Shell")
+                        color: mediaControl.lastError.length > 0 || appLauncher.lastError.length > 0
+                               ? root.palette.amber : root.palette.textMuted
                         font.pixelSize: 12
                     }
                 }

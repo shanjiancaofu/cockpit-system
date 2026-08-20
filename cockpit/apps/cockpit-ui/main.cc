@@ -14,6 +14,7 @@
 #include "cockpit/apps/cockpit-ui/camera/camera_image_provider.h"
 #include "cockpit/apps/cockpit-ui/health/service_health_model.h"
 #include "cockpit/apps/cockpit-ui/hmi_control.h"
+#include "cockpit/apps/cockpit-ui/media/media_control_model.h"
 #include "cockpit/apps/cockpit-ui/vehicle/gateway_client.h"
 #include "cockpit/apps/cockpit-ui/vehicle/vehicle_state_model.h"
 #include "cockpit/apps/cockpit-ui/voice/voice_status_model.h"
@@ -49,6 +50,7 @@ int main(int argc, char** argv) {
   };
   cockpit::ui::ServiceHealthModel service_health(std::move(health_endpoints));
   cockpit::ui::HmiControl hmi_control;
+  cockpit::ui::MediaControlModel media_control;
   cockpit::ui::VoiceStatusModel voice_status(
       runtime.config().services().voice_interaction.grpc.listen_address);
 
@@ -60,6 +62,7 @@ int main(int argc, char** argv) {
   engine.rootContext()->setContextProperty(QStringLiteral("cameraControl"), &camera_control);
   engine.rootContext()->setContextProperty(QStringLiteral("serviceHealth"), &service_health);
   engine.rootContext()->setContextProperty(QStringLiteral("hmiControl"), &hmi_control);
+  engine.rootContext()->setContextProperty(QStringLiteral("mediaControl"), &media_control);
   engine.rootContext()->setContextProperty(QStringLiteral("voiceStatus"), &voice_status);
   engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
   if (engine.rootObjects().isEmpty()) {
@@ -75,9 +78,10 @@ int main(int argc, char** argv) {
 
   QObject::connect(&app, &QCoreApplication::aboutToQuit,
                    [&app_launcher, &gateway_client, &camera_client, &camera_control,
-                    &service_health, &hmi_control, &voice_status] {
+                    &service_health, &hmi_control, &media_control, &voice_status] {
                      hmi_control.Stop();
                      app_launcher.Stop();
+                     media_control.Stop();
                      voice_status.Stop();
                      service_health.Stop();
                      camera_control.Stop();
@@ -94,6 +98,7 @@ int main(int argc, char** argv) {
   shutdown_timer.start();
 
   app_launcher.Start();
+  media_control.Start();
   gateway_client.Start();
   camera_client.Start();
   camera_control.Start();

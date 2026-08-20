@@ -21,6 +21,8 @@
 - HMI 动态模块监管 Qt UI 生命周期和崩溃恢复。
 - 受控 App Launcher 状态模型只接受三个固定应用 ID；默认后端不启动任何第三方进程，路径、参数和
   shell 不进入接口。
+- 本地媒体控制合同提供 play/pause/resume/next/stop 状态机和固定 track ID；生产 backend 默认不可用，
+  现有提示音/TTS PCM RPC 不冒充长音乐播放器。
 - `cockpit-ctl` 聚合状态和各类 probe/ctl 工具。
 - Navigator 统一入口、动态业务模块、运行模式切换、有界本地 IPC 和故障重启限制。
 - Navigator 周期状态/健康采样、受控故障注入、JSON 稳定性报告和失败自动诊断快照。

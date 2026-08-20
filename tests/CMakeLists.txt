@@ -352,6 +352,11 @@ if(TARGET ui_model)
     target_link_libraries(app_launcher_model_test PRIVATE Qt6::Test ui_app_launcher)
     add_test(NAME app_launcher_model_test COMMAND app_launcher_model_test)
 
+    add_executable(media_control_model_test apps/cockpit-ui/media_control_model_test.cc)
+    set_target_properties(media_control_model_test PROPERTIES AUTOMOC ON)
+    target_link_libraries(media_control_model_test PRIVATE Qt6::Test ui_media)
+    add_test(NAME media_control_model_test COMMAND media_control_model_test)
+
     add_executable(vehicle_state_model_test apps/cockpit-ui/vehicle_state_model_test.cc)
     set_target_properties(vehicle_state_model_test PROPERTIES AUTOMOC ON)
     target_link_libraries(vehicle_state_model_test PRIVATE Qt6::Test ui_model)
@@ -392,6 +397,7 @@ if(TARGET ui_model)
         ui_camera
         ui_health
         ui_hmi
+        ui_media
         ui_vehicle
         ui_voice
     )
