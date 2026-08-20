@@ -45,6 +45,8 @@ int main(int argc, char** argv) {
        runtime.config().services().voice_interaction.grpc.listen_address},
       {QStringLiteral("Camera"), "camera-service",
        runtime.config().services().camera.grpc.listen_address},
+      {QStringLiteral("Media"), "media-service",
+       runtime.config().services().media.grpc.listen_address},
       {QStringLiteral("Recording"), "recording-service",
        runtime.config().services().recording.grpc.listen_address},
   };

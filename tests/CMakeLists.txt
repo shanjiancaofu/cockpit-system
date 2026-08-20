@@ -159,6 +159,15 @@ add_executable(recording_service_test library/recording/recording_service_test.c
 target_link_libraries(recording_service_test PRIVATE recording_service)
 add_test(NAME recording_service_test COMMAND recording_service_test)
 
+add_executable(media_service_test modules/media/media_service_test.cc)
+target_link_libraries(media_service_test PRIVATE media_service)
+add_test(NAME media_service_test COMMAND media_service_test)
+
+add_executable(media_grpc_service_test library/media/media_grpc_service_test.cc)
+target_link_libraries(media_grpc_service_test PRIVATE media_runtime)
+add_test(NAME media_grpc_service_test COMMAND media_grpc_service_test)
+set_tests_properties(media_grpc_service_test PROPERTIES LABELS "system-grpc")
+
 add_executable(camera_frame_test modules/camera/camera_frame_test.cc)
 target_link_libraries(camera_frame_test PRIVATE camera)
 add_test(NAME camera_frame_test COMMAND camera_frame_test)

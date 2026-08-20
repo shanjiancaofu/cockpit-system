@@ -87,6 +87,17 @@ add_library(hmi_runtime STATIC hmi/hmi_runtime.cc)
 target_include_directories(hmi_runtime PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(hmi_runtime PUBLIC config logging)
 
+add_library(media_service STATIC media/media_service.cc)
+target_include_directories(media_service PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(media_service PUBLIC media)
+
+add_library(media_runtime STATIC
+    media/media_grpc_service.cc
+    media/media_runtime.cc
+)
+target_include_directories(media_runtime PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(media_runtime PUBLIC config contracts logging media media_service time_util)
+
 add_library(carupload_runtime STATIC carupload/carupload_runtime.cc)
 target_include_directories(carupload_runtime PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(carupload_runtime PUBLIC config logging vehicle)

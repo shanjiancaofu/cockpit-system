@@ -69,6 +69,9 @@ target_link_libraries(cockpit_module_agent PRIVATE agent_runtime)
 add_navigator_module(cockpit_module_hmi hmi library/hmi/hmi_entry.cc)
 target_link_libraries(cockpit_module_hmi PRIVATE hmi_runtime)
 
+add_navigator_module(cockpit_module_media media library/media/media_entry.cc)
+target_link_libraries(cockpit_module_media PRIVATE media_runtime)
+
 add_navigator_module(cockpit_module_carupload carupload library/carupload/carupload_entry.cc)
 target_link_libraries(cockpit_module_carupload PRIVATE carupload_runtime)
 

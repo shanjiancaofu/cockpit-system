@@ -26,6 +26,7 @@ int main() {
   success &= Expect(static_cast<std::uint16_t>(ModuleId::kTransfer) == 1 &&
                         static_cast<std::uint16_t>(ModuleId::kVehicleDriver) == 10 &&
                         static_cast<std::uint16_t>(ModuleId::kAgent) == 20 &&
+                        static_cast<std::uint16_t>(ModuleId::kMedia) == 24 &&
                         static_cast<std::uint16_t>(ModuleId::kUpgrader) == 30,
                     "stable module ids changed");
   success &= Expect(static_cast<std::uint8_t>(RunMode::kNormal) == 1 &&
@@ -39,6 +40,7 @@ int main() {
       Expect(config.FindModule(ModuleId::kCarupload) != nullptr, "carupload module is missing");
   success &=
       Expect(config.FindModule(ModuleId::kUpgrader) != nullptr, "upgrader skeleton is missing");
+  success &= Expect(config.FindModule(ModuleId::kMedia) != nullptr, "media module is missing");
   ModuleId parsed_module;
   success &= Expect(cockpit::navigator::ParseModuleId("transfer", &parsed_module) &&
                         parsed_module == ModuleId::kTransfer,
@@ -62,6 +64,9 @@ int main() {
     success &=
         Expect(std::find(ui->second.begin(), ui->second.end(), ModuleId::kHmi) != ui->second.end(),
                "ui mode does not contain hmi");
+    success &= Expect(
+        std::find(ui->second.begin(), ui->second.end(), ModuleId::kMedia) != ui->second.end(),
+        "ui mode does not contain media");
   }
   const auto cloud = config.modes.find(RunMode::kCloud);
   success &= Expect(cloud != config.modes.end(), "cloud mode is missing");

@@ -8,6 +8,7 @@
 - `audio.proto`：音频控制、指标、transcript 和 Speak。
 - `voice.proto`：语音交互状态和回复。
 - `hmi.proto`：Qt/Android HMI 控制命令和执行结果。
+- `media.proto`：固定 track ID、曲目列表、播放状态和控制。
 - `camera.proto`：相机控制和健康状态。
 - `recording.proto`：研发录包控制、时间线、完整性和报告。
 - `cloud.proto`：云端占位契约，当前没有生产 transport consumer。

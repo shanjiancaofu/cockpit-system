@@ -7,7 +7,7 @@ namespace cockpit {
 namespace navigator {
 namespace {
 
-constexpr std::array<std::pair<ModuleId, const char*>, 12> kModuleNames{{
+constexpr std::array<std::pair<ModuleId, const char*>, 13> kModuleNames{{
     {ModuleId::kTransfer, "transfer"},
     {ModuleId::kVehicleDriver, "vehicle_driver"},
     {ModuleId::kAudioDriver, "audio_driver"},
@@ -16,6 +16,7 @@ constexpr std::array<std::pair<ModuleId, const char*>, 12> kModuleNames{{
     {ModuleId::kHmi, "hmi"},
     {ModuleId::kCarupload, "carupload"},
     {ModuleId::kRecording, "recording"},
+    {ModuleId::kMedia, "media"},
     {ModuleId::kUpgrader, "upgrader"},
     {ModuleId::kDebugger, "debugger"},
     {ModuleId::kCalibration, "calibration"},

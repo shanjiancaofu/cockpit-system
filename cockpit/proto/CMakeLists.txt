@@ -5,6 +5,7 @@ set(proto_files
     common.proto
     gateway.proto
     hmi.proto
+    media.proto
     recording.proto
     vehicle_state.proto
     voice.proto

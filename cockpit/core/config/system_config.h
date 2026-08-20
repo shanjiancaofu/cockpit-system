@@ -85,6 +85,11 @@ struct VoiceInteractionServiceConfig {
   GrpcServerConfig grpc{"127.0.0.1:50053"};
 };
 
+struct MediaServiceConfig {
+  std::string provider = "disabled";
+  GrpcServerConfig grpc{"127.0.0.1:50056"};
+};
+
 struct RecordingServiceConfig {
   bool auto_start = false;
   std::string directory = "recordings";
@@ -105,6 +110,7 @@ struct ServicesConfig {
   AudioDriverConfig audio;
   CameraServiceConfig camera;
   VoiceInteractionServiceConfig voice_interaction;
+  MediaServiceConfig media;
   RecordingServiceConfig recording;
 };
 

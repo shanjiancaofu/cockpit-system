@@ -43,7 +43,7 @@ case "${mode}" in
     expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording)
     ;;
   ui)
-    expected_modules=(transfer vehicle_driver audio_driver camera_driver agent hmi)
+    expected_modules=(transfer vehicle_driver audio_driver camera_driver agent media hmi)
     ;;
   cloud)
     expected_modules=(transfer vehicle_driver carupload)

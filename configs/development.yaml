@@ -49,6 +49,10 @@ services:
     retry_delay_ms: 200
     grpc:
       listen_address: 127.0.0.1:50053
+  media:
+    provider: disabled
+    grpc:
+      listen_address: 127.0.0.1:50056
   recording:
     auto_start: false
     directory: recordings

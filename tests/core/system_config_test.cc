@@ -59,6 +59,8 @@ int main() {
       config.services().vehicle_data.grpc.listen_address != "127.0.0.1:50050" ||
       config.services().gateway.stream_timeout_ms != 10000 ||
       config.services().audio.grpc.listen_address != "127.0.0.1:50052" ||
+      config.services().media.provider != "disabled" ||
+      config.services().media.grpc.listen_address != "127.0.0.1:50056" ||
       config.features().voice.kws.provider != "mock" ||
       config.features().voice.kws.cooldown_ms != 1500 ||
       config.features().voice.kws.wake_word != "你好小山" ||
@@ -112,6 +114,8 @@ int main() {
           "unix:/cockpit-system/run/gateway.grpc.sock" ||
       production_config.services().camera.grpc.listen_address !=
           "unix:/cockpit-system/run/camera.grpc.sock" ||
+      production_config.services().media.grpc.listen_address !=
+          "unix:/cockpit-system/run/media.grpc.sock" ||
       production_config.paths().run_dir != "/cockpit-system/run" ||
       production_config.features().voice.kws.provider != "sherpa" ||
       production_config.features().voice.kws.wake_word != "" ||
@@ -144,6 +148,14 @@ int main() {
                    "    local_llm:\n      enabled: true") ||
       !ExpectRejectedConfig(enabled_llm_without_provider,
                             "features.ai.local_llm.provider must not be disabled")) {
+    return 1;
+  }
+
+  std::string invalid_media_provider = ReadFile(VALID_CONFIG_PATH);
+  if (!ReplaceOnce(&invalid_media_provider, "  media:\n    provider: disabled",
+                   "  media:\n    provider: arbitrary") ||
+      !ExpectRejectedConfig(invalid_media_provider,
+                            "services.media.provider must be disabled or mock")) {
     return 1;
   }
 

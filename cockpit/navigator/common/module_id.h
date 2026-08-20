@@ -16,6 +16,7 @@ enum class ModuleId : std::uint8_t {
   kHmi = 21,
   kCarupload = 22,
   kRecording = 23,
+  kMedia = 24,
   kUpgrader = 30,
   kDebugger = 31,
   kCalibration = 32,

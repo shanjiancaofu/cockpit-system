@@ -14,6 +14,7 @@
 #include "cockpit/core/health/service_health.h"
 #include "common.pb.h"
 #include "gateway.grpc.pb.h"
+#include "media.grpc.pb.h"
 #include "recording.grpc.pb.h"
 #include "vehicle_state.pb.h"
 #include "voice.grpc.pb.h"
@@ -287,6 +288,16 @@ void ServiceHealthModel::PollOnce() {
       auto stub = proto::camera::CameraControl::NewStub(channel);
       proto::common::Empty request;
       proto::camera::CameraStatus response;
+      grpc::ClientContext context;
+      PrepareContext(&context);
+      const grpc::Status status = stub->GetStatus(&context, request, &response);
+      samples.push_back(status.ok() ? FromHealth(response.health()) : RpcFailure(status));
+      continue;
+    }
+    if (item.service_name == "media-service") {
+      auto stub = proto::media::MediaControl::NewStub(channel);
+      proto::common::Empty request;
+      proto::media::MediaStatus response;
       grpc::ClientContext context;
       PrepareContext(&context);
       const grpc::Status status = stub->GetStatus(&context, request, &response);

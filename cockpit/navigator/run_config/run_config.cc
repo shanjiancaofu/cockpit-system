@@ -27,6 +27,7 @@ RunConfig RunConfig::Default() {
       {ModuleId::kHmi, "libhmi.so"},
       {ModuleId::kCarupload, "libcarupload.so"},
       {ModuleId::kRecording, "librecording.so"},
+      {ModuleId::kMedia, "libmedia.so"},
       {ModuleId::kUpgrader, "libupgrader.so", true},
       {ModuleId::kDebugger, "libdebugger.so"},
       {ModuleId::kCalibration, "libcalibration.so"},
@@ -41,7 +42,7 @@ RunConfig RunConfig::Default() {
         ModuleId::kCameraDriver, ModuleId::kAgent, ModuleId::kRecording}},
       {RunMode::kUi,
        {ModuleId::kTransfer, ModuleId::kVehicleDriver, ModuleId::kAudioDriver,
-        ModuleId::kCameraDriver, ModuleId::kAgent, ModuleId::kHmi}},
+        ModuleId::kCameraDriver, ModuleId::kAgent, ModuleId::kMedia, ModuleId::kHmi}},
       {RunMode::kCloud, {ModuleId::kTransfer, ModuleId::kVehicleDriver, ModuleId::kCarupload}},
       {RunMode::kUpgrade, {ModuleId::kUpgrader}},
   };

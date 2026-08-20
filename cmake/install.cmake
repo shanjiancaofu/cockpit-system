@@ -54,6 +54,7 @@ set(cockpit_module_targets
     cockpit_module_camera_driver
     cockpit_module_agent
     cockpit_module_hmi
+    cockpit_module_media
     cockpit_module_carupload
     cockpit_module_recording
     cockpit_module_upgrader

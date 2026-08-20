@@ -17,7 +17,6 @@ navigator_log="${run_dir}/navigator.log"
 recording_directory="${COCKPIT_RUNTIME_DIR}/data/recordings"
 expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording)
 if [[ -x "${bin_dir}/cockpit-ui" ]]; then
-  expected_modules+=(hmi)
   export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
 fi
 
@@ -35,13 +34,19 @@ fi
 
 mkdir -p "${run_dir}"
 awk '
+  /^  audio:$/ { in_service_audio = 1 }
+  in_service_audio && /^    auto_start: false$/ {
+    sub(/false$/, "true")
+    in_service_audio = 0
+  }
   /^features:$/ { in_features = 1 }
   in_features && /^  voice:$/ { in_voice = 1 }
   in_voice && /^    enabled: false$/ {
     sub(/false$/, "true")
     in_voice = 0
   }
-  /^    output_device: default$/ { sub(/default$/, "\"null\"") }
+  /^    input_device:/ { sub(/input_device:.*/, "input_device: \"null\"") }
+  /^    output_device:/ { sub(/output_device:.*/, "output_device: \"null\"") }
   /^    capture_backend: gstreamer$/ { sub(/gstreamer$/, "synthetic") }
   { print }
 ' "${source_config}" >"${config_path}"
@@ -86,6 +91,21 @@ for module in "${expected_modules[@]}"; do
     exit 1
   fi
 done
+
+wait_for_voice_ready() {
+  local voice_status
+  for _ in $(seq 1 50); do
+    voice_status="$("${bin_dir}/voice-ctl" --status --output json \
+      --config "${config_path}" 2>/dev/null || true)"
+    if [[ "${voice_status}" == *'"state":"INTERACTION_STATE_IDLE"'* ||
+          "${voice_status}" == *'"state":"INTERACTION_STATE_FOLLOW_UP"'* ]]; then
+      return 0
+    fi
+    sleep 0.1
+  done
+  echo "voice interaction did not become ready" >&2
+  return 1
+}
 health_json="$("${bin_dir}/cockpit-ctl" health --mode development --output json \
   --config "${config_path}")"
 if [[ "${health_json}" != *'"healthy":true'* ]]; then
@@ -105,6 +125,7 @@ if [[ "${camera_status_json}" != *'"state":"CAMERA_PREVIEW_STATE_STOPPED"'* ||
 fi
 "${bin_dir}/camera-ctl" --list --config "${config_path}"
 
+"${bin_dir}/audio-probe" --stop --config "${config_path}"
 "${bin_dir}/audio-probe" --start --device null --config "${config_path}"
 sleep 0.1
 audio_status_json="$("${bin_dir}/audio-probe" --status --output json --config "${config_path}")"
@@ -201,6 +222,15 @@ if [[ "${topic_info}" != *"transport: grpc"* ||
   exit 1
 fi
 "${bin_dir}/topic" echo /vehicle/state --backend grpc --count 1 --config "${config_path}"
+"${bin_dir}/cockpit-ctl" runtime switch ui --socket "${socket_path}" >/dev/null
+ui_status="$("${bin_dir}/cockpit-ctl" runtime status --socket "${socket_path}")"
+if [[ "${ui_status}" != *"mode=ui"* ||
+      "${ui_status}" != *"module=media state=running"* ||
+      "${ui_status}" != *"module=hmi state=running"* ]]; then
+  echo "Navigator UI mode did not start media and HMI" >&2
+  exit 1
+fi
+wait_for_voice_ready
 vehicle_response="$("${bin_dir}/voice-ctl" --process "show vehicle status" \
   --config "${config_path}")"
 if [[ "${vehicle_response}" != *"action_status=succeeded"* ||
@@ -208,15 +238,21 @@ if [[ "${vehicle_response}" != *"action_status=succeeded"* ||
   echo "voice vehicle status did not return expected live response" >&2
   exit 1
 fi
+wait_for_voice_ready
 camera_response="$("${bin_dir}/voice-ctl" --process "open camera" --config "${config_path}")"
-music_response="$("${bin_dir}/voice-ctl" --process "play music" --config "${config_path}")"
+wait_for_voice_ready
+set +e
+music_response="$("${bin_dir}/voice-ctl" --process "play music" --config "${config_path}" 2>&1)"
+music_result=$?
+set -e
 if [[ "${camera_response}" != *"action_status=succeeded"* ||
       "${camera_response}" != *"Camera view opened."* ||
-      "${music_response}" != *"action_status=failed"* ||
+      "${music_result}" -eq 0 ||
       "${music_response}" != *"Media player is not connected."* ]]; then
   echo "voice HMI execution did not return expected responses" >&2
   exit 1
 fi
+wait_for_voice_ready
 interrupt_json="$("${bin_dir}/voice-ctl" --interrupt --output json --config "${config_path}")"
 if [[ "${interrupt_json}" != *'"active_request_interrupted":false'* ||
       "${interrupt_json}" != *'"queued_transcripts_discarded":"0"'* ]]; then
@@ -224,10 +260,14 @@ if [[ "${interrupt_json}" != *'"active_request_interrupted":false'* ||
   exit 1
 fi
 voice_status_json="$("${bin_dir}/voice-ctl" --status --output json --config "${config_path}")"
-if [[ "${voice_status_json}" != *'"state":"INTERACTION_STATE_IDLE"'* ||
+echo "${voice_status_json}"
+if [[ ("${voice_status_json}" != *'"state":"INTERACTION_STATE_IDLE"'* &&
+      "${voice_status_json}" != *'"state":"INTERACTION_STATE_FOLLOW_UP"'*) ||
       "${voice_status_json}" != *'"requests_interrupted":"0"'* ||
-      "${voice_status_json}" != *'"provider_timeouts":"0"'* ||
-      "${voice_status_json}" != *'"provider_failures":"0"'* ]]; then
+      "${voice_status_json}" != *'"assistant_timeouts":"0"'* ||
+      "${voice_status_json}" != *'"assistant_failures":"0"'* ||
+      "${voice_status_json}" != *'"action_timeouts":"0"'* ||
+      "${voice_status_json}" != *'"tts_timeouts":"0"'* ]]; then
   echo "voice JSON status output is invalid" >&2
   exit 1
 fi

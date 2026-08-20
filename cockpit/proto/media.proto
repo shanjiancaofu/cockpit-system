@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package cockpit.proto.media;
+
+import "common.proto";
+
+enum MediaPlaybackState {
+  MEDIA_PLAYBACK_STATE_UNSPECIFIED = 0;
+  MEDIA_PLAYBACK_STATE_UNAVAILABLE = 1;
+  MEDIA_PLAYBACK_STATE_STOPPED = 2;
+  MEDIA_PLAYBACK_STATE_PLAYING = 3;
+  MEDIA_PLAYBACK_STATE_PAUSED = 4;
+  MEDIA_PLAYBACK_STATE_FAULTED = 5;
+}
+
+message MediaTrack {
+  string id = 1;
+  string title = 2;
+  string artist = 3;
+  uint64 duration_ms = 4;
+}
+
+message MediaStatus {
+  MediaPlaybackState state = 1;
+  string current_track_id = 2;
+  string title = 3;
+  string artist = 4;
+  uint64 duration_ms = 5;
+  uint64 position_ms = 6;
+  string last_error = 7;
+  cockpit.proto.common.ServiceHealth health = 100;
+}
+
+message ListMediaTracksResponse {
+  repeated MediaTrack tracks = 1;
+}
+
+message PlayMediaRequest {
+  string track_id = 1;
+}
+
+service MediaControl {
+  rpc ListTracks(cockpit.proto.common.Empty) returns (ListMediaTracksResponse);
+  rpc Play(PlayMediaRequest) returns (MediaStatus);
+  rpc Pause(cockpit.proto.common.Empty) returns (MediaStatus);
+  rpc Resume(cockpit.proto.common.Empty) returns (MediaStatus);
+  rpc Stop(cockpit.proto.common.Empty) returns (MediaStatus);
+  rpc Next(cockpit.proto.common.Empty) returns (MediaStatus);
+  rpc GetStatus(cockpit.proto.common.Empty) returns (MediaStatus);
+}

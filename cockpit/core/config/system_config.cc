@@ -146,8 +146,9 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(logging, "mirror_stderr", config.logging_.mirror_stderr, "logging.mirror_stderr");
 
   const YAML::Node services = ChildMap(root, "services", "services");
-  ValidateKeys(services, "services",
-               {"vehicle_data", "gateway", "audio", "camera", "voice_interaction", "recording"});
+  ValidateKeys(
+      services, "services",
+      {"vehicle_data", "gateway", "audio", "camera", "voice_interaction", "media", "recording"});
   const YAML::Node vehicle_data = ChildMap(services, "vehicle_data", "services.vehicle_data");
   ValidateKeys(vehicle_data, "services.vehicle_data", {"source", "publish_interval_ms", "grpc"});
   config.services_.vehicle_data.source = Read(
@@ -248,6 +249,16 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.voice_interaction.grpc.listen_address =
       Read(voice_grpc, "listen_address", config.services_.voice_interaction.grpc.listen_address,
            "services.voice_interaction.grpc.listen_address");
+
+  const YAML::Node media = ChildMap(services, "media", "services.media");
+  ValidateKeys(media, "services.media", {"provider", "grpc"});
+  config.services_.media.provider =
+      Read(media, "provider", config.services_.media.provider, "services.media.provider");
+  const YAML::Node media_grpc = ChildMap(media, "grpc", "services.media.grpc");
+  ValidateKeys(media_grpc, "services.media.grpc", {"listen_address"});
+  config.services_.media.grpc.listen_address =
+      Read(media_grpc, "listen_address", config.services_.media.grpc.listen_address,
+           "services.media.grpc.listen_address");
 
   const YAML::Node recording = ChildMap(services, "recording", "services.recording");
   ValidateKeys(recording, "services.recording",
@@ -556,6 +567,10 @@ void SystemConfig::Validate() const {
                   "services.voice_interaction.stream_timeout_ms");
   RequirePositive(services_.voice_interaction.retry_delay_ms,
                   "services.voice_interaction.retry_delay_ms");
+  if (!IsOneOf(services_.media.provider, "disabled", "mock")) {
+    throw std::runtime_error("services.media.provider must be disabled or mock");
+  }
+  ValidateAddress(services_.media.grpc.listen_address, "services.media.grpc.listen_address");
   RequireNotEmpty(services_.recording.directory, "services.recording.directory");
   ValidateAddress(services_.recording.vehicle_data_address,
                   "services.recording.vehicle_data_address");

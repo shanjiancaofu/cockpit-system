@@ -49,6 +49,10 @@ services:
     retry_delay_ms: 200
     grpc:
       listen_address: unix:/cockpit-system/run/voice.grpc.sock
+  media:
+    provider: disabled
+    grpc:
+      listen_address: unix:/cockpit-system/run/media.grpc.sock
   recording:
     auto_start: false
     directory: recordings
