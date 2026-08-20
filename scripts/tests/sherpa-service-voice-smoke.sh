@@ -14,6 +14,9 @@ runtime_root="${COCKPIT_SHERPA_AGENT_RUNTIME_ROOT:-${ai_root}/runtime/sherpa-onn
 build_dir="${BUILD_DIR:-$(cockpit_output_dir)/build/x86_64-sherpa-debug}"
 wake_fixture="${COCKPIT_WAKE_FIXTURE:-${ai_root}/fixtures/nihao-xiaoshan.wav}"
 command_fixture="${COCKPIT_COMMAND_FIXTURE:-${ai_root}/fixtures/open-camera-zh.wav}"
+expected_action="${COCKPIT_EXPECTED_ACTION:-open_camera}"
+media_focus_smoke="${COCKPIT_MEDIA_FOCUS_SMOKE:-false}"
+media_manifest="${COCKPIT_MEDIA_MANIFEST:-${root_dir}/_output/media/manifest.yaml}"
 silence_fixture="${COCKPIT_SILENCE_FIXTURE:-${ai_root}/fixtures/silence.wav}"
 negative_fixture="${COCKPIT_NEGATIVE_FIXTURE:-${ai_root}/fixtures/live/segment-06-negative-commands.wav}"
 retired_wake_fixture="${COCKPIT_RETIRED_WAKE_FIXTURE:-${ai_root}/fixtures/nihao-xiaoche.wav}"
@@ -42,6 +45,11 @@ for required in \
     exit 2
   fi
 done
+
+if [[ "${media_focus_smoke}" == "true" && ! -f "${media_manifest}" ]]; then
+  echo "missing media focus smoke manifest: ${media_manifest}" >&2
+  exit 2
+fi
 
 for executable in cockpit-navigator cockpit-ctl audio-probe voice-ctl; do
   if [[ ! -x "${build_dir}/bin/${executable}" ]]; then
@@ -86,6 +94,14 @@ sed \
     -e "s|PLACEHOLDER_KEYWORDS|${ai_root}/config/kws-keywords.txt|" \
     -e "s|PLACEHOLDER_KWS_MODEL|${ai_root}/models/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20|" \
     >"${config_path}"
+
+if [[ "${media_focus_smoke}" == "true" ]]; then
+  sed -i \
+    -e '/^  media:$/,/^  recording:$/s/^    provider: disabled$/    provider: gstreamer/' \
+    -e "/^  media:$/,/^  recording:$/s|^    manifest:.*$|    manifest: ${media_manifest}|" \
+    -e '/^  media:$/,/^  recording:$/s/^    sink: fakesink$/    sink: alsasink/' \
+    "${config_path}"
+fi
 
 navigator_pid=""
 cleanup() {
@@ -201,7 +217,7 @@ run_positive_replay() {
     status="$("${build_dir}/bin/voice-ctl" --status --config "${config_path}" 2>/dev/null)"
     if [[ "${status}" == *"actions succeeded: ${expected_actions}"* &&
           "${status}" == *"action_status=succeeded"* &&
-          "${status}" == *"action=open_camera"* ]]; then
+          "${status}" == *"action=${expected_action}"* ]]; then
       passed=true
       break
     fi
@@ -226,7 +242,7 @@ run_positive_replay() {
     printf 'positive replay %s/%s passed\n' "${expected_actions}" "${service_repetitions}"
   fi
   if [[ "${passed}" != "true" ]]; then
-    echo "Sherpa service voice replay did not execute open_camera; log: ${navigator_log}" >&2
+    echo "Sherpa service voice replay did not execute ${expected_action}; log: ${navigator_log}" >&2
     tail -100 "${navigator_log}" >&2 || true
     return 1
   fi
@@ -248,6 +264,16 @@ for repetition in $(seq 1 "${service_repetitions}"); do
     warmup_service_rss_kib=${current_service_rss_kib}
   fi
 done
+
+if [[ "${media_focus_smoke}" == "true" ]]; then
+  if ! grep -q 'HMI command executed command=pause_music' "${navigator_log}" ||
+     ! grep -q 'HMI command executed command=resume_music' "${navigator_log}"; then
+    echo "Voice/Media focus did not pause and resume music; log: ${navigator_log}" >&2
+    tail -120 "${navigator_log}" >&2 || true
+    exit 1
+  fi
+  echo "Voice/Media focus pause/resume verified"
+fi
 update_service_rss
 final_service_rss_kib=${current_service_rss_kib}
 post_warmup_growth_kib=0
