@@ -25,8 +25,13 @@ set_target_properties(ui_health PROPERTIES AUTOMOC ON)
 target_include_directories(ui_health PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(ui_health PUBLIC Qt6::Core contracts service_health)
 
+add_library(ui_voice STATIC voice/voice_status_model.cc)
+set_target_properties(ui_voice PROPERTIES AUTOMOC ON)
+target_include_directories(ui_voice PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(ui_voice PUBLIC Qt6::Core contracts)
+
 add_library(ui_model INTERFACE)
-target_link_libraries(ui_model INTERFACE ui_vehicle ui_health)
+target_link_libraries(ui_model INTERFACE ui_vehicle ui_health ui_voice)
 
 add_executable(cockpit-ui main.cc qml.qrc)
 set_target_properties(cockpit-ui PROPERTIES AUTOMOC ON AUTORCC ON)
@@ -42,4 +47,5 @@ target_link_libraries(cockpit-ui PRIVATE
     ui_health
     ui_hmi
     ui_vehicle
+    ui_voice
 )

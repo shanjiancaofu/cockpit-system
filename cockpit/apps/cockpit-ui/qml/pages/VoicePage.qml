@@ -23,10 +23,29 @@ Item {
                 anchors.margins: 28
                 spacing: 14
 
-                Label {
-                    text: "语音助手"
-                    color: root.palette.textSecondary
-                    font.pixelSize: 13
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Label {
+                        text: "语音助手"
+                        color: root.palette.textSecondary
+                        font.pixelSize: 13
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Rectangle {
+                        Layout.preferredWidth: 8
+                        Layout.preferredHeight: 8
+                        radius: 4
+                        color: voiceStatus.connected ? root.palette.green : root.palette.red
+                    }
+
+                    Label {
+                        text: voiceStatus.connected ? "服务在线" : "服务离线"
+                        color: root.palette.textSecondary
+                        font.pixelSize: 11
+                    }
                 }
 
                 Item { Layout.fillHeight: true }
@@ -36,21 +55,22 @@ Item {
                     Layout.preferredWidth: 144
                     Layout.preferredHeight: 144
                     radius: 72
-                    color: "#2052d6c8"
+                    color: voiceStatus.active ? "#3052d6c8" : "#2052d6c8"
                     border.width: 2
-                    border.color: root.palette.accentStrong
+                    border.color: voiceStatus.connected ? root.palette.accentStrong
+                                                        : root.palette.textMuted
 
                     Rectangle {
                         anchors.centerIn: parent
                         width: 92
                         height: 92
                         radius: 46
-                        color: root.palette.accent
+                        color: voiceStatus.active ? root.palette.accent : root.palette.surfaceRaised
 
                         Label {
                             anchors.centerIn: parent
                             text: "AI"
-                            color: root.palette.background
+                            color: voiceStatus.active ? root.palette.background : root.palette.textSecondary
                             font.pixelSize: 28
                             font.weight: Font.Bold
                         }
@@ -59,7 +79,7 @@ Item {
 
                 Label {
                     Layout.fillWidth: true
-                    text: "你好，小山"
+                    text: voiceStatus.stateLabel
                     color: root.palette.textPrimary
                     font.pixelSize: 30
                     font.weight: Font.DemiBold
@@ -68,37 +88,134 @@ Item {
 
                 Label {
                     Layout.fillWidth: true
-                    text: "当前页面只展示能力状态；真实会话状态接口将在后续 UI 批次接入"
+                    text: !voiceStatus.connected && voiceStatus.lastError.length > 0
+                          ? voiceStatus.lastError
+                          : (voiceStatus.stateReason.length > 0 ? voiceStatus.stateReason
+                                                                : "你好，小山")
                     color: root.palette.textSecondary
                     font.pixelSize: 12
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                 }
 
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: voiceStatus.transcriptText.length > 0 || voiceStatus.responseText.length > 0
+                    spacing: 10
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 66
+                        radius: 14
+                        color: root.palette.surfaceRaised
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 3
+
+                            Label {
+                                text: "你说"
+                                color: root.palette.textMuted
+                                font.pixelSize: 9
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: voiceStatus.transcriptText.length > 0
+                                      ? voiceStatus.transcriptText : "—"
+                                color: root.palette.textPrimary
+                                font.pixelSize: 12
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 66
+                        radius: 14
+                        color: root.palette.surfaceRaised
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 3
+
+                            Label {
+                                text: "小山"
+                                color: root.palette.textMuted
+                                font.pixelSize: 9
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: voiceStatus.responseText.length > 0
+                                      ? voiceStatus.responseText : "—"
+                                color: root.palette.textPrimary
+                                font.pixelSize: 12
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
+                }
+
                 Item { Layout.fillHeight: true }
 
-                Rectangle {
+                RowLayout {
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: 114
-                    Layout.preferredHeight: 34
-                    radius: 17
-                    color: root.palette.surfaceRaised
+                    spacing: 10
 
-                    Row {
-                        anchors.centerIn: parent
-                        spacing: 8
+                    Rectangle {
+                        Layout.preferredWidth: 132
+                        Layout.preferredHeight: 34
+                        radius: 17
+                        color: root.palette.surfaceRaised
 
-                        Rectangle {
-                            width: 8
-                            height: 8
-                            radius: 4
-                            color: root.palette.green
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: 8
+
+                            Rectangle {
+                                width: 8
+                                height: 8
+                                radius: 4
+                                color: voiceStatus.active ? root.palette.accent
+                                                          : (voiceStatus.connected ? root.palette.green
+                                                                                   : root.palette.red)
+                            }
+
+                            Label {
+                                text: voiceStatus.stateLabel
+                                color: root.palette.textPrimary
+                                font.pixelSize: 11
+                            }
                         }
+                    }
+
+                    Rectangle {
+                        Layout.preferredWidth: 100
+                        Layout.preferredHeight: 34
+                        radius: 17
+                        visible: voiceStatus.canInterrupt || voiceStatus.interruptPending
+                        color: interruptMouse.containsMouse ? "#45ff6f7d" : "#30ff6f7d"
+                        border.width: 1
+                        border.color: root.palette.red
 
                         Label {
-                            text: "等待唤醒"
+                            anchors.centerIn: parent
+                            text: voiceStatus.interruptPending ? "取消中" : "停止"
                             color: root.palette.textPrimary
                             font.pixelSize: 11
+                            font.weight: Font.DemiBold
+                        }
+
+                        MouseArea {
+                            id: interruptMouse
+                            anchors.fill: parent
+                            enabled: !voiceStatus.interruptPending
+                            hoverEnabled: true
+                            onClicked: voiceStatus.interrupt()
                         }
                     }
                 }

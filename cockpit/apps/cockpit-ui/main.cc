@@ -15,6 +15,7 @@
 #include "cockpit/apps/cockpit-ui/hmi_control.h"
 #include "cockpit/apps/cockpit-ui/vehicle/gateway_client.h"
 #include "cockpit/apps/cockpit-ui/vehicle/vehicle_state_model.h"
+#include "cockpit/apps/cockpit-ui/voice/voice_status_model.h"
 #include "cockpit/core/runtime/process_runtime.h"
 
 int main(int argc, char** argv) {
@@ -46,6 +47,8 @@ int main(int argc, char** argv) {
   };
   cockpit::ui::ServiceHealthModel service_health(std::move(health_endpoints));
   cockpit::ui::HmiControl hmi_control;
+  cockpit::ui::VoiceStatusModel voice_status(
+      runtime.config().services().voice_interaction.grpc.listen_address);
 
   QQmlApplicationEngine engine;
   engine.addImageProvider(QStringLiteral("camera"), camera_image_provider);
@@ -54,6 +57,7 @@ int main(int argc, char** argv) {
   engine.rootContext()->setContextProperty(QStringLiteral("cameraControl"), &camera_control);
   engine.rootContext()->setContextProperty(QStringLiteral("serviceHealth"), &service_health);
   engine.rootContext()->setContextProperty(QStringLiteral("hmiControl"), &hmi_control);
+  engine.rootContext()->setContextProperty(QStringLiteral("voiceStatus"), &voice_status);
   engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
   if (engine.rootObjects().isEmpty()) {
     runtime.MarkStopped();
@@ -66,15 +70,16 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  QObject::connect(
-      &app, &QCoreApplication::aboutToQuit,
-      [&gateway_client, &camera_client, &camera_control, &service_health, &hmi_control] {
-        hmi_control.Stop();
-        service_health.Stop();
-        camera_control.Stop();
-        camera_client.Stop();
-        gateway_client.Stop();
-      });
+  QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                   [&gateway_client, &camera_client, &camera_control, &service_health, &hmi_control,
+                    &voice_status] {
+                     hmi_control.Stop();
+                     voice_status.Stop();
+                     service_health.Stop();
+                     camera_control.Stop();
+                     camera_client.Stop();
+                     gateway_client.Stop();
+                   });
   QTimer shutdown_timer;
   shutdown_timer.setInterval(100);
   QObject::connect(&shutdown_timer, &QTimer::timeout, [&app, &runtime] {
@@ -88,6 +93,7 @@ int main(int argc, char** argv) {
   camera_client.Start();
   camera_control.Start();
   service_health.Start();
+  voice_status.Start();
   const int result = app.exec();
   runtime.MarkStopped();
   return result;

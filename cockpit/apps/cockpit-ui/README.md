@@ -7,6 +7,8 @@ Jetson 车机端 Qt 6/QML 应用。
 - 1280×720 用户车机主框架，包含顶部状态、驾驶首页和底部应用 Dock。
 - 首页只展示真实车辆状态；导航、媒体和 Android/投屏后端未接入时明确显示不可用，不伪造功能。
 - 相机、媒体、小山语音、设置和诊断拆分为独立页面；诊断信息不再占用驾驶首页。
+- `VoiceStatusModel` 后台读取真实 Voice gRPC 状态、最新 transcript/回复、播放可用性和错误；小山页
+  可通过固定 `Interrupt` RPC 取消活动语音请求，不能构造其他 Agent 操作。
 - 后台 gRPC worker 订阅 gateway 车辆状态。
 - UI 线程中的 `VehicleStateModel` 提供 live/stale/disconnected 状态。
 - Camera 页面通过 gRPC 调用 `camera_driver` 提供的 CameraControl 接口。
@@ -21,9 +23,9 @@ Jetson 车机端 Qt 6/QML 应用。
 
 ## UI 边界
 
-UI 只消费 Vehicle、Camera、Health 和 HMI 模型，不直接访问 ALSA、V4L2、SocketCAN、ROS 或 shell。
-受控 App Launcher、本地媒体播放器、ROS2/Nav2 地图和真实语音会话状态仍是后续接口，不因页面占位
-而视为已实现。
+UI 只消费 Vehicle、Camera、Health、HMI 和 Voice 模型，不直接访问 ALSA、V4L2、SocketCAN、ROS 或 shell。
+受控 App Launcher、本地媒体播放器和 ROS2/Nav2 地图仍是后续接口，不因页面占位而视为已实现。
+Voice 页面显示的是 200 ms 本地状态快照；协议没有状态事件流，因此极短的中间状态不保证逐帧呈现。
 
 ## 运行
 

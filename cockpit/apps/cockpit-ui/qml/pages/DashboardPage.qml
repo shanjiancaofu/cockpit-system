@@ -395,8 +395,9 @@ Item {
                             }
 
                             Label {
-                                text: "语音助手待机"
-                                color: root.palette.textSecondary
+                                text: voiceStatus.stateLabel
+                                color: voiceStatus.active ? root.palette.accent
+                                                          : root.palette.textSecondary
                                 font.pixelSize: 11
                             }
                         }
@@ -404,7 +405,10 @@ Item {
 
                     Label {
                         Layout.fillWidth: true
-                        text: "说出唤醒词后使用确定性车辆命令"
+                        text: voiceStatus.connected
+                              ? (voiceStatus.stateReason.length > 0 ? voiceStatus.stateReason
+                                                                    : "说出唤醒词后使用确定性车辆命令")
+                              : "语音服务未连接，后台将自动重试"
                         color: root.palette.textMuted
                         font.pixelSize: 11
                         wrapMode: Text.WordWrap

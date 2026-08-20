@@ -362,6 +362,12 @@ if(TARGET ui_model)
     target_link_libraries(service_health_model_test PRIVATE Qt6::Test ui_health)
     add_test(NAME service_health_model_test COMMAND service_health_model_test)
 
+    add_executable(voice_status_model_test apps/cockpit-ui/voice_status_model_test.cc)
+    set_target_properties(voice_status_model_test PROPERTIES AUTOMOC ON)
+    target_link_libraries(voice_status_model_test PRIVATE Qt6::Test ui_voice)
+    add_test(NAME voice_status_model_test COMMAND voice_status_model_test)
+    set_tests_properties(voice_status_model_test PROPERTIES LABELS "system-grpc")
+
     add_executable(hmi_control_test apps/cockpit-ui/hmi_control_test.cc)
     set_target_properties(hmi_control_test PROPERTIES AUTOMOC ON)
     target_link_libraries(hmi_control_test PRIVATE Qt6::Test ui_hmi voice_hmi)
@@ -381,6 +387,7 @@ if(TARGET ui_model)
         ui_health
         ui_hmi
         ui_vehicle
+        ui_voice
     )
     add_test(NAME cockpit_ui_qml_test COMMAND cockpit_ui_qml_test)
     set_tests_properties(cockpit_ui_qml_test PROPERTIES
