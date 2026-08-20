@@ -154,18 +154,34 @@ bool MediaManifest::Load(const std::filesystem::path& manifest_path, MediaManife
         return false;
       }
       const std::filesystem::path relative_path(relative);
-      if (relative_path.empty() || relative_path.is_absolute() ||
-          (relative_path.has_parent_path() && relative_path.parent_path() != ".")) {
-        SetError(error, "media manifest path must be a single relative file name for track " + id);
+      if (relative_path.empty() || relative_path.is_absolute()) {
+        SetError(error, "media manifest path must be relative for track " + id);
         return false;
       }
+      for (const auto& component : relative_path) {
+        if (component == ".." || component == "." || component.empty()) {
+          SetError(error, "media manifest path contains unsafe components for track " + id);
+          return false;
+        }
+      }
       const std::filesystem::path file = root / relative_path;
-      if (std::filesystem::is_symlink(file) || !std::filesystem::is_regular_file(file)) {
+      std::filesystem::path current = root;
+      for (const auto& component : relative_path) {
+        current /= component;
+        if (std::filesystem::is_symlink(current)) {
+          SetError(error, "media manifest path contains a symlink for track " + id);
+          return false;
+        }
+      }
+      if (!std::filesystem::is_regular_file(file)) {
         SetError(error, "media file is not a regular non-symlink file for track " + id);
         return false;
       }
       const std::filesystem::path canonical = std::filesystem::weakly_canonical(file);
-      if (canonical.parent_path() != root) {
+      const std::filesystem::path relative_canonical = canonical.lexically_relative(root);
+      if (relative_canonical.empty() || relative_canonical.is_absolute() ||
+          (relative_canonical.begin() != relative_canonical.end() &&
+           *relative_canonical.begin() == "..")) {
         SetError(error, "media file escapes manifest directory for track " + id);
         return false;
       }

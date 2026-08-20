@@ -4,6 +4,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -67,6 +68,28 @@ std::string Sha256(const std::vector<std::uint8_t>& bytes) {
 }  // namespace
 
 int main() {
+  const char* configured_sink = std::getenv("COCKPIT_MEDIA_TEST_SINK");
+  const std::string sink = configured_sink == nullptr ? "fakesink" : configured_sink;
+  const char* configured_manifest = std::getenv("COCKPIT_MEDIA_TEST_MANIFEST");
+  if (configured_manifest != nullptr && *configured_manifest != '\0') {
+    auto player = cockpit::media::CreateGstreamerMediaPlayer(configured_manifest, sink);
+    if (player == nullptr) {
+      std::cerr << "GStreamer external media manifest did not initialize\n";
+      return 1;
+    }
+    std::string error;
+    if (!player->Play("default_track", &error) ||
+        player->status().state != cockpit::media::MediaPlaybackState::kPlaying) {
+      std::cerr << "GStreamer external media play failed: " << error << '\n';
+      return 1;
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    if (!player->Pause(&error) || !player->Resume(&error) || !player->Stop(&error)) {
+      std::cerr << "GStreamer external media lifecycle failed: " << error << '\n';
+      return 1;
+    }
+    return 0;
+  }
   const std::filesystem::path root = std::filesystem::temp_directory_path() /
                                      ("cockpit-gstreamer-media-" + std::to_string(getpid()));
   std::error_code error_code;
@@ -89,8 +112,7 @@ int main() {
              << "    path: fixture.wav\n"
              << "    sha256: " << Sha256(wav) << '\n';
   }
-  auto player =
-      cockpit::media::CreateGstreamerMediaPlayer((root / "manifest.yaml").string(), "fakesink");
+  auto player = cockpit::media::CreateGstreamerMediaPlayer((root / "manifest.yaml").string(), sink);
   if (player == nullptr) {
     std::cerr << "GStreamer media backend did not initialize\n";
     std::filesystem::remove_all(root, error_code);
@@ -136,8 +158,8 @@ int main() {
              << "    path: invalid.wav\n"
              << "    sha256: " << Sha256(invalid_bytes) << '\n';
   }
-  auto invalid_player = cockpit::media::CreateGstreamerMediaPlayer(
-      (root / "invalid-manifest.yaml").string(), "fakesink");
+  auto invalid_player =
+      cockpit::media::CreateGstreamerMediaPlayer((root / "invalid-manifest.yaml").string(), sink);
   if (invalid_player == nullptr || !invalid_player->Play("invalid_track", &error)) {
     std::cerr << "GStreamer invalid-media setup failed: " << error << '\n';
     std::filesystem::remove_all(root, error_code);

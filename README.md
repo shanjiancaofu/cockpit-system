@@ -114,12 +114,13 @@ production 使用 `unsloth/Qwen3.5-2B-GGUF` 的 `Qwen3.5-2B-Q4_K_M.gguf`，compa
 ```text
 _output/build/x86_64-debug/
 _output/build/x86_64-release/
-_output/build/arm64-debug/
-_output/build/arm64-release/
+_output/build/x86_64-sherpa-debug/
+_output/build/x86_64-asan/
+_output/build/x86_64-tsan/
 ```
 
 WSL 生成物统一放在 `_output/{build,install,runtime}`。可通过 `COCKPIT_OUTPUT_DIR` 修改整个输出根目录；
-运行脚本会自动把日志、数据和报告写入 `_output/runtime`。
+运行脚本会自动把日志、数据、报告和临时测试音频写入 `_output/runtime` 的对应子目录。
 不要在仓库根目录运行 `cmake -B build`；CMake 会拒绝该目录。VS Code CMake Tools 已固定使用
 `_output/build/vscode-${buildType}`。历史根目录 `build/` 和 `logs/` 已分别迁入
 `_output/build/legacy/`、`_output/runtime/logs/legacy/`。

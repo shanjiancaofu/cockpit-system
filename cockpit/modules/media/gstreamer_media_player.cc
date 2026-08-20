@@ -29,6 +29,9 @@ class GstreamerMediaPlayer final : public MediaPlayer {
     sink_ = gst_element_factory_make(sink_element_.c_str(), "cockpit_media_sink");
     if (pipeline_ != nullptr && sink_ != nullptr) {
       g_object_set(pipeline_, "audio-sink", sink_, nullptr);
+      // playbin owns the sink after the property assignment.
+      sink_ = nullptr;
+      backend_ready_ = true;
       status_.state = MediaPlaybackState::kStopped;
     } else {
       status_.state = MediaPlaybackState::kFaulted;
@@ -37,16 +40,13 @@ class GstreamerMediaPlayer final : public MediaPlayer {
   }
 
   bool ready() const {
-    return pipeline_ != nullptr && sink_ != nullptr;
+    return backend_ready_;
   }
 
   ~GstreamerMediaPlayer() override {
     Stop(nullptr);
     if (pipeline_ != nullptr) {
       gst_object_unref(pipeline_);
-    }
-    if (sink_ != nullptr) {
-      gst_object_unref(sink_);
     }
   }
 
@@ -75,7 +75,7 @@ class GstreamerMediaPlayer final : public MediaPlayer {
 
   bool Play(const std::string& track_id, std::string* error) override {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (pipeline_ == nullptr || sink_ == nullptr) {
+    if (!backend_ready_ || pipeline_ == nullptr) {
       AssignError(error, "GStreamer media backend is unavailable");
       return false;
     }
@@ -241,6 +241,7 @@ class GstreamerMediaPlayer final : public MediaPlayer {
   const std::string sink_element_;
   GstElement* pipeline_ = nullptr;
   GstElement* sink_ = nullptr;
+  bool backend_ready_ = false;
   std::size_t current_index_ = 0;
   mutable MediaPlaybackStatus status_{};
 };

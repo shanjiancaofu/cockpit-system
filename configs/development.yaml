@@ -51,7 +51,7 @@ services:
       listen_address: 127.0.0.1:50053
   media:
     provider: disabled
-    manifest: media/manifest.yaml
+    manifest: _output/media/manifest.yaml
     sink: fakesink
     grpc:
       listen_address: 127.0.0.1:50056

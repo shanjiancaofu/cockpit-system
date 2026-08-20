@@ -51,7 +51,7 @@ services:
       listen_address: unix:/cockpit-system/run/voice.grpc.sock
   media:
     provider: disabled
-    manifest: media/manifest.yaml
+    manifest: /cockpit-system/media/manifest.yaml
     sink: alsasink
     grpc:
       listen_address: unix:/cockpit-system/run/media.grpc.sock
