@@ -118,7 +118,7 @@ int HmiControl::currentView() const {
 }
 
 void HmiControl::setCurrentView(int view) {
-  if (view < kDashboardView || view > kDiagnosticsView || current_view_ == view) {
+  if (view < kDashboardView || view > kSettingsView || current_view_ == view) {
     return;
   }
   current_view_ = view;

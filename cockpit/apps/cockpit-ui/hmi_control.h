@@ -16,6 +16,9 @@ class HmiControl final : public QObject {
     kDashboardView = 0,
     kCameraView = 1,
     kDiagnosticsView = 2,
+    kMediaView = 3,
+    kVoiceView = 4,
+    kSettingsView = 5,
   };
   Q_ENUM(View)
 

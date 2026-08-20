@@ -2,5 +2,14 @@
     <qresource prefix="/qml">
         <file alias="Main.qml">qml/Main.qml</file>
         <file alias="pages/HomePage.qml">qml/pages/HomePage.qml</file>
+        <file alias="components/AppDock.qml">qml/components/AppDock.qml</file>
+        <file alias="components/StatusBar.qml">qml/components/StatusBar.qml</file>
+        <file alias="components/SurfaceCard.qml">qml/components/SurfaceCard.qml</file>
+        <file alias="pages/CameraPage.qml">qml/pages/CameraPage.qml</file>
+        <file alias="pages/DashboardPage.qml">qml/pages/DashboardPage.qml</file>
+        <file alias="pages/DiagnosticsPage.qml">qml/pages/DiagnosticsPage.qml</file>
+        <file alias="pages/MediaPage.qml">qml/pages/MediaPage.qml</file>
+        <file alias="pages/SettingsPage.qml">qml/pages/SettingsPage.qml</file>
+        <file alias="pages/VoicePage.qml">qml/pages/VoicePage.qml</file>
     </qresource>
 </RCC>

@@ -57,12 +57,18 @@ int main(int argc, char** argv) {
                       camera_response == "Camera view opened." &&
                       control.currentView() == cockpit::ui::HmiControl::kCameraView &&
                       !music_succeeded && music_error == "Media player is not connected.";
-  if (!result) {
+  control.setCurrentView(cockpit::ui::HmiControl::kSettingsView);
+  const bool local_navigation_succeeded =
+      control.currentView() == cockpit::ui::HmiControl::kSettingsView;
+  control.setCurrentView(cockpit::ui::HmiControl::kSettingsView + 1);
+  const bool invalid_navigation_rejected =
+      control.currentView() == cockpit::ui::HmiControl::kSettingsView;
+  if (!result || !local_navigation_succeeded || !invalid_navigation_rejected) {
     std::cerr << "HMI command result mismatch camera_error=" << camera_error
               << " music_error=" << music_error << '\n';
   }
 
   control.Stop();
   std::filesystem::remove_all(root);
-  return result ? 0 : 1;
+  return result && local_navigation_succeeded && invalid_navigation_rejected ? 0 : 1;
 }

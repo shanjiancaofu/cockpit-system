@@ -346,7 +346,7 @@ target_compile_definitions(system_config_test
 add_test(NAME system_config_test COMMAND system_config_test)
 
 if(TARGET ui_model)
-    find_package(Qt6 6.2 REQUIRED COMPONENTS Test)
+    find_package(Qt6 6.2 REQUIRED COMPONENTS Gui Qml Quick Test)
     add_executable(vehicle_state_model_test apps/cockpit-ui/vehicle_state_model_test.cc)
     set_target_properties(vehicle_state_model_test PROPERTIES AUTOMOC ON)
     target_link_libraries(vehicle_state_model_test PRIVATE Qt6::Test ui_model)
@@ -367,4 +367,23 @@ if(TARGET ui_model)
     target_link_libraries(hmi_control_test PRIVATE Qt6::Test ui_hmi voice_hmi)
     add_test(NAME hmi_control_test COMMAND hmi_control_test)
     set_tests_properties(hmi_control_test PROPERTIES LABELS "system-grpc")
+
+    add_executable(cockpit_ui_qml_test
+        apps/cockpit-ui/cockpit_ui_qml_test.cc
+        ${PROJECT_SOURCE_DIR}/cockpit/apps/cockpit-ui/qml.qrc
+    )
+    set_target_properties(cockpit_ui_qml_test PROPERTIES AUTOMOC ON AUTORCC ON)
+    target_link_libraries(cockpit_ui_qml_test PRIVATE
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        ui_camera
+        ui_health
+        ui_hmi
+        ui_vehicle
+    )
+    add_test(NAME cockpit_ui_qml_test COMMAND cockpit_ui_qml_test)
+    set_tests_properties(cockpit_ui_qml_test PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software"
+    )
 endif()
