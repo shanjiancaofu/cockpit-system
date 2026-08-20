@@ -29,9 +29,20 @@ bool MediaRuntime::Start(const std::string& config_path) {
                         logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
                         config.logging().dump_time_secs, config.logging().cut_off_time_mins,
                         config.logging().max_files);
-    std::unique_ptr<MediaPlayer> player = config.services().media.provider == "mock"
-                                              ? CreateMockMediaPlayer()
-                                              : CreateDisabledMediaPlayer();
+    std::unique_ptr<MediaPlayer> player;
+    if (config.services().media.provider == "mock") {
+      player = CreateMockMediaPlayer();
+    } else if (config.services().media.provider == "gstreamer-fakesink" ||
+               config.services().media.provider == "gstreamer") {
+      player = CreateGstreamerMediaPlayer(config.services().media.manifest,
+                                          config.services().media.sink);
+      if (player == nullptr) {
+        LOG_ERROR("failed to load configured media manifest or initialize GStreamer backend");
+        return false;
+      }
+    } else {
+      player = CreateDisabledMediaPlayer();
+    }
     service_ = std::make_unique<MediaService>(std::move(player));
     grpc_ = std::make_unique<MediaGrpcService>(*service_);
     if (!grpc_->Start(config.services().media.grpc.listen_address)) {

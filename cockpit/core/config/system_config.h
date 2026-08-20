@@ -87,6 +87,8 @@ struct VoiceInteractionServiceConfig {
 
 struct MediaServiceConfig {
   std::string provider = "disabled";
+  std::string manifest = "media/manifest.yaml";
+  std::string sink = "fakesink";
   GrpcServerConfig grpc{"127.0.0.1:50056"};
 };
 

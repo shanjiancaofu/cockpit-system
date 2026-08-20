@@ -163,6 +163,14 @@ add_executable(media_service_test modules/media/media_service_test.cc)
 target_link_libraries(media_service_test PRIVATE media_service)
 add_test(NAME media_service_test COMMAND media_service_test)
 
+add_executable(media_manifest_test modules/media/media_manifest_test.cc)
+target_link_libraries(media_manifest_test PRIVATE media)
+add_test(NAME media_manifest_test COMMAND media_manifest_test)
+
+add_executable(gstreamer_media_player_test modules/media/gstreamer_media_player_test.cc)
+target_link_libraries(gstreamer_media_player_test PRIVATE media)
+add_test(NAME gstreamer_media_player_test COMMAND gstreamer_media_player_test)
+
 add_executable(media_grpc_service_test library/media/media_grpc_service_test.cc)
 target_link_libraries(media_grpc_service_test PRIVATE media_runtime)
 add_test(NAME media_grpc_service_test COMMAND media_grpc_service_test)
@@ -363,7 +371,7 @@ if(TARGET ui_model)
 
     add_executable(media_control_model_test apps/cockpit-ui/media_control_model_test.cc)
     set_target_properties(media_control_model_test PROPERTIES AUTOMOC ON)
-    target_link_libraries(media_control_model_test PRIVATE Qt6::Test ui_media)
+    target_link_libraries(media_control_model_test PRIVATE Qt6::Test ui_media media_runtime)
     add_test(NAME media_control_model_test COMMAND media_control_model_test)
 
     add_executable(vehicle_state_model_test apps/cockpit-ui/vehicle_state_model_test.cc)

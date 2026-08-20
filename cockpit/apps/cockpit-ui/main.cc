@@ -14,6 +14,7 @@
 #include "cockpit/apps/cockpit-ui/camera/camera_image_provider.h"
 #include "cockpit/apps/cockpit-ui/health/service_health_model.h"
 #include "cockpit/apps/cockpit-ui/hmi_control.h"
+#include "cockpit/apps/cockpit-ui/media/grpc_media_player_backend.h"
 #include "cockpit/apps/cockpit-ui/media/media_control_model.h"
 #include "cockpit/apps/cockpit-ui/vehicle/gateway_client.h"
 #include "cockpit/apps/cockpit-ui/vehicle/vehicle_state_model.h"
@@ -52,7 +53,9 @@ int main(int argc, char** argv) {
   };
   cockpit::ui::ServiceHealthModel service_health(std::move(health_endpoints));
   cockpit::ui::HmiControl hmi_control;
-  cockpit::ui::MediaControlModel media_control;
+  auto media_backend = cockpit::ui::CreateGrpcMediaPlayerBackend(
+      runtime.config().services().media.grpc.listen_address);
+  cockpit::ui::MediaControlModel media_control(std::move(media_backend));
   cockpit::ui::VoiceStatusModel voice_status(
       runtime.config().services().voice_interaction.grpc.listen_address);
 

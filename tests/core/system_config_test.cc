@@ -154,8 +154,9 @@ int main() {
   std::string invalid_media_provider = ReadFile(VALID_CONFIG_PATH);
   if (!ReplaceOnce(&invalid_media_provider, "  media:\n    provider: disabled",
                    "  media:\n    provider: arbitrary") ||
-      !ExpectRejectedConfig(invalid_media_provider,
-                            "services.media.provider must be disabled or mock")) {
+      !ExpectRejectedConfig(
+          invalid_media_provider,
+          "services.media.provider must be disabled, mock, gstreamer-fakesink, or gstreamer")) {
     return 1;
   }
 

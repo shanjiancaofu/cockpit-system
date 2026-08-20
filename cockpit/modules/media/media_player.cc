@@ -68,9 +68,13 @@ class MockMediaPlayer final : public MediaPlayer {
   }
 
   bool Play(const std::string& track_id, std::string* error) override {
+    // The UI uses a stable default_track command ID. Keep the fixture's concrete IDs private to
+    // this provider while explicitly mapping that one allowlisted command to its first track.
+    const std::string resolved_track_id =
+        track_id == "default_track" ? tracks_.front().id : track_id;
     const auto found =
-        std::find_if(tracks_.begin(), tracks_.end(), [&track_id](const MediaTrack& track) {
-          return track.id == track_id;
+        std::find_if(tracks_.begin(), tracks_.end(), [&resolved_track_id](const MediaTrack& track) {
+          return track.id == resolved_track_id;
         });
     if (found == tracks_.end()) {
       AssignError(error, "media track id is not allowlisted");

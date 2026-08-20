@@ -13,8 +13,8 @@ Jetson 车机端 Qt 6/QML 应用。
   unavailable/available/starting/running/stopping/failed 状态、重复请求合并和退出回收。接口不接受
   executable、argv 或 shell；当前默认后端全部不可用。
 - `MediaControlModel` 提供 stopped/playing/paused/error 状态和 play/pause/resume/next/stop 控制；
-  backend 只接收固定 `default_track` ID，不接受路径或 URL。生产默认 backend 不可用，fixture backend
-  仅用于生命周期测试。
+  backend 只接收固定 `default_track` ID，不接受路径或 URL。正式 UI 已通过有界 gRPC client 连接
+  `media-service`；disabled provider 仍明确显示不可用，mock provider 仅用于生命周期测试。
 - 后台 gRPC worker 订阅 gateway 车辆状态。
 - UI 线程中的 `VehicleStateModel` 提供 live/stale/disconnected 状态。
 - Camera 页面通过 gRPC 调用 `camera_driver` 提供的 CameraControl 接口。
@@ -23,14 +23,14 @@ Jetson 车机端 Qt 6/QML 应用。
 - Camera 页面可将当前新鲜帧保存为 JPEG，并展示最后照片路径。
 - 相机状态区分 waiting/live/stalled/last-frame/disconnected，并在 writer 重启后重连。
 - 本地 HMI gRPC 接收受控动作；`open_camera_preview` 在 Qt 主线程切换 Camera 页面并返回执行结果。
-- 媒体播放器尚未接入，`play_music` 明确返回未执行。
+- 媒体 gRPC 控制面已接入 UI，但尚未接入真实播放 owner；`play_music` 仍明确返回未执行。
 - `cockpit_ui_qml_test` 使用 Qt offscreen/software backend 加载完整 QML 资源并检查页面导航；设置
   `COCKPIT_UI_QML_SCREENSHOT` 可在有显示服务的开发机输出 1280×720 截图用于视觉检查。
 
 ## UI 边界
 
 UI 只消费 Vehicle、Camera、Health、HMI 和 Voice 模型，不直接访问 ALSA、V4L2、SocketCAN、ROS 或 shell。
-真实本地媒体 owner、音频焦点和 ROS2/Nav2 地图仍是后续接口，不因控制合同或页面占位而视为已实现。
+真实本地媒体 owner、音频焦点和 ROS2/Nav2 地图仍是后续接口；gRPC 控制面不等于真实音频播放。
 Voice 页面显示的是 200 ms 本地状态快照；协议没有状态事件流，因此极短的中间状态不保证逐帧呈现。
 
 ## 运行

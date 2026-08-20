@@ -1,2 +1,10 @@
-add_library(media STATIC media_player.cc)
+find_package(PkgConfig REQUIRED)
+find_package(OpenSSL REQUIRED)
+pkg_check_modules(GSTREAMER_MEDIA REQUIRED gstreamer-1.0)
+
+add_library(media STATIC media_player.cc media_manifest.cc gstreamer_media_player.cc)
 target_include_directories(media PUBLIC ${PROJECT_SOURCE_DIR})
+target_include_directories(media PRIVATE ${GSTREAMER_MEDIA_INCLUDE_DIRS})
+target_link_directories(media PRIVATE ${GSTREAMER_MEDIA_LIBRARY_DIRS})
+target_link_libraries(media PUBLIC yaml-cpp OpenSSL::Crypto ${GSTREAMER_MEDIA_LIBRARIES})
+target_compile_options(media PRIVATE ${GSTREAMER_MEDIA_CFLAGS_OTHER})

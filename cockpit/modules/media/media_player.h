@@ -48,6 +48,8 @@ class MediaPlayer {
 
 std::unique_ptr<MediaPlayer> CreateDisabledMediaPlayer();
 std::unique_ptr<MediaPlayer> CreateMockMediaPlayer();
+std::unique_ptr<MediaPlayer> CreateGstreamerMediaPlayer(const std::string& manifest_path,
+                                                        const std::string& sink_element);
 
 }  // namespace media
 }  // namespace cockpit

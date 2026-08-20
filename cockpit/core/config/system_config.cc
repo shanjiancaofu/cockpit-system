@@ -251,9 +251,13 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            "services.voice_interaction.grpc.listen_address");
 
   const YAML::Node media = ChildMap(services, "media", "services.media");
-  ValidateKeys(media, "services.media", {"provider", "grpc"});
+  ValidateKeys(media, "services.media", {"provider", "manifest", "sink", "grpc"});
   config.services_.media.provider =
       Read(media, "provider", config.services_.media.provider, "services.media.provider");
+  config.services_.media.manifest =
+      Read(media, "manifest", config.services_.media.manifest, "services.media.manifest");
+  config.services_.media.sink =
+      Read(media, "sink", config.services_.media.sink, "services.media.sink");
   const YAML::Node media_grpc = ChildMap(media, "grpc", "services.media.grpc");
   ValidateKeys(media_grpc, "services.media.grpc", {"listen_address"});
   config.services_.media.grpc.listen_address =
@@ -567,8 +571,20 @@ void SystemConfig::Validate() const {
                   "services.voice_interaction.stream_timeout_ms");
   RequirePositive(services_.voice_interaction.retry_delay_ms,
                   "services.voice_interaction.retry_delay_ms");
-  if (!IsOneOf(services_.media.provider, "disabled", "mock")) {
-    throw std::runtime_error("services.media.provider must be disabled or mock");
+  if (services_.media.provider != "disabled" && services_.media.provider != "mock" &&
+      services_.media.provider != "gstreamer-fakesink" && services_.media.provider != "gstreamer") {
+    throw std::runtime_error(
+        "services.media.provider must be disabled, mock, gstreamer-fakesink, or gstreamer");
+  }
+  if (services_.media.provider == "gstreamer-fakesink" || services_.media.provider == "gstreamer") {
+    RequireNotEmpty(services_.media.manifest, "services.media.manifest");
+    if (services_.media.provider == "gstreamer" && services_.media.sink != "alsasink") {
+      throw std::runtime_error("services.media.sink must be alsasink for gstreamer provider");
+    }
+    if (services_.media.provider == "gstreamer-fakesink" && services_.media.sink != "fakesink") {
+      throw std::runtime_error(
+          "services.media.sink must be fakesink for gstreamer-fakesink provider");
+    }
   }
   ValidateAddress(services_.media.grpc.listen_address, "services.media.grpc.listen_address");
   RequireNotEmpty(services_.recording.directory, "services.recording.directory");

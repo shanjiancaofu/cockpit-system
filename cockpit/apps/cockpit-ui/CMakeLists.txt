@@ -30,10 +30,13 @@ set_target_properties(ui_health PROPERTIES AUTOMOC ON)
 target_include_directories(ui_health PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(ui_health PUBLIC Qt6::Core contracts service_health)
 
-add_library(ui_media STATIC media/media_control_model.cc)
+add_library(ui_media STATIC
+    media/media_control_model.cc
+    media/grpc_media_player_backend.cc
+)
 set_target_properties(ui_media PROPERTIES AUTOMOC ON)
 target_include_directories(ui_media PUBLIC ${PROJECT_SOURCE_DIR})
-target_link_libraries(ui_media PUBLIC Qt6::Core)
+target_link_libraries(ui_media PUBLIC Qt6::Core contracts)
 
 add_library(ui_voice STATIC voice/voice_status_model.cc)
 set_target_properties(ui_voice PROPERTIES AUTOMOC ON)
