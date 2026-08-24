@@ -30,7 +30,7 @@ void AppendLe32(std::vector<std::uint8_t>* bytes, std::uint32_t value) {
 
 std::vector<std::uint8_t> MakeWav() {
   constexpr std::uint32_t kSampleRate = 16000;
-  constexpr std::uint32_t kSamples = 16000;
+  constexpr std::uint32_t kSamples = 32000;
   constexpr std::uint32_t kDataBytes = kSamples * 2U;
   std::vector<std::uint8_t> bytes;
   bytes.insert(bytes.end(), {'R', 'I', 'F', 'F'});
@@ -108,7 +108,7 @@ int main() {
              << "  - id: fixture_track\n"
              << "    title: Fixture\n"
              << "    artist: Cockpit\n"
-             << "    duration_ms: 1000\n"
+             << "    duration_ms: 2000\n"
              << "    path: fixture.wav\n"
              << "    sha256: " << Sha256(wav) << '\n';
   }
@@ -119,23 +119,29 @@ int main() {
     return 1;
   }
   std::string error;
-  if (!player->Play("default_track", &error) ||
-      player->status().state != cockpit::media::MediaPlaybackState::kPlaying ||
-      !player->Pause(&error) ||
-      player->status().state != cockpit::media::MediaPlaybackState::kPaused ||
-      !player->Resume(&error) ||
-      player->status().state != cockpit::media::MediaPlaybackState::kPlaying) {
-    std::cerr << "GStreamer media lifecycle failed: " << error << '\n';
+  const bool played = player->Play("default_track", &error);
+  const auto playing_status = player->status().state;
+  const bool paused = player->Pause(&error);
+  const auto paused_status = player->status().state;
+  const bool resumed = player->Resume(&error);
+  const auto resumed_status = player->status().state;
+  if (!played || playing_status != cockpit::media::MediaPlaybackState::kPlaying || !paused ||
+      paused_status != cockpit::media::MediaPlaybackState::kPaused || !resumed ||
+      resumed_status != cockpit::media::MediaPlaybackState::kPlaying) {
+    std::cerr << "GStreamer media lifecycle failed: " << error << " played=" << played
+              << " playing_status=" << static_cast<int>(playing_status) << " paused=" << paused
+              << " paused_status=" << static_cast<int>(paused_status) << " resumed=" << resumed
+              << " resumed_status=" << static_cast<int>(resumed_status) << '\n';
     std::filesystem::remove_all(root, error_code);
     return 1;
   }
-  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
   while (std::chrono::steady_clock::now() < deadline &&
          player->status().state == cockpit::media::MediaPlaybackState::kPlaying) {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
   if (player->status().state != cockpit::media::MediaPlaybackState::kStopped ||
-      player->status().position_ms != 1000) {
+      player->status().position_ms != 2000) {
     std::cerr << "GStreamer media EOS was not reflected in status\n";
     std::filesystem::remove_all(root, error_code);
     return 1;
@@ -160,13 +166,18 @@ int main() {
   }
   auto invalid_player =
       cockpit::media::CreateGstreamerMediaPlayer((root / "invalid-manifest.yaml").string(), sink);
-  if (invalid_player == nullptr || !invalid_player->Play("invalid_track", &error)) {
+  const bool invalid_played =
+      invalid_player != nullptr && invalid_player->Play("invalid_track", &error);
+  if (invalid_player == nullptr ||
+      (invalid_played &&
+       invalid_player->status().state != cockpit::media::MediaPlaybackState::kPlaying &&
+       invalid_player->status().state != cockpit::media::MediaPlaybackState::kFaulted)) {
     std::cerr << "GStreamer invalid-media setup failed: " << error << '\n';
     std::filesystem::remove_all(root, error_code);
     return 1;
   }
   const auto error_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
-  while (std::chrono::steady_clock::now() < error_deadline &&
+  while (invalid_played && std::chrono::steady_clock::now() < error_deadline &&
          invalid_player->status().state == cockpit::media::MediaPlaybackState::kPlaying) {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }

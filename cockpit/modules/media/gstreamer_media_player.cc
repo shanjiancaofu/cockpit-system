@@ -95,11 +95,18 @@ class GstreamerMediaPlayer final : public MediaPlayer {
       AssignError(error, "media is not playing");
       return false;
     }
-    if (gst_element_set_state(pipeline_, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE) {
+    gint64 position = 0;
+    if (gst_element_query_position(pipeline_, GST_FORMAT_TIME, &position) && position >= 0) {
+      paused_position_ms_ = static_cast<std::uint64_t>(position / GST_MSECOND);
+    } else {
+      paused_position_ms_ = status_.position_ms;
+    }
+    if (!SetStateAndWait(GST_STATE_NULL)) {
       AssignError(error, "GStreamer failed to pause media playback");
       return false;
     }
     status_.state = MediaPlaybackState::kPaused;
+    status_.position_ms = paused_position_ms_;
     AssignError(error, {});
     return true;
   }
@@ -110,11 +117,19 @@ class GstreamerMediaPlayer final : public MediaPlayer {
       AssignError(error, "media is not paused");
       return false;
     }
-    if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
+    if (!PlayUnlocked(tracks_[current_index_].metadata.id, MediaPlaybackState::kPlaying, error)) {
+      return false;
+    }
+    if (paused_position_ms_ > 0U &&
+        !gst_element_seek_simple(
+            pipeline_, GST_FORMAT_TIME,
+            static_cast<GstSeekFlags>(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
+            static_cast<gint64>(paused_position_ms_) * GST_MSECOND)) {
       AssignError(error, "GStreamer failed to resume media playback");
       return false;
     }
     status_.state = MediaPlaybackState::kPlaying;
+    paused_position_ms_ = 0;
     AssignError(error, {});
     return true;
   }
@@ -128,6 +143,7 @@ class GstreamerMediaPlayer final : public MediaPlayer {
     }
     status_.state = MediaPlaybackState::kStopped;
     status_.position_ms = 0;
+    paused_position_ms_ = 0;
     status_.last_error.clear();
     AssignError(error, {});
     return true;
@@ -173,22 +189,25 @@ class GstreamerMediaPlayer final : public MediaPlayer {
       AssignError(error, "failed to convert media file to URI");
       return false;
     }
-    if (gst_element_set_state(pipeline_, GST_STATE_NULL) == GST_STATE_CHANGE_FAILURE) {
+    if (!SetStateAndWait(GST_STATE_NULL)) {
       g_free(uri);
       AssignError(error, "GStreamer failed to reset media playback");
       return false;
     }
     g_object_set(pipeline_, "uri", uri, nullptr);
     g_free(uri);
-    if (gst_element_set_state(pipeline_, requested_state == MediaPlaybackState::kPaused
-                                             ? GST_STATE_PAUSED
-                                             : GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
+    const GstState target_state =
+        requested_state == MediaPlaybackState::kPaused ? GST_STATE_NULL : GST_STATE_PLAYING;
+    if (!SetStateAndWait(target_state)) {
       AssignError(error, "GStreamer failed to start media playback");
+      status_.state = MediaPlaybackState::kFaulted;
+      status_.last_error = *error;
       return false;
     }
     current_index_ = static_cast<std::size_t>(std::distance(tracks_.begin(), found));
     status_.state = requested_state;
     status_.position_ms = 0;
+    paused_position_ms_ = 0;
     status_.last_error.clear();
     ApplyTrack(found->metadata);
     AssignError(error, {});
@@ -200,6 +219,21 @@ class GstreamerMediaPlayer final : public MediaPlayer {
     status_.title = track.title;
     status_.artist = track.artist;
     status_.duration_ms = track.duration_ms;
+  }
+
+  bool SetStateAndWait(GstState target) const {
+    const GstStateChangeReturn result = gst_element_set_state(pipeline_, target);
+    if (result == GST_STATE_CHANGE_FAILURE) {
+      return false;
+    }
+    if (result == GST_STATE_CHANGE_ASYNC) {
+      GstState current = GST_STATE_NULL;
+      GstState pending = GST_STATE_VOID_PENDING;
+      const GstStateChangeReturn wait_result =
+          gst_element_get_state(pipeline_, &current, &pending, GST_SECOND);
+      return wait_result != GST_STATE_CHANGE_FAILURE && current == target;
+    }
+    return true;
   }
 
   void DrainBusLocked() const {
@@ -215,8 +249,9 @@ class GstreamerMediaPlayer final : public MediaPlayer {
       if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_EOS) {
         status_.state = MediaPlaybackState::kStopped;
         status_.position_ms = status_.duration_ms;
+        paused_position_ms_ = 0;
         status_.last_error.clear();
-        gst_element_set_state(pipeline_, GST_STATE_NULL);
+        static_cast<void>(SetStateAndWait(GST_STATE_NULL));
       } else {
         GError* gerror = nullptr;
         gchar* debug = nullptr;
@@ -224,7 +259,7 @@ class GstreamerMediaPlayer final : public MediaPlayer {
         status_.state = MediaPlaybackState::kFaulted;
         status_.last_error =
             gerror == nullptr ? "GStreamer media playback failed" : gerror->message;
-        gst_element_set_state(pipeline_, GST_STATE_NULL);
+        static_cast<void>(SetStateAndWait(GST_STATE_NULL));
         if (gerror != nullptr) {
           g_error_free(gerror);
         }
@@ -243,6 +278,7 @@ class GstreamerMediaPlayer final : public MediaPlayer {
   GstElement* sink_ = nullptr;
   bool backend_ready_ = false;
   std::size_t current_index_ = 0;
+  mutable std::uint64_t paused_position_ms_ = 0;
   mutable MediaPlaybackStatus status_{};
 };
 

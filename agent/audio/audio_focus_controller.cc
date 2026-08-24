@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <memory>
+#include <thread>
 #include <utility>
 
 namespace cockpit {
@@ -18,11 +19,19 @@ class HmiAudioFocusController final : public AudioFocusController {
     if (provider_ == nullptr || acquired_) {
       return false;
     }
-    ActionExecutionContext context{std::chrono::steady_clock::now() + std::chrono::seconds(1),
-                                   std::make_shared<ActionCancellation>()};
-    std::string response;
-    std::string error;
-    acquired_ = provider_->SendCommand(HmiCommand::kPauseMusic, context, &response, &error);
+    // HMI play_music is accepted before MediaControlModel's worker publishes PLAYING. Retry the
+    // fixed pause command for a short bounded window so TTS does not race the media start.
+    for (int attempt = 0; attempt < 20 && !acquired_; ++attempt) {
+      ActionExecutionContext context{
+          std::chrono::steady_clock::now() + std::chrono::milliseconds(150),
+          std::make_shared<ActionCancellation>()};
+      std::string response;
+      std::string error;
+      acquired_ = provider_->SendCommand(HmiCommand::kPauseMusic, context, &response, &error);
+      if (!acquired_) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
+      }
+    }
     return acquired_;
   }
 
@@ -30,11 +39,17 @@ class HmiAudioFocusController final : public AudioFocusController {
     if (!acquired_ || provider_ == nullptr) {
       return;
     }
-    ActionExecutionContext context{std::chrono::steady_clock::now() + std::chrono::seconds(1),
-                                   std::make_shared<ActionCancellation>()};
-    std::string response;
-    std::string error;
-    static_cast<void>(provider_->SendCommand(HmiCommand::kResumeMusic, context, &response, &error));
+    for (int attempt = 0; attempt < 20; ++attempt) {
+      ActionExecutionContext context{
+          std::chrono::steady_clock::now() + std::chrono::milliseconds(150),
+          std::make_shared<ActionCancellation>()};
+      std::string response;
+      std::string error;
+      if (provider_->SendCommand(HmiCommand::kResumeMusic, context, &response, &error)) {
+        break;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    }
     acquired_ = false;
   }
 

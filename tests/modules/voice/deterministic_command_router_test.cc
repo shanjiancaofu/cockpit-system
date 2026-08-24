@@ -73,6 +73,8 @@ int main() {
       !ExpectRoute("帮我播放音乐", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
       !ExpectRoute("放音乐", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
       !ExpectRoute("请放音乐", VoiceIntent::kPlayMusic, VoiceAction::kPlayMusic) ||
+      !ExpectRoute("打开音乐，播放音乐，play music", VoiceIntent::kPlayMusic,
+                   VoiceAction::kPlayMusic) ||
       !ExpectRoute("vehicle status", VoiceIntent::kShowVehicleStatus,
                    VoiceAction::kQueryVehicleStatus) ||
       !ExpectRoute("battery level", VoiceIntent::kShowVehicleStatus,
@@ -149,6 +151,8 @@ int main() {
       "cameraopen camera view",
       "camera open camera view",
       "display music playlist",
+      "不要播放音乐，播放音乐",
+      "打开相机，播放音乐",
   };
   for (const std::string& text : rejected) {
     if (!ExpectRoute(text, VoiceIntent::kUnknown, VoiceAction::kNone)) {

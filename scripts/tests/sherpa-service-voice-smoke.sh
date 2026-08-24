@@ -100,6 +100,7 @@ if [[ "${media_focus_smoke}" == "true" ]]; then
     -e '/^  media:$/,/^  recording:$/s/^    provider: disabled$/    provider: gstreamer/' \
     -e "/^  media:$/,/^  recording:$/s|^    manifest:.*$|    manifest: ${media_manifest}|" \
     -e '/^  media:$/,/^  recording:$/s/^    sink: fakesink$/    sink: alsasink/' \
+    -e '/^  audio:$/,/^  camera:$/s|^    output_device:.*$|    output_device: default|' \
     "${config_path}"
 fi
 
@@ -266,8 +267,16 @@ for repetition in $(seq 1 "${service_repetitions}"); do
 done
 
 if [[ "${media_focus_smoke}" == "true" ]]; then
-  if ! grep -q 'HMI command executed command=pause_music' "${navigator_log}" ||
-     ! grep -q 'HMI command executed command=resume_music' "${navigator_log}"; then
+  focus_verified=false
+  for _ in $(seq 1 100); do
+    if grep -q 'HMI command executed command=pause_music' "${navigator_log}" &&
+       grep -q 'HMI command executed command=resume_music' "${navigator_log}"; then
+      focus_verified=true
+      break
+    fi
+    sleep 0.05
+  done
+  if [[ "${focus_verified}" != "true" ]]; then
     echo "Voice/Media focus did not pause and resume music; log: ${navigator_log}" >&2
     tail -120 "${navigator_log}" >&2 || true
     exit 1
