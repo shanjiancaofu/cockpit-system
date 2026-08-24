@@ -336,6 +336,11 @@ add_executable(audio_playback_client_test agent/audio_playback_client_test.cc)
 target_link_libraries(audio_playback_client_test PRIVATE voice_audio_clients)
 add_test(NAME audio_playback_client_test COMMAND audio_playback_client_test)
 
+add_executable(audio_focus_controller_test agent/audio_focus_controller_test.cc)
+target_link_libraries(audio_focus_controller_test PRIVATE media_runtime voice_audio_clients)
+add_test(NAME audio_focus_controller_test COMMAND audio_focus_controller_test)
+set_tests_properties(audio_focus_controller_test PROPERTIES LABELS "system-grpc")
+
 add_executable(speech_text_segmenter_test agent/speech_text_segmenter_test.cc)
 target_link_libraries(speech_text_segmenter_test PRIVATE agent_speech)
 add_test(NAME speech_text_segmenter_test COMMAND speech_text_segmenter_test)

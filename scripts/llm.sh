@@ -9,6 +9,8 @@ fi
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd -- "${script_dir}/.." && pwd)"
 cd "${project_root}"
+# shellcheck disable=SC1091
+source "${script_dir}/llm-pins.env"
 
 ai_root="${COCKPIT_AI_ROOT:-${project_root}/_output/ai}"
 download_dir="$ai_root/downloads"
@@ -23,7 +25,6 @@ curl_common_options=(
   --retry-all-errors
   --connect-timeout 30
 )
-curl_metadata_options=("${curl_common_options[@]}" --silent)
 curl_download_options=("${curl_common_options[@]}" --progress-bar)
 mkdir -p "$download_dir" "$source_root"
 
@@ -60,23 +61,18 @@ download_verified() {
 # 1. 固定 llama.cpp b10456 对应的精确 commit
 # --------------------------------------------------
 
-llama_tag="b10456"
-echo "[1/8] Resolving llama.cpp ${llama_tag}"
-llama_revision="$(
-  curl "${curl_metadata_options[@]}" \
-    "https://api.github.com/repos/ggml-org/llama.cpp/commits/${llama_tag}" |
-  jq -er '.sha'
-)"
+llama_tag="${LLAMA_CPP_TAG}"
+llama_revision="${LLAMA_CPP_REVISION}"
+echo "[1/8] Preparing pinned llama.cpp ${llama_tag} (${llama_revision})"
 
 llama_source="$source_root/$llama_revision"
 
 if [[ ! -d "$llama_source/.git" ]]; then
-  git clone \
-    --filter=blob:none \
-    --depth 1 \
-    --branch "$llama_tag" \
-    https://github.com/ggml-org/llama.cpp.git \
-    "$llama_source"
+  mkdir -p "${llama_source}"
+  git -C "${llama_source}" init
+  git -C "${llama_source}" remote add origin https://github.com/ggml-org/llama.cpp.git
+  git -C "${llama_source}" fetch --depth 1 origin "${llama_revision}"
+  git -C "${llama_source}" checkout --detach FETCH_HEAD
 fi
 
 test "$(git -C "$llama_source" rev-parse HEAD)" = "$llama_revision"
@@ -85,52 +81,14 @@ printf 'llama.cpp tag:      %s\n' "$llama_tag"
 printf 'llama.cpp revision: %s\n' "$llama_revision"
 
 # --------------------------------------------------
-# 2. 查询并下载 Qwen3.5-2B Q4_K_M
+# 2. 下载固定 Qwen3.5-2B Q4_K_M
 # --------------------------------------------------
 
-model_2b_repo="unsloth/Qwen3.5-2B-GGUF"
-model_2b_metadata="$download_dir/qwen3.5-2b-metadata.json"
-
-echo "[2/8] Resolving ${model_2b_repo}"
-curl "${curl_metadata_options[@]}" \
-  "${hf_endpoint}/api/models/${model_2b_repo}?blobs=true" \
-  -o "$model_2b_metadata"
-
-model_2b_revision="$(jq -er '.sha' "$model_2b_metadata")"
-
-model_2b_count="$(
-  jq '
-    [
-      .siblings[]
-      | select(.rfilename | ascii_downcase | endswith("q4_k_m.gguf"))
-    ] | length
-  ' "$model_2b_metadata"
-)"
-test "$model_2b_count" -eq 1
-
-model_2b_filename="$(
-  jq -er '
-    .siblings[]
-    | select(.rfilename | ascii_downcase | endswith("q4_k_m.gguf"))
-    | .rfilename
-  ' "$model_2b_metadata"
-)"
-
-model_2b_sha256="$(
-  jq -er --arg filename "$model_2b_filename" '
-    .siblings[]
-    | select(.rfilename == $filename)
-    | (.lfs.sha256 // .lfs.oid)
-  ' "$model_2b_metadata"
-)"
-model_2b_sha256="${model_2b_sha256#sha256:}"
-model_2b_size="$(
-  jq -er --arg filename "$model_2b_filename" '
-    .siblings[]
-    | select(.rfilename == $filename)
-    | (.lfs.size // .size)
-  ' "$model_2b_metadata"
-)"
+model_2b_repo="${QWEN_2B_REPOSITORY}"
+model_2b_revision="${QWEN_2B_REVISION}"
+model_2b_filename="${QWEN_2B_FILENAME}"
+model_2b_sha256="${QWEN_2B_SHA256}"
+model_2b_size="${QWEN_2B_SIZE}"
 
 model_2b_file="$download_dir/$(basename "$model_2b_filename")"
 
@@ -144,52 +102,14 @@ download_verified \
   "$model_2b_size"
 
 # --------------------------------------------------
-# 3. 查询并下载 Qwen3.5-4B Q4_K_M 对照模型
+# 3. 下载固定 Qwen3.5-4B Q4_K_M 对照模型
 # --------------------------------------------------
 
-model_4b_repo="unsloth/Qwen3.5-4B-GGUF"
-model_4b_metadata="$download_dir/qwen3.5-4b-metadata.json"
-
-echo "[3/8] Resolving ${model_4b_repo}"
-curl "${curl_metadata_options[@]}" \
-  "${hf_endpoint}/api/models/${model_4b_repo}?blobs=true" \
-  -o "$model_4b_metadata"
-
-model_4b_revision="$(jq -er '.sha' "$model_4b_metadata")"
-
-model_4b_count="$(
-  jq '
-    [
-      .siblings[]
-      | select(.rfilename | ascii_downcase | endswith("q4_k_m.gguf"))
-    ] | length
-  ' "$model_4b_metadata"
-)"
-test "$model_4b_count" -eq 1
-
-model_4b_filename="$(
-  jq -er '
-    .siblings[]
-    | select(.rfilename | ascii_downcase | endswith("q4_k_m.gguf"))
-    | .rfilename
-  ' "$model_4b_metadata"
-)"
-
-model_4b_sha256="$(
-  jq -er --arg filename "$model_4b_filename" '
-    .siblings[]
-    | select(.rfilename == $filename)
-    | (.lfs.sha256 // .lfs.oid)
-  ' "$model_4b_metadata"
-)"
-model_4b_sha256="${model_4b_sha256#sha256:}"
-model_4b_size="$(
-  jq -er --arg filename "$model_4b_filename" '
-    .siblings[]
-    | select(.rfilename == $filename)
-    | (.lfs.size // .size)
-  ' "$model_4b_metadata"
-)"
+model_4b_repo="${QWEN_4B_REPOSITORY}"
+model_4b_revision="${QWEN_4B_REVISION}"
+model_4b_filename="${QWEN_4B_FILENAME}"
+model_4b_sha256="${QWEN_4B_SHA256}"
+model_4b_size="${QWEN_4B_SIZE}"
 
 model_4b_file="$download_dir/$(basename "$model_4b_filename")"
 
@@ -213,10 +133,12 @@ LLAMA_CPP_REVISION=$llama_revision
 QWEN_2B_REPOSITORY=$model_2b_repo
 QWEN_2B_REVISION=$model_2b_revision
 QWEN_2B_FILENAME=$model_2b_filename
+QWEN_2B_SIZE=$model_2b_size
 QWEN_2B_SHA256=$model_2b_sha256
 QWEN_4B_REPOSITORY=$model_4b_repo
 QWEN_4B_REVISION=$model_4b_revision
 QWEN_4B_FILENAME=$model_4b_filename
+QWEN_4B_SIZE=$model_4b_size
 QWEN_4B_SHA256=$model_4b_sha256
 EOF
 
@@ -267,12 +189,12 @@ fi
 # --------------------------------------------------
 
 echo "[8/8] Running Qwen3.5-2B production smoke"
-BUILD_DIR="${project_root}/_output/build/x86_64-stage11-debug" \
+BUILD_DIR="${project_root}/_output/build/x86_64-debug" \
 COCKPIT_LLM_MODEL_PROFILE=production \
 bash scripts/tests/llama-server-smoke.sh
 
 echo "[8/8] Running Qwen3.5-4B comparison smoke"
-BUILD_DIR="${project_root}/_output/build/x86_64-stage11-debug" \
+BUILD_DIR="${project_root}/_output/build/x86_64-debug" \
 COCKPIT_LLM_MODEL_PROFILE=comparison \
 COCKPIT_LLAMA_SERVER_PORT=18081 \
 bash scripts/tests/llama-server-smoke.sh

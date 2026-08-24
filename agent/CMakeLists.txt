@@ -61,7 +61,7 @@ add_library(voice_audio_clients STATIC
     audio/audio_focus_controller.cc
     audio/audio_playback_client.cc
 )
-target_link_libraries(voice_audio_clients PUBLIC agent_speech contracts voice voice_hmi)
+target_link_libraries(voice_audio_clients PUBLIC agent_speech contracts logging voice)
 
 add_library(voice_vehicle_client STATIC vehicle/gateway_vehicle_status_client.cc)
 target_link_libraries(voice_vehicle_client PUBLIC contracts voice)

@@ -77,9 +77,12 @@ class FailingSynthesizer final : public cockpit::voice::SpeechSynthesizer {
 
 class FakeAudioFocusController final : public cockpit::voice::AudioFocusController {
  public:
+  explicit FakeAudioFocusController(bool acquire_result = true) : acquire_result_(acquire_result) {
+  }
+
   bool AcquireTts() override {
     ++acquires;
-    return true;
+    return acquire_result_;
   }
 
   void ReleaseTts() override {
@@ -88,6 +91,9 @@ class FakeAudioFocusController final : public cockpit::voice::AudioFocusControll
 
   std::atomic<int> acquires{0};
   std::atomic<int> releases{0};
+
+ private:
+  const bool acquire_result_;
 };
 
 class FakeAudioPlaybackTransport final : public cockpit::voice::AudioPlaybackTransport {
@@ -286,8 +292,11 @@ int main() {
 
   auto synthesizer = std::make_unique<CancellableSynthesizer>();
   auto* observer = synthesizer.get();
+  auto stop_focus = std::make_unique<FakeAudioFocusController>();
+  FakeAudioFocusController* stop_focus_observer = stop_focus.get();
   cockpit::voice::AudioPlaybackClient client("unix:/tmp/cockpit-unused-audio.sock",
-                                             std::move(synthesizer), std::chrono::seconds(10));
+                                             std::move(synthesizer), std::chrono::seconds(10),
+                                             nullptr, std::move(stop_focus));
   std::thread submitter([&client] {
     client.Submit(2U, "cancel synthesis", [](cockpit::voice::VoiceOutputResult) {
     });
@@ -300,7 +309,8 @@ int main() {
   client.Stop();
   submitter.join();
   if (std::chrono::steady_clock::now() - stop_started > std::chrono::milliseconds(300) ||
-      client.metrics().failed != 1) {
+      client.metrics().failed != 1 || stop_focus_observer->acquires.load() != 1 ||
+      stop_focus_observer->releases.load() != 1) {
     std::cerr << "speech synthesis cancellation was not bounded\n";
     return 1;
   }
@@ -355,28 +365,36 @@ int main() {
   auto segmented_transport = std::make_unique<FakeAudioPlaybackTransport>(
       FakeAudioPlaybackTransport::Behavior::kAutoComplete);
   auto* segmented_control = segmented_transport.get();
+  auto segmented_focus = std::make_unique<FakeAudioFocusController>();
+  FakeAudioFocusController* segmented_focus_observer = segmented_focus.get();
   cockpit::voice::AudioPlaybackClient segmented_client(
-      std::move(segmented_transport), std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
+      std::move(segmented_transport), std::make_unique<cockpit::voice::MockSpeechSynthesizer>(),
+      std::chrono::seconds(5), nullptr, std::move(segmented_focus));
   std::atomic<std::uint64_t> segmented_completions{0};
   cockpit::voice::VoiceOutputStatus segmented_status = cockpit::voice::VoiceOutputStatus::kFailed;
   if (!segmented_client.Submit(
-          5U, "First sentence. Second sentence!",
+          5U, "First sentence. Second sentence! Third sentence?",
           [&segmented_completions, &segmented_status](cockpit::voice::VoiceOutputResult result) {
             segmented_status = result.status;
             segmented_completions.fetch_add(1U);
           }) ||
       segmented_completions.load() != 1U ||
       segmented_status != cockpit::voice::VoiceOutputStatus::kCompleted ||
-      segmented_control->wait_calls() != 2U || segmented_client.metrics().played != 2U) {
+      segmented_control->wait_calls() != 3U || segmented_client.metrics().played != 3U ||
+      segmented_focus_observer->acquires.load() != 1 ||
+      segmented_focus_observer->releases.load() != 1) {
     std::cerr << "sentence-segmented playback did not complete each segment exactly once\n";
     return 1;
   }
 
   auto segmented_cancel_transport = std::make_unique<FakeAudioPlaybackTransport>();
   auto* segmented_cancel_control = segmented_cancel_transport.get();
+  auto segmented_cancel_focus = std::make_unique<FakeAudioFocusController>();
+  FakeAudioFocusController* segmented_cancel_focus_observer = segmented_cancel_focus.get();
   cockpit::voice::AudioPlaybackClient segmented_cancel_client(
       std::move(segmented_cancel_transport),
-      std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
+      std::make_unique<cockpit::voice::MockSpeechSynthesizer>(), std::chrono::seconds(5), nullptr,
+      std::move(segmented_cancel_focus));
   std::atomic<std::uint64_t> segmented_cancel_completions{0U};
   std::atomic<cockpit::voice::VoiceOutputStatus> segmented_cancel_status{
       cockpit::voice::VoiceOutputStatus::kFailed};
@@ -406,8 +424,37 @@ int main() {
       segmented_cancel_control->submit_calls() != 2U ||
       segmented_cancel_control->wait_calls() != 2U ||
       segmented_cancel_control->cancel_calls() != 1U ||
-      segmented_cancel_client.metrics().played != 1U) {
+      segmented_cancel_client.metrics().played != 1U ||
+      segmented_cancel_focus_observer->acquires.load() != 1 ||
+      segmented_cancel_focus_observer->releases.load() != 1) {
     std::cerr << "segmented playback interrupt did not stop before the third segment\n";
+    return 1;
+  }
+
+  auto rejected_focus_transport = std::make_unique<FakeAudioPlaybackTransport>(
+      FakeAudioPlaybackTransport::Behavior::kAutoComplete);
+  FakeAudioPlaybackTransport* rejected_focus_transport_observer = rejected_focus_transport.get();
+  auto rejected_focus = std::make_unique<FakeAudioFocusController>(false);
+  FakeAudioFocusController* rejected_focus_observer = rejected_focus.get();
+  cockpit::voice::AudioPlaybackClient rejected_focus_client(
+      std::move(rejected_focus_transport),
+      std::make_unique<cockpit::voice::MockSpeechSynthesizer>(), std::chrono::seconds(5), nullptr,
+      std::move(rejected_focus));
+  std::uint64_t rejected_focus_completions = 0U;
+  cockpit::voice::VoiceOutputStatus rejected_focus_status =
+      cockpit::voice::VoiceOutputStatus::kCompleted;
+  if (!rejected_focus_client.Submit(51U, "This must not play.",
+                                    [&rejected_focus_completions, &rejected_focus_status](
+                                        cockpit::voice::VoiceOutputResult result) {
+                                      ++rejected_focus_completions;
+                                      rejected_focus_status = result.status;
+                                    }) ||
+      rejected_focus_completions != 1U ||
+      rejected_focus_status != cockpit::voice::VoiceOutputStatus::kFailed ||
+      rejected_focus_observer->acquires.load() != 1 ||
+      rejected_focus_observer->releases.load() != 0 ||
+      rejected_focus_transport_observer->submit_calls() != 0U) {
+    std::cerr << "failed audio focus did not block TTS playback\n";
     return 1;
   }
 

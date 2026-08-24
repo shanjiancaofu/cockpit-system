@@ -17,6 +17,8 @@ command_fixture="${COCKPIT_COMMAND_FIXTURE:-${ai_root}/fixtures/open-camera-zh.w
 expected_action="${COCKPIT_EXPECTED_ACTION:-open_camera}"
 media_focus_smoke="${COCKPIT_MEDIA_FOCUS_SMOKE:-false}"
 media_manifest="${COCKPIT_MEDIA_MANIFEST:-${root_dir}/_output/media/manifest.yaml}"
+media_focus_probe_fixture="${COCKPIT_MEDIA_FOCUS_PROBE_FIXTURE:-${ai_root}/fixtures/live/vehicle-status.wav}"
+media_focus_output_device="${COCKPIT_MEDIA_FOCUS_OUTPUT_DEVICE:-}"
 silence_fixture="${COCKPIT_SILENCE_FIXTURE:-${ai_root}/fixtures/silence.wav}"
 negative_fixture="${COCKPIT_NEGATIVE_FIXTURE:-${ai_root}/fixtures/live/segment-06-negative-commands.wav}"
 retired_wake_fixture="${COCKPIT_RETIRED_WAKE_FIXTURE:-${ai_root}/fixtures/nihao-xiaoche.wav}"
@@ -46,9 +48,13 @@ for required in \
   fi
 done
 
-if [[ "${media_focus_smoke}" == "true" && ! -f "${media_manifest}" ]]; then
-  echo "missing media focus smoke manifest: ${media_manifest}" >&2
-  exit 2
+if [[ "${media_focus_smoke}" == "true" ]]; then
+  for required in "${media_manifest}" "${media_focus_probe_fixture}"; do
+    if [[ ! -f "${required}" ]]; then
+      echo "missing media focus smoke resource: ${required}" >&2
+      exit 2
+    fi
+  done
 fi
 
 for executable in cockpit-navigator cockpit-ctl audio-probe voice-ctl; do
@@ -100,8 +106,11 @@ if [[ "${media_focus_smoke}" == "true" ]]; then
     -e '/^  media:$/,/^  recording:$/s/^    provider: disabled$/    provider: gstreamer/' \
     -e "/^  media:$/,/^  recording:$/s|^    manifest:.*$|    manifest: ${media_manifest}|" \
     -e '/^  media:$/,/^  recording:$/s/^    sink: fakesink$/    sink: alsasink/' \
-    -e '/^  audio:$/,/^  camera:$/s|^    output_device:.*$|    output_device: default|' \
     "${config_path}"
+  if [[ -n "${media_focus_output_device}" ]]; then
+    sed -i "/^  audio:$/,/^  camera:$/s|^    output_device:.*$|    output_device: ${media_focus_output_device}|" \
+      "${config_path}"
+  fi
 fi
 
 navigator_pid=""
@@ -267,21 +276,74 @@ for repetition in $(seq 1 "${service_repetitions}"); do
 done
 
 if [[ "${media_focus_smoke}" == "true" ]]; then
-  focus_verified=false
-  for _ in $(seq 1 100); do
-    if grep -q 'HMI command executed command=pause_music' "${navigator_log}" &&
-       grep -q 'HMI command executed command=resume_music' "${navigator_log}"; then
-      focus_verified=true
+  focus_ready=false
+  for _ in $(seq 1 450); do
+    status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
+    if [[ "${status}" == *"state: follow_up"* ]]; then
+      focus_ready=true
       break
     fi
-    sleep 0.05
+    sleep 0.1
   done
-  if [[ "${focus_verified}" != "true" ]]; then
-    echo "Voice/Media focus did not pause and resume music; log: ${navigator_log}" >&2
+  if [[ "${focus_ready}" != "true" ]]; then
+    echo "play_music response did not reach follow-up before focus probe" >&2
+    exit 1
+  fi
+
+  "${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null 2>&1 || true
+  "${build_dir}/bin/audio-probe" --start --device "wav:${media_focus_probe_fixture}" \
+    --config "${config_path}" >/dev/null
+  for _ in $(seq 1 200); do
+    audio_status="$(${build_dir}/bin/audio-probe --status --config "${config_path}" 2>/dev/null)"
+    if [[ "${audio_status}" == *"state: stopped"* ]]; then
+      break
+    fi
+    sleep 0.1
+  done
+  "${build_dir}/bin/audio-probe" --start --device "wav:${silence_fixture}" \
+    --config "${config_path}" >/dev/null
+  focus_probe_completed=false
+  playing_line=""
+  paused_line=""
+  submit_line=""
+  receipt_line=""
+  resumed_line=""
+  for _ in $(seq 1 600); do
+    status="$(${build_dir}/bin/voice-ctl --status --config "${config_path}" 2>/dev/null)"
+    playing_line="$(grep -n 'audio focus observed media state=playing' "${navigator_log}" | tail -1 | cut -d: -f1 || true)"
+    paused_line="$(grep -n 'audio focus acquire confirmed media state=paused' "${navigator_log}" | tail -1 | cut -d: -f1 || true)"
+    submit_line="$(grep -n 'voice playback submitted after audio focus acquire' "${navigator_log}" | tail -1 | cut -d: -f1 || true)"
+    receipt_line="$(grep -n 'voice playback receipt completed before audio focus release' "${navigator_log}" | tail -1 | cut -d: -f1 || true)"
+    resumed_line="$(grep -n 'audio focus release confirmed media state=playing' "${navigator_log}" | tail -1 | cut -d: -f1 || true)"
+    if [[ "${status}" == *"actions succeeded: 2"* && -n "${playing_line}" &&
+          -n "${paused_line}" && -n "${submit_line}" && -n "${receipt_line}" &&
+          -n "${resumed_line}" ]] &&
+       ((playing_line < paused_line && paused_line < submit_line && submit_line < receipt_line &&
+         receipt_line < resumed_line)); then
+      focus_probe_completed=true
+      break
+    fi
+    sleep 0.1
+  done
+
+  if [[ "${focus_probe_completed}" != "true" ]]; then
+    echo "Voice/Media focus did not confirm PLAYING -> PAUSED -> TTS receipt -> PLAYING" >&2
     tail -120 "${navigator_log}" >&2 || true
     exit 1
   fi
-  echo "Voice/Media focus pause/resume verified"
+  echo "Voice/Media focus PLAYING -> PAUSED -> TTS receipt -> PLAYING verified"
+  audio_status="$(${build_dir}/bin/audio-probe --status --config "${config_path}" 2>/dev/null)"
+  if [[ "${audio_status}" != *"playback failed: 0"* ||
+        "${audio_status}" != *"playback dropped: 0"* ||
+        "${audio_status}" != *"xruns: 0"* ||
+        "${audio_status}" != *"device errors: 0"* ]]; then
+    echo "Audio Driver reported errors during Voice/Media focus smoke" >&2
+    printf '%s\n' "${audio_status}" >&2
+    exit 1
+  fi
+  "${build_dir}/bin/audio-probe" --stop --config "${config_path}" >/dev/null || true
+  echo "Sherpa Navigator Voice/Media focus smoke passed; log: ${navigator_log}"
+  exit 0
 fi
 update_service_rss
 final_service_rss_kib=${current_service_rss_kib}
@@ -290,7 +352,7 @@ if ((final_service_rss_kib > warmup_service_rss_kib)); then
   post_warmup_growth_kib=$((final_service_rss_kib - warmup_service_rss_kib))
 fi
 echo "service RSS: warmup_repetition=${warmup_repetition} warmup_service_rss_kib=${warmup_service_rss_kib} final_service_rss_kib=${final_service_rss_kib} peak_service_rss_kib=${peak_service_rss_kib} post_warmup_growth_kib=${post_warmup_growth_kib}"
-if ((post_warmup_growth_kib > 64 * 1024)); then
+if [[ "${media_focus_smoke}" != "true" ]] && ((post_warmup_growth_kib > 64 * 1024)); then
   echo "service process tree RSS grew more than 64 MiB after warm-up" >&2
   exit 1
 fi

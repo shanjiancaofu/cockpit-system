@@ -1,8 +1,8 @@
 #pragma once
 
+#include <chrono>
 #include <memory>
-
-#include "cockpit/modules/voice/actions/hmi_command_provider.h"
+#include <string>
 
 namespace cockpit {
 namespace voice {
@@ -14,8 +14,8 @@ class AudioFocusController {
   virtual void ReleaseTts() = 0;
 };
 
-std::unique_ptr<AudioFocusController> CreateHmiAudioFocusController(
-    std::unique_ptr<HmiCommandProvider> provider);
+std::unique_ptr<AudioFocusController> CreateMediaAudioFocusController(
+    const std::string& address, std::chrono::milliseconds timeout = std::chrono::milliseconds(900));
 
 }  // namespace voice
 }  // namespace cockpit

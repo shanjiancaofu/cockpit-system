@@ -28,6 +28,9 @@ class GstreamerMediaPlayer final : public MediaPlayer {
     pipeline_ = gst_element_factory_make("playbin3", "cockpit_media_playbin");
     sink_ = gst_element_factory_make(sink_element_.c_str(), "cockpit_media_sink");
     if (pipeline_ != nullptr && sink_ != nullptr) {
+      if (sink_element_ == "fakesink") {
+        g_object_set(sink_, "sync", TRUE, nullptr);
+      }
       g_object_set(pipeline_, "audio-sink", sink_, nullptr);
       // playbin owns the sink after the property assignment.
       sink_ = nullptr;
@@ -117,18 +120,24 @@ class GstreamerMediaPlayer final : public MediaPlayer {
       AssignError(error, "media is not paused");
       return false;
     }
+    const std::uint64_t resume_position_ms = paused_position_ms_;
     if (!PlayUnlocked(tracks_[current_index_].metadata.id, MediaPlaybackState::kPlaying, error)) {
       return false;
     }
-    if (paused_position_ms_ > 0U &&
+    if (resume_position_ms > 0U &&
         !gst_element_seek_simple(
             pipeline_, GST_FORMAT_TIME,
             static_cast<GstSeekFlags>(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
-            static_cast<gint64>(paused_position_ms_) * GST_MSECOND)) {
-      AssignError(error, "GStreamer failed to resume media playback");
+            static_cast<gint64>(resume_position_ms) * GST_MSECOND)) {
+      const std::string message = "GStreamer failed to seek while resuming media playback";
+      AssignError(error, message);
+      status_.state = MediaPlaybackState::kFaulted;
+      status_.last_error = message;
+      static_cast<void>(SetStateAndWait(GST_STATE_NULL));
       return false;
     }
     status_.state = MediaPlaybackState::kPlaying;
+    status_.position_ms = resume_position_ms;
     paused_position_ms_ = 0;
     AssignError(error, {});
     return true;
@@ -136,8 +145,7 @@ class GstreamerMediaPlayer final : public MediaPlayer {
 
   bool Stop(std::string* error) override {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (pipeline_ != nullptr &&
-        gst_element_set_state(pipeline_, GST_STATE_NULL) == GST_STATE_CHANGE_FAILURE) {
+    if (pipeline_ != nullptr && !SetStateAndWait(GST_STATE_NULL)) {
       AssignError(error, "GStreamer failed to stop media playback");
       return false;
     }
@@ -199,9 +207,10 @@ class GstreamerMediaPlayer final : public MediaPlayer {
     const GstState target_state =
         requested_state == MediaPlaybackState::kPaused ? GST_STATE_NULL : GST_STATE_PLAYING;
     if (!SetStateAndWait(target_state)) {
-      AssignError(error, "GStreamer failed to start media playback");
+      const std::string message = "GStreamer failed to start media playback";
+      AssignError(error, message);
       status_.state = MediaPlaybackState::kFaulted;
-      status_.last_error = *error;
+      status_.last_error = message;
       return false;
     }
     current_index_ = static_cast<std::size_t>(std::distance(tracks_.begin(), found));

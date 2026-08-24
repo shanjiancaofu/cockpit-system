@@ -16,6 +16,7 @@
 #include "agent/speech/tts/mock_speech_synthesizer.h"
 #include "agent/speech/tts/speech_text_segmenter.h"
 #include "audio.grpc.pb.h"
+#include "cockpit/core/logging/logger.h"
 
 namespace cockpit {
 namespace voice {
@@ -145,13 +146,17 @@ class GrpcAudioPlaybackTransport final : public AudioPlaybackTransport {
 class AudioFocusLease final {
  public:
   explicit AudioFocusLease(AudioFocusController* controller)
-      : controller_(controller), acquired_(controller_ != nullptr && controller_->AcquireTts()) {
+      : controller_(controller), acquired_(controller_ == nullptr || controller_->AcquireTts()) {
   }
 
   ~AudioFocusLease() {
-    if (acquired_) {
+    if (controller_ != nullptr && acquired_) {
       controller_->ReleaseTts();
     }
+  }
+
+  bool acquired() const {
+    return acquired_;
   }
 
  private:
@@ -214,6 +219,13 @@ bool AudioPlaybackClient::SubmitCancellable(
   if (segments.empty()) {
     dropped_.fetch_add(1U);
     return false;
+  }
+  AudioFocusLease focus_lease(focus_controller_.get());
+  if (!focus_lease.acquired()) {
+    failed_.fetch_add(1U);
+    completion({request_id, VoiceOutputStatus::kFailed,
+                "voice output blocked because media audio focus could not be acquired"});
+    return true;
   }
   for (std::size_t index = 0U; index < segments.size(); ++index) {
     VoiceOutputResult segment_result;
@@ -282,7 +294,6 @@ bool AudioPlaybackClient::SubmitSingleSegment(
     ClearActiveRequest(request_id);
     return false;
   }
-  AudioFocusLease focus_lease(focus_controller_.get());
   const auto synthesis_deadline = std::chrono::steady_clock::now() + synthesis_timeout_;
   const auto synthesis_remaining = synthesis_deadline - std::chrono::steady_clock::now();
   const auto watchdog_deadline = std::chrono::system_clock::now() + synthesis_remaining;
@@ -363,6 +374,8 @@ bool AudioPlaybackClient::SubmitSingleSegment(
   if (submission.status == AudioPlaybackSubmitStatus::kAccepted) {
     MarkReachable();
     queued_.fetch_add(1U);
+    LOG_INFO("voice playback submitted after audio focus acquire request_id=" +
+             std::to_string(request_id));
   } else {
     ClearActiveRequest(request_id);
     if (submission.status == AudioPlaybackSubmitStatus::kRejected) {
@@ -460,6 +473,8 @@ bool AudioPlaybackClient::SubmitSingleSegment(
         static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                        std::chrono::system_clock::now().time_since_epoch())
                                        .count()));
+    LOG_INFO("voice playback receipt completed before audio focus release request_id=" +
+             std::to_string(request_id));
   } else if (result.status == VoiceOutputStatus::kDropped) {
     dropped_.fetch_add(1U);
   } else if (result.status == VoiceOutputStatus::kFailed) {

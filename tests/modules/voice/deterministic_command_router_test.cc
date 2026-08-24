@@ -153,6 +153,13 @@ int main() {
       "display music playlist",
       "不要播放音乐，播放音乐",
       "打开相机，播放音乐",
+      "i want to play music",
+      "maybe play music later",
+      "play music if possible",
+      "talk about play music",
+      "以后播放音乐再说",
+      "我说的是播放音乐这个词",
+      "播放音乐然后打开相机",
   };
   for (const std::string& text : rejected) {
     if (!ExpectRoute(text, VoiceIntent::kUnknown, VoiceAction::kNone)) {

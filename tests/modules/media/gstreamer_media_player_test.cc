@@ -121,17 +121,26 @@ int main() {
   std::string error;
   const bool played = player->Play("default_track", &error);
   const auto playing_status = player->status().state;
+  const auto position_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+  while (player->status().position_ms == 0U &&
+         std::chrono::steady_clock::now() < position_deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
   const bool paused = player->Pause(&error);
-  const auto paused_status = player->status().state;
+  const auto paused_snapshot = player->status();
   const bool resumed = player->Resume(&error);
-  const auto resumed_status = player->status().state;
+  const auto resumed_snapshot = player->status();
   if (!played || playing_status != cockpit::media::MediaPlaybackState::kPlaying || !paused ||
-      paused_status != cockpit::media::MediaPlaybackState::kPaused || !resumed ||
-      resumed_status != cockpit::media::MediaPlaybackState::kPlaying) {
+      paused_snapshot.state != cockpit::media::MediaPlaybackState::kPaused ||
+      paused_snapshot.position_ms == 0U || !resumed ||
+      resumed_snapshot.state != cockpit::media::MediaPlaybackState::kPlaying ||
+      resumed_snapshot.position_ms < paused_snapshot.position_ms) {
     std::cerr << "GStreamer media lifecycle failed: " << error << " played=" << played
               << " playing_status=" << static_cast<int>(playing_status) << " paused=" << paused
-              << " paused_status=" << static_cast<int>(paused_status) << " resumed=" << resumed
-              << " resumed_status=" << static_cast<int>(resumed_status) << '\n';
+              << " paused_status=" << static_cast<int>(paused_snapshot.state)
+              << " paused_position=" << paused_snapshot.position_ms << " resumed=" << resumed
+              << " resumed_status=" << static_cast<int>(resumed_snapshot.state)
+              << " resumed_position=" << resumed_snapshot.position_ms << '\n';
     std::filesystem::remove_all(root, error_code);
     return 1;
   }

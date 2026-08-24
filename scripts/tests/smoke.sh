@@ -248,7 +248,7 @@ set -e
 if [[ "${camera_response}" != *"action_status=succeeded"* ||
       "${camera_response}" != *"Camera view opened."* ||
       "${music_result}" -eq 0 ||
-      "${music_response}" != *"Media player is not connected."* ]]; then
+      "${music_response}" != *"Media player is unavailable or cannot start playback."* ]]; then
   echo "voice HMI execution did not return expected responses" >&2
   exit 1
 fi

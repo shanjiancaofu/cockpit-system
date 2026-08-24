@@ -255,13 +255,20 @@ bool AgentRuntime::Start(const std::string& config_path, bool force_enable) {
         LOG_ERROR("failed to configure TTS: " + tts_error);
         return false;
       }
+      std::unique_ptr<voice::AudioFocusController> audio_focus;
+      if (config.services().media.provider != "disabled") {
+        audio_focus =
+            voice::CreateMediaAudioFocusController(config.services().media.grpc.listen_address);
+        if (audio_focus == nullptr) {
+          LOG_ERROR("failed to configure local media audio focus");
+          return false;
+        }
+      }
       output = std::make_unique<voice::AsyncVoiceResponseSink>(
           std::make_unique<voice::AudioPlaybackClient>(
               interaction_config.audio_address, std::move(synthesizer),
               std::chrono::milliseconds(config.features().ai.tts_synthesis_timeout_ms),
-              std::make_unique<voice::MockSpeechSynthesizer>(),
-              voice::CreateHmiAudioFocusController(
-                  std::make_unique<voice::LocalHmiCommandProvider>(hmi_address))));
+              std::make_unique<voice::MockSpeechSynthesizer>(), std::move(audio_focus)));
       std::string llm_error;
       llm_server = CreateLlamaServerProcess(config.features().ai.local_llm);
       if (llm_server != nullptr && !llm_server->Start(&llm_error)) {
