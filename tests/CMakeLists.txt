@@ -156,7 +156,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         bash ${PROJECT_SOURCE_DIR}/scripts/tests/chassis-vehicle-vcan.sh
         $<TARGET_FILE:vehicle_data_chassis_vcan_test>
     )
-    set_tests_properties(vehicle_data_chassis_vcan_test PROPERTIES LABELS "socketcan")
+    set_tests_properties(vehicle_data_chassis_vcan_test PROPERTIES
+        LABELS "socketcan"
+        SKIP_RETURN_CODE 77
+    )
 endif()
 if(TARGET can-simulator)
     add_test(NAME chassis_can_simulator_stdout_test COMMAND
