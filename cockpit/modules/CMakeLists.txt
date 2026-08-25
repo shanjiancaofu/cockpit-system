@@ -1,6 +1,7 @@
 add_subdirectory(audio)
 add_subdirectory(can)
 add_subdirectory(camera)
+add_subdirectory(hawkeye)
 add_subdirectory(media)
 add_subdirectory(recording)
 add_subdirectory(sentinel)
