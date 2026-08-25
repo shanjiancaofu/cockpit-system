@@ -198,6 +198,17 @@ add_executable(media_service_test modules/media/media_service_test.cc)
 target_link_libraries(media_service_test PRIVATE media_service)
 add_test(NAME media_service_test COMMAND media_service_test)
 
+add_executable(bridge_service_test modules/bridge/bridge_service_test.cc)
+target_link_libraries(bridge_service_test PRIVATE bridge)
+add_test(NAME bridge_service_test COMMAND bridge_service_test)
+
+add_executable(bridge_grpc_service_test
+    library/bridge/bridge_grpc_service_test.cc
+)
+target_link_libraries(bridge_grpc_service_test PRIVATE bridge_runtime)
+add_test(NAME bridge_grpc_service_test COMMAND bridge_grpc_service_test)
+set_tests_properties(bridge_grpc_service_test PROPERTIES LABELS "system-grpc")
+
 add_executable(sentinel_service_test modules/sentinel/sentinel_service_test.cc)
 target_link_libraries(sentinel_service_test PRIVATE sentinel)
 add_test(NAME sentinel_service_test COMMAND sentinel_service_test)

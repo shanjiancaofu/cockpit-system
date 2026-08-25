@@ -98,6 +98,13 @@ add_library(media_runtime STATIC
 target_include_directories(media_runtime PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(media_runtime PUBLIC config contracts logging media media_service time_util)
 
+add_library(bridge_runtime STATIC
+    bridge/bridge_grpc_service.cc
+    bridge/bridge_runtime.cc
+)
+target_include_directories(bridge_runtime PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(bridge_runtime PUBLIC config contracts logging bridge time_util)
+
 add_library(carupload_runtime STATIC carupload/carupload_runtime.cc)
 target_include_directories(carupload_runtime PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(carupload_runtime PUBLIC config logging vehicle)

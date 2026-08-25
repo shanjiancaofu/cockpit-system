@@ -81,6 +81,9 @@ target_link_libraries(cockpit_module_recording PRIVATE recording_runtime)
 add_navigator_module(cockpit_module_sentinel sentinel library/sentinel/sentinel_entry.cc)
 target_link_libraries(cockpit_module_sentinel PRIVATE sentinel_runtime)
 
+add_navigator_module(cockpit_module_bridge bridge library/bridge/bridge_entry.cc)
+target_link_libraries(cockpit_module_bridge PRIVATE bridge_runtime)
+
 add_navigator_module(cockpit_module_upgrader upgrader library/upgrader/upgrader_entry.cc)
 target_link_libraries(cockpit_module_upgrader PRIVATE upgrader_runtime)
 

@@ -6,6 +6,7 @@ set(proto_files
     gateway.proto
     hmi.proto
     media.proto
+    bridge.proto
     recording.proto
     sentinel.proto
     vehicle_state.proto

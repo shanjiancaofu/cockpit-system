@@ -15,12 +15,12 @@ config_path="${run_dir}/config.yaml"
 socket_path="${run_dir}/navigator.sock"
 navigator_log="${run_dir}/navigator.log"
 recording_directory="${COCKPIT_RUNTIME_DIR}/data/recordings"
-expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording sentinel)
+expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording sentinel bridge)
 if [[ -x "${bin_dir}/cockpit-ui" ]]; then
   export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
 fi
 
-for executable in cockpit-navigator cockpit-ctl audio-probe camera-ctl camera-probe \
+for executable in cockpit-navigator cockpit-ctl bridge-ctl audio-probe camera-ctl camera-probe \
   can-simulator recording-ctl topic voice-ctl; do
   if [[ ! -x "${bin_dir}/${executable}" ]]; then
     echo "missing ${bin_dir}/${executable}; run bash scripts/build.sh first" >&2
@@ -110,6 +110,20 @@ health_json="$("${bin_dir}/cockpit-ctl" health --mode development --output json 
   --config "${config_path}")"
 if [[ "${health_json}" != *'"healthy":true'* ]]; then
   echo "Navigator development services are not healthy" >&2
+  exit 1
+fi
+bridge_status="$("${bin_dir}/bridge-ctl" --status --output json --config "${config_path}")"
+if [[ "${bridge_status}" != *'"state":"BRIDGE_STATE_IDLE"'* ]]; then
+  echo "bridge fake provider did not become idle" >&2
+  exit 1
+fi
+"${bin_dir}/bridge-ctl" --submit --goal-id smoke-goal --x 1 --y 2 --yaw 0.5 \
+  --config "${config_path}" >/dev/null
+bridge_executing="$("${bin_dir}/bridge-ctl" --status --output json --config "${config_path}")"
+bridge_succeeded="$("${bin_dir}/bridge-ctl" --status --output json --config "${config_path}")"
+if [[ "${bridge_executing}" != *'"state":"BRIDGE_STATE_EXECUTING"'* ||
+      "${bridge_succeeded}" != *'"state":"BRIDGE_STATE_SUCCEEDED"'* ]]; then
+  echo "bridge fake goal did not follow executing-to-succeeded lifecycle" >&2
   exit 1
 fi
 

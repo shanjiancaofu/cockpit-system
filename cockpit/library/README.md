@@ -11,6 +11,7 @@
 - `hmi/`：HMI 进程级运行时。
 - `recording/`：运行数据记录。
 - `sentinel/`：消费 typed 底盘事件并编排相机取证与录包，不解析原始 CAN。
+- `bridge/`：持有 Bridge gRPC/runtime；当前只组装 disabled/fake provider，不链接 ROS2。
 - `transfer/`、`carupload/`：数据传输与上传。
 - `calibration/`、`debugger/`、`upgrader/`、`watchdog/`：对应的进程级能力。
 

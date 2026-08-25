@@ -77,6 +77,12 @@ services:
     rpc_timeout_ms: 1000
     grpc:
       listen_address: 127.0.0.1:50057
+  bridge:
+    provider: fake
+    fake_outcome: succeeded
+    goal_timeout_ms: 30000
+    grpc:
+      listen_address: 127.0.0.1:50058
 
 hardware:
   can:

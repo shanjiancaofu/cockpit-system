@@ -97,7 +97,7 @@ output_path="$(realpath -m "${output_path}")"
 mkdir -p "$(dirname -- "${output_path}")"
 
 if [[ "${mode}" == "development" ]]; then
-  expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording sentinel)
+  expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording sentinel bridge)
 else
   expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording sentinel)
 fi

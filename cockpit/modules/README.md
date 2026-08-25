@@ -5,6 +5,7 @@
 - `audio`：音频 frame、采集线程、VAD、分段、播放接口和 WAV。
 - `camera`：相机 frame、采集接口和共享内存布局。
 - `hawkeye`：平台无关的视觉域基础数据模型；当前只包含 Camera Calibration 严格配置加载。
+- `bridge`：Cockpit 与未来 ROS2/Nav2 adapter 之间的平台无关 goal、pose、状态机和 fake provider。
 - `can`：平台无关 CAN frame。
 - `sentinel`：哨兵状态机、触发策略、冷却和重复抑制。
 - `vehicle`：Vehicle/Chassis 状态、正式 CAN codec 和平台无关 ChassisClient 聚合。

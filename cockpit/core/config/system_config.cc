@@ -148,7 +148,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   const YAML::Node services = ChildMap(root, "services", "services");
   ValidateKeys(services, "services",
                {"vehicle_data", "gateway", "audio", "camera", "voice_interaction", "media",
-                "recording", "sentinel"});
+                "recording", "sentinel", "bridge"});
   const YAML::Node vehicle_data = ChildMap(services, "vehicle_data", "services.vehicle_data");
   ValidateKeys(vehicle_data, "services.vehicle_data", {"source", "publish_interval_ms", "grpc"});
   config.services_.vehicle_data.source = Read(
@@ -331,6 +331,21 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.sentinel.grpc.listen_address =
       Read(sentinel_grpc, "listen_address", config.services_.sentinel.grpc.listen_address,
            "services.sentinel.grpc.listen_address");
+
+  const YAML::Node bridge = ChildMap(services, "bridge", "services.bridge");
+  ValidateKeys(bridge, "services.bridge", {"provider", "fake_outcome", "goal_timeout_ms", "grpc"});
+  config.services_.bridge.provider =
+      Read(bridge, "provider", config.services_.bridge.provider, "services.bridge.provider");
+  config.services_.bridge.fake_outcome = Read(
+      bridge, "fake_outcome", config.services_.bridge.fake_outcome, "services.bridge.fake_outcome");
+  config.services_.bridge.goal_timeout_ms =
+      Read(bridge, "goal_timeout_ms", config.services_.bridge.goal_timeout_ms,
+           "services.bridge.goal_timeout_ms");
+  const YAML::Node bridge_grpc = ChildMap(bridge, "grpc", "services.bridge.grpc");
+  ValidateKeys(bridge_grpc, "services.bridge.grpc", {"listen_address"});
+  config.services_.bridge.grpc.listen_address =
+      Read(bridge_grpc, "listen_address", config.services_.bridge.grpc.listen_address,
+           "services.bridge.grpc.listen_address");
 
   const YAML::Node hardware = ChildMap(root, "hardware", "hardware");
   ValidateKeys(hardware, "hardware", {"can", "audio"});
@@ -648,6 +663,21 @@ void SystemConfig::Validate() const {
   if (services_.sentinel.rpc_timeout_ms > 5000) {
     throw std::runtime_error("services.sentinel.rpc_timeout_ms must not exceed 5000");
   }
+  if (!IsOneOf(services_.bridge.provider, "disabled", "fake")) {
+    throw std::runtime_error("services.bridge.provider must be disabled or fake");
+  }
+  if (services_.bridge.fake_outcome != "succeeded" && services_.bridge.fake_outcome != "rejected" &&
+      services_.bridge.fake_outcome != "failed" && services_.bridge.fake_outcome != "stalled" &&
+      services_.bridge.fake_outcome != "disconnected") {
+    throw std::runtime_error(
+        "services.bridge.fake_outcome must be succeeded, rejected, failed, stalled, or "
+        "disconnected");
+  }
+  RequirePositive(services_.bridge.goal_timeout_ms, "services.bridge.goal_timeout_ms");
+  if (services_.bridge.goal_timeout_ms > 3600000) {
+    throw std::runtime_error("services.bridge.goal_timeout_ms must not exceed 3600000");
+  }
+  ValidateAddress(services_.bridge.grpc.listen_address, "services.bridge.grpc.listen_address");
 
   RequireNotEmpty(hardware_.can.interface, "hardware.can.interface");
   if (!IsOneOf(hardware_.can.simulator_backend, "stdout", "socketcan")) {

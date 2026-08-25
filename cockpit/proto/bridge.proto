@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package cockpit.proto.bridge;
+
+import "common.proto";
+
+enum BridgeState {
+  BRIDGE_STATE_UNSPECIFIED = 0;
+  BRIDGE_STATE_DISABLED = 1;
+  BRIDGE_STATE_IDLE = 2;
+  BRIDGE_STATE_ACCEPTED = 3;
+  BRIDGE_STATE_EXECUTING = 4;
+  BRIDGE_STATE_SUCCEEDED = 5;
+  BRIDGE_STATE_CANCELLED = 6;
+  BRIDGE_STATE_REJECTED = 7;
+  BRIDGE_STATE_FAILED = 8;
+  BRIDGE_STATE_TIMED_OUT = 9;
+  BRIDGE_STATE_DISCONNECTED = 10;
+}
+
+message BridgePose {
+  double x_m = 1;
+  double y_m = 2;
+  double yaw_rad = 3;
+  string frame_id = 4;
+  int64 timestamp_ms = 5;
+}
+
+message SubmitBridgeGoalRequest {
+  string goal_id = 1;
+  BridgePose target = 2;
+}
+
+message CancelBridgeGoalRequest {
+  string goal_id = 1;
+}
+
+message BridgeStatus {
+  BridgeState state = 1;
+  string goal_id = 2;
+  BridgePose target = 3;
+  BridgePose current_pose = 4;
+  int64 accepted_at_ms = 5;
+  int64 updated_at_ms = 6;
+  string message = 7;
+  string last_error = 8;
+  cockpit.proto.common.ServiceHealth health = 100;
+}
+
+service BridgeControl {
+  rpc SubmitGoal(SubmitBridgeGoalRequest) returns (BridgeStatus);
+  rpc CancelGoal(CancelBridgeGoalRequest) returns (BridgeStatus);
+  rpc GetStatus(cockpit.proto.common.Empty) returns (BridgeStatus);
+}

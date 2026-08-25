@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "audio.grpc.pb.h"
+#include "bridge.grpc.pb.h"
 #include "camera.grpc.pb.h"
 #include "cockpit/core/health/service_health.h"
 #include "cockpit/core/json/json.h"
@@ -154,6 +155,21 @@ bool CheckSentinel(const std::string& address, std::string* error) {
   return CheckHealth(response.health(), "sentinel", error);
 }
 
+bool CheckBridge(const std::string& address, std::string* error) {
+  auto stub = proto::bridge::BridgeControl::NewStub(
+      grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+  proto::common::Empty request;
+  proto::bridge::BridgeStatus response;
+  grpc::ClientContext context;
+  SetContext(&context);
+  const grpc::Status status = stub->GetStatus(&context, request, &response);
+  if (!status.ok()) {
+    *error = RpcError(status);
+    return false;
+  }
+  return CheckHealth(response.health(), "bridge", error);
+}
+
 using HealthCheck = bool (*)(const std::string&, std::string*);
 
 struct Target {
@@ -178,6 +194,9 @@ int Run(const config::SystemConfig& config, diagnostics::OutputFormat output_for
     targets.push_back(
         {"recording", &config.services().recording.grpc.listen_address, CheckRecording});
     targets.push_back({"sentinel", &config.services().sentinel.grpc.listen_address, CheckSentinel});
+  }
+  if (mode == "development") {
+    targets.push_back({"bridge", &config.services().bridge.grpc.listen_address, CheckBridge});
   }
   bool healthy = true;
   if (output_format == diagnostics::OutputFormat::kText) {

@@ -77,6 +77,12 @@ services:
     rpc_timeout_ms: 1000
     grpc:
       listen_address: unix:/cockpit-system/run/sentinel.grpc.sock
+  bridge:
+    provider: disabled
+    fake_outcome: succeeded
+    goal_timeout_ms: 30000
+    grpc:
+      listen_address: unix:/cockpit-system/run/bridge.grpc.sock
 
 hardware:
   can:

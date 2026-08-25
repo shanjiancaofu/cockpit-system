@@ -31,6 +31,7 @@ set(cockpit_runtime_target_candidates
     camera-probe
     can-simulator
     cockpit-ctl
+    bridge-ctl
     recording-ctl
     safe-ota
     topic
@@ -58,6 +59,7 @@ set(cockpit_module_targets
     cockpit_module_carupload
     cockpit_module_recording
     cockpit_module_sentinel
+    cockpit_module_bridge
     cockpit_module_upgrader
     cockpit_module_debugger
     cockpit_module_calibration

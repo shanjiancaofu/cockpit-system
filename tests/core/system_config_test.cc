@@ -65,6 +65,10 @@ int main() {
       config.services().sentinel.auto_arm || config.services().sentinel.cooldown_ms != 30000 ||
       config.services().sentinel.max_event_age_ms != 5000 ||
       config.services().sentinel.queue_capacity != 64 ||
+      config.services().bridge.provider != "fake" ||
+      config.services().bridge.fake_outcome != "succeeded" ||
+      config.services().bridge.goal_timeout_ms != 30000 ||
+      config.services().bridge.grpc.listen_address != "127.0.0.1:50058" ||
       config.features().voice.kws.provider != "mock" ||
       config.features().voice.kws.cooldown_ms != 1500 ||
       config.features().voice.kws.wake_word != "你好小山" ||
@@ -122,6 +126,9 @@ int main() {
           "unix:/cockpit-system/run/media.grpc.sock" ||
       production_config.services().sentinel.grpc.listen_address !=
           "unix:/cockpit-system/run/sentinel.grpc.sock" ||
+      production_config.services().bridge.provider != "disabled" ||
+      production_config.services().bridge.grpc.listen_address !=
+          "unix:/cockpit-system/run/bridge.grpc.sock" ||
       production_config.paths().run_dir != "/cockpit-system/run" ||
       production_config.features().voice.kws.provider != "sherpa" ||
       production_config.features().voice.kws.wake_word != "" ||

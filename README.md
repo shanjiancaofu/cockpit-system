@@ -29,6 +29,8 @@
 - Navigator 统一入口、动态业务模块、运行模式切换、有界本地 IPC 和故障重启限制。
 - STM32/SR501 哨兵 fake 基线：Vehicle Driver 发布 typed `ChassisEvent`，独立 Sentinel module 完成
   布防、重复/冷却抑制、相机抓拍、Recording 事件和 HMI 状态；真实 CAN ID/位布局待联调固定。
+- 独立 `bridge` development module 提供 typed goal/cancel/pose/status gRPC 和 deterministic fake
+  provider；当前不链接 ROS2/Nav2，生产配置明确 disabled。
 - Navigator 周期状态/健康采样、受控故障注入、JSON 稳定性报告和失败自动诊断快照。
 - systemd、Release 打包，以及 `safe-ota` 校验、安装、健康检查和失败回滚原型。
 - llama.cpp b10456 托管的 Qwen3.5-2B production 与 4B comparison smoke；Qwen3.5 语音请求关闭

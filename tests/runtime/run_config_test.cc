@@ -28,6 +28,7 @@ int main() {
                         static_cast<std::uint16_t>(ModuleId::kAgent) == 20 &&
                         static_cast<std::uint16_t>(ModuleId::kMedia) == 24 &&
                         static_cast<std::uint16_t>(ModuleId::kSentinel) == 25 &&
+                        static_cast<std::uint16_t>(ModuleId::kBridge) == 26 &&
                         static_cast<std::uint16_t>(ModuleId::kUpgrader) == 30,
                     "stable module ids changed");
   success &= Expect(static_cast<std::uint8_t>(RunMode::kNormal) == 1 &&
@@ -44,6 +45,7 @@ int main() {
   success &= Expect(config.FindModule(ModuleId::kMedia) != nullptr, "media module is missing");
   success &=
       Expect(config.FindModule(ModuleId::kSentinel) != nullptr, "sentinel module is missing");
+  success &= Expect(config.FindModule(ModuleId::kBridge) != nullptr, "bridge module is missing");
   ModuleId parsed_module;
   success &= Expect(cockpit::navigator::ParseModuleId("transfer", &parsed_module) &&
                         parsed_module == ModuleId::kTransfer,
@@ -73,6 +75,13 @@ int main() {
     success &= Expect(
         std::find(ui->second.begin(), ui->second.end(), ModuleId::kSentinel) != ui->second.end(),
         "ui mode does not contain sentinel");
+  }
+  const auto development = config.modes.find(RunMode::kDevelopment);
+  success &= Expect(development != config.modes.end(), "development mode is missing");
+  if (development != config.modes.end()) {
+    success &= Expect(std::find(development->second.begin(), development->second.end(),
+                                ModuleId::kBridge) != development->second.end(),
+                      "development mode does not contain bridge");
   }
   const auto cloud = config.modes.find(RunMode::kCloud);
   success &= Expect(cloud != config.modes.end(), "cloud mode is missing");

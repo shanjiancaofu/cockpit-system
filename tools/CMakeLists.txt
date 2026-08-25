@@ -1,6 +1,7 @@
 add_subdirectory(diagnostics)
 add_subdirectory(can-simulator)
 add_subdirectory(cockpit-ctl)
+add_subdirectory(bridge-ctl)
 add_subdirectory(recording-ctl)
 add_subdirectory(safe-ota)
 add_subdirectory(audio-probe)

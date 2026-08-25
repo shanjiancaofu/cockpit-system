@@ -18,6 +18,7 @@ enum class ModuleId : std::uint8_t {
   kRecording = 23,
   kMedia = 24,
   kSentinel = 25,
+  kBridge = 26,
   kUpgrader = 30,
   kDebugger = 31,
   kCalibration = 32,

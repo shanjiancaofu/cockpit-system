@@ -116,6 +116,13 @@ struct SentinelServiceConfig {
   GrpcServerConfig grpc{"127.0.0.1:50057"};
 };
 
+struct BridgeServiceConfig {
+  std::string provider = "disabled";
+  std::string fake_outcome = "succeeded";
+  int goal_timeout_ms = 30000;
+  GrpcServerConfig grpc{"127.0.0.1:50058"};
+};
+
 struct ServicesConfig {
   VehicleDataConfig vehicle_data;
   GatewayConfig gateway;
@@ -125,6 +132,7 @@ struct ServicesConfig {
   MediaServiceConfig media;
   RecordingServiceConfig recording;
   SentinelServiceConfig sentinel;
+  BridgeServiceConfig bridge;
 };
 
 struct CanConfig {
