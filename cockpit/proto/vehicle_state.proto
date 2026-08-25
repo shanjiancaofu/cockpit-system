@@ -13,6 +13,41 @@ message VehicleState {
   string source = 6;
 }
 
+enum ChassisHeartbeatState {
+  CHASSIS_HEARTBEAT_STATE_UNSPECIFIED = 0;
+  CHASSIS_HEARTBEAT_STATE_UNKNOWN = 1;
+  CHASSIS_HEARTBEAT_STATE_ALIVE = 2;
+  CHASSIS_HEARTBEAT_STATE_TIMEOUT = 3;
+}
+
+message ChassisState {
+  int64 timestamp_ms = 1;
+  string source = 2;
+  bool motion_valid = 3;
+  bool running = 4;
+  uint32 control_state = 5;
+  sint32 left_velocity_mm_s = 6;
+  sint32 right_velocity_mm_s = 7;
+  sint32 linear_velocity_mm_s = 8;
+  sint32 angular_velocity_mrad_s = 9;
+  sint32 left_output_permille = 10;
+  sint32 right_output_permille = 11;
+  bool odometry_valid = 12;
+  uint32 odometry_timestamp_ms = 13;
+  sint32 x_mm = 14;
+  sint32 y_mm = 15;
+  sint32 heading_mrad = 16;
+  ChassisHeartbeatState heartbeat_state = 17;
+  int64 heartbeat_age_ms = 18;
+  uint32 node_state = 19;
+  uint32 uptime_ms = 20;
+  uint32 fault_summary = 21;
+  uint32 fault_severity = 22;
+  uint32 active_faults = 23;
+  uint32 latched_faults = 24;
+  uint32 fault_sequence = 25;
+}
+
 message SensorState {
   int64 timestamp_ms = 1;
   double cabin_temperature_c = 2;
@@ -42,11 +77,17 @@ message ChassisEvent {
 
 service VehicleDataService {
   rpc SubscribeVehicleState(SubscribeVehicleStateRequest) returns (stream VehicleState);
+  rpc SubscribeChassisState(SubscribeChassisStateRequest) returns (stream ChassisState);
   rpc SubscribeChassisEvents(SubscribeChassisEventsRequest) returns (stream ChassisEvent);
   rpc GetStatus(cockpit.proto.common.Empty) returns (CanLinkStatus);
 }
 
 message SubscribeVehicleStateRequest {
+  string consumer = 1;
+  int32 max_hz = 2;
+}
+
+message SubscribeChassisStateRequest {
   string consumer = 1;
   int32 max_hz = 2;
 }

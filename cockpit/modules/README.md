@@ -6,7 +6,7 @@
 - `camera`：相机 frame、采集接口和共享内存布局。
 - `can`：平台无关 CAN frame。
 - `sentinel`：哨兵状态机、触发策略、冷却和重复抑制。
-- `vehicle`：车辆状态和 CAN codec。
+- `vehicle`：Vehicle/Chassis 状态、正式 CAN codec 和平台无关 ChassisClient 聚合。
 - `voice`：ASR、TTS、assistant、action 和 response。
 
 较大模块按明确职责建立子目录和独立 target；小模块保持扁平。禁止使用 `base`、`misc`、

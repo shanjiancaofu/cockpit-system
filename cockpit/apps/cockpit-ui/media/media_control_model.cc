@@ -91,11 +91,8 @@ void MediaControlModel::Start() {
 }
 
 void MediaControlModel::Stop() {
-  {
-    std::lock_guard<std::mutex> lock(command_mutex_);
-    running_.store(false);
-    has_pending_command_ = false;
-  }
+  running_.store(false);
+  pending_command_.store(CommandType::kNone);
   command_condition_.notify_all();
   if (worker_.joinable()) {
     worker_.join();
@@ -165,35 +162,30 @@ void MediaControlModel::Enqueue(CommandType command) {
   busy_ = true;
   last_error_.clear();
   emit statusChanged();
-  {
-    std::lock_guard<std::mutex> lock(command_mutex_);
-    pending_command_ = command;
-    has_pending_command_ = true;
-  }
+  pending_command_.store(command);
   command_condition_.notify_one();
 }
 
 void MediaControlModel::Run() {
   auto next_poll = std::chrono::steady_clock::now();
   while (running_.load()) {
-    std::optional<CommandType> command;
+    CommandType command = CommandType::kNone;
     {
-      std::unique_lock<std::mutex> lock(command_mutex_);
+      std::unique_lock<std::mutex> lock(wait_mutex_);
       command_condition_.wait_until(lock, next_poll, [this] {
-        return !running_.load() || has_pending_command_;
+        return !running_.load() || pending_command_.load() != CommandType::kNone;
       });
       if (!running_.load()) {
         break;
       }
-      if (has_pending_command_) {
-        command = pending_command_;
-        has_pending_command_ = false;
-      }
+      command = pending_command_.exchange(CommandType::kNone);
     }
 
-    if (command.has_value()) {
+    if (command != CommandType::kNone) {
       MediaBackendResult result;
-      switch (*command) {
+      switch (command) {
+        case CommandType::kNone:
+          continue;
         case CommandType::kPlay:
           result = backend_->Play(kDefaultTrackId);
           break;

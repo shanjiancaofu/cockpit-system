@@ -127,11 +127,8 @@ void AppLauncherModel::Start() {
 }
 
 void AppLauncherModel::Stop() {
-  {
-    std::lock_guard<std::mutex> lock(command_mutex_);
-    running_.store(false);
-    has_pending_command_ = false;
-  }
+  running_.store(false);
+  pending_command_.store(-1);
   command_condition_.notify_all();
   if (worker_.joinable()) {
     worker_.join();
@@ -196,39 +193,35 @@ void AppLauncherModel::Enqueue(int row, CommandType type) {
   last_error_.clear();
   emit dataChanged(index(row), index(row), {StateRole, StateLabelRole, BusyRole});
   emit statusChanged();
-  {
-    std::lock_guard<std::mutex> lock(command_mutex_);
-    pending_command_ = {type, item.app_id.toStdString()};
-    has_pending_command_ = true;
-  }
+  const int encoded_command = row * 2 + (type == CommandType::kStop ? 1 : 0);
+  pending_command_.store(encoded_command);
   command_condition_.notify_one();
 }
 
 void AppLauncherModel::Run() {
   auto next_poll = std::chrono::steady_clock::now();
   while (running_.load()) {
-    std::optional<Command> command;
+    int encoded_command = -1;
     {
-      std::unique_lock<std::mutex> lock(command_mutex_);
+      std::unique_lock<std::mutex> lock(wait_mutex_);
       command_condition_.wait_until(lock, next_poll, [this] {
-        return !running_.load() || has_pending_command_;
+        return !running_.load() || pending_command_.load() >= 0;
       });
       if (!running_.load()) {
         break;
       }
-      if (has_pending_command_) {
-        command = std::move(pending_command_);
-        has_pending_command_ = false;
-      }
+      encoded_command = pending_command_.exchange(-1);
     }
 
-    if (command.has_value()) {
-      AppLauncherBackendResult result = command->type == CommandType::kLaunch
-                                            ? backend_->Launch(command->app_id)
-                                            : backend_->Stop(command->app_id);
+    if (encoded_command >= 0) {
+      const int row = encoded_command / 2;
+      const CommandType type = encoded_command % 2 == 0 ? CommandType::kLaunch : CommandType::kStop;
+      const std::string& app_id = app_ids_[static_cast<std::size_t>(row)];
+      AppLauncherBackendResult result =
+          type == CommandType::kLaunch ? backend_->Launch(app_id) : backend_->Stop(app_id);
       QMetaObject::invokeMethod(
           this,
-          [this, app_id = command->app_id, type = command->type, result = std::move(result)] {
+          [this, app_id, type, result = std::move(result)] {
             ApplyOperation(app_id, type, result);
           },
           Qt::QueuedConnection);

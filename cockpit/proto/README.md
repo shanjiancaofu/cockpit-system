@@ -3,7 +3,8 @@
 车端进程级模块之间的 protobuf/gRPC 契约：
 
 - `common.proto`：通用状态和空请求。
-- `vehicle_state.proto`：周期车辆状态、CAN 链路健康和离散 typed `ChassisEvent` 流。
+- `vehicle_state.proto`：周期 VehicleState、正式 ChassisState、CAN 链路健康和离散 typed
+  `ChassisEvent` 流。ChassisState 承载 Motion/Odometry/Heartbeat/Fault 聚合结果，不暴露原始 CAN 帧。
 - `gateway.proto`：gateway 查询和事件流。
 - `audio.proto`：音频控制、指标、transcript 和 Speak。
 - `voice.proto`：语音交互状态和回复。

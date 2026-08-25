@@ -142,6 +142,22 @@ set_tests_properties(vehicle_grpc_service_test PROPERTIES LABELS "system-grpc")
 add_executable(chassis_can_codec_test modules/vehicle/chassis_can_codec_test.cc)
 target_link_libraries(chassis_can_codec_test PRIVATE vehicle)
 add_test(NAME chassis_can_codec_test COMMAND chassis_can_codec_test)
+
+add_executable(chassis_client_test modules/vehicle/chassis_client_test.cc)
+target_link_libraries(chassis_client_test PRIVATE vehicle)
+add_test(NAME chassis_client_test COMMAND chassis_client_test)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_executable(vehicle_data_chassis_vcan_test
+        library/driver/vehicle/vehicle_data_chassis_vcan_test.cc
+    )
+    target_link_libraries(vehicle_data_chassis_vcan_test PRIVATE vehicle_runtime)
+    add_test(NAME vehicle_data_chassis_vcan_test COMMAND
+        bash ${PROJECT_SOURCE_DIR}/scripts/tests/chassis-vehicle-vcan.sh
+        $<TARGET_FILE:vehicle_data_chassis_vcan_test>
+    )
+    set_tests_properties(vehicle_data_chassis_vcan_test PROPERTIES LABELS "socketcan")
+endif()
 if(TARGET can-simulator)
     add_test(NAME chassis_can_simulator_stdout_test COMMAND
         $<TARGET_FILE:can-simulator>

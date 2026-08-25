@@ -21,6 +21,48 @@ proto::vehicle::VehicleState ToProto(const VehicleState& state) {
   return message;
 }
 
+proto::vehicle::ChassisHeartbeatState ToProto(ChassisHeartbeatStatus status) {
+  switch (status) {
+    case ChassisHeartbeatStatus::kUnknown:
+      return proto::vehicle::CHASSIS_HEARTBEAT_STATE_UNKNOWN;
+    case ChassisHeartbeatStatus::kAlive:
+      return proto::vehicle::CHASSIS_HEARTBEAT_STATE_ALIVE;
+    case ChassisHeartbeatStatus::kTimeout:
+      return proto::vehicle::CHASSIS_HEARTBEAT_STATE_TIMEOUT;
+  }
+  return proto::vehicle::CHASSIS_HEARTBEAT_STATE_UNSPECIFIED;
+}
+
+proto::vehicle::ChassisState ToProto(const ChassisState& state) {
+  proto::vehicle::ChassisState message;
+  message.set_timestamp_ms(state.timestamp_ms);
+  message.set_source(state.source);
+  message.set_motion_valid(state.motion_valid);
+  message.set_running(state.running);
+  message.set_control_state(state.control_state);
+  message.set_left_velocity_mm_s(state.left_velocity_mm_s);
+  message.set_right_velocity_mm_s(state.right_velocity_mm_s);
+  message.set_linear_velocity_mm_s(state.linear_velocity_mm_s);
+  message.set_angular_velocity_mrad_s(state.angular_velocity_mrad_s);
+  message.set_left_output_permille(state.left_output_permille);
+  message.set_right_output_permille(state.right_output_permille);
+  message.set_odometry_valid(state.odometry_valid);
+  message.set_odometry_timestamp_ms(state.odometry_timestamp_ms);
+  message.set_x_mm(state.x_mm);
+  message.set_y_mm(state.y_mm);
+  message.set_heading_mrad(state.heading_mrad);
+  message.set_heartbeat_state(ToProto(state.heartbeat_status));
+  message.set_heartbeat_age_ms(state.heartbeat_age_ms);
+  message.set_node_state(state.node_state);
+  message.set_uptime_ms(state.uptime_ms);
+  message.set_fault_summary(state.fault_summary);
+  message.set_fault_severity(state.fault_severity);
+  message.set_active_faults(state.active_faults);
+  message.set_latched_faults(state.latched_faults);
+  message.set_fault_sequence(state.fault_sequence);
+  return message;
+}
+
 proto::vehicle::ChassisEvent ToProto(const ChassisEvent& event) {
   proto::vehicle::ChassisEvent message;
   message.set_sequence(event.sequence);
@@ -74,6 +116,22 @@ void VehicleGrpcService::Publish(const VehicleState& state) {
     ++version_;
   }
   state_changed_.notify_all();
+}
+
+void VehicleGrpcService::PublishChassisState(const ChassisState& state) {
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    latest_chassis_state_ = state;
+    ++chassis_state_version_;
+  }
+  state_changed_.notify_all();
+}
+
+bool VehicleGrpcService::WaitForChassisStateSubscriber(std::chrono::milliseconds timeout) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  return state_changed_.wait_for(lock, timeout, [this] {
+    return chassis_state_subscribers_ > 0 || stopping_;
+  }) && chassis_state_subscribers_ > 0;
 }
 
 void VehicleGrpcService::PublishEvent(const ChassisEvent& event) {
@@ -156,6 +214,51 @@ grpc::Status VehicleGrpcService::SubscribeVehicleState(
     next_write = std::chrono::steady_clock::now() + min_interval;
   }
   LOG_INFO("vehicle state subscriber disconnected consumer=" + request->consumer());
+  return grpc::Status::OK;
+}
+
+grpc::Status VehicleGrpcService::SubscribeChassisState(
+    grpc::ServerContext* context, const proto::vehicle::SubscribeChassisStateRequest* request,
+    grpc::ServerWriter<proto::vehicle::ChassisState>* writer) {
+  const int requested_hz = request->max_hz() <= 0 ? 20 : request->max_hz();
+  const int max_hz = std::clamp(requested_hz, 1, 100);
+  const auto min_interval = std::chrono::milliseconds(1000 / max_hz);
+  auto next_write = std::chrono::steady_clock::now();
+  std::uint64_t observed_version = 0;
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    ++chassis_state_subscribers_;
+  }
+  state_changed_.notify_all();
+
+  LOG_INFO("chassis state subscriber connected consumer=" + request->consumer());
+  while (!context->IsCancelled()) {
+    ChassisState state;
+    {
+      std::unique_lock<std::mutex> lock(mutex_);
+      state_changed_.wait_for(lock, std::chrono::milliseconds(100), [this, observed_version] {
+        return stopping_ || chassis_state_version_ > observed_version;
+      });
+      if (stopping_) break;
+      if (chassis_state_version_ <= observed_version) continue;
+      if (std::chrono::steady_clock::now() < next_write) {
+        state_changed_.wait_until(lock, next_write, [this] {
+          return stopping_;
+        });
+        if (stopping_) break;
+      }
+      state = latest_chassis_state_;
+      observed_version = chassis_state_version_;
+    }
+    if (!writer->Write(ToProto(state))) break;
+    next_write = std::chrono::steady_clock::now() + min_interval;
+  }
+  LOG_INFO("chassis state subscriber disconnected consumer=" + request->consumer());
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    --chassis_state_subscribers_;
+  }
   return grpc::Status::OK;
 }
 

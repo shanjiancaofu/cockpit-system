@@ -25,7 +25,7 @@ const char* SentinelStateName(SentinelState state) {
 }
 
 SentinelService::SentinelService(SentinelPolicy policy, std::unique_ptr<SentinelActions> actions)
-    : policy_(std::move(policy)), actions_(std::move(actions)) {
+    : policy_(std::move(policy)), actions_(std::move(actions)), events_(policy_.queue_capacity) {
 }
 
 SentinelService::~SentinelService() {
@@ -33,28 +33,36 @@ SentinelService::~SentinelService() {
 }
 
 bool SentinelService::Start(bool armed) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (running_ || actions_ == nullptr || policy_.cooldown.count() <= 0 ||
-      policy_.max_event_age.count() <= 0 || policy_.queue_capacity == 0) {
-    return false;
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (running_ || actions_ == nullptr || policy_.cooldown.count() <= 0 ||
+        policy_.max_event_age.count() <= 0 || policy_.queue_capacity == 0) {
+      return false;
+    }
   }
-  stopping_ = false;
-  running_ = true;
-  status_ = SentinelStatus{};
-  status_.state = armed ? SentinelState::kArmed : SentinelState::kDisabled;
+  events_.Reset();
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    stopping_ = false;
+    running_ = true;
+    status_ = SentinelStatus{};
+    status_.state = armed ? SentinelState::kArmed : SentinelState::kDisabled;
+  }
   worker_ = std::thread(&SentinelService::Run, this);
   return true;
 }
 
 void SentinelService::Stop() {
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
   {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!running_) return;
     stopping_ = true;
-    events_.clear();
   }
+  events_.Close();
+  static_cast<void>(events_.DiscardPending());
   actions_->Cancel();
-  changed_.notify_all();
   if (worker_.joinable()) worker_.join();
   std::lock_guard<std::mutex> lock(mutex_);
   running_ = false;
@@ -80,7 +88,6 @@ bool SentinelService::Arm(std::string* error) {
   status_.state = SentinelState::kArmed;
   status_.cooldown_until_ms = 0;
   status_.last_error.clear();
-  changed_.notify_all();
   return true;
 }
 
@@ -95,26 +102,30 @@ bool SentinelService::Disarm(std::string* error) {
     }
     status_.state = SentinelState::kDisabled;
     status_.cooldown_until_ms = 0;
-    events_.clear();
   }
+  static_cast<void>(events_.DiscardPending());
   actions_->Cancel();
-  changed_.notify_all();
   return true;
 }
 
 bool SentinelService::Submit(vehicle::ChassisEvent event) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (!running_ || stopping_ || status_.state == SentinelState::kDisabled ||
-      event.type != vehicle::ChassisEventType::kMotionDetected || !event.motion_detected ||
-      event.sequence == 0 || event.timestamp_ms <= 0)
-    return false;
-  if (events_.size() >= policy_.queue_capacity) {
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!running_ || stopping_ || status_.state == SentinelState::kDisabled ||
+        event.type != vehicle::ChassisEventType::kMotionDetected || !event.motion_detected ||
+        event.sequence == 0 || event.timestamp_ms <= 0) {
+      return false;
+    }
+  }
+  const event::EventQueuePushResult result = events_.Push(std::move(event));
+  if (result != event::EventQueuePushResult::kAccepted) {
+    std::lock_guard<std::mutex> lock(mutex_);
     ++status_.dropped_events;
-    status_.last_error = "sentinel event queue is full";
+    status_.last_error = result == event::EventQueuePushResult::kFull
+                             ? "sentinel event queue is full"
+                             : "sentinel event queue is closed";
     return false;
   }
-  events_.push_back(std::move(event));
-  changed_.notify_one();
   return true;
 }
 
@@ -132,22 +143,24 @@ void SentinelService::UpdateCooldownLocked(std::int64_t now_ms) {
 
 void SentinelService::Run() {
   while (true) {
-    vehicle::ChassisEvent event;
+    std::chrono::milliseconds wait_duration{100};
     {
-      std::unique_lock<std::mutex> lock(mutex_);
-      const auto wait_duration = status_.state == SentinelState::kCooldown
-                                     ? std::chrono::milliseconds(std::max<std::int64_t>(
-                                           1, status_.cooldown_until_ms - time::NowMs()))
-                                     : std::chrono::milliseconds(100);
-      changed_.wait_for(lock, wait_duration, [this] {
-        return stopping_ || !events_.empty();
-      });
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (stopping_) return;
+      if (status_.state == SentinelState::kCooldown) {
+        wait_duration = std::chrono::milliseconds(
+            std::max<std::int64_t>(1, status_.cooldown_until_ms - time::NowMs()));
+      }
+    }
+
+    std::optional<vehicle::ChassisEvent> pending = events_.WaitPopFor(wait_duration);
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
       if (stopping_) return;
       const std::int64_t now_ms = time::NowMs();
       UpdateCooldownLocked(now_ms);
-      if (events_.empty()) continue;
-      event = std::move(events_.front());
-      events_.pop_front();
+      if (!pending.has_value()) continue;
+      const vehicle::ChassisEvent& event = *pending;
 
       const bool duplicate = event.sequence <= status_.last_event_sequence;
       const bool stale = event.timestamp_ms > now_ms ||
@@ -165,6 +178,7 @@ void SentinelService::Run() {
       status_.last_error.clear();
     }
 
+    vehicle::ChassisEvent event = std::move(*pending);
     SentinelSnapshot snapshot;
     std::string error;
     const bool prepared = actions_->PrepareRecording(event.sequence, &error);

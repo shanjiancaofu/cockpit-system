@@ -145,6 +145,15 @@ int main() {
   Require(service.status().state == SentinelState::kDisabled, "disarm state incorrect");
   service.Stop();
   Require(fake->cancels >= 2, "disarm/stop did not cancel actions");
+
+  fake->photo_success.store(true);
+  Require(service.Start(true), "restart failed");
+  Require(service.Submit(Motion(1)), "event queue did not reset on restart");
+  Require(WaitFor([&] {
+            return service.status().accepted_events == 1;
+          }),
+          "restarted sentinel did not process an event");
+  service.Stop();
   std::cout << "sentinel service tests passed\n";
   return 0;
 }

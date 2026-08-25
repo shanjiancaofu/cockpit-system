@@ -119,6 +119,7 @@ class MediaControlModel final : public QObject {
 
  private:
   enum class CommandType {
+    kNone,
     kPlay,
     kPause,
     kResume,
@@ -135,10 +136,9 @@ class MediaControlModel final : public QObject {
 
   const std::unique_ptr<MediaPlayerBackend> backend_;
   std::atomic_bool running_{false};
-  std::mutex command_mutex_;
+  std::mutex wait_mutex_;
   std::condition_variable command_condition_;
-  CommandType pending_command_ = CommandType::kPlay;
-  bool has_pending_command_ = false;
+  std::atomic<CommandType> pending_command_{CommandType::kNone};
   std::thread worker_;
 
   bool available_ = false;

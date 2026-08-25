@@ -97,11 +97,6 @@ class AppLauncherModel final : public QAbstractListModel {
     bool busy = false;
   };
 
-  struct Command {
-    CommandType type = CommandType::kLaunch;
-    std::string app_id;
-  };
-
   struct StatusUpdate {
     std::string app_id;
     AppLauncherBackendStatus status;
@@ -119,10 +114,9 @@ class AppLauncherModel final : public QAbstractListModel {
   const std::vector<std::string> app_ids_{"local_media", "phone_projection", "android_apps"};
   const std::unique_ptr<AppLauncherBackend> backend_;
   std::atomic_bool running_{false};
-  std::mutex command_mutex_;
+  std::mutex wait_mutex_;
   std::condition_variable command_condition_;
-  Command pending_command_;
-  bool has_pending_command_ = false;
+  std::atomic_int pending_command_{-1};
   std::thread worker_;
   QString last_error_;
 };

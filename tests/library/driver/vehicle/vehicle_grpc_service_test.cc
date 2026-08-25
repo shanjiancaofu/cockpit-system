@@ -31,6 +31,48 @@ int main() {
   }
 
   cockpit::proto::vehicle::ChassisEvent received_event;
+  cockpit::proto::vehicle::ChassisState received_chassis_state;
+  std::thread chassis_state_reader([&] {
+    auto stub = cockpit::proto::vehicle::VehicleDataService::NewStub(
+        grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+    cockpit::proto::vehicle::SubscribeChassisStateRequest request;
+    request.set_consumer("vehicle-grpc-test");
+    request.set_max_hz(100);
+    grpc::ClientContext context;
+    auto reader = stub->SubscribeChassisState(&context, request);
+    reader->Read(&received_chassis_state);
+    context.TryCancel();
+    reader->Finish();
+  });
+  if (!service.WaitForChassisStateSubscriber(std::chrono::seconds(1))) {
+    std::cerr << "chassis state subscriber did not connect\n";
+    service.Shutdown();
+    chassis_state_reader.join();
+    return 1;
+  }
+  cockpit::vehicle::ChassisState chassis_state;
+  chassis_state.timestamp_ms = 12000;
+  chassis_state.source = "fake-stm32";
+  chassis_state.motion_valid = true;
+  chassis_state.running = true;
+  chassis_state.linear_velocity_mm_s = 500;
+  chassis_state.odometry_valid = true;
+  chassis_state.x_mm = 1000;
+  chassis_state.heartbeat_status = cockpit::vehicle::ChassisHeartbeatStatus::kAlive;
+  chassis_state.active_faults = 0x20U;
+  service.PublishChassisState(chassis_state);
+  chassis_state_reader.join();
+  if (received_chassis_state.timestamp_ms() != 12000 ||
+      received_chassis_state.source() != "fake-stm32" || !received_chassis_state.motion_valid() ||
+      !received_chassis_state.running() || received_chassis_state.linear_velocity_mm_s() != 500 ||
+      !received_chassis_state.odometry_valid() || received_chassis_state.x_mm() != 1000 ||
+      received_chassis_state.heartbeat_state() !=
+          cockpit::proto::vehicle::CHASSIS_HEARTBEAT_STATE_ALIVE ||
+      received_chassis_state.active_faults() != 0x20U) {
+    std::cerr << "typed chassis state stream is invalid\n";
+    return 1;
+  }
+
   std::thread event_reader([&] {
     auto stub = cockpit::proto::vehicle::VehicleDataService::NewStub(
         grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));

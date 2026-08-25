@@ -1,16 +1,15 @@
 #pragma once
 
 #include <chrono>
-#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
-#include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 
 #include "cockpit/core/base/macros.h"
+#include "cockpit/core/event/event_queue.h"
 #include "cockpit/modules/vehicle/chassis_event.h"
 
 namespace cockpit {
@@ -72,9 +71,9 @@ class SentinelService final {
 
   const SentinelPolicy policy_;
   std::unique_ptr<SentinelActions> actions_;
+  mutable std::mutex lifecycle_mutex_;
   mutable std::mutex mutex_;
-  std::condition_variable changed_;
-  std::deque<vehicle::ChassisEvent> events_;
+  event::EventQueue<vehicle::ChassisEvent> events_;
   SentinelStatus status_;
   bool running_ = false;
   bool stopping_ = false;
