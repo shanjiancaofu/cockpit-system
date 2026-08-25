@@ -1,0 +1,10 @@
+# Qt 6.2's software/offscreen scene graph retains three platform pixmap textures until process
+# teardown. The allocations have no cockpit frame; keep these function-specific suppressions scoped
+# to cockpit_ui_qml_test in ASan builds.
+leak:QImageData::create
+leak:QSGTexture::QSGTexture
+leak:QPlatformIntegration::createPlatformPixmap
+leak:QtSharedPointer::ExternalRefCountData::getAndRef
+# Ubuntu 22.04 strips the remaining 40-byte software-renderer node allocation, so LSan can only
+# identify its Qt Quick DSO. This suppression remains limited to the offscreen QML test process.
+leak:libQt6Quick.so.6

@@ -4,7 +4,6 @@
 #include <QString>
 #include <atomic>
 #include <condition_variable>
-#include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -138,7 +137,8 @@ class MediaControlModel final : public QObject {
   std::atomic_bool running_{false};
   std::mutex command_mutex_;
   std::condition_variable command_condition_;
-  std::deque<CommandType> commands_;
+  CommandType pending_command_ = CommandType::kPlay;
+  bool has_pending_command_ = false;
   std::thread worker_;
 
   bool available_ = false;

@@ -127,7 +127,11 @@ void AppLauncherModel::Start() {
 }
 
 void AppLauncherModel::Stop() {
-  running_.store(false);
+  {
+    std::lock_guard<std::mutex> lock(command_mutex_);
+    running_.store(false);
+    has_pending_command_ = false;
+  }
   command_condition_.notify_all();
   if (worker_.joinable()) {
     worker_.join();
@@ -194,7 +198,8 @@ void AppLauncherModel::Enqueue(int row, CommandType type) {
   emit statusChanged();
   {
     std::lock_guard<std::mutex> lock(command_mutex_);
-    commands_.push_back({type, item.app_id.toStdString()});
+    pending_command_ = {type, item.app_id.toStdString()};
+    has_pending_command_ = true;
   }
   command_condition_.notify_one();
 }
@@ -206,14 +211,14 @@ void AppLauncherModel::Run() {
     {
       std::unique_lock<std::mutex> lock(command_mutex_);
       command_condition_.wait_until(lock, next_poll, [this] {
-        return !running_.load() || !commands_.empty();
+        return !running_.load() || has_pending_command_;
       });
       if (!running_.load()) {
         break;
       }
-      if (!commands_.empty()) {
-        command = std::move(commands_.front());
-        commands_.pop_front();
+      if (has_pending_command_) {
+        command = std::move(pending_command_);
+        has_pending_command_ = false;
       }
     }
 

@@ -91,7 +91,11 @@ void MediaControlModel::Start() {
 }
 
 void MediaControlModel::Stop() {
-  running_.store(false);
+  {
+    std::lock_guard<std::mutex> lock(command_mutex_);
+    running_.store(false);
+    has_pending_command_ = false;
+  }
   command_condition_.notify_all();
   if (worker_.joinable()) {
     worker_.join();
@@ -163,7 +167,8 @@ void MediaControlModel::Enqueue(CommandType command) {
   emit statusChanged();
   {
     std::lock_guard<std::mutex> lock(command_mutex_);
-    commands_.push_back(command);
+    pending_command_ = command;
+    has_pending_command_ = true;
   }
   command_condition_.notify_one();
 }
@@ -175,14 +180,14 @@ void MediaControlModel::Run() {
     {
       std::unique_lock<std::mutex> lock(command_mutex_);
       command_condition_.wait_until(lock, next_poll, [this] {
-        return !running_.load() || !commands_.empty();
+        return !running_.load() || has_pending_command_;
       });
       if (!running_.load()) {
         break;
       }
-      if (!commands_.empty()) {
-        command = commands_.front();
-        commands_.pop_front();
+      if (has_pending_command_) {
+        command = pending_command_;
+        has_pending_command_ = false;
       }
     }
 

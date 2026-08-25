@@ -398,11 +398,29 @@ if(TARGET ui_model)
     set_target_properties(app_launcher_model_test PROPERTIES AUTOMOC ON)
     target_link_libraries(app_launcher_model_test PRIVATE Qt6::Test ui_app_launcher)
     add_test(NAME app_launcher_model_test COMMAND app_launcher_model_test)
+    if(COCKPIT_ENABLE_TSAN)
+        set_property(TEST app_launcher_model_test APPEND PROPERTY ENVIRONMENT
+            "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/sanitizers/qt6-test-tsan.supp"
+        )
+    endif()
 
     add_executable(media_control_model_test apps/cockpit-ui/media_control_model_test.cc)
     set_target_properties(media_control_model_test PROPERTIES AUTOMOC ON)
-    target_link_libraries(media_control_model_test PRIVATE Qt6::Test ui_media media_runtime)
+    target_link_libraries(media_control_model_test PRIVATE Qt6::Test ui_media)
     add_test(NAME media_control_model_test COMMAND media_control_model_test)
+    if(COCKPIT_ENABLE_TSAN)
+        set_property(TEST media_control_model_test APPEND PROPERTY ENVIRONMENT
+            "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/sanitizers/qt6-test-tsan.supp"
+        )
+    endif()
+
+    add_executable(media_control_model_grpc_test
+        apps/cockpit-ui/media_control_model_grpc_test.cc
+    )
+    set_target_properties(media_control_model_grpc_test PROPERTIES AUTOMOC ON)
+    target_link_libraries(media_control_model_grpc_test PRIVATE Qt6::Test ui_media media_runtime)
+    add_test(NAME media_control_model_grpc_test COMMAND media_control_model_grpc_test)
+    set_tests_properties(media_control_model_grpc_test PROPERTIES LABELS "system-grpc")
 
     add_executable(vehicle_state_model_test apps/cockpit-ui/vehicle_state_model_test.cc)
     set_target_properties(vehicle_state_model_test PROPERTIES AUTOMOC ON)
@@ -459,4 +477,9 @@ if(TARGET ui_model)
     set_tests_properties(cockpit_ui_qml_test PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software"
     )
+    if(COCKPIT_ENABLE_ASAN_UBSAN)
+        set_property(TEST cockpit_ui_qml_test APPEND PROPERTY ENVIRONMENT
+            "LSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/sanitizers/qt6-offscreen-lsan.supp:print_suppressions=0"
+        )
+    endif()
 endif()

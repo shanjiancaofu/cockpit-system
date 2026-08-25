@@ -1,0 +1,3 @@
+# Qt 6.2's QTest result logger takes the same internal mutex recursively under GCC 11 TSan.
+# Keep this limited to QtTest's DSO; races in cockpit model code remain unsuppressed.
+mutex:libQt6Test.so.6

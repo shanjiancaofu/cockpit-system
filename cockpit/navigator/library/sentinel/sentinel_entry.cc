@@ -16,12 +16,18 @@ int Start(const char* config_path) {
   return 0;
 }
 
-void Stop() { g_sentinel.reset(); }
-int Poll() { return g_sentinel == nullptr ? 1 : g_sentinel->Poll(); }
+void Stop() {
+  g_sentinel.reset();
+}
+int Poll() {
+  return g_sentinel == nullptr ? 1 : g_sentinel->Poll();
+}
 
 const CockpitModuleApi kModuleApi{
     COCKPIT_MODULE_ABI_VERSION, sizeof(CockpitModuleApi), "sentinel", Start, Stop, Poll};
 
 }  // namespace
 
-extern "C" const CockpitModuleApi* CockpitModuleGetApi() { return &kModuleApi; }
+extern "C" const CockpitModuleApi* CockpitModuleGetApi() {
+  return &kModuleApi;
+}

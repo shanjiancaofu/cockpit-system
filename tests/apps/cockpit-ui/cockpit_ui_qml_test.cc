@@ -1,3 +1,4 @@
+#include <QEvent>
 #include <QEventLoop>
 #include <QGuiApplication>
 #include <QObject>
@@ -59,8 +60,22 @@ int main(int argc, char** argv) {
   engine.rootContext()->setContextProperty(QStringLiteral("sentinelStatus"), &sentinel_status);
   engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
   QCoreApplication::processEvents();
+  const auto cleanup = [&] {
+    app_launcher.Stop();
+    media_control.Stop();
+    if (!engine.rootObjects().empty()) {
+      if (auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().front())) {
+        window->hide();
+        window->releaseResources();
+      }
+    }
+    engine.clearComponentCache();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    QCoreApplication::processEvents();
+  };
   if (qml_warning || engine.rootObjects().size() != 1) {
     std::cerr << "cockpit UI QML root did not load\n";
+    cleanup();
     return 1;
   }
 
@@ -71,6 +86,7 @@ int main(int argc, char** argv) {
   if (shell == nullptr || page_stack == nullptr || app_dock == nullptr ||
       root->property("width").toInt() != 1280 || root->property("height").toInt() != 720) {
     std::cerr << "cockpit UI QML structure mismatch\n";
+    cleanup();
     return 1;
   }
 
@@ -84,6 +100,7 @@ int main(int argc, char** argv) {
     auto* window = qobject_cast<QQuickWindow*>(root);
     if (window == nullptr) {
       std::cerr << "cockpit UI root is not a QQuickWindow\n";
+      cleanup();
       return 1;
     }
     window->show();
@@ -92,6 +109,7 @@ int main(int argc, char** argv) {
     render_wait.exec();
     if (!window->grabWindow().save(QString::fromLocal8Bit(screenshot_path))) {
       std::cerr << "cockpit UI screenshot failed\n";
+      cleanup();
       return 1;
     }
   }
@@ -101,7 +119,9 @@ int main(int argc, char** argv) {
   if (page_stack->property("currentIndex").toInt() != cockpit::ui::HmiControl::kSettingsView ||
       app_dock->property("currentIndex").toInt() != cockpit::ui::HmiControl::kSettingsView) {
     std::cerr << "cockpit UI navigation binding mismatch\n";
+    cleanup();
     return 1;
   }
+  cleanup();
   return 0;
 }
