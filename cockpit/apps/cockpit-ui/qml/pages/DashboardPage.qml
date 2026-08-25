@@ -289,7 +289,7 @@ Item {
                         Layout.fillWidth: true
 
                         Label {
-                            text: "媒体"
+                            text: "哨兵模式"
                             color: root.palette.textPrimary
                             font.pixelSize: 16
                             font.weight: Font.DemiBold
@@ -298,8 +298,10 @@ Item {
                         Item { Layout.fillWidth: true }
 
                         Label {
-                            text: "未连接"
-                            color: root.palette.textMuted
+                            text: sentinelStatus.stateLabel
+                            color: sentinelStatus.state === "FAULTED" ? root.palette.red
+                                   : (sentinelStatus.armed ? root.palette.green
+                                                          : root.palette.textMuted)
                             font.pixelSize: 11
                         }
                     }
@@ -313,8 +315,8 @@ Item {
 
                         Label {
                             anchors.centerIn: parent
-                            text: "M"
-                            color: root.palette.blue
+                            text: "S"
+                            color: sentinelStatus.armed ? root.palette.green : root.palette.textMuted
                             font.pixelSize: 30
                             font.weight: Font.Bold
                         }
@@ -322,7 +324,10 @@ Item {
 
                     Label {
                         Layout.fillWidth: true
-                        text: "本地媒体播放器待接入"
+                        text: !sentinelStatus.connected ? "等待 Sentinel 服务"
+                              : (sentinelStatus.lastSnapshotPath.length > 0
+                                 ? "最近取证 " + sentinelStatus.lastSnapshotPath
+                                 : "STM32 运动事件将触发相机取证")
                         color: root.palette.textSecondary
                         font.pixelSize: 12
                         horizontalAlignment: Text.AlignHCenter
@@ -335,21 +340,24 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 42
                         radius: 13
-                        color: mediaMouse.containsMouse ? root.palette.surfaceHover
-                                                        : root.palette.surfaceRaised
+                        color: sentinelMouse.containsMouse ? root.palette.surfaceHover
+                                                           : root.palette.surfaceRaised
+                        opacity: sentinelStatus.connected && !sentinelStatus.busy ? 1.0 : 0.5
 
                         Label {
                             anchors.centerIn: parent
-                            text: "打开媒体页"
+                            text: sentinelStatus.busy ? "处理中"
+                                  : (sentinelStatus.armed ? "解除布防" : "启用布防")
                             color: root.palette.textPrimary
                             font.pixelSize: 12
                         }
 
                         MouseArea {
-                            id: mediaMouse
+                            id: sentinelMouse
                             anchors.fill: parent
                             hoverEnabled: true
-                            onClicked: hmiControl.currentView = 3
+                            enabled: sentinelStatus.connected && !sentinelStatus.busy
+                            onClicked: sentinelStatus.setArmed(!sentinelStatus.armed)
                         }
                     }
                 }

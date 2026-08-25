@@ -15,7 +15,7 @@ config_path="${run_dir}/config.yaml"
 socket_path="${run_dir}/navigator.sock"
 navigator_log="${run_dir}/navigator.log"
 recording_directory="${COCKPIT_RUNTIME_DIR}/data/recordings"
-expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording)
+expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording sentinel)
 if [[ -x "${bin_dir}/cockpit-ui" ]]; then
   export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
 fi
@@ -226,8 +226,10 @@ fi
 ui_status="$("${bin_dir}/cockpit-ctl" runtime status --socket "${socket_path}")"
 if [[ "${ui_status}" != *"mode=ui"* ||
       "${ui_status}" != *"module=media state=running"* ||
+      "${ui_status}" != *"module=recording state=running"* ||
+      "${ui_status}" != *"module=sentinel state=running"* ||
       "${ui_status}" != *"module=hmi state=running"* ]]; then
-  echo "Navigator UI mode did not start media and HMI" >&2
+  echo "Navigator UI mode did not start media, recording, sentinel, and HMI" >&2
   exit 1
 fi
 wait_for_voice_ready

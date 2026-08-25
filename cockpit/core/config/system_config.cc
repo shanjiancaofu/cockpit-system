@@ -146,9 +146,9 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(logging, "mirror_stderr", config.logging_.mirror_stderr, "logging.mirror_stderr");
 
   const YAML::Node services = ChildMap(root, "services", "services");
-  ValidateKeys(
-      services, "services",
-      {"vehicle_data", "gateway", "audio", "camera", "voice_interaction", "media", "recording"});
+  ValidateKeys(services, "services",
+               {"vehicle_data", "gateway", "audio", "camera", "voice_interaction", "media",
+                "recording", "sentinel"});
   const YAML::Node vehicle_data = ChildMap(services, "vehicle_data", "services.vehicle_data");
   ValidateKeys(vehicle_data, "services.vehicle_data", {"source", "publish_interval_ms", "grpc"});
   config.services_.vehicle_data.source = Read(
@@ -304,6 +304,33 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.recording.grpc.listen_address =
       Read(recording_grpc, "listen_address", config.services_.recording.grpc.listen_address,
            "services.recording.grpc.listen_address");
+
+  const YAML::Node sentinel = ChildMap(services, "sentinel", "services.sentinel");
+  ValidateKeys(sentinel, "services.sentinel",
+               {"auto_arm", "vehicle_data_address", "cooldown_ms", "max_event_age_ms",
+                "queue_capacity", "rpc_timeout_ms", "grpc"});
+  config.services_.sentinel.auto_arm =
+      Read(sentinel, "auto_arm", config.services_.sentinel.auto_arm, "services.sentinel.auto_arm");
+  config.services_.sentinel.vehicle_data_address =
+      Read(sentinel, "vehicle_data_address", config.services_.sentinel.vehicle_data_address,
+           "services.sentinel.vehicle_data_address");
+  config.services_.sentinel.cooldown_ms =
+      Read(sentinel, "cooldown_ms", config.services_.sentinel.cooldown_ms,
+           "services.sentinel.cooldown_ms");
+  config.services_.sentinel.max_event_age_ms =
+      Read(sentinel, "max_event_age_ms", config.services_.sentinel.max_event_age_ms,
+           "services.sentinel.max_event_age_ms");
+  config.services_.sentinel.queue_capacity =
+      Read(sentinel, "queue_capacity", config.services_.sentinel.queue_capacity,
+           "services.sentinel.queue_capacity");
+  config.services_.sentinel.rpc_timeout_ms =
+      Read(sentinel, "rpc_timeout_ms", config.services_.sentinel.rpc_timeout_ms,
+           "services.sentinel.rpc_timeout_ms");
+  const YAML::Node sentinel_grpc = ChildMap(sentinel, "grpc", "services.sentinel.grpc");
+  ValidateKeys(sentinel_grpc, "services.sentinel.grpc", {"listen_address"});
+  config.services_.sentinel.grpc.listen_address =
+      Read(sentinel_grpc, "listen_address", config.services_.sentinel.grpc.listen_address,
+           "services.sentinel.grpc.listen_address");
 
   const YAML::Node hardware = ChildMap(root, "hardware", "hardware");
   ValidateKeys(hardware, "hardware", {"can", "audio"});
@@ -607,6 +634,19 @@ void SystemConfig::Validate() const {
                   "services.recording.max_session_duration_seconds");
   if (services_.recording.min_free_bytes == 0) {
     throw std::runtime_error("services.recording.min_free_bytes must be greater than zero");
+  }
+  ValidateAddress(services_.sentinel.vehicle_data_address,
+                  "services.sentinel.vehicle_data_address");
+  ValidateAddress(services_.sentinel.grpc.listen_address, "services.sentinel.grpc.listen_address");
+  RequirePositive(services_.sentinel.cooldown_ms, "services.sentinel.cooldown_ms");
+  RequirePositive(services_.sentinel.max_event_age_ms, "services.sentinel.max_event_age_ms");
+  RequirePositive(services_.sentinel.queue_capacity, "services.sentinel.queue_capacity");
+  RequirePositive(services_.sentinel.rpc_timeout_ms, "services.sentinel.rpc_timeout_ms");
+  if (services_.sentinel.queue_capacity > 1024) {
+    throw std::runtime_error("services.sentinel.queue_capacity must not exceed 1024");
+  }
+  if (services_.sentinel.rpc_timeout_ms > 5000) {
+    throw std::runtime_error("services.sentinel.rpc_timeout_ms must not exceed 5000");
   }
 
   RequireNotEmpty(hardware_.can.interface, "hardware.can.interface");

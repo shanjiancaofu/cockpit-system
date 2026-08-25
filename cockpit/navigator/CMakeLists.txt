@@ -78,6 +78,9 @@ target_link_libraries(cockpit_module_carupload PRIVATE carupload_runtime)
 add_navigator_module(cockpit_module_recording recording library/recording/recording_entry.cc)
 target_link_libraries(cockpit_module_recording PRIVATE recording_runtime)
 
+add_navigator_module(cockpit_module_sentinel sentinel library/sentinel/sentinel_entry.cc)
+target_link_libraries(cockpit_module_sentinel PRIVATE sentinel_runtime)
+
 add_navigator_module(cockpit_module_upgrader upgrader library/upgrader/upgrader_entry.cc)
 target_link_libraries(cockpit_module_upgrader PRIVATE upgrader_runtime)
 

@@ -81,6 +81,7 @@ sed \
   -e "s|127.0.0.1:50054|unix:${run_root}/camera.sock|g" \
   -e "s|127.0.0.1:50055|unix:${run_root}/recording.sock|g" \
   -e "s|127.0.0.1:50056|unix:${run_root}/media.sock|g" \
+  -e "s|127.0.0.1:50057|unix:${run_root}/sentinel.sock|g" \
   -e '/^  audio:$/,/^  camera:$/s/^    auto_start: false$/    auto_start: true/' \
   -e 's/^    capture_backend: gstreamer$/    capture_backend: synthetic/' \
   -e 's/^    input_device: .*$/    input_device: "null"/' \

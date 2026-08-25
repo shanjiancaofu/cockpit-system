@@ -37,13 +37,13 @@ if [[ -z "${navigator_executable}" ||
 fi
 case "${mode}" in
   normal)
-    expected_modules=(transfer vehicle_driver audio_driver camera_driver agent)
+    expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording sentinel)
     ;;
   development)
-    expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording)
+    expected_modules=(transfer vehicle_driver audio_driver camera_driver agent recording sentinel)
     ;;
   ui)
-    expected_modules=(transfer vehicle_driver audio_driver camera_driver agent media hmi)
+    expected_modules=(transfer vehicle_driver audio_driver camera_driver agent media recording sentinel hmi)
     ;;
   cloud)
     expected_modules=(transfer vehicle_driver carupload)

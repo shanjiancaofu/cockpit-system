@@ -120,6 +120,17 @@ target_link_libraries(recording_runtime PUBLIC
     time_util
 )
 
+add_library(sentinel_runtime STATIC
+    sentinel/chassis_event_client.cc
+    sentinel/sentinel_actions.cc
+    sentinel/sentinel_grpc_service.cc
+    sentinel/sentinel_runtime.cc
+)
+target_include_directories(sentinel_runtime PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(sentinel_runtime PUBLIC
+    config contracts json_util logging sentinel time_util
+)
+
 add_library(upgrader_runtime STATIC
     upgrader/upgrade_transaction.cc
     upgrader/upgrader_runtime.cc

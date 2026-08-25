@@ -19,6 +19,7 @@
 #include "cockpit/apps/cockpit-ui/health/service_health_model.h"
 #include "cockpit/apps/cockpit-ui/hmi_control.h"
 #include "cockpit/apps/cockpit-ui/media/media_control_model.h"
+#include "cockpit/apps/cockpit-ui/sentinel/sentinel_status_model.h"
 #include "cockpit/apps/cockpit-ui/vehicle/vehicle_state_model.h"
 #include "cockpit/apps/cockpit-ui/voice/voice_status_model.h"
 
@@ -36,6 +37,7 @@ int main(int argc, char** argv) {
   cockpit::ui::HmiControl hmi_control;
   cockpit::ui::MediaControlModel media_control;
   cockpit::ui::VoiceStatusModel voice_status("unix:/tmp/cockpit-ui-qml-test-voice.sock");
+  cockpit::ui::SentinelStatusModel sentinel_status("unix:/tmp/cockpit-ui-qml-test-sentinel.sock");
   app_launcher.Start();
   media_control.Start();
 
@@ -54,6 +56,7 @@ int main(int argc, char** argv) {
   engine.rootContext()->setContextProperty(QStringLiteral("hmiControl"), &hmi_control);
   engine.rootContext()->setContextProperty(QStringLiteral("mediaControl"), &media_control);
   engine.rootContext()->setContextProperty(QStringLiteral("voiceStatus"), &voice_status);
+  engine.rootContext()->setContextProperty(QStringLiteral("sentinelStatus"), &sentinel_status);
   engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
   QCoreApplication::processEvents();
   if (qml_warning || engine.rootObjects().size() != 1) {

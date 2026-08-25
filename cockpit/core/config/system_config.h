@@ -106,6 +106,16 @@ struct RecordingServiceConfig {
   GrpcServerConfig grpc{"127.0.0.1:50055"};
 };
 
+struct SentinelServiceConfig {
+  bool auto_arm = false;
+  std::string vehicle_data_address = "127.0.0.1:50050";
+  int cooldown_ms = 30000;
+  int max_event_age_ms = 5000;
+  int queue_capacity = 64;
+  int rpc_timeout_ms = 1000;
+  GrpcServerConfig grpc{"127.0.0.1:50057"};
+};
+
 struct ServicesConfig {
   VehicleDataConfig vehicle_data;
   GatewayConfig gateway;
@@ -114,6 +124,7 @@ struct ServicesConfig {
   VoiceInteractionServiceConfig voice_interaction;
   MediaServiceConfig media;
   RecordingServiceConfig recording;
+  SentinelServiceConfig sentinel;
 };
 
 struct CanConfig {

@@ -21,6 +21,19 @@ proto::vehicle::VehicleState ToProto(const VehicleState& state) {
   return message;
 }
 
+proto::vehicle::ChassisEvent ToProto(const ChassisEvent& event) {
+  proto::vehicle::ChassisEvent message;
+  message.set_sequence(event.sequence);
+  message.set_timestamp_ms(event.timestamp_ms);
+  message.set_source(event.source);
+  if (event.type == ChassisEventType::kMotionDetected) {
+    message.set_type(proto::vehicle::CHASSIS_EVENT_TYPE_MOTION_DETECTED);
+    message.mutable_motion()->set_sensor_id(event.sensor_id);
+    message.mutable_motion()->set_detected(event.motion_detected);
+  }
+  return message;
+}
+
 proto::vehicle::CanCommunicationState ToProto(can::CanCommunicationState state) {
   switch (state) {
     case can::CanCommunicationState::kStarting:
@@ -61,6 +74,25 @@ void VehicleGrpcService::Publish(const VehicleState& state) {
     ++version_;
   }
   state_changed_.notify_all();
+}
+
+void VehicleGrpcService::PublishEvent(const ChassisEvent& event) {
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (events_.size() == kEventCapacity) {
+      events_.pop_front();
+      ++dropped_events_;
+    }
+    events_.push_back(VersionedEvent{++event_version_, ToProto(event)});
+  }
+  state_changed_.notify_all();
+}
+
+bool VehicleGrpcService::WaitForEventSubscriber(std::chrono::milliseconds timeout) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  return state_changed_.wait_for(lock, timeout, [this] {
+    return stopping_ || event_subscribers_ > 0;
+  }) && event_subscribers_ > 0;
 }
 
 void VehicleGrpcService::PublishLinkStatus(const can::CanLinkStatus& status) {
@@ -127,6 +159,47 @@ grpc::Status VehicleGrpcService::SubscribeVehicleState(
   return grpc::Status::OK;
 }
 
+grpc::Status VehicleGrpcService::SubscribeChassisEvents(
+    grpc::ServerContext* context, const proto::vehicle::SubscribeChassisEventsRequest* request,
+    grpc::ServerWriter<proto::vehicle::ChassisEvent>* writer) {
+  std::uint64_t observed_version = 0;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    observed_version = event_version_;
+    ++event_subscribers_;
+  }
+  state_changed_.notify_all();
+  LOG_INFO("chassis event subscriber connected consumer=" + request->consumer());
+  while (!context->IsCancelled()) {
+    proto::vehicle::ChassisEvent event;
+    {
+      std::unique_lock<std::mutex> lock(mutex_);
+      state_changed_.wait_for(lock, std::chrono::milliseconds(100), [this, observed_version] {
+        return stopping_ || event_version_ > observed_version;
+      });
+      if (stopping_) break;
+      if (events_.empty() || event_version_ <= observed_version) continue;
+      if (observed_version + 1 < events_.front().version) {
+        observed_version = events_.front().version - 1;
+      }
+      const auto found =
+          std::find_if(events_.begin(), events_.end(), [observed_version](const auto& entry) {
+            return entry.version > observed_version;
+          });
+      if (found == events_.end()) continue;
+      event = found->event;
+      observed_version = found->version;
+    }
+    if (!writer->Write(event)) break;
+  }
+  LOG_INFO("chassis event subscriber disconnected consumer=" + request->consumer());
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    --event_subscribers_;
+  }
+  return grpc::Status::OK;
+}
+
 grpc::Status VehicleGrpcService::GetStatus(grpc::ServerContext*, const proto::common::Empty*,
                                            proto::vehicle::CanLinkStatus* response) {
   can::CanLinkStatus status;
@@ -153,6 +226,11 @@ grpc::Status VehicleGrpcService::GetStatus(grpc::ServerContext*, const proto::co
   response->set_ack_error_count(status.ack_error_count);
   response->set_protocol_error_count(status.protocol_error_count);
   response->set_last_error(status.last_error);
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    response->set_chassis_events(event_version_);
+    response->set_dropped_chassis_events(dropped_events_);
+  }
   auto* health = response->mutable_health();
   health->set_service_name("vehicle-can-link");
   health->set_checked_at_ms(static_cast<std::int64_t>(now_ms));

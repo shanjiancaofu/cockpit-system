@@ -32,9 +32,14 @@ int Run(int argc, char** argv, const runtime::Args& args) {
   }
 
   const std::string socket_path = args.GetString("socket", "/tmp/cockpit-navigator.sock");
+  constexpr int kQueryTimeoutMs = 1000;
+  constexpr int kMutationTimeoutMs = 15000;
+  const int response_timeout_ms =
+      action == "status" || action == "mode" ? kQueryTimeoutMs : kMutationTimeoutMs;
   std::string response;
   std::string error;
-  if (!navigator::IpcConnector::SendRequest(socket_path, request, &response, &error)) {
+  if (!navigator::IpcConnector::SendRequest(socket_path, request, &response, &error,
+                                            response_timeout_ms)) {
     std::cerr << error << '\n';
     return diagnostics::ToInt(diagnostics::ExitCode::kOperationFailed);
   }

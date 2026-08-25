@@ -14,6 +14,7 @@
 #include "common.pb.h"
 #include "gateway.grpc.pb.h"
 #include "recording.grpc.pb.h"
+#include "sentinel.grpc.pb.h"
 #include "vehicle_state.grpc.pb.h"
 #include "voice.grpc.pb.h"
 
@@ -138,6 +139,21 @@ bool CheckRecording(const std::string& address, std::string* error) {
   return CheckHealth(response.health(), "recording", error);
 }
 
+bool CheckSentinel(const std::string& address, std::string* error) {
+  auto stub = proto::sentinel::SentinelControl::NewStub(
+      grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+  proto::common::Empty request;
+  proto::sentinel::SentinelStatus response;
+  grpc::ClientContext context;
+  SetContext(&context);
+  const grpc::Status status = stub->GetStatus(&context, request, &response);
+  if (!status.ok()) {
+    *error = RpcError(status);
+    return false;
+  }
+  return CheckHealth(response.health(), "sentinel", error);
+}
+
 using HealthCheck = bool (*)(const std::string&, std::string*);
 
 struct Target {
@@ -159,10 +175,9 @@ int Run(const config::SystemConfig& config, diagnostics::OutputFormat output_for
     targets.push_back(
         {"voice", &config.services().voice_interaction.grpc.listen_address, CheckVoice});
     targets.push_back({"camera", &config.services().camera.grpc.listen_address, CheckCamera});
-  }
-  if (mode == "development") {
     targets.push_back(
         {"recording", &config.services().recording.grpc.listen_address, CheckRecording});
+    targets.push_back({"sentinel", &config.services().sentinel.grpc.listen_address, CheckSentinel});
   }
   bool healthy = true;
   if (output_format == diagnostics::OutputFormat::kText) {

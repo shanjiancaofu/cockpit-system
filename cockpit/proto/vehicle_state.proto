@@ -20,14 +20,39 @@ message SensorState {
   double imu_yaw_deg = 4;
 }
 
+enum ChassisEventType {
+  CHASSIS_EVENT_TYPE_UNSPECIFIED = 0;
+  CHASSIS_EVENT_TYPE_MOTION_DETECTED = 1;
+}
+
+message MotionSensorEvent {
+  uint32 sensor_id = 1;
+  bool detected = 2;
+}
+
+message ChassisEvent {
+  uint64 sequence = 1;
+  int64 timestamp_ms = 2;
+  ChassisEventType type = 3;
+  string source = 4;
+  oneof payload {
+    MotionSensorEvent motion = 10;
+  }
+}
+
 service VehicleDataService {
   rpc SubscribeVehicleState(SubscribeVehicleStateRequest) returns (stream VehicleState);
+  rpc SubscribeChassisEvents(SubscribeChassisEventsRequest) returns (stream ChassisEvent);
   rpc GetStatus(cockpit.proto.common.Empty) returns (CanLinkStatus);
 }
 
 message SubscribeVehicleStateRequest {
   string consumer = 1;
   int32 max_hz = 2;
+}
+
+message SubscribeChassisEventsRequest {
+  string consumer = 1;
 }
 
 enum CanCommunicationState {
@@ -55,4 +80,6 @@ message CanLinkStatus {
   uint64 ack_error_count = 14;
   uint64 protocol_error_count = 15;
   string last_error = 16;
+  uint64 chassis_events = 17;
+  uint64 dropped_chassis_events = 18;
 }

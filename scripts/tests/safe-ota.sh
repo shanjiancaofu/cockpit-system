@@ -263,7 +263,7 @@ make_package "${package_five}" 5.0.0
 set +e
 "${safe_ota}" --package "${package_five}" --confirm 5.0.0 --root "${install_root}" \
   --public-key "${ota_public_key}" --socket "${socket_path}" \
-  --health-command /bin/false --timeout 1
+  --health-command /bin/false --timeout 3
 runtime_health_result=$?
 set -e
 [[ "${runtime_health_result}" -eq 3 ]]

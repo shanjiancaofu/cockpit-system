@@ -3,7 +3,7 @@
 车端进程级模块之间的 protobuf/gRPC 契约：
 
 - `common.proto`：通用状态和空请求。
-- `vehicle_state.proto`：车辆状态。
+- `vehicle_state.proto`：周期车辆状态、CAN 链路健康和离散 typed `ChassisEvent` 流。
 - `gateway.proto`：gateway 查询和事件流。
 - `audio.proto`：音频控制、指标、transcript 和 Speak。
 - `voice.proto`：语音交互状态和回复。
@@ -11,6 +11,7 @@
 - `media.proto`：固定 track ID、曲目列表、播放状态和控制。
 - `camera.proto`：相机控制和健康状态。
 - `recording.proto`：研发录包控制、时间线、完整性和报告。
+- `sentinel.proto`：哨兵布防、状态、触发计数和取证结果；不承载原始 CAN 帧。
 - `cloud.proto`：云端占位契约，当前没有生产 transport consumer。
 
 CMake 将生成代码放在 build 目录并提供 `contracts` target。禁止手工修改生成文件。

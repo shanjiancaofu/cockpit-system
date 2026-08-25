@@ -7,6 +7,7 @@ set(proto_files
     hmi.proto
     media.proto
     recording.proto
+    sentinel.proto
     vehicle_state.proto
     voice.proto
 )

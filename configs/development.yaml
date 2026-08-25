@@ -68,6 +68,15 @@ services:
     min_free_bytes: 536870912
     grpc:
       listen_address: 127.0.0.1:50055
+  sentinel:
+    auto_arm: false
+    vehicle_data_address: 127.0.0.1:50050
+    cooldown_ms: 30000
+    max_event_age_ms: 5000
+    queue_capacity: 64
+    rpc_timeout_ms: 1000
+    grpc:
+      listen_address: 127.0.0.1:50057
 
 hardware:
   can:

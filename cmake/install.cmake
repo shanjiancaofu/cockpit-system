@@ -57,6 +57,7 @@ set(cockpit_module_targets
     cockpit_module_media
     cockpit_module_carupload
     cockpit_module_recording
+    cockpit_module_sentinel
     cockpit_module_upgrader
     cockpit_module_debugger
     cockpit_module_calibration

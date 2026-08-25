@@ -16,6 +16,7 @@
 #include "gateway.grpc.pb.h"
 #include "media.grpc.pb.h"
 #include "recording.grpc.pb.h"
+#include "sentinel.grpc.pb.h"
 #include "vehicle_state.pb.h"
 #include "voice.grpc.pb.h"
 
@@ -308,6 +309,16 @@ void ServiceHealthModel::PollOnce() {
       auto stub = proto::recording::RecordingControl::NewStub(channel);
       proto::common::Empty request;
       proto::recording::RecordingStatus response;
+      grpc::ClientContext context;
+      PrepareContext(&context);
+      const grpc::Status status = stub->GetStatus(&context, request, &response);
+      samples.push_back(status.ok() ? FromHealth(response.health()) : RpcFailure(status));
+      continue;
+    }
+    if (item.service_name == "sentinel-service") {
+      auto stub = proto::sentinel::SentinelControl::NewStub(channel);
+      proto::common::Empty request;
+      proto::sentinel::SentinelStatus response;
       grpc::ClientContext context;
       PrepareContext(&context);
       const grpc::Status status = stub->GetStatus(&context, request, &response);

@@ -10,6 +10,7 @@
 - `agent/`：语音交互和后续 AI 能力的编排入口。
 - `hmi/`：HMI 进程级运行时。
 - `recording/`：运行数据记录。
+- `sentinel/`：消费 typed 底盘事件并编排相机取证与录包，不解析原始 CAN。
 - `transfer/`、`carupload/`：数据传输与上传。
 - `calibration/`、`debugger/`、`upgrader/`、`watchdog/`：对应的进程级能力。
 

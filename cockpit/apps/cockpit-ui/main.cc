@@ -16,6 +16,7 @@
 #include "cockpit/apps/cockpit-ui/hmi_control.h"
 #include "cockpit/apps/cockpit-ui/media/grpc_media_player_backend.h"
 #include "cockpit/apps/cockpit-ui/media/media_control_model.h"
+#include "cockpit/apps/cockpit-ui/sentinel/sentinel_status_model.h"
 #include "cockpit/apps/cockpit-ui/vehicle/gateway_client.h"
 #include "cockpit/apps/cockpit-ui/vehicle/vehicle_state_model.h"
 #include "cockpit/apps/cockpit-ui/voice/voice_status_model.h"
@@ -50,6 +51,8 @@ int main(int argc, char** argv) {
        runtime.config().services().media.grpc.listen_address},
       {QStringLiteral("Recording"), "recording-service",
        runtime.config().services().recording.grpc.listen_address},
+      {QStringLiteral("Sentinel"), "sentinel-service",
+       runtime.config().services().sentinel.grpc.listen_address},
   };
   cockpit::ui::ServiceHealthModel service_health(std::move(health_endpoints));
   auto media_backend = cockpit::ui::CreateGrpcMediaPlayerBackend(
@@ -58,6 +61,8 @@ int main(int argc, char** argv) {
   cockpit::ui::HmiControl hmi_control(&media_control);
   cockpit::ui::VoiceStatusModel voice_status(
       runtime.config().services().voice_interaction.grpc.listen_address);
+  cockpit::ui::SentinelStatusModel sentinel_status(
+      runtime.config().services().sentinel.grpc.listen_address);
 
   QQmlApplicationEngine engine;
   engine.addImageProvider(QStringLiteral("camera"), camera_image_provider);
@@ -69,6 +74,7 @@ int main(int argc, char** argv) {
   engine.rootContext()->setContextProperty(QStringLiteral("hmiControl"), &hmi_control);
   engine.rootContext()->setContextProperty(QStringLiteral("mediaControl"), &media_control);
   engine.rootContext()->setContextProperty(QStringLiteral("voiceStatus"), &voice_status);
+  engine.rootContext()->setContextProperty(QStringLiteral("sentinelStatus"), &sentinel_status);
   engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
   if (engine.rootObjects().isEmpty()) {
     runtime.MarkStopped();
@@ -81,18 +87,20 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  QObject::connect(&app, &QCoreApplication::aboutToQuit,
-                   [&app_launcher, &gateway_client, &camera_client, &camera_control,
-                    &service_health, &hmi_control, &media_control, &voice_status] {
-                     hmi_control.Stop();
-                     app_launcher.Stop();
-                     media_control.Stop();
-                     voice_status.Stop();
-                     service_health.Stop();
-                     camera_control.Stop();
-                     camera_client.Stop();
-                     gateway_client.Stop();
-                   });
+  QObject::connect(
+      &app, &QCoreApplication::aboutToQuit,
+      [&app_launcher, &gateway_client, &camera_client, &camera_control, &service_health,
+       &hmi_control, &media_control, &voice_status, &sentinel_status] {
+        hmi_control.Stop();
+        app_launcher.Stop();
+        media_control.Stop();
+        voice_status.Stop();
+        sentinel_status.Stop();
+        service_health.Stop();
+        camera_control.Stop();
+        camera_client.Stop();
+        gateway_client.Stop();
+      });
   QTimer shutdown_timer;
   shutdown_timer.setInterval(100);
   QObject::connect(&shutdown_timer, &QTimer::timeout, [&app, &runtime] {
@@ -109,6 +117,7 @@ int main(int argc, char** argv) {
   camera_control.Start();
   service_health.Start();
   voice_status.Start();
+  sentinel_status.Start();
   const int result = app.exec();
   runtime.MarkStopped();
   return result;

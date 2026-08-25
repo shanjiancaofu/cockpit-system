@@ -139,6 +139,22 @@ target_link_libraries(vehicle_grpc_service_test PRIVATE vehicle_runtime)
 add_test(NAME vehicle_grpc_service_test COMMAND vehicle_grpc_service_test)
 set_tests_properties(vehicle_grpc_service_test PROPERTIES LABELS "system-grpc")
 
+add_executable(chassis_can_codec_test modules/vehicle/chassis_can_codec_test.cc)
+target_link_libraries(chassis_can_codec_test PRIVATE vehicle)
+add_test(NAME chassis_can_codec_test COMMAND chassis_can_codec_test)
+if(TARGET can-simulator)
+    add_test(NAME chassis_can_simulator_stdout_test COMMAND
+        $<TARGET_FILE:can-simulator>
+        --backend stdout
+        --protocol chassis
+        --linear-mm-s 500
+        --angular-mrad-s -250
+        --samples 2
+        --interval-ms 1
+        --config ${PROJECT_SOURCE_DIR}/configs/development.yaml
+    )
+endif()
+
 add_executable(recording_session_test modules/recording/recording_session_test.cc)
 target_link_libraries(recording_session_test PRIVATE recording)
 add_test(NAME recording_session_test COMMAND recording_session_test)
@@ -162,6 +178,15 @@ add_test(NAME recording_service_test COMMAND recording_service_test)
 add_executable(media_service_test modules/media/media_service_test.cc)
 target_link_libraries(media_service_test PRIVATE media_service)
 add_test(NAME media_service_test COMMAND media_service_test)
+
+add_executable(sentinel_service_test modules/sentinel/sentinel_service_test.cc)
+target_link_libraries(sentinel_service_test PRIVATE sentinel)
+add_test(NAME sentinel_service_test COMMAND sentinel_service_test)
+
+add_executable(sentinel_fake_closure_test library/sentinel/sentinel_fake_closure_test.cc)
+target_link_libraries(sentinel_fake_closure_test PRIVATE sentinel_runtime vehicle_runtime)
+add_test(NAME sentinel_fake_closure_test COMMAND sentinel_fake_closure_test)
+set_tests_properties(sentinel_fake_closure_test PROPERTIES LABELS "system-grpc")
 
 add_executable(media_manifest_test modules/media/media_manifest_test.cc)
 target_link_libraries(media_manifest_test PRIVATE media)
@@ -400,6 +425,12 @@ if(TARGET ui_model)
     add_test(NAME voice_status_model_test COMMAND voice_status_model_test)
     set_tests_properties(voice_status_model_test PROPERTIES LABELS "system-grpc")
 
+    add_executable(sentinel_status_model_test apps/cockpit-ui/sentinel_status_model_test.cc)
+    set_target_properties(sentinel_status_model_test PROPERTIES AUTOMOC ON)
+    target_link_libraries(sentinel_status_model_test PRIVATE Qt6::Test ui_sentinel sentinel_runtime)
+    add_test(NAME sentinel_status_model_test COMMAND sentinel_status_model_test)
+    set_tests_properties(sentinel_status_model_test PROPERTIES LABELS "system-grpc")
+
     add_executable(hmi_control_test apps/cockpit-ui/hmi_control_test.cc)
     set_target_properties(hmi_control_test PROPERTIES AUTOMOC ON)
     target_link_libraries(hmi_control_test PRIVATE Qt6::Test ui_hmi ui_media voice_hmi media_runtime)
@@ -420,6 +451,7 @@ if(TARGET ui_model)
         ui_health
         ui_hmi
         ui_media
+        ui_sentinel
         ui_vehicle
         ui_voice
     )
