@@ -111,6 +111,8 @@ int main() {
                  "distortion_model is not supported");
   ExpectRejected(std::string(kValidCalibration) + "vendor_extension: 1\n",
                  "camera_calibration.vendor_extension is not supported");
+  ExpectRejected(std::string(kValidCalibration) + "fx: 900.0\n",
+                 "camera_calibration.fx is duplicated");
   ExpectRejected("image_width: [1280\n", "failed to load camera calibration file");
 
   cockpit::hawkeye::CameraCalibration missing;

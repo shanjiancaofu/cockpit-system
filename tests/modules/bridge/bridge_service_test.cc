@@ -45,14 +45,18 @@ int main() {
         return now_ms;
       });
   Require(success.SubmitNavigationGoal(Goal(), &status, &error) &&
-              status.state == NavigationState::kAccepted && status.accepted_at_ms == 1000,
+              status.state == NavigationState::kAccepted && status.accepted_at_ms == 1000 &&
+              !status.current_pose_valid,
           "successful fake goal was not accepted");
   Require(status.goal_id == "goal-1" && status.target.frame_id == "map",
           "goal fields were not preserved");
-  Require(success.GetNavigationStatus().state == NavigationState::kExecuting,
+  status = success.GetNavigationStatus();
+  Require(status.state == NavigationState::kExecuting && status.current_pose_valid &&
+              status.accepted_at_ms == 1000 && status.updated_at_ms == now_ms,
           "accepted goal did not begin executing");
   status = success.GetNavigationStatus();
-  Require(status.state == NavigationState::kSucceeded && status.current_pose.x_m == 1.5,
+  Require(status.state == NavigationState::kSucceeded && status.current_pose_valid &&
+              status.current_pose.x_m == 1.5,
           "fake goal did not succeed");
 
   BridgeService cancelled(
@@ -75,8 +79,10 @@ int main() {
   Require(timeout.SubmitNavigationGoal(Goal("timeout"), &status, &error),
           "timeout fixture submit failed");
   now_ms += 100;
+  status = timeout.GetNavigationStatus();
+  Require(status.state == NavigationState::kTimedOut, "stalled bridge goal did not time out");
   Require(timeout.GetNavigationStatus().state == NavigationState::kTimedOut,
-          "stalled bridge goal did not time out");
+          "timed-out terminal state was not latched");
 
   BridgeService rejected(
       cockpit::bridge::CreateFakeNavigationProvider(FakeBridgeOutcome::kRejected), 1000);

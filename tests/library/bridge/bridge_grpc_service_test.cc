@@ -49,7 +49,7 @@ int main() {
   grpc::ClientContext succeeded_context;
   if (!stub->GetNavigationStatus(&succeeded_context, empty, &response).ok() ||
       response.state() != cockpit::proto::bridge::NAVIGATION_STATE_SUCCEEDED ||
-      response.current_pose().x_m() != 3.0 ||
+      !response.current_pose_valid() || response.current_pose().x_m() != 3.0 ||
       response.health().state() != cockpit::proto::common::SERVICE_HEALTH_STATE_OK) {
     std::cerr << "bridge gRPC terminal status is invalid\n";
     return 1;

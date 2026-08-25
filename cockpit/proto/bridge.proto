@@ -44,6 +44,7 @@ message NavigationStatus {
   int64 updated_at_ms = 6;
   string message = 7;
   string last_error = 8;
+  bool current_pose_valid = 9;
   cockpit.proto.common.ServiceHealth health = 100;
 }
 

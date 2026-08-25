@@ -36,6 +36,7 @@ struct NavigationStatus {
   std::string goal_id;
   NavigationPose target;
   NavigationPose current_pose;
+  bool current_pose_valid = false;
   std::int64_t accepted_at_ms = 0;
   std::int64_t updated_at_ms = 0;
   std::string message;

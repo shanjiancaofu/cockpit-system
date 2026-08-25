@@ -2,8 +2,6 @@
 
 #include <utility>
 
-#include "cockpit/core/time/time.h"
-
 namespace cockpit::bridge {
 namespace {
 
@@ -23,7 +21,6 @@ class DisabledNavigationProvider final : public NavigationProvider {
   static NavigationStatus Status() {
     NavigationStatus status;
     status.state = NavigationState::kDisabled;
-    status.updated_at_ms = time::NowMs();
     status.message = "bridge provider is disabled";
     return status;
   }
@@ -40,8 +37,6 @@ class FakeNavigationProvider final : public NavigationProvider {
     status_.goal_id = goal.goal_id;
     status_.target = goal.target;
     status_.current_pose.frame_id = goal.target.frame_id;
-    status_.accepted_at_ms = time::NowMs();
-    status_.updated_at_ms = status_.accepted_at_ms;
     query_count_ = 0;
     if (outcome_ == FakeBridgeOutcome::kDisconnected) {
       status_.state = NavigationState::kDisconnected;
@@ -60,7 +55,6 @@ class FakeNavigationProvider final : public NavigationProvider {
   }
 
   NavigationStatus CancelNavigationGoal(const std::string& goal_id) override {
-    status_.updated_at_ms = time::NowMs();
     if (!IsActiveNavigationState(status_.state) || goal_id != status_.goal_id) {
       status_.state = NavigationState::kRejected;
       status_.message = "fake bridge cancel rejected";
@@ -74,12 +68,10 @@ class FakeNavigationProvider final : public NavigationProvider {
   }
 
   NavigationStatus GetNavigationStatus() override {
-    status_.updated_at_ms = time::NowMs();
     if (status_.state == NavigationState::kDisconnected && disconnected_pending_recovery_) {
       disconnected_pending_recovery_ = false;
       status_ = NavigationStatus{};
       status_.state = NavigationState::kIdle;
-      status_.updated_at_ms = time::NowMs();
       status_.message = "fake bridge recovered";
       return status_;
     }
@@ -97,7 +89,7 @@ class FakeNavigationProvider final : public NavigationProvider {
       status_.current_pose.x_m = status_.target.x_m * 0.5;
       status_.current_pose.y_m = status_.target.y_m * 0.5;
       status_.current_pose.yaw_rad = status_.target.yaw_rad * 0.5;
-      status_.current_pose.timestamp_ms = status_.updated_at_ms;
+      status_.current_pose_valid = true;
       return status_;
     }
     if (query_count_ < 2 || outcome_ == FakeBridgeOutcome::kStalled) {
@@ -112,7 +104,7 @@ class FakeNavigationProvider final : public NavigationProvider {
     status_.state = NavigationState::kSucceeded;
     status_.message = "fake bridge succeeded";
     status_.current_pose = status_.target;
-    status_.current_pose.timestamp_ms = status_.updated_at_ms;
+    status_.current_pose_valid = true;
     status_.last_error.clear();
     return status_;
   }

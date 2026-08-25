@@ -118,6 +118,7 @@ void BridgeGrpcService::FillStatus(const NavigationStatus& status,
   response->set_updated_at_ms(status.updated_at_ms);
   response->set_message(status.message);
   response->set_last_error(status.last_error);
+  response->set_current_pose_valid(status.current_pose_valid);
   auto* health = response->mutable_health();
   health->set_service_name("bridge-service");
   health->set_checked_at_ms(time::NowMs());

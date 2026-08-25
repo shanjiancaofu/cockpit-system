@@ -90,6 +90,8 @@ bool BridgeService::SubmitNavigationGoal(const NavigationGoal& goal, NavigationS
   status_ = provider_->SubmitNavigationGoal(goal);
   if (IsActiveNavigationState(status_.state)) {
     status_.accepted_at_ms = clock_();
+  } else {
+    status_.accepted_at_ms = 0;
   }
   status_.updated_at_ms = clock_();
   *status = status_;
@@ -118,7 +120,9 @@ bool BridgeService::CancelNavigationGoal(const std::string& goal_id, NavigationS
     *status = status_;
     return false;
   }
+  const std::int64_t accepted_at_ms = status_.accepted_at_ms;
   status_ = provider_->CancelNavigationGoal(goal_id);
+  status_.accepted_at_ms = accepted_at_ms;
   status_.updated_at_ms = clock_();
   *status = status_;
   if (status_.state != NavigationState::kCancelled) {
@@ -136,6 +140,7 @@ NavigationStatus BridgeService::GetNavigationStatus() {
 
 void BridgeService::RefreshLocked() {
   if (provider_ == nullptr) return;
+  if (status_.state == NavigationState::kTimedOut) return;
   const std::int64_t now_ms = clock_();
   if (IsActiveNavigationState(status_.state) && status_.accepted_at_ms > 0 &&
       now_ms - status_.accepted_at_ms >= goal_timeout_ms_) {
@@ -149,7 +154,9 @@ void BridgeService::RefreshLocked() {
   const NavigationStatus refreshed = provider_->GetNavigationStatus();
   if (status_.goal_id.empty() || refreshed.goal_id.empty() ||
       refreshed.goal_id == status_.goal_id) {
+    const std::int64_t accepted_at_ms = refreshed.goal_id.empty() ? 0 : status_.accepted_at_ms;
     status_ = refreshed;
+    status_.accepted_at_ms = accepted_at_ms;
   }
   status_.updated_at_ms = now_ms;
 }

@@ -8,6 +8,7 @@
 #include <limits>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 namespace cockpit::hawkeye {
@@ -115,11 +116,15 @@ bool CameraCalibrationLoader::LoadFromFile(const std::string& path, CameraCalibr
   if (!root.IsMap()) {
     return Fail(error, "camera calibration root must be a map: " + path);
   }
+  std::unordered_set<std::string> observed_keys;
   for (const auto& item : root) {
     if (!item.first.IsScalar()) {
       return Fail(error, "camera calibration keys must be scalars");
     }
     const std::string key = item.first.as<std::string>();
+    if (!observed_keys.insert(key).second) {
+      return Fail(error, std::string(kRootPath) + "." + key + " is duplicated");
+    }
     if (std::find(kAllowedKeys.begin(), kAllowedKeys.end(), std::string_view(key)) ==
         kAllowedKeys.end()) {
       return Fail(error, std::string(kRootPath) + "." + key + " is not supported");
