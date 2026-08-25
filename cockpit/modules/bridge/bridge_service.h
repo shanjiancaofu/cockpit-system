@@ -14,22 +14,24 @@ class BridgeService final {
  public:
   using Clock = std::function<std::int64_t()>;
 
-  BridgeService(std::unique_ptr<BridgeProvider> provider, std::int64_t goal_timeout_ms,
+  BridgeService(std::unique_ptr<NavigationProvider> provider, std::int64_t goal_timeout_ms,
                 Clock clock = nullptr);
 
-  bool SubmitGoal(const BridgeGoal& goal, BridgeStatus* status, std::string* error);
-  bool CancelGoal(const std::string& goal_id, BridgeStatus* status, std::string* error);
-  BridgeStatus GetStatus();
+  bool SubmitNavigationGoal(const NavigationGoal& goal, NavigationStatus* status,
+                            std::string* error);
+  bool CancelNavigationGoal(const std::string& goal_id, NavigationStatus* status,
+                            std::string* error);
+  NavigationStatus GetNavigationStatus();
 
  private:
-  static bool ValidateGoal(const BridgeGoal& goal, std::string* error);
+  static bool ValidateGoal(const NavigationGoal& goal, std::string* error);
   void RefreshLocked();
 
-  std::unique_ptr<BridgeProvider> provider_;
+  std::unique_ptr<NavigationProvider> provider_;
   const std::int64_t goal_timeout_ms_;
   const Clock clock_;
   std::mutex mutex_;
-  BridgeStatus status_;
+  NavigationStatus status_;
 };
 
 }  // namespace cockpit::bridge

@@ -7,36 +7,36 @@
 namespace cockpit::bridge {
 namespace {
 
-class DisabledBridgeProvider final : public BridgeProvider {
+class DisabledNavigationProvider final : public NavigationProvider {
  public:
-  BridgeStatus SubmitGoal(const BridgeGoal&) override {
+  NavigationStatus SubmitNavigationGoal(const NavigationGoal&) override {
     return Status();
   }
-  BridgeStatus CancelGoal(const std::string&) override {
+  NavigationStatus CancelNavigationGoal(const std::string&) override {
     return Status();
   }
-  BridgeStatus GetStatus() override {
+  NavigationStatus GetNavigationStatus() override {
     return Status();
   }
 
  private:
-  static BridgeStatus Status() {
-    BridgeStatus status;
-    status.state = BridgeState::kDisabled;
+  static NavigationStatus Status() {
+    NavigationStatus status;
+    status.state = NavigationState::kDisabled;
     status.updated_at_ms = time::NowMs();
     status.message = "bridge provider is disabled";
     return status;
   }
 };
 
-class FakeBridgeProvider final : public BridgeProvider {
+class FakeNavigationProvider final : public NavigationProvider {
  public:
-  explicit FakeBridgeProvider(FakeBridgeOutcome outcome) : outcome_(outcome) {
-    status_.state = BridgeState::kIdle;
+  explicit FakeNavigationProvider(FakeBridgeOutcome outcome) : outcome_(outcome) {
+    status_.state = NavigationState::kIdle;
   }
 
-  BridgeStatus SubmitGoal(const BridgeGoal& goal) override {
-    status_ = BridgeStatus{};
+  NavigationStatus SubmitNavigationGoal(const NavigationGoal& goal) override {
+    status_ = NavigationStatus{};
     status_.goal_id = goal.goal_id;
     status_.target = goal.target;
     status_.current_pose.frame_id = goal.target.frame_id;
@@ -44,55 +44,55 @@ class FakeBridgeProvider final : public BridgeProvider {
     status_.updated_at_ms = status_.accepted_at_ms;
     query_count_ = 0;
     if (outcome_ == FakeBridgeOutcome::kDisconnected) {
-      status_.state = BridgeState::kDisconnected;
+      status_.state = NavigationState::kDisconnected;
       status_.message = "fake bridge disconnected";
       status_.last_error = status_.message;
       disconnected_pending_recovery_ = true;
     } else if (outcome_ == FakeBridgeOutcome::kRejected) {
-      status_.state = BridgeState::kRejected;
+      status_.state = NavigationState::kRejected;
       status_.message = "fake bridge goal rejected";
       status_.last_error = status_.message;
     } else {
-      status_.state = BridgeState::kAccepted;
+      status_.state = NavigationState::kAccepted;
       status_.message = "fake bridge goal accepted";
     }
     return status_;
   }
 
-  BridgeStatus CancelGoal(const std::string& goal_id) override {
+  NavigationStatus CancelNavigationGoal(const std::string& goal_id) override {
     status_.updated_at_ms = time::NowMs();
-    if (!IsActiveBridgeState(status_.state) || goal_id != status_.goal_id) {
-      status_.state = BridgeState::kRejected;
+    if (!IsActiveNavigationState(status_.state) || goal_id != status_.goal_id) {
+      status_.state = NavigationState::kRejected;
       status_.message = "fake bridge cancel rejected";
       status_.last_error = status_.message;
       return status_;
     }
-    status_.state = BridgeState::kCancelled;
+    status_.state = NavigationState::kCancelled;
     status_.message = "fake bridge goal cancelled";
     status_.last_error.clear();
     return status_;
   }
 
-  BridgeStatus GetStatus() override {
+  NavigationStatus GetNavigationStatus() override {
     status_.updated_at_ms = time::NowMs();
-    if (status_.state == BridgeState::kDisconnected && disconnected_pending_recovery_) {
+    if (status_.state == NavigationState::kDisconnected && disconnected_pending_recovery_) {
       disconnected_pending_recovery_ = false;
-      status_ = BridgeStatus{};
-      status_.state = BridgeState::kIdle;
+      status_ = NavigationStatus{};
+      status_.state = NavigationState::kIdle;
       status_.updated_at_ms = time::NowMs();
       status_.message = "fake bridge recovered";
       return status_;
     }
-    if (!IsActiveBridgeState(status_.state)) {
-      if (status_.state == BridgeState::kDisabled) {
-        status_.state = BridgeState::kIdle;
+    if (!IsActiveNavigationState(status_.state)) {
+      if (status_.state == NavigationState::kDisabled) {
+        status_.state = NavigationState::kIdle;
         status_.message = "fake bridge ready";
       }
       return status_;
     }
     ++query_count_;
-    if (status_.state == BridgeState::kAccepted) {
-      status_.state = BridgeState::kExecuting;
+    if (status_.state == NavigationState::kAccepted) {
+      status_.state = NavigationState::kExecuting;
       status_.message = "fake bridge executing";
       status_.current_pose.x_m = status_.target.x_m * 0.5;
       status_.current_pose.y_m = status_.target.y_m * 0.5;
@@ -104,12 +104,12 @@ class FakeBridgeProvider final : public BridgeProvider {
       return status_;
     }
     if (outcome_ == FakeBridgeOutcome::kFailed) {
-      status_.state = BridgeState::kFailed;
+      status_.state = NavigationState::kFailed;
       status_.message = "fake bridge failed";
       status_.last_error = status_.message;
       return status_;
     }
-    status_.state = BridgeState::kSucceeded;
+    status_.state = NavigationState::kSucceeded;
     status_.message = "fake bridge succeeded";
     status_.current_pose = status_.target;
     status_.current_pose.timestamp_ms = status_.updated_at_ms;
@@ -119,7 +119,7 @@ class FakeBridgeProvider final : public BridgeProvider {
 
  private:
   const FakeBridgeOutcome outcome_;
-  BridgeStatus status_;
+  NavigationStatus status_;
   int query_count_ = 0;
   bool disconnected_pending_recovery_ = false;
 };
@@ -143,12 +143,12 @@ bool ParseFakeBridgeOutcome(const std::string& value, FakeBridgeOutcome* outcome
   return true;
 }
 
-std::unique_ptr<BridgeProvider> CreateFakeBridgeProvider(FakeBridgeOutcome outcome) {
-  return std::make_unique<FakeBridgeProvider>(outcome);
+std::unique_ptr<NavigationProvider> CreateFakeNavigationProvider(FakeBridgeOutcome outcome) {
+  return std::make_unique<FakeNavigationProvider>(outcome);
 }
 
-std::unique_ptr<BridgeProvider> CreateDisabledBridgeProvider() {
-  return std::make_unique<DisabledBridgeProvider>();
+std::unique_ptr<NavigationProvider> CreateDisabledNavigationProvider() {
+  return std::make_unique<DisabledNavigationProvider>();
 }
 
 }  // namespace cockpit::bridge

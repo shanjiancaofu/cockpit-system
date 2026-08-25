@@ -113,7 +113,7 @@ if [[ "${health_json}" != *'"healthy":true'* ]]; then
   exit 1
 fi
 bridge_status="$("${bin_dir}/bridge-ctl" --status --output json --config "${config_path}")"
-if [[ "${bridge_status}" != *'"state":"BRIDGE_STATE_IDLE"'* ]]; then
+if [[ "${bridge_status}" != *'"state":"NAVIGATION_STATE_IDLE"'* ]]; then
   echo "bridge fake provider did not become idle" >&2
   exit 1
 fi
@@ -121,8 +121,8 @@ fi
   --config "${config_path}" >/dev/null
 bridge_executing="$("${bin_dir}/bridge-ctl" --status --output json --config "${config_path}")"
 bridge_succeeded="$("${bin_dir}/bridge-ctl" --status --output json --config "${config_path}")"
-if [[ "${bridge_executing}" != *'"state":"BRIDGE_STATE_EXECUTING"'* ||
-      "${bridge_succeeded}" != *'"state":"BRIDGE_STATE_SUCCEEDED"'* ]]; then
+if [[ "${bridge_executing}" != *'"state":"NAVIGATION_STATE_EXECUTING"'* ||
+      "${bridge_succeeded}" != *'"state":"NAVIGATION_STATE_SUCCEEDED"'* ]]; then
   echo "bridge fake goal did not follow executing-to-succeeded lifecycle" >&2
   exit 1
 fi

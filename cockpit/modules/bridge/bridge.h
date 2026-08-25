@@ -5,7 +5,7 @@
 
 namespace cockpit::bridge {
 
-enum class BridgeState {
+enum class NavigationState {
   kDisabled,
   kIdle,
   kAccepted,
@@ -18,7 +18,7 @@ enum class BridgeState {
   kDisconnected,
 };
 
-struct BridgePose {
+struct NavigationPose {
   double x_m = 0.0;
   double y_m = 0.0;
   double yaw_rad = 0.0;
@@ -26,23 +26,23 @@ struct BridgePose {
   std::int64_t timestamp_ms = 0;
 };
 
-struct BridgeGoal {
+struct NavigationGoal {
   std::string goal_id;
-  BridgePose target;
+  NavigationPose target;
 };
 
-struct BridgeStatus {
-  BridgeState state = BridgeState::kDisabled;
+struct NavigationStatus {
+  NavigationState state = NavigationState::kDisabled;
   std::string goal_id;
-  BridgePose target;
-  BridgePose current_pose;
+  NavigationPose target;
+  NavigationPose current_pose;
   std::int64_t accepted_at_ms = 0;
   std::int64_t updated_at_ms = 0;
   std::string message;
   std::string last_error;
 };
 
-bool IsActiveBridgeState(BridgeState state);
-const char* BridgeStateName(BridgeState state);
+bool IsActiveNavigationState(NavigationState state);
+const char* NavigationStateName(NavigationState state);
 
 }  // namespace cockpit::bridge

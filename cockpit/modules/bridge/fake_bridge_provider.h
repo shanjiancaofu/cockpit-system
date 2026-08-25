@@ -16,7 +16,7 @@ enum class FakeBridgeOutcome {
 };
 
 bool ParseFakeBridgeOutcome(const std::string& value, FakeBridgeOutcome* outcome);
-std::unique_ptr<BridgeProvider> CreateFakeBridgeProvider(FakeBridgeOutcome outcome);
-std::unique_ptr<BridgeProvider> CreateDisabledBridgeProvider();
+std::unique_ptr<NavigationProvider> CreateFakeNavigationProvider(FakeBridgeOutcome outcome);
+std::unique_ptr<NavigationProvider> CreateDisabledNavigationProvider();
 
 }  // namespace cockpit::bridge

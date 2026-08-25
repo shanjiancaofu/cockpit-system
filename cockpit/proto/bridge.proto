@@ -4,21 +4,21 @@ package cockpit.proto.bridge;
 
 import "common.proto";
 
-enum BridgeState {
-  BRIDGE_STATE_UNSPECIFIED = 0;
-  BRIDGE_STATE_DISABLED = 1;
-  BRIDGE_STATE_IDLE = 2;
-  BRIDGE_STATE_ACCEPTED = 3;
-  BRIDGE_STATE_EXECUTING = 4;
-  BRIDGE_STATE_SUCCEEDED = 5;
-  BRIDGE_STATE_CANCELLED = 6;
-  BRIDGE_STATE_REJECTED = 7;
-  BRIDGE_STATE_FAILED = 8;
-  BRIDGE_STATE_TIMED_OUT = 9;
-  BRIDGE_STATE_DISCONNECTED = 10;
+enum NavigationState {
+  NAVIGATION_STATE_UNSPECIFIED = 0;
+  NAVIGATION_STATE_DISABLED = 1;
+  NAVIGATION_STATE_IDLE = 2;
+  NAVIGATION_STATE_ACCEPTED = 3;
+  NAVIGATION_STATE_EXECUTING = 4;
+  NAVIGATION_STATE_SUCCEEDED = 5;
+  NAVIGATION_STATE_CANCELLED = 6;
+  NAVIGATION_STATE_REJECTED = 7;
+  NAVIGATION_STATE_FAILED = 8;
+  NAVIGATION_STATE_TIMED_OUT = 9;
+  NAVIGATION_STATE_DISCONNECTED = 10;
 }
 
-message BridgePose {
+message NavigationPose {
   double x_m = 1;
   double y_m = 2;
   double yaw_rad = 3;
@@ -26,20 +26,20 @@ message BridgePose {
   int64 timestamp_ms = 5;
 }
 
-message SubmitBridgeGoalRequest {
+message SubmitNavigationGoalRequest {
   string goal_id = 1;
-  BridgePose target = 2;
+  NavigationPose target = 2;
 }
 
-message CancelBridgeGoalRequest {
+message CancelNavigationGoalRequest {
   string goal_id = 1;
 }
 
-message BridgeStatus {
-  BridgeState state = 1;
+message NavigationStatus {
+  NavigationState state = 1;
   string goal_id = 2;
-  BridgePose target = 3;
-  BridgePose current_pose = 4;
+  NavigationPose target = 3;
+  NavigationPose current_pose = 4;
   int64 accepted_at_ms = 5;
   int64 updated_at_ms = 6;
   string message = 7;
@@ -48,7 +48,7 @@ message BridgeStatus {
 }
 
 service BridgeControl {
-  rpc SubmitGoal(SubmitBridgeGoalRequest) returns (BridgeStatus);
-  rpc CancelGoal(CancelBridgeGoalRequest) returns (BridgeStatus);
-  rpc GetStatus(cockpit.proto.common.Empty) returns (BridgeStatus);
+  rpc SubmitNavigationGoal(SubmitNavigationGoalRequest) returns (NavigationStatus);
+  rpc CancelNavigationGoal(CancelNavigationGoalRequest) returns (NavigationStatus);
+  rpc GetNavigationStatus(cockpit.proto.common.Empty) returns (NavigationStatus);
 }

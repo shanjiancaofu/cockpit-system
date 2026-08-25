@@ -31,13 +31,13 @@ bool BridgeRuntime::Start(const std::string& config_path) {
                         logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
                         config.logging().dump_time_secs, config.logging().cut_off_time_mins,
                         config.logging().max_files);
-    std::unique_ptr<BridgeProvider> provider;
+    std::unique_ptr<NavigationProvider> provider;
     if (bridge_config.provider == "disabled") {
-      provider = CreateDisabledBridgeProvider();
+      provider = CreateDisabledNavigationProvider();
     } else {
       FakeBridgeOutcome outcome;
       if (!ParseFakeBridgeOutcome(bridge_config.fake_outcome, &outcome)) return false;
-      provider = CreateFakeBridgeProvider(outcome);
+      provider = CreateFakeNavigationProvider(outcome);
     }
     impl_ = std::make_unique<Impl>();
     impl_->service =

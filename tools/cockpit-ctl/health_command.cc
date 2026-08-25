@@ -159,10 +159,10 @@ bool CheckBridge(const std::string& address, std::string* error) {
   auto stub = proto::bridge::BridgeControl::NewStub(
       grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
   proto::common::Empty request;
-  proto::bridge::BridgeStatus response;
+  proto::bridge::NavigationStatus response;
   grpc::ClientContext context;
   SetContext(&context);
-  const grpc::Status status = stub->GetStatus(&context, request, &response);
+  const grpc::Status status = stub->GetNavigationStatus(&context, request, &response);
   if (!status.ok()) {
     *error = RpcError(status);
     return false;

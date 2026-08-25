@@ -33,8 +33,8 @@ void Deadline(grpc::ClientContext* context) {
   context->set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(1));
 }
 
-void PrintText(const cockpit::proto::bridge::BridgeStatus& status) {
-  std::cout << "state: " << cockpit::proto::bridge::BridgeState_Name(status.state()) << '\n'
+void PrintText(const cockpit::proto::bridge::NavigationStatus& status) {
+  std::cout << "state: " << cockpit::proto::bridge::NavigationState_Name(status.state()) << '\n'
             << "goal id: " << status.goal_id() << '\n'
             << "target: " << status.target().x_m() << ',' << status.target().y_m() << ','
             << status.target().yaw_rad() << " frame=" << status.target().frame_id() << '\n'
@@ -66,21 +66,21 @@ int main(int argc, char** argv) {
       runtime.args().GetString("address", runtime.config().services().bridge.grpc.listen_address);
   auto stub = cockpit::proto::bridge::BridgeControl::NewStub(
       grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
-  cockpit::proto::bridge::BridgeStatus response;
+  cockpit::proto::bridge::NavigationStatus response;
   grpc::Status rpc_status;
   grpc::ClientContext context;
   Deadline(&context);
   if (status_command) {
     cockpit::proto::common::Empty request;
-    rpc_status = stub->GetStatus(&context, request, &response);
+    rpc_status = stub->GetNavigationStatus(&context, request, &response);
   } else if (cancel_command) {
-    cockpit::proto::bridge::CancelBridgeGoalRequest request;
+    cockpit::proto::bridge::CancelNavigationGoalRequest request;
     request.set_goal_id(runtime.args().GetString("goal-id", ""));
     if (request.goal_id().empty()) {
       Usage();
       return 2;
     }
-    rpc_status = stub->CancelGoal(&context, request, &response);
+    rpc_status = stub->CancelNavigationGoal(&context, request, &response);
   } else {
     double x_m = 0.0;
     double y_m = 0.0;
@@ -92,13 +92,13 @@ int main(int argc, char** argv) {
       Usage();
       return 2;
     }
-    cockpit::proto::bridge::SubmitBridgeGoalRequest request;
+    cockpit::proto::bridge::SubmitNavigationGoalRequest request;
     request.set_goal_id(goal_id);
     request.mutable_target()->set_x_m(x_m);
     request.mutable_target()->set_y_m(y_m);
     request.mutable_target()->set_yaw_rad(yaw_rad);
     request.mutable_target()->set_frame_id("map");
-    rpc_status = stub->SubmitGoal(&context, request, &response);
+    rpc_status = stub->SubmitNavigationGoal(&context, request, &response);
   }
   if (!rpc_status.ok()) {
     std::cerr << (rpc_status.error_message().empty() ? "bridge RPC failed"

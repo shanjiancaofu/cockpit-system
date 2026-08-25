@@ -6,33 +6,33 @@
 namespace cockpit::bridge {
 namespace {
 
-proto::bridge::BridgeState ToProto(BridgeState state) {
+proto::bridge::NavigationState ToProto(NavigationState state) {
   switch (state) {
-    case BridgeState::kDisabled:
-      return proto::bridge::BRIDGE_STATE_DISABLED;
-    case BridgeState::kIdle:
-      return proto::bridge::BRIDGE_STATE_IDLE;
-    case BridgeState::kAccepted:
-      return proto::bridge::BRIDGE_STATE_ACCEPTED;
-    case BridgeState::kExecuting:
-      return proto::bridge::BRIDGE_STATE_EXECUTING;
-    case BridgeState::kSucceeded:
-      return proto::bridge::BRIDGE_STATE_SUCCEEDED;
-    case BridgeState::kCancelled:
-      return proto::bridge::BRIDGE_STATE_CANCELLED;
-    case BridgeState::kRejected:
-      return proto::bridge::BRIDGE_STATE_REJECTED;
-    case BridgeState::kFailed:
-      return proto::bridge::BRIDGE_STATE_FAILED;
-    case BridgeState::kTimedOut:
-      return proto::bridge::BRIDGE_STATE_TIMED_OUT;
-    case BridgeState::kDisconnected:
-      return proto::bridge::BRIDGE_STATE_DISCONNECTED;
+    case NavigationState::kDisabled:
+      return proto::bridge::NAVIGATION_STATE_DISABLED;
+    case NavigationState::kIdle:
+      return proto::bridge::NAVIGATION_STATE_IDLE;
+    case NavigationState::kAccepted:
+      return proto::bridge::NAVIGATION_STATE_ACCEPTED;
+    case NavigationState::kExecuting:
+      return proto::bridge::NAVIGATION_STATE_EXECUTING;
+    case NavigationState::kSucceeded:
+      return proto::bridge::NAVIGATION_STATE_SUCCEEDED;
+    case NavigationState::kCancelled:
+      return proto::bridge::NAVIGATION_STATE_CANCELLED;
+    case NavigationState::kRejected:
+      return proto::bridge::NAVIGATION_STATE_REJECTED;
+    case NavigationState::kFailed:
+      return proto::bridge::NAVIGATION_STATE_FAILED;
+    case NavigationState::kTimedOut:
+      return proto::bridge::NAVIGATION_STATE_TIMED_OUT;
+    case NavigationState::kDisconnected:
+      return proto::bridge::NAVIGATION_STATE_DISCONNECTED;
   }
-  return proto::bridge::BRIDGE_STATE_UNSPECIFIED;
+  return proto::bridge::NAVIGATION_STATE_UNSPECIFIED;
 }
 
-void FillPose(const BridgePose& pose, proto::bridge::BridgePose* response) {
+void FillPose(const NavigationPose& pose, proto::bridge::NavigationPose* response) {
   response->set_x_m(pose.x_m);
   response->set_y_m(pose.y_m);
   response->set_yaw_rad(pose.yaw_rad);
@@ -68,19 +68,19 @@ void BridgeGrpcService::Shutdown() {
   }
 }
 
-grpc::Status BridgeGrpcService::SubmitGoal(grpc::ServerContext*,
-                                           const proto::bridge::SubmitBridgeGoalRequest* request,
-                                           proto::bridge::BridgeStatus* response) {
-  BridgeGoal goal;
+grpc::Status BridgeGrpcService::SubmitNavigationGoal(
+    grpc::ServerContext*, const proto::bridge::SubmitNavigationGoalRequest* request,
+    proto::bridge::NavigationStatus* response) {
+  NavigationGoal goal;
   goal.goal_id = request->goal_id();
   goal.target.x_m = request->target().x_m();
   goal.target.y_m = request->target().y_m();
   goal.target.yaw_rad = request->target().yaw_rad();
   goal.target.frame_id = request->target().frame_id();
   goal.target.timestamp_ms = request->target().timestamp_ms();
-  BridgeStatus status;
+  NavigationStatus status;
   std::string error;
-  if (!service_.SubmitGoal(goal, &status, &error)) {
+  if (!service_.SubmitNavigationGoal(goal, &status, &error)) {
     FillStatus(status, response);
     return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error);
   }
@@ -88,12 +88,12 @@ grpc::Status BridgeGrpcService::SubmitGoal(grpc::ServerContext*,
   return grpc::Status::OK;
 }
 
-grpc::Status BridgeGrpcService::CancelGoal(grpc::ServerContext*,
-                                           const proto::bridge::CancelBridgeGoalRequest* request,
-                                           proto::bridge::BridgeStatus* response) {
-  BridgeStatus status;
+grpc::Status BridgeGrpcService::CancelNavigationGoal(
+    grpc::ServerContext*, const proto::bridge::CancelNavigationGoalRequest* request,
+    proto::bridge::NavigationStatus* response) {
+  NavigationStatus status;
   std::string error;
-  if (!service_.CancelGoal(request->goal_id(), &status, &error)) {
+  if (!service_.CancelNavigationGoal(request->goal_id(), &status, &error)) {
     FillStatus(status, response);
     return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error);
   }
@@ -101,14 +101,15 @@ grpc::Status BridgeGrpcService::CancelGoal(grpc::ServerContext*,
   return grpc::Status::OK;
 }
 
-grpc::Status BridgeGrpcService::GetStatus(grpc::ServerContext*, const proto::common::Empty*,
-                                          proto::bridge::BridgeStatus* response) {
-  FillStatus(service_.GetStatus(), response);
+grpc::Status BridgeGrpcService::GetNavigationStatus(grpc::ServerContext*,
+                                                    const proto::common::Empty*,
+                                                    proto::bridge::NavigationStatus* response) {
+  FillStatus(service_.GetNavigationStatus(), response);
   return grpc::Status::OK;
 }
 
-void BridgeGrpcService::FillStatus(const BridgeStatus& status,
-                                   proto::bridge::BridgeStatus* response) {
+void BridgeGrpcService::FillStatus(const NavigationStatus& status,
+                                   proto::bridge::NavigationStatus* response) {
   response->set_state(ToProto(status.state));
   response->set_goal_id(status.goal_id);
   FillPose(status.target, response->mutable_target());
@@ -121,16 +122,17 @@ void BridgeGrpcService::FillStatus(const BridgeStatus& status,
   health->set_service_name("bridge-service");
   health->set_checked_at_ms(time::NowMs());
   health->set_last_error(status.last_error);
-  if (status.state == BridgeState::kDisabled) {
+  if (status.state == NavigationState::kDisabled) {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_DISABLED);
-  } else if (status.state == BridgeState::kDisconnected) {
+  } else if (status.state == NavigationState::kDisconnected) {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);
-  } else if (status.state == BridgeState::kFailed || status.state == BridgeState::kTimedOut) {
+  } else if (status.state == NavigationState::kFailed ||
+             status.state == NavigationState::kTimedOut) {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
   } else {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_OK);
   }
-  health->set_message(status.message.empty() ? BridgeStateName(status.state) : status.message);
+  health->set_message(status.message.empty() ? NavigationStateName(status.state) : status.message);
 }
 
 }  // namespace cockpit::bridge

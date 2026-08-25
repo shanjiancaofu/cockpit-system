@@ -4,12 +4,12 @@
 
 namespace cockpit::bridge {
 
-class BridgeProvider {
+class NavigationProvider {
  public:
-  virtual ~BridgeProvider() = default;
-  virtual BridgeStatus SubmitGoal(const BridgeGoal& goal) = 0;
-  virtual BridgeStatus CancelGoal(const std::string& goal_id) = 0;
-  virtual BridgeStatus GetStatus() = 0;
+  virtual ~NavigationProvider() = default;
+  virtual NavigationStatus SubmitNavigationGoal(const NavigationGoal& goal) = 0;
+  virtual NavigationStatus CancelNavigationGoal(const std::string& goal_id) = 0;
+  virtual NavigationStatus GetNavigationStatus() = 0;
 };
 
 }  // namespace cockpit::bridge

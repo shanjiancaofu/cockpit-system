@@ -17,7 +17,7 @@ int main() {
   std::error_code filesystem_error;
   std::filesystem::remove(socket, filesystem_error);
   cockpit::bridge::BridgeService service(
-      cockpit::bridge::CreateFakeBridgeProvider(cockpit::bridge::FakeBridgeOutcome::kSucceeded),
+      cockpit::bridge::CreateFakeNavigationProvider(cockpit::bridge::FakeBridgeOutcome::kSucceeded),
       1000);
   cockpit::bridge::BridgeGrpcService grpc_service(service);
   const std::string address = "unix:" + socket.string();
@@ -25,30 +25,30 @@ int main() {
   auto stub = cockpit::proto::bridge::BridgeControl::NewStub(
       grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
 
-  cockpit::proto::bridge::SubmitBridgeGoalRequest request;
+  cockpit::proto::bridge::SubmitNavigationGoalRequest request;
   request.set_goal_id("grpc-goal");
   request.mutable_target()->set_x_m(3.0);
   request.mutable_target()->set_y_m(4.0);
   request.mutable_target()->set_yaw_rad(0.25);
   request.mutable_target()->set_frame_id("map");
-  cockpit::proto::bridge::BridgeStatus response;
+  cockpit::proto::bridge::NavigationStatus response;
   grpc::ClientContext submit_context;
-  if (!stub->SubmitGoal(&submit_context, request, &response).ok() ||
-      response.state() != cockpit::proto::bridge::BRIDGE_STATE_ACCEPTED) {
+  if (!stub->SubmitNavigationGoal(&submit_context, request, &response).ok() ||
+      response.state() != cockpit::proto::bridge::NAVIGATION_STATE_ACCEPTED) {
     std::cerr << "bridge gRPC submit failed\n";
     return 1;
   }
 
   cockpit::proto::common::Empty empty;
   grpc::ClientContext executing_context;
-  if (!stub->GetStatus(&executing_context, empty, &response).ok() ||
-      response.state() != cockpit::proto::bridge::BRIDGE_STATE_EXECUTING) {
+  if (!stub->GetNavigationStatus(&executing_context, empty, &response).ok() ||
+      response.state() != cockpit::proto::bridge::NAVIGATION_STATE_EXECUTING) {
     std::cerr << "bridge gRPC executing state missing\n";
     return 1;
   }
   grpc::ClientContext succeeded_context;
-  if (!stub->GetStatus(&succeeded_context, empty, &response).ok() ||
-      response.state() != cockpit::proto::bridge::BRIDGE_STATE_SUCCEEDED ||
+  if (!stub->GetNavigationStatus(&succeeded_context, empty, &response).ok() ||
+      response.state() != cockpit::proto::bridge::NAVIGATION_STATE_SUCCEEDED ||
       response.current_pose().x_m() != 3.0 ||
       response.health().state() != cockpit::proto::common::SERVICE_HEALTH_STATE_OK) {
     std::cerr << "bridge gRPC terminal status is invalid\n";
