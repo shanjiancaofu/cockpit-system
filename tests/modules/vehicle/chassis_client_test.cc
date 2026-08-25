@@ -1,8 +1,8 @@
+#include "cockpit/modules/vehicle/chassis_client.h"
+
 #include <array>
 #include <cstdint>
 #include <iostream>
-
-#include "cockpit/modules/vehicle/chassis_client.h"
 
 namespace {
 
@@ -13,8 +13,7 @@ CanFrame Frame(std::uint32_t id, const std::array<std::uint8_t, 64>& data, std::
   return CanFrame(id, data, length, false, false, true, true);
 }
 
-std::uint16_t Crc(std::uint32_t id, const std::array<std::uint8_t, 64>& data,
-                  std::uint8_t length) {
+std::uint16_t Crc(std::uint32_t id, const std::array<std::uint8_t, 64>& data, std::uint8_t length) {
   return ChassisCanCodec::Crc16(static_cast<std::uint16_t>(id), data.data(), length);
 }
 
@@ -43,8 +42,8 @@ int main() {
   CanFrame heartbeat;
   const std::int64_t started_ms = client.GetState(0).timestamp_ms;
   if (!client.HeartbeatDue(started_ms) || !client.BuildHeartbeat(started_ms, &heartbeat) ||
-      heartbeat.id() != ChassisCanCodec::kHeartbeatId ||
-      client.HeartbeatDue(started_ms + 50) || !client.HeartbeatDue(started_ms + 100)) {
+      heartbeat.id() != ChassisCanCodec::kHeartbeatId || client.HeartbeatDue(started_ms + 50) ||
+      !client.HeartbeatDue(started_ms + 100)) {
     std::cerr << "Jetson heartbeat scheduling failed\n";
     return 1;
   }
@@ -128,8 +127,8 @@ int main() {
   PutU16(&data, 14, Crc(0x240U, data, 14U));
   if (client.ProcessFrame(Frame(0x240U, data, 16U), 2330, &state) !=
           ChassisClientDecodeStatus::kUpdated ||
-      state.active_faults != 0x20U || state.latched_faults != 0x30U ||
-      state.fault_sequence != 5U || state.ToJson().find("heartbeat_status") == std::string::npos) {
+      state.active_faults != 0x20U || state.latched_faults != 0x30U || state.fault_sequence != 5U ||
+      state.ToJson().find("heartbeat_status") == std::string::npos) {
     std::cerr << "fault state aggregation failed\n";
     return 1;
   }

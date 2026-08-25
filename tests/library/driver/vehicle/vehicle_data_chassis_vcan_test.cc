@@ -117,7 +117,9 @@ int main(int argc, char** argv) {
   std::vector<cockpit::vehicle::ChassisState> states;
   cockpit::can::CanLinkStatus final_link;
 
-  std::thread fake([&] { fake_result.store(FakeStm32(interface_name)); });
+  std::thread fake([&] {
+    fake_result.store(FakeStm32(interface_name));
+  });
   cockpit::vehicle::VehicleDataOptions options;
   options.source = "socketcan";
   options.can.interface = interface_name;
@@ -126,14 +128,20 @@ int main(int argc, char** argv) {
   options.samples = 4;
   options.forever = false;
   cockpit::vehicle::VehicleDataService service(
-      options, nullptr, [&] { return running.load(); },
-      [&](const cockpit::can::CanLinkStatus& status) { final_link = status; },
-      [&](const cockpit::vehicle::ChassisState& state) { states.push_back(state); });
+      options, nullptr,
+      [&] {
+        return running.load();
+      },
+      [&](const cockpit::can::CanLinkStatus& status) {
+        final_link = status;
+      },
+      [&](const cockpit::vehicle::ChassisState& state) {
+        states.push_back(state);
+      });
   const int result = service.Run();
   running.store(false);
   fake.join();
-  if (result != 0 || !fake_result.load() || states.size() != 4 ||
-      final_link.decoded_frames != 4) {
+  if (result != 0 || !fake_result.load() || states.size() != 4 || final_link.decoded_frames != 4) {
     std::cerr << "vehicle chassis SocketCAN flow failed\n";
     return 1;
   }
@@ -141,8 +149,7 @@ int main(int argc, char** argv) {
   if (!state.motion_valid || !state.odometry_valid || !state.running || state.x_mm != 1000 ||
       state.y_mm != -500 ||
       state.heartbeat_status != cockpit::vehicle::ChassisHeartbeatStatus::kAlive ||
-      state.active_faults != 0x20U || state.latched_faults != 0x30U ||
-      state.fault_sequence != 5U) {
+      state.active_faults != 0x20U || state.latched_faults != 0x30U || state.fault_sequence != 5U) {
     std::cerr << "aggregated chassis product state is invalid\n";
     return 1;
   }

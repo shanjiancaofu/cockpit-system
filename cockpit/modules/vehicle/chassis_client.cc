@@ -42,8 +42,9 @@ ChassisClientDecodeStatus ChassisClient::ProcessFrame(const can::CanFrame& frame
   } else if (frame.id() == ChassisCanCodec::kHeartbeatId) {
     if (!heartbeat_monitor_.Process(frame, now_ms)) {
       ChassisHeartbeat decoded;
-      return ChassisCanCodec::DecodeHeartbeat(frame, &decoded) ? ChassisClientDecodeStatus::kIgnored
-                                                               : ChassisClientDecodeStatus::kInvalid;
+      return ChassisCanCodec::DecodeHeartbeat(frame, &decoded)
+                 ? ChassisClientDecodeStatus::kIgnored
+                 : ChassisClientDecodeStatus::kInvalid;
     }
     RefreshHeartbeat(now_ms);
     reported_heartbeat_status_ = state_.heartbeat_status;
