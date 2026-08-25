@@ -30,3 +30,21 @@ CAN_INTERFACE=can0 CAN_SKIP_INTERFACE_SETUP=true bash scripts/tests/vcan-smoke.s
 ```
 
 该帧格式仅用于联调，不代表正式车辆协议。
+
+## Chassis Controller 协议
+
+`chassis` 模式复用现有 SocketCAN 后端，周期发送双向 `0x200` heartbeat 和正式 `0x101`
+物理速度命令，并解析 STM32 的 Motion、Odometry、Heartbeat 和 Fault CAN FD 帧：
+
+```bash
+_output/build/x86_64-debug/bin/can-simulator \
+  --backend socketcan --interface vcan0 --protocol chassis \
+  --linear-mm-s 500 --angular-mrad-s 0 --interval-ms 20 --samples 100 \
+  --config configs/development.yaml
+```
+
+结束前工具会用下一 sequence 发送 ENABLE=0、目标为零的停止帧。`stdout` 模式输出 heartbeat、
+控制帧以及可选开发握手，可用于检查编码；状态接收必须使用 SocketCAN。开发联调时可显式增加
+`--development-handshake` 执行 `0x720/0x721` 三步握手，但正式 `0x101` 不依赖该握手。
+协议字段以
+`chassis-controller/protocol/chassis_canfd.yaml` 为准。

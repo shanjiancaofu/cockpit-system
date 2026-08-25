@@ -1,4 +1,5 @@
 add_library(vehicle STATIC
+    chassis_can_codec.cc
     vehicle_state.cc
     vehicle_can_codec.cc
 )
