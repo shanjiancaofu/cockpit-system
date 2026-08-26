@@ -5,6 +5,8 @@
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 
+#include "cockpit_nav2_test_support/cmd_vel_safety.h"
+
 namespace {
 
 using namespace std::chrono_literals;
@@ -29,12 +31,9 @@ class FakeCmdVelSafetyAdapter final : public rclcpp::Node {
  private:
   void Publish() {
     geometry_msgs::msg::Twist safe_command;
-    const bool fresh = (now() - last_command_).seconds() <= 0.25;
+    const bool fresh = cockpit::nav2_test_support::IsCommandFresh(now(), last_command_);
     if (fresh) {
-      safe_command.linear.x = std::clamp(command_.linear.x, -0.4, 0.4);
-      safe_command.linear.y = 0.0;
-      safe_command.linear.z = 0.0;
-      safe_command.angular.z = std::clamp(command_.angular.z, -1.2, 1.2);
+      safe_command = cockpit::nav2_test_support::BoundCommand(command_);
     }
     publisher_->publish(safe_command);
     limit_publisher_->publish(safe_command);

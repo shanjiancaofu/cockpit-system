@@ -67,6 +67,9 @@ source _output/ros2/install/setup.bash
 安装脚本只使用 sudo 写入 apt key、ROS deb 和首次 `rosdep init` 的系统目录；源码、构建和运行过程不以
 root 执行。
 
+`cockpit_nav2_test_support` 的 `cmd_vel_safety_test` 直接验证线速度/角速度限幅、侧向速度归零和
+250 ms watchdog freshness；它与 full-process smoke 分开，避免只通过导航结果间接证明安全边界。
+
 ## 运行和验证
 
 只启动 Nav2 minimal baseline：

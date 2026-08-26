@@ -34,7 +34,18 @@ add_executable(fake_cmd_vel_sink src/fake_cmd_vel_sink.cc)
 ament_target_dependencies(fake_cmd_vel_sink geometry_msgs rclcpp std_msgs)
 
 add_executable(fake_cmd_vel_safety_adapter src/fake_cmd_vel_safety_adapter.cc)
+target_include_directories(fake_cmd_vel_safety_adapter PRIVATE include)
+target_link_libraries(fake_cmd_vel_safety_adapter cmd_vel_safety)
 ament_target_dependencies(fake_cmd_vel_safety_adapter geometry_msgs rclcpp)
+
+add_library(cmd_vel_safety STATIC src/cmd_vel_safety.cc)
+target_include_directories(cmd_vel_safety PUBLIC include)
+ament_target_dependencies(cmd_vel_safety geometry_msgs rclcpp)
+if(BUILD_TESTING)
+  add_executable(cmd_vel_safety_test test/cmd_vel_safety_test.cc)
+  target_link_libraries(cmd_vel_safety_test cmd_vel_safety)
+  ament_target_dependencies(cmd_vel_safety_test geometry_msgs rclcpp)
+endif()
 
 add_executable(nav2_readiness_probe src/nav2_readiness_probe.cc)
 ament_target_dependencies(nav2_readiness_probe lifecycle_msgs nav2_msgs rclcpp rclcpp_action)
@@ -50,5 +61,11 @@ install(
   TARGETS fake_odometry_node fake_tf_node fake_scan_node fake_cmd_vel_sink fake_cmd_vel_safety_adapter nav2_readiness_probe nav2_fault_control
   DESTINATION lib/${PROJECT_NAME}
 )
+
+install(TARGETS cmd_vel_safety ARCHIVE DESTINATION lib)
+install(DIRECTORY include/ DESTINATION include)
+if(BUILD_TESTING)
+  add_test(NAME cmd_vel_safety_test COMMAND cmd_vel_safety_test)
+endif()
 
 ament_package()
