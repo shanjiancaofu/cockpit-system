@@ -15,6 +15,7 @@ bridge-ctl
   → Nav2 NavigateToPose
   → planner/controller/BT Navigator
   → /cmd_vel
+  → bounded safety adapter (`/cmd_vel_safe`)
   → test-only sink + planar odometry simulation
 ```
 
@@ -23,6 +24,10 @@ pose/timestamp、最终取消和非零 `cmd_vel` 计数已经由全进程 smoke 
 越界不可达目标、odometry/TF stale、有界失败、恢复、BT Navigator 进程退出、Bridge 断线与整栈重启；
 每个 success/cancel/failure/timeout 终态都确认最新 `/cmd_vel` 为零。该结果不连接 CAN、电机或真实
 机器人，不能替代 Jetson、定位、雷达、底盘和现场安全验收。
+
+Goal acknowledgement timeout 进入内部 uncertain/pending 保护：迟到的 Nav2 ACK 由 action callback
+自动取消，不依赖外部 `GetStatus()` 轮询；若自动取消被拒绝，保护保持到旧 goal 自身报告 terminal，
+期间禁止新 goal。
 
 ## 目录和构建边界
 
@@ -89,10 +94,12 @@ BUILD_DIR=_output/build/ros2 bash scripts/tests/ros2-nav2-bridge-smoke.sh
 
 ## 测试支持节点
 
-- `fake_odometry_node`：订阅 `/cmd_vel`，只在内存中积分二维位置并发布 `/odom`、`odom→base_link`。
+- `fake_odometry_node`：订阅 `/cmd_vel_safe`，只在内存中积分二维位置并发布 `/odom`、`odom→base_link`。
 - `fake_tf_node`：发布测试用 `map→odom` 和 `base_link→base_scan` 静态 TF。
 - `fake_scan_node`：发布无障碍物的 bounded LaserScan。
-- `fake_cmd_vel_sink`：只统计 `/cmd_vel`，明确不存在硬件/CAN 输出。
+- `fake_cmd_vel_safety_adapter`：将 Nav2 `/cmd_vel` 限幅到线速度 ±0.4 m/s、角速度 ±1.2 rad/s；命令
+  超过 250 ms 未刷新时输出零，并且只发布到测试用 `/cmd_vel_safe`。
+- `fake_cmd_vel_sink`：只统计 `/cmd_vel_safe`，明确不存在硬件/CAN 输出。
 - `nav2_readiness_probe`：有界确认关键 lifecycle node 为 ACTIVE 且 NavigateToPose action ready。
 - `nav2_fault_control`：只在测试域开关 fake odometry，并确认最新 cmd_vel 已归零。
 
@@ -109,5 +116,6 @@ ament package 和外置参数组织；没有复制其中 ROS1 `move_base`、节�
 1. 用真实机器人尺寸、footprint、速度/加速度和传感器量程替换 upstream 测试参数。
 2. 用真实 localization/SLAM 提供 `map→odom`，用底盘里程计提供 `odom→base_link` 和 `/odom`。
 3. 接入真实 LaserScan/PointCloud 前固定 QoS、frame、时间同步和故障语义。
-4. `/cmd_vel` 必须先经过独立安全适配、限幅、心跳和急停合同，再转换为待确认的 STM32 协议。
+4. `/cmd_vel` 必须先经过独立安全适配、限幅、心跳和急停合同，再转换为待确认的 STM32 协议；当前
+   fake adapter 仅用于验证限幅/watchdog，不代表生产底盘安全实现。
 5. 在上述合同和硬件验证完成前，禁止 `/cmd_vel → CAN 0x101` 直连。

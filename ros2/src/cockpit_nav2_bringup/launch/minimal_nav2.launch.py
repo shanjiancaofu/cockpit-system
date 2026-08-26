@@ -45,6 +45,12 @@ def generate_launch_description():
             ),
             Node(
                 package="cockpit_nav2_test_support",
+                executable="fake_cmd_vel_safety_adapter",
+                name="cockpit_fake_cmd_vel_safety_adapter",
+                output="screen",
+            ),
+            Node(
+                package="cockpit_nav2_test_support",
                 executable="fake_cmd_vel_sink",
                 name="cockpit_fake_cmd_vel_sink",
                 output="screen",

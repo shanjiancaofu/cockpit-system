@@ -33,18 +33,21 @@ ament_target_dependencies(fake_scan_node rclcpp sensor_msgs)
 add_executable(fake_cmd_vel_sink src/fake_cmd_vel_sink.cc)
 ament_target_dependencies(fake_cmd_vel_sink geometry_msgs rclcpp std_msgs)
 
+add_executable(fake_cmd_vel_safety_adapter src/fake_cmd_vel_safety_adapter.cc)
+ament_target_dependencies(fake_cmd_vel_safety_adapter geometry_msgs rclcpp)
+
 add_executable(nav2_readiness_probe src/nav2_readiness_probe.cc)
 ament_target_dependencies(nav2_readiness_probe lifecycle_msgs nav2_msgs rclcpp rclcpp_action)
 
 add_executable(nav2_fault_control src/nav2_fault_control.cc)
 ament_target_dependencies(nav2_fault_control rclcpp std_msgs std_srvs)
 
-foreach(target fake_odometry_node fake_tf_node fake_scan_node fake_cmd_vel_sink nav2_readiness_probe nav2_fault_control)
+foreach(target fake_odometry_node fake_tf_node fake_scan_node fake_cmd_vel_sink fake_cmd_vel_safety_adapter nav2_readiness_probe nav2_fault_control)
   target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
 endforeach()
 
 install(
-  TARGETS fake_odometry_node fake_tf_node fake_scan_node fake_cmd_vel_sink nav2_readiness_probe nav2_fault_control
+  TARGETS fake_odometry_node fake_tf_node fake_scan_node fake_cmd_vel_sink fake_cmd_vel_safety_adapter nav2_readiness_probe nav2_fault_control
   DESTINATION lib/${PROJECT_NAME}
 )
 

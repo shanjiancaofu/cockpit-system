@@ -16,7 +16,7 @@ class FakeCmdVelSink final : public rclcpp::Node {
     nonzero_publisher_ = create_publisher<std_msgs::msg::Bool>(
         "cockpit_nav2_test_support/cmd_vel_nonzero", rclcpp::QoS(1).reliable().transient_local());
     subscription_ = create_subscription<geometry_msgs::msg::Twist>(
-        "cmd_vel", 10, [this](const geometry_msgs::msg::Twist::ConstSharedPtr& message) {
+        "cmd_vel_safe", 10, [this](const geometry_msgs::msg::Twist::ConstSharedPtr& message) {
           std_msgs::msg::UInt64 count;
           count.data = ++command_count_;
           count_publisher_->publish(count);

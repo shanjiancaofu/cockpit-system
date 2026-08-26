@@ -25,7 +25,7 @@ class FakeOdometryNode final : public rclcpp::Node {
         last_command_(now()) {
     odometry_publisher_ = create_publisher<nav_msgs::msg::Odometry>("odom", 10);
     velocity_subscription_ = create_subscription<geometry_msgs::msg::Twist>(
-        "cmd_vel", 10, [this](const geometry_msgs::msg::Twist::ConstSharedPtr& message) {
+        "cmd_vel_safe", 10, [this](const geometry_msgs::msg::Twist::ConstSharedPtr& message) {
           linear_velocity_mps_ = std::clamp(message->linear.x, -0.4, 0.4);
           angular_velocity_radps_ = std::clamp(message->angular.z, -1.2, 1.2);
           last_command_ = now();

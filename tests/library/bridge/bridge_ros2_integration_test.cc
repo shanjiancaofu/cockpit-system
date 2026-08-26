@@ -1,3 +1,4 @@
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -32,10 +33,12 @@ class FakeNav2Server {
  public:
   explicit FakeNav2Server(rclcpp::Context::SharedPtr context,
                           std::chrono::milliseconds acknowledgement_delay = 0ms,
-                          std::string action_name = "/cockpit_test_navigate_to_pose")
+                          std::string action_name = "/cockpit_test_navigate_to_pose",
+                          bool reject_cancellation = false)
       : context_(std::move(context)),
         acknowledgement_delay_(acknowledgement_delay),
-        action_name_(std::move(action_name)) {
+        action_name_(std::move(action_name)),
+        reject_cancellation_(reject_cancellation) {
     rclcpp::NodeOptions options;
     options.context(context_);
     node_ = std::make_shared<rclcpp::Node>("cockpit_fake_nav2_server", options);
@@ -50,8 +53,10 @@ class FakeNav2Server {
           last_x_ = goal->pose.pose.position.x;
           return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
         },
-        [](const std::shared_ptr<ServerGoalHandle>) {
-          return rclcpp_action::CancelResponse::ACCEPT;
+        [this](const std::shared_ptr<ServerGoalHandle>) {
+          ++cancel_count_;
+          return reject_cancellation_ ? rclcpp_action::CancelResponse::REJECT
+                                      : rclcpp_action::CancelResponse::ACCEPT;
         },
         [this](const std::shared_ptr<ServerGoalHandle> handle) {
           std::lock_guard lock(worker_mutex_);
@@ -111,6 +116,10 @@ class FakeNav2Server {
     node_.reset();
   }
 
+  std::uint32_t cancel_count() const {
+    return cancel_count_.load();
+  }
+
  private:
   rclcpp::Context::SharedPtr context_;
   rclcpp::Node::SharedPtr node_;
@@ -122,6 +131,8 @@ class FakeNav2Server {
   double last_x_ = 0.0;
   std::chrono::milliseconds acknowledgement_delay_;
   std::string action_name_;
+  bool reject_cancellation_ = false;
+  std::atomic<std::uint32_t> cancel_count_{0};
   std::mutex worker_mutex_;
   std::vector<std::thread> workers_;
 };
@@ -200,8 +211,33 @@ int main() {
   Require(delayed_provider->GetNavigationStatus().state ==
               cockpit::bridge::NavigationState::kDisconnected,
           "pending acknowledgement was incorrectly reset to idle");
+  std::this_thread::sleep_for(300ms);
+  Require(delayed_server.cancel_count() == 1,
+          "late goal acknowledgement did not trigger internal cancellation without polling");
   Require(WaitForState(delayed_provider.get(), cockpit::bridge::NavigationState::kCancelled, 3s),
           "late accepted goal was not cancelled");
+
+  auto rejected_cancel_context = std::make_shared<rclcpp::Context>();
+  rejected_cancel_context->init(0, nullptr);
+  FakeNav2Server rejected_cancel_server(rejected_cancel_context, 100ms,
+                                        "/cockpit_test_rejected_cancel_navigate_to_pose", true);
+  cockpit::bridge::Ros2Nav2ProviderOptions rejected_cancel_options;
+  rejected_cancel_options.action_name = "/cockpit_test_rejected_cancel_navigate_to_pose";
+  rejected_cancel_options.server_timeout = 20ms;
+  rejected_cancel_options.context = rejected_cancel_context;
+  auto rejected_cancel_provider =
+      cockpit::bridge::CreateRos2Nav2Provider(rejected_cancel_options, &error);
+  Require(rejected_cancel_provider != nullptr, error);
+  Require(WaitForState(rejected_cancel_provider.get(), cockpit::bridge::NavigationState::kIdle, 3s),
+          "rejected-cancel provider did not become idle");
+  delayed_goal.goal_id = "ros2-rejected-cancel";
+  const auto rejected_pending = rejected_cancel_provider->SubmitNavigationGoal(delayed_goal);
+  Require(rejected_pending.state == cockpit::bridge::NavigationState::kDisconnected,
+          "rejected-cancel fixture did not enter uncertain state");
+  std::this_thread::sleep_for(150ms);
+  const auto guarded = rejected_cancel_provider->SubmitNavigationGoal(delayed_goal);
+  Require(guarded.state == cockpit::bridge::NavigationState::kDisconnected,
+          "cancel rejection released uncertain-goal guard too early");
 
   auto idle_context = std::make_shared<rclcpp::Context>();
   idle_context->init(0, nullptr);
