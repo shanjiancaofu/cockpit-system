@@ -15,6 +15,7 @@ project(cockpit-system
 
 include(cmake/project_options.cmake)
 include(cmake/dependencies.cmake)
+include(cmake/ros2.cmake)
 
 link_libraries(cockpit_project_options)
 

@@ -8,6 +8,8 @@
 #include <iostream>
 #include <string>
 
+#include "cockpit/modules/hawkeye/camera_info.h"
+
 namespace {
 
 constexpr char kValidCalibration[] = R"yaml(image_width: 1280
@@ -92,6 +94,15 @@ int main() {
               std::string(cockpit::hawkeye::CameraDistortionModelName(
                   calibration.distortion_model)) == "plumb_bob",
           "valid camera calibration values were not preserved");
+  cockpit::hawkeye::CameraInfo camera_info;
+  Require(cockpit::hawkeye::ToCameraInfo(calibration, &camera_info, &error),
+          "CameraInfo conversion failed: " + error);
+  Require(camera_info.width == 1280 && camera_info.height == 720 &&
+              camera_info.distortion_model == "plumb_bob" && camera_info.d.size() == 5 &&
+              camera_info.k.size() == 9 && camera_info.r.size() == 9 &&
+              camera_info.p.size() == 12 && camera_info.k[0] == 800.5 &&
+              camera_info.k[2] == 640.0 && camera_info.p[6] == 360.0,
+          "CameraInfo conversion values are invalid");
 
   ExpectRejected(ReplaceOnce(kValidCalibration, "fx: 800.5\n", ""),
                  "camera_calibration.fx is required");

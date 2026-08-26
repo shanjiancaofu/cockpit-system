@@ -1,0 +1,12 @@
+include_guard(GLOBAL)
+
+option(COCKPIT_ENABLE_ROS2 "Enable optional ROS 2/Nav2 provider build" OFF)
+if(COCKPIT_ENABLE_ROS2)
+    find_package(ament_cmake REQUIRED)
+    find_package(rclcpp REQUIRED)
+    find_package(nav2_msgs REQUIRED)
+    find_package(sensor_msgs REQUIRED)
+    message(STATUS "ROS 2/Nav2 provider support enabled")
+else()
+    message(STATUS "ROS 2/Nav2 provider support disabled (default)")
+endif()

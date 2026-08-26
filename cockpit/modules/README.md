@@ -16,3 +16,7 @@
 Sentinel 不解析原始 CAN，也不持有 Camera/Recording 实现；SR501 电平采集和去抖属于 STM32。
 Hawkeye 不访问 V4L2、Argus 或 Camera Driver，也不引入 OpenCV/ROS2；图像采集仍由 Camera Driver
 独占。
+`CameraCalibration` 可转换为平台无关 `CameraInfo`；只有可选 ROS2 adapter 才允许将其转换为
+`sensor_msgs/CameraInfo`。默认构建不查找或链接 ROS2。
+`CameraCalibration` 可转换为平台无关 `CameraInfo`；只有可选 ROS2 构建才允许将其转换为
+`sensor_msgs/CameraInfo`。默认构建不查找或链接 ROS2。
