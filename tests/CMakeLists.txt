@@ -210,6 +210,13 @@ add_test(NAME bridge_grpc_service_test COMMAND bridge_grpc_service_test)
 set_tests_properties(bridge_grpc_service_test PROPERTIES LABELS "system-grpc")
 
 if(COCKPIT_ENABLE_ROS2)
+    add_executable(fake_nav2_action_server
+        fixtures/fake_nav2_action_server.cc
+    )
+    ament_target_dependencies(fake_nav2_action_server
+        geometry_msgs nav2_msgs rclcpp rclcpp_action
+    )
+
     add_executable(bridge_ros2_integration_test
         library/bridge/bridge_ros2_integration_test.cc
     )
@@ -221,6 +228,16 @@ if(COCKPIT_ENABLE_ROS2)
     set_tests_properties(bridge_ros2_integration_test PROPERTIES
         LABELS "system-ros2"
         TIMEOUT 20
+    )
+    add_test(
+        NAME bridge_ros2_full_process_smoke
+        COMMAND ${CMAKE_COMMAND} -E env BUILD_DIR=${CMAKE_BINARY_DIR}
+                bash ${PROJECT_SOURCE_DIR}/scripts/tests/ros2-nav2-bridge-smoke.sh
+    )
+    set_tests_properties(bridge_ros2_full_process_smoke PROPERTIES
+        LABELS "system-ros2"
+        RUN_SERIAL TRUE
+        TIMEOUT 30
     )
 endif()
 

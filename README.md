@@ -29,8 +29,9 @@
 - Navigator 统一入口、动态业务模块、运行模式切换、有界本地 IPC 和故障重启限制。
 - STM32/SR501 哨兵 fake 基线：Vehicle Driver 发布 typed `ChassisEvent`，独立 Sentinel module 完成
   布防、重复/冷却抑制、相机抓拍、Recording 事件和 HMI 状态；真实 CAN ID/位布局待联调固定。
-- 独立 `bridge` development module 提供 typed goal/cancel/pose/status gRPC 和 deterministic fake
-  provider；当前不链接 ROS2/Nav2，生产配置明确 disabled。
+- 独立 `bridge` module 提供 typed goal/cancel/pose/status gRPC、deterministic fake provider 和可选
+  `Ros2Nav2Provider`；Ubuntu 已通过官方 Nav2 map/planner/controller/BT Navigator minimal smoke，
+  production 仍默认 disabled，测试 `/cmd_vel` 不连接硬件或 CAN。
 - Navigator 周期状态/健康采样、受控故障注入、JSON 稳定性报告和失败自动诊断快照。
 - systemd、Release 打包，以及 `safe-ota` 校验、安装、健康检查和失败回滚原型。
 - llama.cpp b10456 托管的 Qwen3.5-2B production 与 4B comparison smoke；Qwen3.5 语音请求关闭
@@ -64,6 +65,7 @@ cockpit-system/
 ├── cmake/     构建模块
 ├── deploy/    安装、回滚、systemd 和发布声明
 ├── scripts/   构建、打包、环境准备、本地运行和测试脚本
+├── ros2/      cockpit 自有 ament packages；官方 ROS2/Nav2 仍位于 /opt/ros/humble
 └── docs/      文档
 ```
 
@@ -74,6 +76,7 @@ cockpit-system/
 - [系统架构](docs/系统架构.md)
 - [项目路线图](docs/项目进度总览.md)
 - [语音 Agent 阶段任务](docs/语音Agent阶段任务.md)
+- [ROS 2 与 Nav2 使用说明](docs/ROS2与Nav2使用说明.md)
 
 ## 环境准备
 
@@ -89,6 +92,9 @@ bash scripts/install-dependencies.sh
 bash scripts/build.sh                         # GCC Debug 开发构建和 CTest
 bash scripts/build.sh --type release          # GCC Release 正式 Linux 构建
 bash scripts/tests/smoke.sh
+bash scripts/configure-ros2-dev.sh
+bash scripts/build-ros2-workspace.sh
+bash scripts/test-ros2-workspace.sh
 bash scripts/tests/sherpa-voice-smoke.sh
 bash scripts/tests/navigator-stability.sh --duration 300 --interval 5 --fault crash --fault-count 3
 bash scripts/prepare-sherpa-runtime.sh

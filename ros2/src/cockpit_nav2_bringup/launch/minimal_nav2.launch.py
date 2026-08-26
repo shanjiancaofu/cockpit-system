@@ -1,0 +1,88 @@
+"""Launch a non-actuating Nav2 functional baseline for cockpit-system."""
+
+import os
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+
+
+def generate_launch_description():
+    cockpit_share = get_package_share_directory("cockpit_nav2_bringup")
+    nav2_share = get_package_share_directory("nav2_bringup")
+    default_map = os.path.join(cockpit_share, "maps", "minimal_test_map.yaml")
+    upstream_params = os.path.join(nav2_share, "params", "nav2_params.yaml")
+
+    map_file = LaunchConfiguration("map")
+    params_file = LaunchConfiguration("params_file")
+
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument("map", default_value=default_map),
+            DeclareLaunchArgument(
+                "params_file", default_value=upstream_params
+            ),
+            Node(
+                package="cockpit_nav2_test_support",
+                executable="fake_odometry_node",
+                name="cockpit_fake_odometry",
+                output="screen",
+            ),
+            Node(
+                package="cockpit_nav2_test_support",
+                executable="fake_tf_node",
+                name="cockpit_fake_tf",
+                output="screen",
+            ),
+            Node(
+                package="cockpit_nav2_test_support",
+                executable="fake_scan_node",
+                name="cockpit_fake_scan",
+                output="screen",
+            ),
+            Node(
+                package="cockpit_nav2_test_support",
+                executable="fake_cmd_vel_sink",
+                name="cockpit_fake_cmd_vel_sink",
+                output="screen",
+            ),
+            Node(
+                package="nav2_map_server",
+                executable="map_server",
+                name="map_server",
+                output="screen",
+                parameters=[
+                    {"yaml_filename": map_file, "use_sim_time": False}
+                ],
+            ),
+            Node(
+                package="nav2_lifecycle_manager",
+                executable="lifecycle_manager",
+                name="lifecycle_manager_map",
+                output="screen",
+                parameters=[
+                    {
+                        "autostart": True,
+                        "node_names": ["map_server"],
+                        "use_sim_time": False,
+                    }
+                ],
+            ),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(nav2_share, "launch", "navigation_launch.py")
+                ),
+                launch_arguments={
+                    "use_sim_time": "false",
+                    "autostart": "true",
+                    "params_file": params_file,
+                    "use_composition": "False",
+                    "use_respawn": "False",
+                    "log_level": "info",
+                }.items(),
+            ),
+        ]
+    )

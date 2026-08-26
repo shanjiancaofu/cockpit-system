@@ -130,6 +130,8 @@ int main() {
   std::string error;
   auto provider = cockpit::bridge::CreateRos2Nav2Provider(options, &error);
   Require(provider != nullptr, error);
+  Require(WaitForState(provider.get(), cockpit::bridge::NavigationState::kIdle, 3s),
+          "provider did not recover from disconnected to idle");
 
   cockpit::bridge::NavigationGoal goal;
   goal.goal_id = "ros2-goal-1";

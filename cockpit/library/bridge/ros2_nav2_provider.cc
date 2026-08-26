@@ -18,12 +18,13 @@ using NavigateToPose = nav2_msgs::action::NavigateToPose;
 using GoalHandle = rclcpp_action::ClientGoalHandle<NavigateToPose>;
 
 std::int64_t ToMilliseconds(const builtin_interfaces::msg::Time& stamp) {
-  return static_cast<std::int64_t>(stamp.sec) * 1000 + stamp.nanosec / 1000000;
+  return (static_cast<std::int64_t>(stamp.sec) * 1000) + (stamp.nanosec / 1000000);
 }
 
 double ToYaw(const geometry_msgs::msg::Quaternion& quaternion) {
-  const double siny_cosp = 2.0 * (quaternion.w * quaternion.z + quaternion.x * quaternion.y);
-  const double cosy_cosp = 1.0 - 2.0 * (quaternion.y * quaternion.y + quaternion.z * quaternion.z);
+  const double siny_cosp = 2.0 * ((quaternion.w * quaternion.z) + (quaternion.x * quaternion.y));
+  const double cosy_cosp =
+      1.0 - (2.0 * ((quaternion.y * quaternion.y) + (quaternion.z * quaternion.z)));
   return std::atan2(siny_cosp, cosy_cosp);
 }
 
@@ -35,7 +36,9 @@ class Ros2Nav2Provider final : public NavigationProvider {
                                              : std::make_shared<rclcpp::Context>()),
         owns_context_(options_.context == nullptr) {
     try {
-      if (owns_context_) context_->init(0, nullptr);
+      if (owns_context_) {
+        context_->init(0, nullptr);
+      }
       rclcpp::NodeOptions node_options;
       node_options.context(context_);
       node_ = std::make_shared<rclcpp::Node>("cockpit_bridge_nav2_client", node_options);
@@ -84,10 +87,12 @@ class Ros2Nav2Provider final : public NavigationProvider {
 
     rclcpp_action::Client<NavigateToPose>::SendGoalOptions send_options;
     send_options.feedback_callback =
-        [this](GoalHandle::SharedPtr,
-               const std::shared_ptr<const NavigateToPose::Feedback> feedback) {
+        [this](const GoalHandle::SharedPtr&,
+               const std::shared_ptr<const NavigateToPose::Feedback>& feedback) {
           std::lock_guard lock(mutex_);
-          if (!IsActiveNavigationState(status_.state)) return;
+          if (!IsActiveNavigationState(status_.state)) {
+            return;
+          }
           const auto& pose = feedback->current_pose;
           status_.state = NavigationState::kExecuting;
           status_.current_pose.x_m = pose.pose.position.x;
@@ -99,27 +104,30 @@ class Ros2Nav2Provider final : public NavigationProvider {
           status_.message = "Nav2 navigation executing";
         };
     send_options.result_callback = [this](const GoalHandle::WrappedResult& result) {
-      std::lock_guard lock(mutex_);
-      switch (result.code) {
-        case rclcpp_action::ResultCode::SUCCEEDED:
-          status_.state = NavigationState::kSucceeded;
-          status_.message = "Nav2 navigation succeeded";
-          status_.last_error.clear();
-          break;
-        case rclcpp_action::ResultCode::CANCELED:
-          status_.state = NavigationState::kCancelled;
-          status_.message = "Nav2 navigation cancelled";
-          break;
-        case rclcpp_action::ResultCode::ABORTED:
-          status_.state = NavigationState::kFailed;
-          status_.last_error = "Nav2 navigation aborted";
-          break;
-        default:
-          status_.state = NavigationState::kFailed;
-          status_.last_error = "Nav2 returned an unknown result";
-          break;
+      {
+        std::lock_guard lock(mutex_);
+        switch (result.code) {
+          case rclcpp_action::ResultCode::SUCCEEDED:
+            status_.state = NavigationState::kSucceeded;
+            status_.message = "Nav2 navigation succeeded";
+            status_.last_error.clear();
+            break;
+          case rclcpp_action::ResultCode::CANCELED:
+            status_.state = NavigationState::kCancelled;
+            status_.message = "Nav2 navigation cancelled";
+            break;
+          case rclcpp_action::ResultCode::ABORTED:
+            status_.state = NavigationState::kFailed;
+            status_.last_error = "Nav2 navigation aborted";
+            break;
+          default:
+            status_.state = NavigationState::kFailed;
+            status_.last_error = "Nav2 returned an unknown result";
+            break;
+        }
+        goal_handle_.reset();
       }
-      goal_handle_.reset();
+      status_changed_.notify_all();
     };
 
     {
@@ -155,40 +163,57 @@ class Ros2Nav2Provider final : public NavigationProvider {
     GoalHandle::SharedPtr handle;
     {
       std::lock_guard lock(mutex_);
-      if (goal_id != status_.goal_id || !IsActiveNavigationState(status_.state)) return status_;
+      if (goal_id != status_.goal_id || !IsActiveNavigationState(status_.state)) {
+        return status_;
+      }
       handle = goal_handle_;
     }
-    if (handle == nullptr) return GetNavigationStatus();
+    if (handle == nullptr) {
+      return GetNavigationStatus();
+    }
     auto future = client_->async_cancel_goal(handle);
     if (future.wait_for(options_.server_timeout) != std::future_status::ready) {
       std::lock_guard lock(mutex_);
       status_.last_error = "Nav2 cancel acknowledgement timed out";
       return status_;
     }
-    const auto response = future.get();
-    std::lock_guard lock(mutex_);
+    const auto& response = future.get();
+    std::unique_lock lock(mutex_);
     if (response->goals_canceling.empty()) {
       status_.last_error = "Nav2 rejected navigation cancellation";
-    } else {
-      status_.state = NavigationState::kCancelled;
-      status_.message = "Nav2 navigation cancellation accepted";
-      goal_handle_.reset();
+      return status_;
+    }
+    status_.message = "waiting for Nav2 cancellation result";
+    if (!status_changed_.wait_for(lock, options_.server_timeout, [this] {
+          return !IsActiveNavigationState(status_.state);
+        })) {
+      status_.last_error = "Nav2 cancellation result timed out";
     }
     return status_;
   }
 
   NavigationStatus GetNavigationStatus() override {
+    const bool server_ready = client_->action_server_is_ready();
     std::lock_guard lock(mutex_);
+    if (status_.state == NavigationState::kDisconnected && server_ready) {
+      status_ = NavigationStatus{};
+      status_.state = NavigationState::kIdle;
+      status_.message = "Nav2 action server ready";
+    }
     return status_;
   }
 
  private:
   void Shutdown() {
-    if (executor_ != nullptr) executor_->cancel();
+    if (executor_ != nullptr) {
+      executor_->cancel();
+    }
     if (owns_context_ && context_ != nullptr && context_->is_valid()) {
       context_->shutdown("provider shutdown");
     }
-    if (spin_thread_.joinable()) spin_thread_.join();
+    if (spin_thread_.joinable()) {
+      spin_thread_.join();
+    }
     executor_.reset();
     client_.reset();
     node_.reset();
@@ -202,6 +227,7 @@ class Ros2Nav2Provider final : public NavigationProvider {
   std::unique_ptr<rclcpp::executors::SingleThreadedExecutor> executor_;
   std::thread spin_thread_;
   mutable std::mutex mutex_;
+  std::condition_variable status_changed_;
   NavigationStatus status_;
   GoalHandle::SharedPtr goal_handle_;
 };
@@ -210,14 +236,18 @@ class Ros2Nav2Provider final : public NavigationProvider {
 
 std::unique_ptr<NavigationProvider> CreateRos2Nav2Provider(const Ros2Nav2ProviderOptions& options,
                                                            std::string* error) {
-  if (error == nullptr) return nullptr;
+  if (error == nullptr) {
+    return nullptr;
+  }
   error->clear();
   if (options.action_name.empty() || options.server_timeout.count() <= 0) {
     *error = "invalid ROS2 Nav2 provider options";
     return nullptr;
   }
   auto provider = std::make_unique<Ros2Nav2Provider>(options, error);
-  if (!provider->initialized()) return nullptr;
+  if (!provider->initialized()) {
+    return nullptr;
+  }
   return provider;
 }
 

@@ -53,6 +53,23 @@ sudo apt-get install -y \
   "ros-humble-sensor-msgs=${SENSOR_MSGS_VERSION}" \
   "ros-humble-geometry-msgs=${GEOMETRY_MSGS_VERSION}" \
   "ros-humble-builtin-interfaces=${BUILTIN_INTERFACES_VERSION}" \
+  "ros-humble-lifecycle-msgs=${LIFECYCLE_MSGS_VERSION}" \
+  "ros-humble-nav-msgs=${NAV_MSGS_VERSION}" \
+  "ros-humble-std-msgs=${STD_MSGS_VERSION}" \
+  "ros-humble-tf2-ros=${TF2_ROS_VERSION}" \
+  "ros-humble-tf2-geometry-msgs=${TF2_GEOMETRY_MSGS_VERSION}" \
+  "ros-humble-nav2-map-server=${NAV2_MAP_SERVER_VERSION}" \
+  "ros-humble-nav2-lifecycle-manager=${NAV2_LIFECYCLE_MANAGER_VERSION}" \
+  "ros-humble-nav2-controller=${NAV2_CONTROLLER_VERSION}" \
+  "ros-humble-nav2-smoother=${NAV2_SMOOTHER_VERSION}" \
+  "ros-humble-nav2-planner=${NAV2_PLANNER_VERSION}" \
+  "ros-humble-nav2-behaviors=${NAV2_BEHAVIORS_VERSION}" \
+  "ros-humble-nav2-bt-navigator=${NAV2_BT_NAVIGATOR_VERSION}" \
+  "ros-humble-nav2-waypoint-follower=${NAV2_WAYPOINT_FOLLOWER_VERSION}" \
+  "ros-humble-nav2-velocity-smoother=${NAV2_VELOCITY_SMOOTHER_VERSION}" \
+  "ros-humble-nav2-dwb-controller=${NAV2_DWB_CONTROLLER_VERSION}" \
+  "ros-humble-nav2-navfn-planner=${NAV2_NAVFN_PLANNER_VERSION}" \
+  "ros-humble-nav2-costmap-2d=${NAV2_COSTMAP_2D_VERSION}" \
   python3-colcon-common-extensions \
   python3-rosdep \
   python3-vcstool
@@ -70,32 +87,16 @@ if ! grep -Fqx 'source /opt/ros/humble/setup.bash' "${HOME}/.bashrc" 2>/dev/null
 fi
 
 # shellcheck disable=SC1091
+set +u
 source /opt/ros/humble/setup.bash
+set -u
 command -v ros2 >/dev/null
 ros2 pkg prefix nav2_bringup >/dev/null
 ros2 pkg prefix nav2_msgs >/dev/null
 ros2 pkg prefix sensor_msgs >/dev/null
 ros2 pkg prefix rclcpp >/dev/null
 
-verify_package() {
-  local package="$1"
-  local expected="$2"
-  local actual
-  actual="$(dpkg-query -W -f='${Version}' "${package}")"
-  if [[ "${actual}" != "${expected}" ]]; then
-    echo "${package} version mismatch: expected ${expected}, got ${actual}" >&2
-    exit 1
-  fi
-}
-verify_package ros-humble-ros-base "${ROS_BASE_VERSION}"
-verify_package ros-humble-rclcpp "${RCLCPP_VERSION}"
-verify_package ros-humble-rclcpp-action "${RCLCPP_ACTION_VERSION}"
-verify_package ros-humble-nav2-msgs "${NAV2_MSGS_VERSION}"
-verify_package ros-humble-navigation2 "${NAVIGATION2_VERSION}"
-verify_package ros-humble-nav2-bringup "${NAV2_BRINGUP_VERSION}"
-verify_package ros-humble-sensor-msgs "${SENSOR_MSGS_VERSION}"
-verify_package ros-humble-geometry-msgs "${GEOMETRY_MSGS_VERSION}"
-verify_package ros-humble-builtin-interfaces "${BUILTIN_INTERFACES_VERSION}"
+bash "${SCRIPT_DIR}/verify-ros2-humble.sh"
 
 echo "ROS 2 Humble and Nav2 installation verified"
 ros2 --version || true
