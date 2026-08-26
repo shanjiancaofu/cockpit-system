@@ -70,6 +70,9 @@ awk -v bridge_socket="${bridge_socket}" -v vehicle_socket="${vehicle_socket}" \
   in_bridge && /^    nav2_server_timeout_ms:/ {
     sub(/nav2_server_timeout_ms:.*/, "nav2_server_timeout_ms: 1000")
   }
+  in_bridge && /^    goal_timeout_ms:/ {
+    sub(/goal_timeout_ms:.*/, "goal_timeout_ms: 8000")
+  }
   in_bridge && /^      listen_address:/ {
     sub(/listen_address:.*/, "listen_address: unix:" bridge_socket)
     in_bridge = 0
@@ -85,6 +88,10 @@ cleanup() {
       >/dev/null 2>&1 || kill "${navigator_pid}" >/dev/null 2>&1 || true
     wait "${navigator_pid}" >/dev/null 2>&1 || true
   fi
+  stop_nav2
+}
+
+stop_nav2() {
   if [[ -n "${nav2_pid}" ]] && kill -0 "${nav2_pid}" >/dev/null 2>&1; then
     kill -INT -- "-${nav2_pid}" >/dev/null 2>&1 || true
     for _ in $(seq 1 100); do
@@ -98,16 +105,21 @@ cleanup() {
     fi
     wait "${nav2_pid}" >/dev/null 2>&1 || true
   fi
+  nav2_pid=""
+}
+
+start_nav2() {
+  setsid ros2 launch cockpit_nav2_bringup minimal_nav2.launch.py >>"${nav2_log}" 2>&1 &
+  nav2_pid=$!
+  if ! timeout -k 1 30 ros2 run cockpit_nav2_test_support nav2_readiness_probe; then
+    echo "Nav2 lifecycle/action readiness failed; see ${nav2_log}" >&2
+    return 1
+  fi
 }
 trap cleanup EXIT
 
-setsid ros2 launch cockpit_nav2_bringup minimal_nav2.launch.py >"${nav2_log}" 2>&1 &
-nav2_pid=$!
-
-if ! timeout -k 1 30 ros2 run cockpit_nav2_test_support nav2_readiness_probe; then
-  echo "Nav2 lifecycle/action readiness failed; see ${nav2_log}" >&2
-  exit 1
-fi
+: >"${nav2_log}"
+start_nav2
 
 (
   cd "${run_dir}"
@@ -153,6 +165,25 @@ wait_for_bridge_state() {
   return 1
 }
 
+wait_for_bridge_failure() {
+  local status=""
+  for _ in $(seq 1 300); do
+    status="$(bridge_status_json)"
+    if [[ "${status}" == *'"state":"NAVIGATION_STATE_FAILED"'* ||
+          "${status}" == *'"state":"NAVIGATION_STATE_TIMED_OUT"'* ]]; then
+      printf '%s' "${status}"
+      return 0
+    fi
+    sleep 0.05
+  done
+  echo "Bridge did not reach FAILED/TIMED_OUT; last status: ${status:-unavailable}" >&2
+  return 1
+}
+
+assert_cmd_vel_zero() {
+  timeout -k 1 5 ros2 run cockpit_nav2_test_support nav2_fault_control assert-cmd-zero
+}
+
 wait_for_bridge_state NAVIGATION_STATE_IDLE >/dev/null
 "${bin_dir}/bridge-ctl" --submit --goal-id nav2-minimal-success --x 0.8 --y 0 --yaw 0 \
   --config "${config_path}" >/dev/null
@@ -166,6 +197,7 @@ assert status["current_pose_valid"] is True
 assert int(pose["timestamp_ms"]) > 0
 assert float(pose["x_m"]) > 0.4
 ' <<<"${succeeded}"
+assert_cmd_vel_zero
 
 command_count="$(timeout -k 1 5 ros2 topic echo --once \
   /cockpit_nav2_test_support/cmd_vel_count std_msgs/msg/UInt64 | awk '/data:/{print $2; exit}')"
@@ -180,14 +212,69 @@ wait_for_bridge_state NAVIGATION_STATE_EXECUTING true >/dev/null
 "${bin_dir}/bridge-ctl" --cancel --goal-id nav2-minimal-cancel --config "${config_path}" \
   >/dev/null
 wait_for_bridge_state NAVIGATION_STATE_CANCELLED >/dev/null
+assert_cmd_vel_zero
+
+"${bin_dir}/bridge-ctl" --submit --goal-id nav2-minimal-unreachable --x 10 --y 0 --yaw 0 \
+  --config "${config_path}" >/dev/null
+wait_for_bridge_failure >/dev/null
+assert_cmd_vel_zero
+
+ros2 run cockpit_nav2_test_support nav2_fault_control odometry-disable
+"${bin_dir}/bridge-ctl" --submit --goal-id nav2-minimal-stale-odom --x 1.0 --y 0 --yaw 0 \
+  --config "${config_path}" >/dev/null
+wait_for_bridge_failure >/dev/null
+assert_cmd_vel_zero
+ros2 run cockpit_nav2_test_support nav2_fault_control odometry-enable
+
+"${bin_dir}/bridge-ctl" --submit --goal-id nav2-minimal-odom-recovered --x 1.0 --y 0 --yaw 0 \
+  --config "${config_path}" >/dev/null
+wait_for_bridge_state NAVIGATION_STATE_SUCCEEDED true >/dev/null
+assert_cmd_vel_zero
+
+bt_pid="$(ps -eo pid=,pgid=,comm= | awk -v group="${nav2_pid}" \
+  '$2 == group && $3 == "bt_navigator" { print $1; exit }')"
+if [[ -z "${bt_pid}" || ! -r "/proc/${bt_pid}/status" ]]; then
+  echo "Could not resolve bt_navigator inside Nav2 process group ${nav2_pid}" >&2
+  exit 1
+fi
+kill -TERM "${bt_pid}"
+for _ in $(seq 1 100); do
+  if ! kill -0 "${bt_pid}" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.05
+done
+if kill -0 "${bt_pid}" >/dev/null 2>&1; then
+  echo "bt_navigator did not terminate within its budget" >&2
+  exit 1
+fi
+
+if "${bin_dir}/bridge-ctl" --submit --goal-id nav2-minimal-bt-down-first \
+  --x 1.2 --y 0 --yaw 0 --config "${config_path}" >/dev/null 2>&1; then
+  wait_for_bridge_failure >/dev/null
+  assert_cmd_vel_zero
+fi
+if "${bin_dir}/bridge-ctl" --submit --goal-id nav2-minimal-bt-down-final \
+  --x 1.2 --y 0 --yaw 0 --config "${config_path}" >/dev/null 2>&1; then
+  echo "Bridge accepted a goal after bt_navigator removal and DDS expiry" >&2
+  exit 1
+fi
+wait_for_bridge_state NAVIGATION_STATE_DISCONNECTED >/dev/null
+
+stop_nav2
+start_nav2
+wait_for_bridge_state NAVIGATION_STATE_IDLE >/dev/null
+"${bin_dir}/bridge-ctl" --submit --goal-id nav2-minimal-lifecycle-recovered \
+  --x 0.6 --y 0 --yaw 0 --config "${config_path}" >/dev/null
+wait_for_bridge_state NAVIGATION_STATE_SUCCEEDED true >/dev/null
+assert_cmd_vel_zero
 
 "${bin_dir}/cockpit-navigator" --command shutdown --socket "${socket_path}" >/dev/null
 wait "${navigator_pid}"
 navigator_pid=""
-cleanup
-nav2_pid=""
+stop_nav2
 
-if rg -q "failed to configure|process has died|Goal failed" "${nav2_log}"; then
+if rg -q "failed to configure" "${nav2_log}"; then
   echo "Nav2 log contains a lifecycle or navigation failure; see ${nav2_log}" >&2
   exit 1
 fi

@@ -14,12 +14,15 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 
 add_executable(fake_odometry_node src/fake_odometry_node.cc)
-ament_target_dependencies(fake_odometry_node geometry_msgs nav_msgs rclcpp tf2 tf2_geometry_msgs tf2_ros)
+ament_target_dependencies(fake_odometry_node
+  geometry_msgs nav_msgs rclcpp std_srvs tf2 tf2_geometry_msgs tf2_ros
+)
 
 add_executable(fake_tf_node src/fake_tf_node.cc)
 ament_target_dependencies(fake_tf_node geometry_msgs rclcpp tf2_ros)
@@ -33,12 +36,15 @@ ament_target_dependencies(fake_cmd_vel_sink geometry_msgs rclcpp std_msgs)
 add_executable(nav2_readiness_probe src/nav2_readiness_probe.cc)
 ament_target_dependencies(nav2_readiness_probe lifecycle_msgs nav2_msgs rclcpp rclcpp_action)
 
-foreach(target fake_odometry_node fake_tf_node fake_scan_node fake_cmd_vel_sink nav2_readiness_probe)
+add_executable(nav2_fault_control src/nav2_fault_control.cc)
+ament_target_dependencies(nav2_fault_control rclcpp std_msgs std_srvs)
+
+foreach(target fake_odometry_node fake_tf_node fake_scan_node fake_cmd_vel_sink nav2_readiness_probe nav2_fault_control)
   target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
 endforeach()
 
 install(
-  TARGETS fake_odometry_node fake_tf_node fake_scan_node fake_cmd_vel_sink nav2_readiness_probe
+  TARGETS fake_odometry_node fake_tf_node fake_scan_node fake_cmd_vel_sink nav2_readiness_probe nav2_fault_control
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -9,6 +9,7 @@
 #include <memory>
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 namespace {
@@ -32,6 +33,21 @@ class FakeOdometryNode final : public rclcpp::Node {
     timer_ = create_wall_timer(50ms, [this] {
       Update();
     });
+    // rclcpp Humble requires shared_ptr service callback parameters by value.
+    // NOLINTBEGIN(performance-unnecessary-value-param)
+    control_service_ = create_service<std_srvs::srv::SetBool>(
+        "cockpit_nav2_test_support/set_odometry_enabled",
+        [this](const std_srvs::srv::SetBool::Request::SharedPtr request,
+               std_srvs::srv::SetBool::Response::SharedPtr response) {
+          enabled_ = request->data;
+          linear_velocity_mps_ = 0.0;
+          angular_velocity_radps_ = 0.0;
+          last_update_ = now();
+          last_command_ = last_update_;
+          response->success = true;
+          response->message = enabled_ ? "fake odometry enabled" : "fake odometry disabled";
+        });
+    // NOLINTEND(performance-unnecessary-value-param)
   }
 
  private:
@@ -42,6 +58,9 @@ class FakeOdometryNode final : public rclcpp::Node {
   }
 
   void Update() {
+    if (!enabled_) {
+      return;
+    }
     const rclcpp::Time current_time = now();
     const double elapsed_seconds = std::clamp((current_time - last_update_).seconds(), 0.0, 0.1);
     last_update_ = current_time;
@@ -78,6 +97,7 @@ class FakeOdometryNode final : public rclcpp::Node {
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr velocity_subscription_;
   tf2_ros::TransformBroadcaster transform_broadcaster_;
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr control_service_;
   rclcpp::Time last_update_;
   rclcpp::Time last_command_;
   double x_m_ = 0.0;
@@ -85,6 +105,7 @@ class FakeOdometryNode final : public rclcpp::Node {
   double yaw_rad_ = 0.0;
   double linear_velocity_mps_ = 0.0;
   double angular_velocity_radps_ = 0.0;
+  bool enabled_ = true;
 };
 
 }  // namespace

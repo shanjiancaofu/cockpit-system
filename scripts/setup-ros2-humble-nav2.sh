@@ -56,6 +56,7 @@ sudo apt-get install -y \
   "ros-humble-lifecycle-msgs=${LIFECYCLE_MSGS_VERSION}" \
   "ros-humble-nav-msgs=${NAV_MSGS_VERSION}" \
   "ros-humble-std-msgs=${STD_MSGS_VERSION}" \
+  "ros-humble-std-srvs=${STD_SRVS_VERSION}" \
   "ros-humble-tf2-ros=${TF2_ROS_VERSION}" \
   "ros-humble-tf2-geometry-msgs=${TF2_GEOMETRY_MSGS_VERSION}" \
   "ros-humble-nav2-map-server=${NAV2_MAP_SERVER_VERSION}" \

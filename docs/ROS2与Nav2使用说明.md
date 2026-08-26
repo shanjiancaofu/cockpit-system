@@ -19,8 +19,10 @@ bridge-ctl
 ```
 
 map server、controller server、planner server 和 BT Navigator 均实际进入 ACTIVE；目标成功、反馈
-pose/timestamp、最终取消和非零 `cmd_vel` 计数已经由全进程 smoke 验证。该结果不连接 CAN、电机或
-真实机器人，不能替代 Jetson、定位、雷达、底盘和现场安全验收。
+pose/timestamp、最终取消和非零 `cmd_vel` 计数已经由全进程 smoke 验证。correctness 矩阵还覆盖
+越界不可达目标、odometry/TF stale、有界失败、恢复、BT Navigator 进程退出、Bridge 断线与整栈重启；
+每个 success/cancel/failure/timeout 终态都确认最新 `/cmd_vel` 为零。该结果不连接 CAN、电机或真实
+机器人，不能替代 Jetson、定位、雷达、底盘和现场安全验收。
 
 ## 目录和构建边界
 
@@ -90,6 +92,7 @@ BUILD_DIR=_output/build/ros2 bash scripts/tests/ros2-nav2-bridge-smoke.sh
 - `fake_scan_node`：发布无障碍物的 bounded LaserScan。
 - `fake_cmd_vel_sink`：只统计 `/cmd_vel`，明确不存在硬件/CAN 输出。
 - `nav2_readiness_probe`：有界确认关键 lifecycle node 为 ACTIVE 且 NavigateToPose action ready。
+- `nav2_fault_control`：只在测试域开关 fake odometry，并确认最新 cmd_vel 已归零。
 
 这些节点只能存在于 `cockpit_nav2_test_support`，不得进入正式车辆 mode。
 
