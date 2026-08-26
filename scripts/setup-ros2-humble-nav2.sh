@@ -75,11 +75,12 @@ sudo apt-get install -y \
   python3-rosdep \
   python3-vcstool
 
-if ! rosdep init >/dev/null 2>&1; then
-  if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
-    echo "rosdep init failed and no existing default sources were found" >&2
-    exit 1
-  fi
+if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
+  sudo rosdep init >/dev/null
+fi
+if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
+  echo "rosdep init did not create /etc/ros/rosdep/sources.list.d/20-default.list" >&2
+  exit 1
 fi
 rosdep update
 

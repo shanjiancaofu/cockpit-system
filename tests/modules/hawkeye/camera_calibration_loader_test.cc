@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <string>
 
 #include "cockpit/modules/hawkeye/camera_info.h"
@@ -103,6 +104,15 @@ int main() {
               camera_info.p.size() == 12 && camera_info.k[0] == 800.5 &&
               camera_info.k[2] == 640.0 && camera_info.p[6] == 360.0,
           "CameraInfo conversion values are invalid");
+
+  auto invalid_camera_info_calibration = calibration;
+  invalid_camera_info_calibration.cx = std::numeric_limits<double>::quiet_NaN();
+  Require(!cockpit::hawkeye::ToCameraInfo(invalid_camera_info_calibration, &camera_info, &error),
+          "NaN principal point was accepted");
+  invalid_camera_info_calibration = calibration;
+  invalid_camera_info_calibration.k1 = std::numeric_limits<double>::infinity();
+  Require(!cockpit::hawkeye::ToCameraInfo(invalid_camera_info_calibration, &camera_info, &error),
+          "infinite distortion coefficient was accepted");
 
   ExpectRejected(ReplaceOnce(kValidCalibration, "fx: 800.5\n", ""),
                  "camera_calibration.fx is required");

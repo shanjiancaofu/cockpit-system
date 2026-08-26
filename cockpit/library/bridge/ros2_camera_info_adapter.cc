@@ -1,6 +1,7 @@
 #include "cockpit/library/bridge/ros2_camera_info_adapter.h"
 
 #include <algorithm>
+#include <stdexcept>
 
 namespace cockpit::bridge {
 
@@ -13,10 +14,14 @@ sensor_msgs::msg::CameraInfo ToRosCameraInfo(const hawkeye::CameraInfo& source,
   result.width = source.width;
   result.height = source.height;
   result.distortion_model = source.distortion_model;
+  if (source.d.size() != 5 || source.k.size() != 9 || source.r.size() != 9 ||
+      source.p.size() != 12) {
+    throw std::invalid_argument("CameraInfo arrays must have D=5, K=9, R=9, P=12 elements");
+  }
   result.d = source.d;
-  std::copy_n(source.k.begin(), std::min(source.k.size(), result.k.size()), result.k.begin());
-  std::copy_n(source.r.begin(), std::min(source.r.size(), result.r.size()), result.r.begin());
-  std::copy_n(source.p.begin(), std::min(source.p.size(), result.p.size()), result.p.begin());
+  std::copy(source.k.begin(), source.k.end(), result.k.begin());
+  std::copy(source.r.begin(), source.r.end(), result.r.begin());
+  std::copy(source.p.begin(), source.p.end(), result.p.begin());
   return result;
 }
 

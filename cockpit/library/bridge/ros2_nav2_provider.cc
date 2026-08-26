@@ -1,5 +1,6 @@
 #include "cockpit/library/bridge/ros2_nav2_provider.h"
 
+#include <action_msgs/srv/cancel_goal.hpp>
 #include <cmath>
 #include <condition_variable>
 #include <cstdint>
@@ -16,6 +17,7 @@ namespace {
 
 using NavigateToPose = nav2_msgs::action::NavigateToPose;
 using GoalHandle = rclcpp_action::ClientGoalHandle<NavigateToPose>;
+using CancelGoal = action_msgs::srv::CancelGoal;
 
 std::int64_t ToMilliseconds(const builtin_interfaces::msg::Time& stamp) {
   return (static_cast<std::int64_t>(stamp.sec) * 1000) + (stamp.nanosec / 1000000);
@@ -85,12 +87,27 @@ class Ros2Nav2Provider final : public NavigationProvider {
     ros_goal.pose.pose.orientation.z = std::sin(goal.target.yaw_rad / 2.0);
     ros_goal.pose.pose.orientation.w = std::cos(goal.target.yaw_rad / 2.0);
 
+    std::uint64_t generation;
+    {
+      std::lock_guard lock(mutex_);
+      if (pending_ack_ || pending_cancel_ || IsActiveNavigationState(status_.state)) {
+        status_.last_error = "Nav2 goal acknowledgement is still pending";
+        return status_;
+      }
+      generation = ++generation_;
+      status_ = NavigationStatus{};
+      status_.state = NavigationState::kAccepted;
+      status_.goal_id = goal.goal_id;
+      status_.target = goal.target;
+      status_.message = "waiting for Nav2 goal acknowledgement";
+    }
+
     rclcpp_action::Client<NavigateToPose>::SendGoalOptions send_options;
     send_options.feedback_callback =
-        [this](const GoalHandle::SharedPtr&,
-               const std::shared_ptr<const NavigateToPose::Feedback>& feedback) {
+        [this, generation](const GoalHandle::SharedPtr&,
+                           const std::shared_ptr<const NavigateToPose::Feedback>& feedback) {
           std::lock_guard lock(mutex_);
-          if (!IsActiveNavigationState(status_.state)) {
+          if (generation != generation_ || !IsActiveNavigationState(status_.state)) {
             return;
           }
           const auto& pose = feedback->current_pose;
@@ -103,9 +120,15 @@ class Ros2Nav2Provider final : public NavigationProvider {
           status_.current_pose_valid = true;
           status_.message = "Nav2 navigation executing";
         };
-    send_options.result_callback = [this](const GoalHandle::WrappedResult& result) {
+    send_options.result_callback = [this, generation](const GoalHandle::WrappedResult& result) {
       {
         std::lock_guard lock(mutex_);
+        if (generation != generation_) {
+          return;
+        }
+        pending_cancel_ = false;
+        pending_cancel_handle_.reset();
+        pending_cancel_future_ = {};
         switch (result.code) {
           case rclcpp_action::ResultCode::SUCCEEDED:
             status_.state = NavigationState::kSucceeded;
@@ -130,23 +153,25 @@ class Ros2Nav2Provider final : public NavigationProvider {
       status_changed_.notify_all();
     };
 
+    auto future = client_->async_send_goal(ros_goal, send_options);
     {
       std::lock_guard lock(mutex_);
-      status_ = NavigationStatus{};
-      status_.state = NavigationState::kAccepted;
-      status_.goal_id = goal.goal_id;
-      status_.target = goal.target;
-      status_.message = "waiting for Nav2 goal acknowledgement";
+      pending_ack_ = true;
+      pending_ack_future_ = future;
+      pending_generation_ = generation;
     }
-    auto future = client_->async_send_goal(ros_goal, send_options);
     if (future.wait_for(options_.server_timeout) != std::future_status::ready) {
       std::lock_guard lock(mutex_);
       status_.state = NavigationState::kDisconnected;
-      status_.last_error = "Nav2 goal acknowledgement timed out";
+      status_.message = "Nav2 goal acknowledgement pending; refusing new goals";
+      status_.last_error =
+          "Nav2 goal acknowledgement timed out; cancellation will be attempted if accepted";
       return status_;
     }
     auto handle = future.get();
     std::lock_guard lock(mutex_);
+    pending_ack_ = false;
+    pending_ack_future_ = {};
     if (handle == nullptr) {
       status_.state = NavigationState::kRejected;
       status_.last_error = "Nav2 rejected navigation goal";
@@ -195,7 +220,28 @@ class Ros2Nav2Provider final : public NavigationProvider {
   NavigationStatus GetNavigationStatus() override {
     const bool server_ready = client_->action_server_is_ready();
     std::lock_guard lock(mutex_);
-    if (status_.state == NavigationState::kDisconnected && server_ready) {
+    ResolvePendingAckLocked();
+    if (pending_cancel_ && pending_cancel_future_.valid() &&
+        pending_cancel_future_.wait_for(std::chrono::milliseconds(0)) ==
+            std::future_status::ready) {
+      const auto& response = pending_cancel_future_.get();
+      if (response->goals_canceling.empty()) {
+        pending_cancel_ = false;
+        pending_cancel_handle_.reset();
+        status_.state = NavigationState::kFailed;
+        status_.message = "Nav2 rejected cancellation of uncertain goal";
+        status_.last_error = status_.message;
+      }
+      pending_cancel_future_ = {};
+    }
+    if (pending_ack_ || pending_cancel_) {
+      return status_;
+    }
+    if (status_.state == NavigationState::kIdle && !server_ready) {
+      status_.state = NavigationState::kDisconnected;
+      status_.message = "Nav2 action server unavailable";
+      status_.last_error = status_.message;
+    } else if (status_.state == NavigationState::kDisconnected && server_ready) {
       status_ = NavigationStatus{};
       status_.state = NavigationState::kIdle;
       status_.message = "Nav2 action server ready";
@@ -204,6 +250,33 @@ class Ros2Nav2Provider final : public NavigationProvider {
   }
 
  private:
+  void ResolvePendingAckLocked() {
+    if (!pending_ack_ ||
+        pending_ack_future_.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) {
+      return;
+    }
+    const auto handle = pending_ack_future_.get();
+    pending_ack_ = false;
+    pending_ack_future_ = {};
+    if (pending_generation_ != generation_) {
+      return;
+    }
+    if (handle == nullptr) {
+      status_.state = NavigationState::kRejected;
+      status_.last_error = "Nav2 rejected delayed navigation goal";
+      status_changed_.notify_all();
+      return;
+    }
+    goal_handle_ = handle;
+    pending_cancel_ = true;
+    pending_cancel_handle_ = handle;
+    status_.state = NavigationState::kDisconnected;
+    status_.message = "delayed Nav2 goal accepted; cancelling uncertain goal";
+    status_.last_error = "goal acknowledgement timed out; cancellation requested";
+    pending_cancel_future_ = client_->async_cancel_goal(handle);
+    status_changed_.notify_all();
+  }
+
   void Shutdown() {
     if (executor_ != nullptr) {
       executor_->cancel();
@@ -230,6 +303,13 @@ class Ros2Nav2Provider final : public NavigationProvider {
   std::condition_variable status_changed_;
   NavigationStatus status_;
   GoalHandle::SharedPtr goal_handle_;
+  std::uint64_t generation_ = 0;
+  std::uint64_t pending_generation_ = 0;
+  bool pending_ack_ = false;
+  bool pending_cancel_ = false;
+  std::shared_future<GoalHandle::SharedPtr> pending_ack_future_;
+  std::shared_future<std::shared_ptr<CancelGoal::Response>> pending_cancel_future_;
+  GoalHandle::SharedPtr pending_cancel_handle_;
 };
 
 }  // namespace

@@ -59,6 +59,8 @@ source _output/ros2/install/setup.bash
 
 `configure-ros2-dev.sh` 负责主项目 ROS adapter 和 clangd compile database；
 `build-ros2-workspace.sh` 负责两个 ament 包，并把全部 colcon 输出放入 `_output/ros2`。
+安装脚本只使用 sudo 写入 apt key、ROS deb 和首次 `rosdep init` 的系统目录；源码、构建和运行过程不以
+root 执行。
 
 ## 运行和验证
 

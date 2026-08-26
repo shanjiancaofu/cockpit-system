@@ -7,6 +7,7 @@
 #include <nav2_msgs/action/navigate_to_pose.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -29,13 +30,21 @@ void Require(bool condition, const std::string& message) {
 
 class FakeNav2Server {
  public:
-  explicit FakeNav2Server(rclcpp::Context::SharedPtr context) : context_(std::move(context)) {
+  explicit FakeNav2Server(rclcpp::Context::SharedPtr context,
+                          std::chrono::milliseconds acknowledgement_delay = 0ms,
+                          std::string action_name = "/cockpit_test_navigate_to_pose")
+      : context_(std::move(context)),
+        acknowledgement_delay_(acknowledgement_delay),
+        action_name_(std::move(action_name)) {
     rclcpp::NodeOptions options;
     options.context(context_);
     node_ = std::make_shared<rclcpp::Node>("cockpit_fake_nav2_server", options);
     server_ = rclcpp_action::create_server<NavigateToPose>(
-        node_, "/cockpit_test_navigate_to_pose",
+        node_, action_name_,
         [this](const rclcpp_action::GoalUUID&, std::shared_ptr<const NavigateToPose::Goal> goal) {
+          if (acknowledgement_delay_ > 0ms) {
+            std::this_thread::sleep_for(acknowledgement_delay_);
+          }
           std::lock_guard lock(mutex_);
           last_frame_ = goal->pose.header.frame_id;
           last_x_ = goal->pose.pose.position.x;
@@ -94,6 +103,14 @@ class FakeNav2Server {
     return last_x_;
   }
 
+  void StopActionServer() {
+    server_.reset();
+    if (executor_ != nullptr && node_ != nullptr) {
+      executor_->remove_node(node_);
+    }
+    node_.reset();
+  }
+
  private:
   rclcpp::Context::SharedPtr context_;
   rclcpp::Node::SharedPtr node_;
@@ -103,6 +120,8 @@ class FakeNav2Server {
   mutable std::mutex mutex_;
   std::string last_frame_;
   double last_x_ = 0.0;
+  std::chrono::milliseconds acknowledgement_delay_;
+  std::string action_name_;
   std::mutex worker_mutex_;
   std::vector<std::thread> workers_;
 };
@@ -159,6 +178,46 @@ int main() {
               cockpit::bridge::NavigationState::kCancelled,
           "goal cancellation was not confirmed");
 
+  auto delayed_context = std::make_shared<rclcpp::Context>();
+  delayed_context->init(0, nullptr);
+  FakeNav2Server delayed_server(delayed_context, 150ms, "/cockpit_test_delayed_navigate_to_pose");
+  cockpit::bridge::Ros2Nav2ProviderOptions delayed_options;
+  delayed_options.action_name = "/cockpit_test_delayed_navigate_to_pose";
+  delayed_options.server_timeout = 20ms;
+  delayed_options.context = delayed_context;
+  auto delayed_provider = cockpit::bridge::CreateRos2Nav2Provider(delayed_options, &error);
+  Require(delayed_provider != nullptr, error);
+  Require(WaitForState(delayed_provider.get(), cockpit::bridge::NavigationState::kIdle, 3s),
+          "delayed provider did not become idle");
+  cockpit::bridge::NavigationGoal delayed_goal;
+  delayed_goal.goal_id = "ros2-delayed-ack";
+  delayed_goal.target.frame_id = "map";
+  delayed_goal.target.x_m = 2.0;
+  const auto pending = delayed_provider->SubmitNavigationGoal(delayed_goal);
+  Require(pending.state == cockpit::bridge::NavigationState::kDisconnected,
+          std::string("delayed acknowledgement did not enter disconnected/pending state: ") +
+              cockpit::bridge::NavigationStateName(pending.state));
+  Require(delayed_provider->GetNavigationStatus().state ==
+              cockpit::bridge::NavigationState::kDisconnected,
+          "pending acknowledgement was incorrectly reset to idle");
+  Require(WaitForState(delayed_provider.get(), cockpit::bridge::NavigationState::kCancelled, 3s),
+          "late accepted goal was not cancelled");
+
+  auto idle_context = std::make_shared<rclcpp::Context>();
+  idle_context->init(0, nullptr);
+  FakeNav2Server idle_server(idle_context, 0ms, "/cockpit_test_idle_navigate_to_pose");
+  cockpit::bridge::Ros2Nav2ProviderOptions idle_options;
+  idle_options.action_name = "/cockpit_test_idle_navigate_to_pose";
+  idle_options.server_timeout = 100ms;
+  idle_options.context = idle_context;
+  auto idle_provider = cockpit::bridge::CreateRos2Nav2Provider(idle_options, &error);
+  Require(idle_provider != nullptr, error);
+  Require(WaitForState(idle_provider.get(), cockpit::bridge::NavigationState::kIdle, 3s),
+          "idle disconnect fixture did not become idle");
+  idle_server.StopActionServer();
+  Require(WaitForState(idle_provider.get(), cockpit::bridge::NavigationState::kDisconnected, 3s),
+          "idle provider did not report Nav2 disconnect");
+
   cockpit::hawkeye::CameraInfo source;
   source.width = 1280;
   source.height = 720;
@@ -175,6 +234,14 @@ int main() {
           "CameraInfo header conversion failed");
   Require(ros_info.width == 1280 && ros_info.k[0] == 10 && ros_info.p[6] == 21,
           "CameraInfo calibration conversion failed");
+  source.k.pop_back();
+  bool rejected_short_camera_info = false;
+  try {
+    static_cast<void>(cockpit::bridge::ToRosCameraInfo(source, "camera_optical", stamp));
+  } catch (const std::invalid_argument&) {
+    rejected_short_camera_info = true;
+  }
+  Require(rejected_short_camera_info, "short CameraInfo arrays were accepted");
 
   std::cout << "Bridge ROS2/Nav2 provider integration tests passed\n";
   return 0;
