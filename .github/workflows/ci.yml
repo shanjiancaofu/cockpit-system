@@ -133,10 +133,21 @@ jobs:
         env:
           BUILD_DIR: _output/build/ci-quality
         run: scripts/lint.sh
+      - name: Verify clang-tidy did not modify tracked sources
+        run: |
+          git status --short
+          git diff --check
+          git diff --exit-code -- . ':!_output/'
       - name: Run pre-commit and diff checks
         run: |
+          pre-commit --version
+          pre-commit validate-config
+          pre-commit validate-manifest
+          git status --short
           pre-commit run --all-files
+          git status --short
           git diff --check
+          git diff --exit-code -- . ':!_output/'
 
   ros2-nav2:
     name: ros2-nav2
