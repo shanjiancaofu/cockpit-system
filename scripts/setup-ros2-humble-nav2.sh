@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ros2-humble-pins.env
+source "${SCRIPT_DIR}/ros2-humble-pins.env"
+
 if [[ "$(id -u)" -eq 0 ]]; then
   echo "Do not run this script as root; it uses sudo for individual system operations." >&2
   exit 2
@@ -24,7 +28,7 @@ fi
 sudo -v
 
 sudo apt-get update
-sudo apt-get install -y \
+sudo apt-get install -y --allow-downgrades \
   ca-certificates \
   curl \
   gnupg2 \
@@ -40,9 +44,15 @@ echo "deb [arch=amd64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] htt
 
 sudo apt-get update
 sudo apt-get install -y \
-  ros-humble-ros-base \
-  ros-humble-navigation2 \
-  ros-humble-nav2-bringup \
+  "ros-humble-ros-base=${ROS_BASE_VERSION}" \
+  "ros-humble-rclcpp=${RCLCPP_VERSION}" \
+  "ros-humble-rclcpp-action=${RCLCPP_ACTION_VERSION}" \
+  "ros-humble-nav2-msgs=${NAV2_MSGS_VERSION}" \
+  "ros-humble-navigation2=${NAVIGATION2_VERSION}" \
+  "ros-humble-nav2-bringup=${NAV2_BRINGUP_VERSION}" \
+  "ros-humble-sensor-msgs=${SENSOR_MSGS_VERSION}" \
+  "ros-humble-geometry-msgs=${GEOMETRY_MSGS_VERSION}" \
+  "ros-humble-builtin-interfaces=${BUILTIN_INTERFACES_VERSION}" \
   python3-colcon-common-extensions \
   python3-rosdep \
   python3-vcstool
@@ -66,6 +76,26 @@ ros2 pkg prefix nav2_bringup >/dev/null
 ros2 pkg prefix nav2_msgs >/dev/null
 ros2 pkg prefix sensor_msgs >/dev/null
 ros2 pkg prefix rclcpp >/dev/null
+
+verify_package() {
+  local package="$1"
+  local expected="$2"
+  local actual
+  actual="$(dpkg-query -W -f='${Version}' "${package}")"
+  if [[ "${actual}" != "${expected}" ]]; then
+    echo "${package} version mismatch: expected ${expected}, got ${actual}" >&2
+    exit 1
+  fi
+}
+verify_package ros-humble-ros-base "${ROS_BASE_VERSION}"
+verify_package ros-humble-rclcpp "${RCLCPP_VERSION}"
+verify_package ros-humble-rclcpp-action "${RCLCPP_ACTION_VERSION}"
+verify_package ros-humble-nav2-msgs "${NAV2_MSGS_VERSION}"
+verify_package ros-humble-navigation2 "${NAVIGATION2_VERSION}"
+verify_package ros-humble-nav2-bringup "${NAV2_BRINGUP_VERSION}"
+verify_package ros-humble-sensor-msgs "${SENSOR_MSGS_VERSION}"
+verify_package ros-humble-geometry-msgs "${GEOMETRY_MSGS_VERSION}"
+verify_package ros-humble-builtin-interfaces "${BUILTIN_INTERFACES_VERSION}"
 
 echo "ROS 2 Humble and Nav2 installation verified"
 ros2 --version || true

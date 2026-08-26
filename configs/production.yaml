@@ -80,6 +80,8 @@ services:
   bridge:
     provider: disabled
     fake_outcome: succeeded
+    nav2_action_name: /navigate_to_pose
+    nav2_server_timeout_ms: 1000
     goal_timeout_ms: 30000
     grpc:
       listen_address: unix:/cockpit-system/run/bridge.grpc.sock

@@ -67,6 +67,8 @@ int main() {
       config.services().sentinel.queue_capacity != 64 ||
       config.services().bridge.provider != "fake" ||
       config.services().bridge.fake_outcome != "succeeded" ||
+      config.services().bridge.nav2_action_name != "/navigate_to_pose" ||
+      config.services().bridge.nav2_server_timeout_ms != 1000 ||
       config.services().bridge.goal_timeout_ms != 30000 ||
       config.services().bridge.grpc.listen_address != "127.0.0.1:50058" ||
       config.features().voice.kws.provider != "mock" ||

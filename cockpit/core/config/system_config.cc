@@ -333,11 +333,19 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            "services.sentinel.grpc.listen_address");
 
   const YAML::Node bridge = ChildMap(services, "bridge", "services.bridge");
-  ValidateKeys(bridge, "services.bridge", {"provider", "fake_outcome", "goal_timeout_ms", "grpc"});
+  ValidateKeys(bridge, "services.bridge",
+               {"provider", "fake_outcome", "nav2_action_name", "nav2_server_timeout_ms",
+                "goal_timeout_ms", "grpc"});
   config.services_.bridge.provider =
       Read(bridge, "provider", config.services_.bridge.provider, "services.bridge.provider");
   config.services_.bridge.fake_outcome = Read(
       bridge, "fake_outcome", config.services_.bridge.fake_outcome, "services.bridge.fake_outcome");
+  config.services_.bridge.nav2_action_name =
+      Read(bridge, "nav2_action_name", config.services_.bridge.nav2_action_name,
+           "services.bridge.nav2_action_name");
+  config.services_.bridge.nav2_server_timeout_ms =
+      Read(bridge, "nav2_server_timeout_ms", config.services_.bridge.nav2_server_timeout_ms,
+           "services.bridge.nav2_server_timeout_ms");
   config.services_.bridge.goal_timeout_ms =
       Read(bridge, "goal_timeout_ms", config.services_.bridge.goal_timeout_ms,
            "services.bridge.goal_timeout_ms");
@@ -663,8 +671,9 @@ void SystemConfig::Validate() const {
   if (services_.sentinel.rpc_timeout_ms > 5000) {
     throw std::runtime_error("services.sentinel.rpc_timeout_ms must not exceed 5000");
   }
-  if (!IsOneOf(services_.bridge.provider, "disabled", "fake")) {
-    throw std::runtime_error("services.bridge.provider must be disabled or fake");
+  if (services_.bridge.provider != "disabled" && services_.bridge.provider != "fake" &&
+      services_.bridge.provider != "ros2_nav2") {
+    throw std::runtime_error("services.bridge.provider must be disabled, fake, or ros2_nav2");
   }
   if (services_.bridge.fake_outcome != "succeeded" && services_.bridge.fake_outcome != "rejected" &&
       services_.bridge.fake_outcome != "failed" && services_.bridge.fake_outcome != "stalled" &&
@@ -674,6 +683,15 @@ void SystemConfig::Validate() const {
         "disconnected");
   }
   RequirePositive(services_.bridge.goal_timeout_ms, "services.bridge.goal_timeout_ms");
+  RequireNotEmpty(services_.bridge.nav2_action_name, "services.bridge.nav2_action_name");
+  if (services_.bridge.nav2_action_name.front() != '/') {
+    throw std::runtime_error("services.bridge.nav2_action_name must be an absolute ROS name");
+  }
+  RequirePositive(services_.bridge.nav2_server_timeout_ms,
+                  "services.bridge.nav2_server_timeout_ms");
+  if (services_.bridge.nav2_server_timeout_ms > 5000) {
+    throw std::runtime_error("services.bridge.nav2_server_timeout_ms must not exceed 5000");
+  }
   if (services_.bridge.goal_timeout_ms > 3600000) {
     throw std::runtime_error("services.bridge.goal_timeout_ms must not exceed 3600000");
   }

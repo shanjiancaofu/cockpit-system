@@ -119,6 +119,8 @@ struct SentinelServiceConfig {
 struct BridgeServiceConfig {
   std::string provider = "disabled";
   std::string fake_outcome = "succeeded";
+  std::string nav2_action_name = "/navigate_to_pose";
+  int nav2_server_timeout_ms = 1000;
   int goal_timeout_ms = 30000;
   GrpcServerConfig grpc{"127.0.0.1:50058"};
 };

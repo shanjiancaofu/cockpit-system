@@ -1,5 +1,6 @@
 #include "cockpit/library/bridge/bridge_runtime.h"
 
+#include <chrono>
 #include <exception>
 #include <memory>
 #include <string>
@@ -8,6 +9,9 @@
 #include "cockpit/core/logging/logger.h"
 #include "cockpit/library/bridge/bridge_grpc_service.h"
 #include "cockpit/modules/bridge/fake_bridge_provider.h"
+#if COCKPIT_ENABLE_ROS2
+#include "cockpit/library/bridge/ros2_nav2_provider.h"
+#endif
 
 namespace cockpit::bridge {
 
@@ -34,10 +38,27 @@ bool BridgeRuntime::Start(const std::string& config_path) {
     std::unique_ptr<NavigationProvider> provider;
     if (bridge_config.provider == "disabled") {
       provider = CreateDisabledNavigationProvider();
-    } else {
+    } else if (bridge_config.provider == "fake") {
       FakeBridgeOutcome outcome;
       if (!ParseFakeBridgeOutcome(bridge_config.fake_outcome, &outcome)) return false;
       provider = CreateFakeNavigationProvider(outcome);
+    } else if (bridge_config.provider == "ros2_nav2") {
+#if COCKPIT_ENABLE_ROS2
+      Ros2Nav2ProviderOptions options;
+      options.action_name = bridge_config.nav2_action_name;
+      options.server_timeout = std::chrono::milliseconds(bridge_config.nav2_server_timeout_ms);
+      std::string error;
+      provider = CreateRos2Nav2Provider(options, &error);
+      if (provider == nullptr) {
+        LOG_ERROR(error);
+        return false;
+      }
+#else
+      LOG_ERROR("bridge provider ros2_nav2 requires COCKPIT_ENABLE_ROS2=ON");
+      return false;
+#endif
+    } else {
+      return false;
     }
     impl_ = std::make_unique<Impl>();
     impl_->service =

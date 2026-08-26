@@ -209,6 +209,21 @@ target_link_libraries(bridge_grpc_service_test PRIVATE bridge_runtime)
 add_test(NAME bridge_grpc_service_test COMMAND bridge_grpc_service_test)
 set_tests_properties(bridge_grpc_service_test PROPERTIES LABELS "system-grpc")
 
+if(COCKPIT_ENABLE_ROS2)
+    add_executable(bridge_ros2_integration_test
+        library/bridge/bridge_ros2_integration_test.cc
+    )
+    target_link_libraries(bridge_ros2_integration_test bridge_ros2 Threads::Threads)
+    ament_target_dependencies(bridge_ros2_integration_test
+        builtin_interfaces geometry_msgs nav2_msgs rclcpp rclcpp_action sensor_msgs
+    )
+    add_test(NAME bridge_ros2_integration_test COMMAND bridge_ros2_integration_test)
+    set_tests_properties(bridge_ros2_integration_test PROPERTIES
+        LABELS "system-ros2"
+        TIMEOUT 20
+    )
+endif()
+
 add_executable(sentinel_service_test modules/sentinel/sentinel_service_test.cc)
 target_link_libraries(sentinel_service_test PRIVATE sentinel)
 add_test(NAME sentinel_service_test COMMAND sentinel_service_test)
