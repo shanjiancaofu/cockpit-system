@@ -116,6 +116,15 @@ ament package 和外置参数组织；没有复制其中 ROS1 `move_base`、节�
 
 ## 后续真实接入
 
+Jetson 到位后先运行只读环境检查，不要在 VM 中伪造这些结果：
+
+```bash
+bash scripts/jetson-preflight.sh
+```
+
+该脚本只检查 aarch64、GCC/CMake/Ninja/Git/ROS2、CUDA 可见性和 `/dev/snd`、`/dev/video0`、`can0`
+等节点，不安装软件、不修改权限、不启动服务。缺少 GPIO 节点只作为当前硬件选配项记录。
+
 1. 用真实机器人尺寸、footprint、速度/加速度和传感器量程替换 upstream 测试参数。
 2. 用真实 localization/SLAM 提供 `map→odom`，用底盘里程计提供 `odom→base_link` 和 `/odom`。
 3. 接入真实 LaserScan/PointCloud 前固定 QoS、frame、时间同步和故障语义。
