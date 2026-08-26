@@ -25,7 +25,7 @@ const char* SentinelStateName(SentinelState state) {
 }
 
 SentinelService::SentinelService(SentinelPolicy policy, std::unique_ptr<SentinelActions> actions)
-    : policy_(std::move(policy)), actions_(std::move(actions)), events_(policy_.queue_capacity) {
+    : policy_(policy), actions_(std::move(actions)), events_(policy_.queue_capacity) {
 }
 
 SentinelService::~SentinelService() {

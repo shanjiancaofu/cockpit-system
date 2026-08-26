@@ -277,7 +277,7 @@ int main() {
                                                      std::chrono::milliseconds(10));
   const auto timeout_started = std::chrono::steady_clock::now();
   if (timeout_client.Submit(1U, "timeout synthesis",
-                            [](cockpit::voice::VoiceOutputResult) {
+                            [](const cockpit::voice::VoiceOutputResult&) {
                             }) ||
       std::chrono::steady_clock::now() - timeout_started > std::chrono::milliseconds(300) ||
       timeout_client.metrics().failed != 1) {
@@ -298,7 +298,7 @@ int main() {
                                              std::move(synthesizer), std::chrono::seconds(10),
                                              nullptr, std::move(stop_focus));
   std::thread submitter([&client] {
-    client.Submit(2U, "cancel synthesis", [](cockpit::voice::VoiceOutputResult) {
+    client.Submit(2U, "cancel synthesis", [](const cockpit::voice::VoiceOutputResult&) {
     });
   });
   if (!observer->WaitUntilEntered()) {
@@ -325,7 +325,7 @@ int main() {
   std::thread playback_submitter([&] {
     playback_client.Submit(
         3U, "complete playback",
-        [&completions, &completion_status](cockpit::voice::VoiceOutputResult result) {
+        [&completions, &completion_status](const cockpit::voice::VoiceOutputResult& result) {
           completion_status.store(result.status);
           completions.fetch_add(1U);
         });
@@ -353,7 +353,7 @@ int main() {
       std::chrono::seconds(5), nullptr, std::move(focus));
   cockpit::voice::VoiceOutputStatus focused_status = cockpit::voice::VoiceOutputStatus::kFailed;
   if (!focused_client.Submit(4U, "focused playback",
-                             [&focused_status](cockpit::voice::VoiceOutputResult result) {
+                             [&focused_status](const cockpit::voice::VoiceOutputResult& result) {
                                focused_status = result.status;
                              }) ||
       focused_status != cockpit::voice::VoiceOutputStatus::kCompleted ||
@@ -372,12 +372,12 @@ int main() {
       std::chrono::seconds(5), nullptr, std::move(segmented_focus));
   std::atomic<std::uint64_t> segmented_completions{0};
   cockpit::voice::VoiceOutputStatus segmented_status = cockpit::voice::VoiceOutputStatus::kFailed;
-  if (!segmented_client.Submit(
-          5U, "First sentence. Second sentence! Third sentence?",
-          [&segmented_completions, &segmented_status](cockpit::voice::VoiceOutputResult result) {
-            segmented_status = result.status;
-            segmented_completions.fetch_add(1U);
-          }) ||
+  if (!segmented_client.Submit(5U, "First sentence. Second sentence! Third sentence?",
+                               [&segmented_completions, &segmented_status](
+                                   const cockpit::voice::VoiceOutputResult& result) {
+                                 segmented_status = result.status;
+                                 segmented_completions.fetch_add(1U);
+                               }) ||
       segmented_completions.load() != 1U ||
       segmented_status != cockpit::voice::VoiceOutputStatus::kCompleted ||
       segmented_control->wait_calls() != 3U || segmented_client.metrics().played != 3U ||
@@ -401,7 +401,7 @@ int main() {
   std::thread segmented_cancel_submitter([&] {
     segmented_cancel_client.Submit(50U, "First sentence. Second sentence. Third sentence.",
                                    [&segmented_cancel_completions, &segmented_cancel_status](
-                                       cockpit::voice::VoiceOutputResult result) {
+                                       const cockpit::voice::VoiceOutputResult& result) {
                                      segmented_cancel_status.store(result.status);
                                      segmented_cancel_completions.fetch_add(1U);
                                    });
@@ -445,7 +445,7 @@ int main() {
       cockpit::voice::VoiceOutputStatus::kCompleted;
   if (!rejected_focus_client.Submit(51U, "This must not play.",
                                     [&rejected_focus_completions, &rejected_focus_status](
-                                        cockpit::voice::VoiceOutputResult result) {
+                                        const cockpit::voice::VoiceOutputResult& result) {
                                       ++rejected_focus_completions;
                                       rejected_focus_status = result.status;
                                     }) ||
@@ -466,13 +466,13 @@ int main() {
   std::uint64_t repeated_completions = 0U;
   constexpr std::uint64_t kRepeatedRequests = 128U;
   for (std::uint64_t request = 1U; request <= kRepeatedRequests; ++request) {
-    if (!repeated_client.Submit(1000U + request, "First sentence. Second sentence. Third sentence.",
-                                [&repeated_completions](cockpit::voice::VoiceOutputResult result) {
-                                  if (result.status ==
-                                      cockpit::voice::VoiceOutputStatus::kCompleted) {
-                                    ++repeated_completions;
-                                  }
-                                })) {
+    if (!repeated_client.Submit(
+            1000U + request, "First sentence. Second sentence. Third sentence.",
+            [&repeated_completions](const cockpit::voice::VoiceOutputResult& result) {
+              if (result.status == cockpit::voice::VoiceOutputStatus::kCompleted) {
+                ++repeated_completions;
+              }
+            })) {
       std::cerr << "repeated segmented playback was rejected\n";
       return 1;
     }
@@ -495,12 +495,12 @@ int main() {
       std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
   std::atomic<std::uint64_t> fallback_completions{0U};
   cockpit::voice::VoiceOutputStatus fallback_status = cockpit::voice::VoiceOutputStatus::kFailed;
-  if (!fallback_client.Submit(
-          6U, "First sentence. Second sentence!",
-          [&fallback_completions, &fallback_status](cockpit::voice::VoiceOutputResult result) {
-            fallback_status = result.status;
-            fallback_completions.fetch_add(1U);
-          }) ||
+  if (!fallback_client.Submit(6U, "First sentence. Second sentence!",
+                              [&fallback_completions,
+                               &fallback_status](const cockpit::voice::VoiceOutputResult& result) {
+                                fallback_status = result.status;
+                                fallback_completions.fetch_add(1U);
+                              }) ||
       fallback_completions.load() != 1U ||
       fallback_status != cockpit::voice::VoiceOutputStatus::kCompleted ||
       failing_observer->calls() != 1U || fallback_control->wait_calls() != 1U ||
@@ -512,7 +512,7 @@ int main() {
   std::thread cancelled_submitter([&] {
     playback_client.Submit(
         4U, "cancel playback",
-        [&completions, &completion_status](cockpit::voice::VoiceOutputResult result) {
+        [&completions, &completion_status](const cockpit::voice::VoiceOutputResult& result) {
           completion_status.store(result.status);
           completions.fetch_add(1U);
         });
@@ -542,7 +542,7 @@ int main() {
   std::uint64_t timeout_completions = 0U;
   cockpit::voice::VoiceOutputStatus timeout_status = cockpit::voice::VoiceOutputStatus::kCompleted;
   if (!playback_timeout_client.Submit(5U, "timeout playback",
-                                      [&](cockpit::voice::VoiceOutputResult result) {
+                                      [&](const cockpit::voice::VoiceOutputResult& result) {
                                         ++timeout_completions;
                                         timeout_status = result.status;
                                       }) ||
@@ -590,7 +590,7 @@ int main() {
       std::move(retry_transport), std::make_unique<cockpit::voice::MockSpeechSynthesizer>());
   cockpit::voice::VoiceOutputStatus retry_status = cockpit::voice::VoiceOutputStatus::kCancelled;
   if (!retry_client.Submit(9U, "retry playback cancellation",
-                           [&](cockpit::voice::VoiceOutputResult result) {
+                           [&](const cockpit::voice::VoiceOutputResult& result) {
                              retry_status = result.status;
                            }) ||
       retry_status != cockpit::voice::VoiceOutputStatus::kFailed ||
@@ -626,7 +626,7 @@ int main() {
   std::uint64_t missing_completions = 0U;
   const auto missing_started = std::chrono::steady_clock::now();
   if (!missing_client.Submit(6U, "driver restarted",
-                             [&](cockpit::voice::VoiceOutputResult result) {
+                             [&](const cockpit::voice::VoiceOutputResult& result) {
                                if (result.status == cockpit::voice::VoiceOutputStatus::kFailed) {
                                  ++missing_completions;
                                }
@@ -647,10 +647,11 @@ int main() {
   std::atomic<cockpit::voice::VoiceOutputStatus> stopping_status{
       cockpit::voice::VoiceOutputStatus::kFailed};
   std::thread stopping_submitter([&] {
-    stopping_client.Submit(7U, "stop while waiting", [&](cockpit::voice::VoiceOutputResult result) {
-      stopping_status.store(result.status);
-      stopping_completions.fetch_add(1U);
-    });
+    stopping_client.Submit(7U, "stop while waiting",
+                           [&](const cockpit::voice::VoiceOutputResult& result) {
+                             stopping_status.store(result.status);
+                             stopping_completions.fetch_add(1U);
+                           });
   });
   std::uint64_t stopping_playback_id = 0U;
   if (!stopping_control->WaitForSubmission(0U, &stopping_playback_id)) {

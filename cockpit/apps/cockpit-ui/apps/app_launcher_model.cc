@@ -237,7 +237,7 @@ void AppLauncherModel::Run() {
     QMetaObject::invokeMethod(
         this,
         [this, updates = std::move(updates)]() mutable {
-          ApplyStatuses(std::move(updates));
+          ApplyStatuses(updates);
         },
         Qt::QueuedConnection);
     next_poll = std::chrono::steady_clock::now() + kStatusPollInterval;
@@ -251,7 +251,7 @@ void AppLauncherModel::Run() {
   }
 }
 
-void AppLauncherModel::ApplyStatuses(std::vector<StatusUpdate> updates) {
+void AppLauncherModel::ApplyStatuses(const std::vector<StatusUpdate>& updates) {
   for (auto& update : updates) {
     const int row = FindRow(QString::fromStdString(update.app_id));
     if (row < 0) {
@@ -275,7 +275,7 @@ void AppLauncherModel::ApplyStatuses(std::vector<StatusUpdate> updates) {
 }
 
 void AppLauncherModel::ApplyOperation(const std::string& app_id, CommandType,
-                                      AppLauncherBackendResult result) {
+                                      const AppLauncherBackendResult& result) {
   const int row = FindRow(QString::fromStdString(app_id));
   if (row < 0) {
     return;

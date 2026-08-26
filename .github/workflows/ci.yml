@@ -152,7 +152,10 @@ jobs:
             gstreamer1.0-plugins-good libgstreamer-plugins-base1.0-dev \
             libgrpc++-dev libprotobuf-dev libssl-dev libunwind-dev libxkbcommon-dev \
             libyaml-cpp-dev ninja-build openssl pkg-config protobuf-compiler \
-            protobuf-compiler-grpc qt6-base-dev ripgrep python3-flake8
+            protobuf-compiler-grpc qt6-base-dev qt6-declarative-dev ripgrep python3-flake8 \
+            qml6-module-qtqml-workerscript qml6-module-qtquick \
+            qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+            qml6-module-qtquick-templates qml6-module-qtquick-window
       - name: Install pinned ROS2 Humble/Nav2
         run: bash scripts/setup-ros2-humble-nav2.sh
       - name: Verify pinned ROS2 packages

@@ -43,9 +43,9 @@ class FakeCaptureSource final : public AudioCaptureSource {
   CaptureResult Read(std::int16_t* samples, std::size_t frame_capacity, int,
                      const std::atomic_bool& stop_requested) override {
     if (stop_requested.load()) {
-      return {CaptureStatus::kStopped};
+      return {CaptureStatus::kStopped, 0U, 0, {}};
     }
-    CaptureResult result{CaptureStatus::kTimeout};
+    CaptureResult result{CaptureStatus::kTimeout, 0U, 0, {}};
     {
       std::lock_guard<std::mutex> lock(state_->mutex);
       if (state_->next_result < state_->results.size()) {
@@ -88,10 +88,10 @@ bool WaitUntil(const Predicate& predicate) {
 bool TestCaptureAndRecovery() {
   auto state = std::make_shared<FakeState>();
   state->results = {
-      {CaptureStatus::kTimeout},
-      {CaptureStatus::kXrunRecovered},
-      {CaptureStatus::kOk, 160},
-      {CaptureStatus::kOk, 160},
+      {CaptureStatus::kTimeout, 0U, 0, {}},
+      {CaptureStatus::kXrunRecovered, 0U, 0, {}},
+      {CaptureStatus::kOk, 160U, 0, {}},
+      {CaptureStatus::kOk, 160U, 0, {}},
   };
   cockpit::audio::AudioCaptureStream stream(std::make_unique<FakeCaptureSource>(state));
   std::string error;

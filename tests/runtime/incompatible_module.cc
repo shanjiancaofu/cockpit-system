@@ -9,8 +9,8 @@ int Start(const char*) {
 void Stop() {
 }
 
-const CockpitModuleApi kApi{COCKPIT_MODULE_ABI_VERSION + 1, sizeof(CockpitModuleApi),
-                            "incompatible", Start, Stop};
+const CockpitModuleApi kApi{
+    COCKPIT_MODULE_ABI_VERSION + 1, sizeof(CockpitModuleApi), "incompatible", Start, Stop, nullptr};
 
 }  // namespace
 

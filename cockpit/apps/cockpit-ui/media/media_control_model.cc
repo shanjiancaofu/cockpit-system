@@ -205,7 +205,7 @@ void MediaControlModel::Run() {
       QMetaObject::invokeMethod(
           this,
           [this, result = std::move(result)]() mutable {
-            ApplyResult(std::move(result));
+            ApplyResult(result);
           },
           Qt::QueuedConnection);
       next_poll = std::chrono::steady_clock::now() + kStatusPollInterval;
@@ -216,7 +216,7 @@ void MediaControlModel::Run() {
     QMetaObject::invokeMethod(
         this,
         [this, status = std::move(status)]() mutable {
-          ApplyStatus(std::move(status));
+          ApplyStatus(status);
         },
         Qt::QueuedConnection);
     next_poll = std::chrono::steady_clock::now() + kStatusPollInterval;
@@ -228,7 +228,7 @@ void MediaControlModel::Run() {
   }
 }
 
-void MediaControlModel::ApplyStatus(MediaBackendStatus status) {
+void MediaControlModel::ApplyStatus(const MediaBackendStatus& status) {
   if (busy_) {
     return;
   }
@@ -243,7 +243,7 @@ void MediaControlModel::ApplyStatus(MediaBackendStatus status) {
   emit statusChanged();
 }
 
-void MediaControlModel::ApplyResult(MediaBackendResult result) {
+void MediaControlModel::ApplyResult(const MediaBackendResult& result) {
   busy_ = false;
   status_message_ = QString::fromStdString(result.message);
   current_track_id_ = QString::fromStdString(result.track_id);

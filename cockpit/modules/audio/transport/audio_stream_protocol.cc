@@ -164,7 +164,7 @@ std::optional<AudioFrame> DecodeAudioStreamCaptureFrame(const void* packet, std:
   }
   return std::optional<AudioFrame>(std::in_place, GetUint64(bytes, kSequenceOffset),
                                    SignedValue(GetUint64(bytes, kCaptureTimeOffset)),
-                                   static_cast<AudioFrameFlag>(flags), std::move(samples));
+                                   static_cast<AudioFrameFlag>(flags), samples);
 }
 
 }  // namespace audio

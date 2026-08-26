@@ -9,8 +9,8 @@ int Start(const char*) {
 void Stop() {
 }
 
-const CockpitModuleApi kApi{COCKPIT_MODULE_ABI_VERSION, sizeof(CockpitModuleApi), "transfer", Start,
-                            Stop};
+const CockpitModuleApi kApi{
+    COCKPIT_MODULE_ABI_VERSION, sizeof(CockpitModuleApi), "transfer", Start, Stop, nullptr};
 
 }  // namespace
 

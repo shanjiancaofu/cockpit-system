@@ -148,7 +148,7 @@ int main() {
   std::atomic<std::uint64_t> completions{0};
   std::atomic<std::uint64_t> cancellations{0};
   const auto on_complete = [&completions,
-                            &cancellations](cockpit::voice::VoiceOutputResult result) {
+                            &cancellations](const cockpit::voice::VoiceOutputResult& result) {
     completions.fetch_add(1U);
     if (result.status == cockpit::voice::VoiceOutputStatus::kCancelled) {
       cancellations.fetch_add(1U);
@@ -212,7 +212,7 @@ int main() {
         std::make_unique<BlockingSink>(cancel_state));
     std::atomic<std::uint64_t> cancel_completions{0};
     if (!cancellable.Submit(4U, "blocked",
-                            [&cancel_completions](cockpit::voice::VoiceOutputResult result) {
+                            [&cancel_completions](const cockpit::voice::VoiceOutputResult& result) {
                               if (result.status == cockpit::voice::VoiceOutputStatus::kCancelled) {
                                 cancel_completions.fetch_add(1U);
                               }
@@ -255,7 +255,7 @@ int main() {
     cockpit::voice::AsyncVoiceResponseSink dispatch_guarded(
         std::make_unique<DispatchGateSink>(dispatch_state));
     if (!dispatch_guarded.Submit(
-            5U, "cancel before dispatch", [&](cockpit::voice::VoiceOutputResult result) {
+            5U, "cancel before dispatch", [&](const cockpit::voice::VoiceOutputResult& result) {
               std::lock_guard<std::mutex> lock(dispatch_completion_mutex);
               if (result.status == cockpit::voice::VoiceOutputStatus::kCancelled) {
                 ++dispatch_completions;
@@ -305,11 +305,12 @@ int main() {
   std::condition_variable failure_changed;
   bool failure_completed = false;
   cockpit::voice::AsyncVoiceResponseSink failing(std::make_unique<ImmediateFailureSink>());
-  if (!failing.Submit(6U, "fail asynchronously", [&](cockpit::voice::VoiceOutputResult result) {
-        std::lock_guard<std::mutex> lock(failure_mutex);
-        failure_completed = result.status == cockpit::voice::VoiceOutputStatus::kFailed;
-        failure_changed.notify_all();
-      })) {
+  if (!failing.Submit(
+          6U, "fail asynchronously", [&](const cockpit::voice::VoiceOutputResult& result) {
+            std::lock_guard<std::mutex> lock(failure_mutex);
+            failure_completed = result.status == cockpit::voice::VoiceOutputStatus::kFailed;
+            failure_changed.notify_all();
+          })) {
     std::cerr << "failure metrics response was rejected\n";
     return 1;
   }

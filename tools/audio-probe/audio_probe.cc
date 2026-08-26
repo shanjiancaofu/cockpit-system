@@ -19,6 +19,7 @@
 namespace {
 
 int ListDevices(const cockpit::runtime::ProcessRuntime& runtime) {
+  static_cast<void>(runtime);
   std::string error;
   const auto devices = cockpit::audio::AlsaPcm::ListDevices(&error);
   if (!error.empty()) {

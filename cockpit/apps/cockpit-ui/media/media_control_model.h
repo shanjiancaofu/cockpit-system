@@ -129,8 +129,8 @@ class MediaControlModel final : public QObject {
 
   void Enqueue(CommandType command);
   void Run();
-  void ApplyStatus(MediaBackendStatus status);
-  void ApplyResult(MediaBackendResult result);
+  void ApplyStatus(const MediaBackendStatus& status);
+  void ApplyResult(const MediaBackendResult& result);
   void SetLastError(QString error);
   static QString StateName(MediaPlaybackState state);
 

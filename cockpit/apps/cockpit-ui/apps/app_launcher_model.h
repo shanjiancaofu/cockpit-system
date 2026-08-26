@@ -105,8 +105,9 @@ class AppLauncherModel final : public QAbstractListModel {
   int FindRow(const QString& app_id) const;
   void Enqueue(int row, CommandType type);
   void Run();
-  void ApplyStatuses(std::vector<StatusUpdate> updates);
-  void ApplyOperation(const std::string& app_id, CommandType type, AppLauncherBackendResult result);
+  void ApplyStatuses(const std::vector<StatusUpdate>& updates);
+  void ApplyOperation(const std::string& app_id, CommandType type,
+                      const AppLauncherBackendResult& result);
   void SetLastError(QString error);
   static QString StateLabel(const QString& state);
 

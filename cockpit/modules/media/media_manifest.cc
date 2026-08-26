@@ -66,7 +66,7 @@ bool Sha256(const std::filesystem::path& path, std::string* digest, std::string*
     SetError(error, "failed to initialize SHA-256");
     return false;
   }
-  std::array<char, 64 * 1024> buffer{};
+  std::array<char, 64ULL * 1024ULL> buffer{};
   while (input) {
     input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
     const std::streamsize count = input.gcount();

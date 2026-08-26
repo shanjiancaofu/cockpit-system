@@ -123,7 +123,7 @@ class PredispatchGateDispatcher final : public cockpit::voice::ActionDispatcher 
         return released_;
       });
     }
-    const auto result = dispatcher_->Execute(action, context);
+    auto result = dispatcher_->Execute(action, context);
     {
       std::lock_guard<std::mutex> lock(mutex_);
       finished_ = true;

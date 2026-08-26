@@ -46,6 +46,7 @@ void PrintFormats(const std::vector<cockpit::camera::PixelFormatInfo>& formats) 
 }
 
 int ListDevices(const cockpit::runtime::ProcessRuntime& runtime) {
+  static_cast<void>(runtime);
   std::string error;
   const auto devices = cockpit::camera::V4l2Camera::ListDevices(&error);
   if (!error.empty() && devices.empty()) {

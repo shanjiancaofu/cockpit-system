@@ -145,7 +145,7 @@ grpc::Status AudioGrpcServer::GetStatus(grpc::ServerContext*, const proto::commo
 grpc::Status AudioGrpcServer::PlayPcm(grpc::ServerContext*,
                                       const proto::audio::PlayPcmRequest* request,
                                       proto::audio::PlayPcmResponse* response) {
-  constexpr std::size_t kMaxPcmBytes = 2U * 1024U * 1024U;
+  constexpr std::size_t kMaxPcmBytes = 2ULL * 1024ULL * 1024ULL;
   if (!IsSupportedPlaybackRate(request->sample_rate_hz()) || request->channels() != 1U) {
     response->set_accepted(false);
     return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,

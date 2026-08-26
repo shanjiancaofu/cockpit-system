@@ -187,7 +187,8 @@ int IpcConnector::WaitForRequest(int timeout_ms, std::string* request) {
   if (client_fd < 0) {
     return -1;
   }
-  const timeval send_timeout{kIoTimeoutMs / 1000, (kIoTimeoutMs % 1000) * 1000};
+  const timeval send_timeout{kIoTimeoutMs / 1000,
+                             static_cast<suseconds_t>(kIoTimeoutMs % 1000) * 1000L};
   if (setsockopt(client_fd, SOL_SOCKET, SO_SNDTIMEO, &send_timeout, sizeof(send_timeout)) < 0) {
     close(client_fd);
     return -1;
@@ -310,8 +311,10 @@ bool IpcConnector::SendRequest(const std::string& socket_path, const std::string
   }
 
   const int flags = fcntl(fd, F_GETFL, 0);
-  const timeval send_timeout{kIoTimeoutMs / 1000, (kIoTimeoutMs % 1000) * 1000};
-  const timeval receive_timeout{response_timeout_ms / 1000, (response_timeout_ms % 1000) * 1000};
+  const timeval send_timeout{kIoTimeoutMs / 1000,
+                             static_cast<suseconds_t>(kIoTimeoutMs % 1000) * 1000L};
+  const timeval receive_timeout{response_timeout_ms / 1000,
+                                static_cast<suseconds_t>(response_timeout_ms % 1000) * 1000L};
   if (flags < 0 || fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) < 0 ||
       setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &send_timeout, sizeof(send_timeout)) < 0 ||
       setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &receive_timeout, sizeof(receive_timeout)) < 0) {

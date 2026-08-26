@@ -78,6 +78,7 @@ bool PrintMessage(const google::protobuf::Message& message,
 
 int PrintError(const cockpit::runtime::ProcessRuntime& runtime,
                cockpit::diagnostics::OutputFormat format, const std::string& error) {
+  static_cast<void>(runtime);
   const std::string message = error.empty() ? "camera control request failed" : error;
   if (format == cockpit::diagnostics::OutputFormat::kJson) {
     cockpit::diagnostics::WriteJsonError("operation_failed", message, &std::cerr);
@@ -89,6 +90,7 @@ int PrintError(const cockpit::runtime::ProcessRuntime& runtime,
 
 int PrintArgumentError(const cockpit::runtime::ProcessRuntime& runtime,
                        cockpit::diagnostics::OutputFormat format, const std::string& message) {
+  static_cast<void>(runtime);
   if (format == cockpit::diagnostics::OutputFormat::kJson) {
     cockpit::diagnostics::WriteJsonError("invalid_arguments", message, &std::cerr);
   } else {
