@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 workspace_dir="${root_dir}/ros2"
 output_dir="$(realpath -m "${ROS2_OUTPUT_DIR:-${root_dir}/_output/ros2}")"
 build_dir="${output_dir}/build"
@@ -13,7 +13,7 @@ if [[ "$(id -u)" -eq 0 ]]; then
   exit 2
 fi
 if [[ ! -f /opt/ros/humble/setup.bash ]]; then
-  echo "ROS 2 Humble is not installed; run scripts/setup-ros2-humble-nav2.sh" >&2
+  echo "ROS 2 Humble is not installed; run scripts/setup/ros2/install.sh" >&2
   exit 2
 fi
 if ! command -v colcon >/dev/null 2>&1; then

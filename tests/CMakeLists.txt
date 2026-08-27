@@ -64,6 +64,11 @@ add_test(NAME navigator_stability_test COMMAND bash
 )
 set_tests_properties(navigator_stability_test PROPERTIES TIMEOUT 30)
 set_tests_properties(navigator_stability_test PROPERTIES LABELS "system-grpc")
+if(COCKPIT_ENABLE_ROS2 AND DEFINED ENV{LD_LIBRARY_PATH})
+    set_tests_properties(navigator_stability_test PROPERTIES
+        ENVIRONMENT "LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH}"
+    )
+endif()
 
 add_test(NAME hmi_runtime_test COMMAND bash
     ${PROJECT_SOURCE_DIR}/scripts/tests/hmi-runtime.sh
@@ -229,6 +234,11 @@ if(COCKPIT_ENABLE_ROS2)
         LABELS "system-ros2"
         TIMEOUT 20
     )
+    if(DEFINED ENV{LD_LIBRARY_PATH})
+        set_tests_properties(bridge_ros2_integration_test PROPERTIES
+            ENVIRONMENT "LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH}"
+        )
+    endif()
     add_test(
         NAME bridge_ros2_full_process_smoke
         COMMAND ${CMAKE_COMMAND} -E env BUILD_DIR=${CMAKE_BINARY_DIR}

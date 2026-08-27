@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-lint_script="${root_dir}/scripts/lint.sh"
+lint_script="${root_dir}/scripts/dev/lint.sh"
 test_root="$(mktemp -d /tmp/cockpit-driver-boundary-test.XXXXXX)"
 trap 'rm -rf --one-file-system "${test_root}"' EXIT
 

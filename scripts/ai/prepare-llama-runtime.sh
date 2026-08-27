@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-project_root="$(cd -- "${script_dir}/.." && pwd)"
+project_root="$(cd -- "${script_dir}/../.." && pwd)"
 ai_root="${COCKPIT_AI_ROOT:-${project_root}/_output/ai}"
 revision="${COCKPIT_LLAMA_CPP_REVISION:-}"
 source_sha256="${COCKPIT_LLAMA_CPP_SOURCE_SHA256:-}"
@@ -83,12 +83,19 @@ fi
 
 build_dir="${tmp_dir}/build"
 cuda="${COCKPIT_LLAMA_CPP_CUDA:-OFF}"
-cmake -S "${source_dir}" -B "${build_dir}" -G Ninja \
+cuda_architectures="${COCKPIT_LLAMA_CPP_CUDA_ARCHITECTURES:-}"
+cmake_args=(
+  -S "${source_dir}" -B "${build_dir}" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_SHARED_LIBS=ON \
   -DLLAMA_CURL=OFF \
   -DGGML_NATIVE=OFF \
   -DGGML_CUDA="${cuda}"
+)
+if [[ -n "${cuda_architectures}" ]]; then
+  cmake_args+=("-DCMAKE_CUDA_ARCHITECTURES=${cuda_architectures}")
+fi
+cmake "${cmake_args[@]}"
 cmake --build "${build_dir}" --target llama-server --parallel "${JOBS:-$(nproc)}"
 
 mkdir -p "${runtime_dir}/bin"
@@ -104,6 +111,9 @@ fi
     printf 'source_sha256=%s\n' "${source_sha256,,}"
   fi
   printf 'cuda=%s\n' "${cuda}"
+  if [[ -n "${cuda_architectures}" ]]; then
+    printf 'cuda_architectures=%s\n' "${cuda_architectures}"
+  fi
   printf 'compiler=%s\n' "$(c++ --version | head -n 1)"
 } >"${runtime_dir}/MANIFEST.txt"
 

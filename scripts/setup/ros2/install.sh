@@ -2,8 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=ros2-humble-pins.env
-source "${SCRIPT_DIR}/ros2-humble-pins.env"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/versions.sh"
 
 if [[ "$(id -u)" -eq 0 ]]; then
   echo "Do not run this script as root; it uses sudo for individual system operations." >&2
@@ -14,10 +14,6 @@ source /etc/os-release
 if [[ "${ID:-}" != "ubuntu" || "${VERSION_ID:-}" != "22.04" ||
       "${UBUNTU_CODENAME:-}" != "jammy" ]]; then
   echo "ROS 2 Humble deb setup requires Ubuntu 22.04 Jammy; detected ${PRETTY_NAME:-unknown}" >&2
-  exit 2
-fi
-if [[ "$(dpkg --print-architecture)" != "amd64" ]]; then
-  echo "This script targets Ubuntu 22.04 x86_64 (amd64); use a Jetson-specific install flow for ARM64." >&2
   exit 2
 fi
 if ! command -v sudo >/dev/null 2>&1; then
@@ -39,7 +35,7 @@ sudo add-apt-repository -y universe
 sudo curl -fsSL \
   https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
   -o /usr/share/keyrings/ros-archive-keyring.gpg
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu jammy main" \
+echo "deb [arch=${ros_arch} signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu jammy main" \
   | sudo tee /etc/apt/sources.list.d/ros2.list >/dev/null
 
 sudo apt-get update

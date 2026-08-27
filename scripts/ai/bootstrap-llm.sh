@@ -7,10 +7,31 @@ if [[ "${EUID}" -eq 0 ]]; then
 fi
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-project_root="$(cd -- "${script_dir}/.." && pwd)"
+project_root="$(cd -- "${script_dir}/../.." && pwd)"
 cd "${project_root}"
 # shellcheck disable=SC1091
-source "${script_dir}/llm-pins.env"
+source "${script_dir}/llm-versions.sh"
+
+case "$(uname -m)" in
+  x86_64|amd64)
+    native_arch=x86_64
+    default_cuda=OFF
+    default_cuda_architectures=""
+    ;;
+  aarch64|arm64)
+    native_arch=arm64
+    default_cuda=ON
+    default_cuda_architectures=87
+    ;;
+  *)
+    echo "unsupported native architecture: $(uname -m)" >&2
+    exit 2
+    ;;
+esac
+
+llama_cuda="${COCKPIT_LLAMA_CPP_CUDA:-${default_cuda}}"
+llama_cuda_architectures="${COCKPIT_LLAMA_CPP_CUDA_ARCHITECTURES:-${default_cuda_architectures}}"
+llm_build_dir="${COCKPIT_LLM_BUILD_DIR:-${project_root}/_output/build/${native_arch}-debug}"
 
 ai_root="${COCKPIT_AI_ROOT:-${project_root}/_output/ai}"
 download_dir="$ai_root/downloads"
@@ -145,14 +166,15 @@ EOF
 cat "$ai_root/llm-versions.env"
 
 # --------------------------------------------------
-# 5. 编译 x86_64 CPU llama-server
+# 5. Build the native llama-server runtime
 # --------------------------------------------------
 
 echo "[5/8] Building llama-server"
 COCKPIT_LLAMA_CPP_REVISION="$llama_revision" \
 COCKPIT_LLAMA_CPP_SOURCE_DIR="$llama_source" \
-COCKPIT_LLAMA_CPP_CUDA=OFF \
-bash scripts/prepare-llama-runtime.sh
+COCKPIT_LLAMA_CPP_CUDA="$llama_cuda" \
+COCKPIT_LLAMA_CPP_CUDA_ARCHITECTURES="$llama_cuda_architectures" \
+bash "${project_root}/scripts/ai/prepare-llama-runtime.sh"
 
 # --------------------------------------------------
 # 6. 安装生产和对照模型
@@ -162,12 +184,12 @@ echo "[6/8] Installing verified model profiles"
 COCKPIT_LLM_MODEL_PROFILE=production \
 COCKPIT_LLM_MODEL_FILE="$model_2b_file" \
 COCKPIT_LLM_MODEL_SHA256="$model_2b_sha256" \
-bash scripts/prepare-llm-model.sh
+bash "${project_root}/scripts/ai/prepare-llm-model.sh"
 
 COCKPIT_LLM_MODEL_PROFILE=comparison \
 COCKPIT_LLM_MODEL_FILE="$model_4b_file" \
 COCKPIT_LLM_MODEL_SHA256="$model_4b_sha256" \
-bash scripts/prepare-llm-model.sh
+bash "${project_root}/scripts/ai/prepare-llm-model.sh"
 
 # --------------------------------------------------
 # 7. 检查 runtime
@@ -189,12 +211,12 @@ fi
 # --------------------------------------------------
 
 echo "[8/8] Running Qwen3.5-2B production smoke"
-BUILD_DIR="${project_root}/_output/build/x86_64-debug" \
+BUILD_DIR="${llm_build_dir}" \
 COCKPIT_LLM_MODEL_PROFILE=production \
-bash scripts/tests/llama-server-smoke.sh
+bash "${project_root}/scripts/tests/llama-server-smoke.sh"
 
 echo "[8/8] Running Qwen3.5-4B comparison smoke"
-BUILD_DIR="${project_root}/_output/build/x86_64-debug" \
+BUILD_DIR="${llm_build_dir}" \
 COCKPIT_LLM_MODEL_PROFILE=comparison \
 COCKPIT_LLAMA_SERVER_PORT=18081 \
-bash scripts/tests/llama-server-smoke.sh
+bash "${project_root}/scripts/tests/llama-server-smoke.sh"

@@ -7,7 +7,7 @@ if [[ "$(id -u)" -eq 0 ]]; then
 fi
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-project_root="$(cd -- "${script_dir}/.." && pwd)"
+project_root="$(cd -- "${script_dir}/../.." && pwd)"
 ai_root="${COCKPIT_AI_ROOT:-${project_root}/_output/ai}"
 version="${COCKPIT_SHERPA_ONNX_VERSION:-v1.13.4}"
 expected_sha256="${COCKPIT_SHERPA_RUNTIME_SHA256:-}"

@@ -5,7 +5,7 @@ root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 work_dir="$(mktemp -d)"
 trap 'rm -rf --one-file-system "${work_dir}"' EXIT
 resource_root="${work_dir}/voice-model"
-manager="${root_dir}/scripts/manage-ai-resource.sh"
+manager="${root_dir}/scripts/ai/manage-resource.sh"
 
 make_release() {
   local release="$1"

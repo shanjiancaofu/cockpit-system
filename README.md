@@ -83,7 +83,7 @@ cockpit-system/
 WSL2/Ubuntu 22.04：
 
 ```bash
-bash scripts/install-dependencies.sh
+bash scripts/setup/dependencies.sh
 ```
 
 ## 构建和测试
@@ -92,30 +92,30 @@ bash scripts/install-dependencies.sh
 bash scripts/build.sh                         # GCC Debug 开发构建和 CTest
 bash scripts/build.sh --type release          # GCC Release 正式 Linux 构建
 bash scripts/tests/smoke.sh
-bash scripts/configure-ros2-dev.sh
-bash scripts/build-ros2-workspace.sh
-bash scripts/test-ros2-workspace.sh
+bash scripts/ros2/configure.sh
+bash scripts/ros2/build.sh
+bash scripts/ros2/test.sh
 bash scripts/tests/sherpa-voice-smoke.sh
 bash scripts/tests/navigator-stability.sh --duration 300 --interval 5 --fault crash --fault-count 3
-bash scripts/prepare-sherpa-runtime.sh
-bash scripts/prepare-voice-models.sh
+bash scripts/ai/prepare-sherpa-runtime.sh
+bash scripts/ai/prepare-voice-models.sh
 # 设置已审查的 commit、源码来源及两个 SHA-256 后执行：
 # COCKPIT_LLAMA_CPP_REVISION / COCKPIT_LLAMA_CPP_SOURCE_SHA256
 # COCKPIT_LLM_MODEL_FILE（或 URL）/ COCKPIT_LLM_MODEL_SHA256
 # 默认准备 Qwen3.5-2B；4B 对照需设置 COCKPIT_LLM_MODEL_PROFILE=comparison
-bash scripts/prepare-llama-runtime.sh
-bash scripts/prepare-llm-model.sh
+bash scripts/ai/prepare-llama-runtime.sh
+bash scripts/ai/prepare-llm-model.sh
 bash scripts/tests/llama-server-smoke.sh
 # 一次准备 runtime、2B/4B 模型并运行 smoke（禁止 sudo）：
-bash scripts/llm.sh
+bash scripts/ai/bootstrap-llm.sh
 # Hugging Face 直连不可用时：
-COCKPIT_HF_ENDPOINT=https://hf-mirror.com bash scripts/llm.sh
+COCKPIT_HF_ENDPOINT=https://hf-mirror.com bash scripts/ai/bootstrap-llm.sh
 ```
 
 本地 LLM 基线固定为 llama.cpp `b10456`（`f275595dd16f7ed3d644d4d8159b14b305960479`）。
 production 使用 `unsloth/Qwen3.5-2B-GGUF` 的 `Qwen3.5-2B-Q4_K_M.gguf`，comparison 使用
 `unsloth/Qwen3.5-4B-GGUF` 的 `Qwen3.5-4B-Q4_K_M.gguf`；精确模型 revision 和 SHA-256 见
-[部署说明](docs/部署说明.md)。`scripts/llm.sh` 必须以普通用户运行，已有校验正确的下载缓存会直接复用。
+[部署说明](docs/部署说明.md)。`scripts/ai/bootstrap-llm.sh` 必须以普通用户运行，已有校验正确的下载缓存会直接复用。
 
 `build.sh` 统一使用 GCC：Debug 用于开发、CTest 和 smoke，Release 用于正式构建和发布包。
 
@@ -170,14 +170,14 @@ _output/build/x86_64-debug/bin/cockpit-navigator \
 运行 Qt UI：
 
 ```bash
-bash scripts/run-cockpit-ui.sh
-bash scripts/run-camera-ui.sh
+bash scripts/run/cockpit-ui.sh
+bash scripts/run/cockpit-ui.sh --camera
 ```
 
 Jetson CSI 默认使用 `nvargus://0`。USB 摄像头可显式指定：
 
 ```bash
-CAMERA_DEVICE=/dev/video0 bash scripts/run-camera-ui.sh
+CAMERA_DEVICE=/dev/video0 bash scripts/run/cockpit-ui.sh --camera
 ```
 
 ## USB 摄像头权限
@@ -209,7 +209,7 @@ SenseVoice 固定录音性能与安全路由基线可运行
 不下载资源、不进入默认 CI；默认重复 3 轮，可通过 `COCKPIT_SENSEVOICE_BENCHMARK_REPETITIONS=10`
 运行 80 次识别。CER 和整句准确率只统计两条有可靠人工参考文本的中英文 `open camera` fixture，
 其余录音用于重复输出、延迟、RSS 和 fail-closed 路由验证，不能冒充完整车控语料准确率。
-Kokoro TTS 模型使用 `bash scripts/prepare-kokoro-tts.sh` 准备；该脚本只安装到 `_output/ai`，
+Kokoro TTS 模型使用 `bash scripts/ai/prepare-kokoro-tts.sh` 准备；该脚本只安装到 `_output/ai`，
 不使用 sudo。默认构建仍不下载或加载 Sherpa/TTS 模型。
 同一 Kokoro provider 实例的重复合成和 RSS 基线可运行
 `bash scripts/tests/kokoro-tts-stability.sh`；默认 16 轮，可通过
@@ -233,10 +233,10 @@ Qwen3.5 的语音请求显式设置 `chat_template_kwargs.enable_thinking=false`
 Qwen3.5 2B/4B 的 Ubuntu x86_64 有界质量、双并发、RSS 和 tokens/s 基线使用
 `bash scripts/tests/llama-server-benchmark.sh`，结果写入 `_output/build/x86_64-debug/llm-benchmark`。
 该基准只使用本地已校验资源并只监听 loopback；质量输出保留在结果文件供人工审核，不将小样本自动评分当作生产质量结论。
-Sherpa runtime 独立交付必须通过 `bash scripts/prepare-sherpa-runtime.sh`，提供固定
+Sherpa runtime 独立交付必须通过 `bash scripts/ai/prepare-sherpa-runtime.sh`，提供固定
 `COCKPIT_SHERPA_RUNTIME_SHA256` 的归档；归档必须含 `include/`、`lib/` 和 `LICENSE`，脚本验证私有
 `ldd`、许可证哈希并以临时目录和原子 rename 安装，不使用 sudo。Stage 14 资源切换使用
-`scripts/manage-ai-resource.sh stage|activate|rollback|status RESOURCE_ROOT [RELEASE]`；stage 不会自动激活生产模型。
+`scripts/ai/manage-resource.sh stage|activate|rollback|status RESOURCE_ROOT [RELEASE]`；stage 不会自动激活生产模型。
 显式 Sherpa Agent 构建的 Navigator modules 在编译阶段启用 hidden visibility，链接阶段只导出
 `CockpitModuleGetApi`；`--exclude-libs,ALL`、version script 和安装态 `$ORIGIN/../..` RPATH 继续限制
 模块符号和相对依赖。Sherpa/ONNX Runtime 现在作为独立、固定版本的 `_output/ai` 交付物验证，

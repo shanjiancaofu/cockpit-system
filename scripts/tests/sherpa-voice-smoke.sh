@@ -2,7 +2,21 @@
 set -euo pipefail
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "${root_dir}/scripts/common.sh"
+
+
+cockpit_native_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) echo "x86_64" ;;
+    aarch64|arm64) echo "arm64" ;;
+    *) echo "unsupported native architecture: $(uname -m)" >&2; return 1 ;;
+  esac
+}
+
+cockpit_output_dir() { echo "${COCKPIT_OUTPUT_DIR:-${root_dir}/_output}"; }
+cockpit_default_debug_build_dir() { echo "$(cockpit_output_dir)/build/$(cockpit_native_arch)-debug"; }
+cockpit_default_release_build_dir() { echo "$(cockpit_output_dir)/build/$(cockpit_native_arch)-release"; }
+cockpit_default_runtime_dir() { echo "$(cockpit_output_dir)/runtime"; }
+
 
 machine_arch="$(cockpit_native_arch)"
 if [[ "${machine_arch}" != "x86_64" ]]; then
@@ -62,10 +76,10 @@ if [[ ${#missing[@]} -ne 0 ]]; then
   cat >&2 <<EOF
 
 Prepare local resources first:
-  bash scripts/prepare-sherpa-runtime.sh
-  bash scripts/prepare-voice-models.sh
+  bash "${root_dir}/scripts/ai/prepare-sherpa-runtime.sh"
+  bash "${root_dir}/scripts/ai/prepare-voice-models.sh"
   COCKPIT_KOKORO_TTS_SHA256=a3f4c73d043860e3fd2e5b06f36795eb81de0fc8e8de6df703245edddd87dbad \\
-    bash scripts/prepare-kokoro-tts.sh
+    bash "${root_dir}/scripts/ai/prepare-kokoro-tts.sh"
 
 The smoke does not download resources during validation.
 EOF

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 build_dir="$(realpath -m "${BUILD_DIR:-${root_dir}/_output/build/ros2}")"
 
 if [[ ! -f /opt/ros/humble/setup.bash ]]; then
-  echo "ROS 2 Humble is not installed; run scripts/setup-ros2-humble-nav2.sh" >&2
+  echo "ROS 2 Humble is not installed; run scripts/setup/ros2/install.sh" >&2
   exit 2
 fi
 
@@ -40,4 +40,4 @@ done
 echo "ROS2 development compile database ready"
 echo "build_dir=${build_dir}"
 echo "compile_commands=${compile_database}"
-echo "Run scripts/build-ros2-workspace.sh to configure ros2/src files for clangd."
+echo "Run scripts/ros2/build.sh to configure ros2/src files for clangd."

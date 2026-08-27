@@ -13,6 +13,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  repository-quality:
+    name: repository-quality
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install quality dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bash clang-format pre-commit python3-flake8 ripgrep
+      - name: Check shell syntax
+        run: |
+          mapfile -t shell_files < <(find scripts -type f -name '*.sh' -print)
+          bash -n "${shell_files[@]}"
+      - name: Run flake8
+        run: flake8 --exclude '_output,build,logs,log' .
+      - name: Run pre-commit
+        run: pre-commit run --all-files
   build-and-test:
     runs-on: ubuntu-22.04
     strategy:
@@ -62,7 +79,7 @@ jobs:
             qml6-module-qtquick-templates qml6-module-qtquick-window
 
       - name: Check driver dependency boundaries
-        run: scripts/lint.sh --driver-boundaries-only
+        run: scripts/dev/lint.sh --driver-boundaries-only
 
       - name: Configure and build
         env:
@@ -121,9 +138,9 @@ jobs:
       - name: Install pinned ROS2 Humble/Nav2
         env:
           COCKPIT_SKIP_ROSDEP_SETUP: "1"
-        run: bash scripts/setup-ros2-humble-nav2.sh
+        run: bash scripts/setup/ros2/install.sh
       - name: Verify pinned ROS2 packages
-        run: bash scripts/verify-ros2-humble.sh
+        run: bash scripts/setup/ros2/verify.sh
       - name: Configure and build cockpit ROS2 adapter
         env:
           BUILD_DIR: _output/build/ci-ros2
@@ -138,7 +155,7 @@ jobs:
           set +u
           source /opt/ros/humble/setup.bash
           set -u
-          bash scripts/build-ros2-workspace.sh
+          bash scripts/ros2/build.sh
       - name: Test ROS2 workspace and official Nav2 smoke
         env:
           BUILD_DIR: _output/build/ci-ros2
@@ -147,7 +164,7 @@ jobs:
           set +u
           source /opt/ros/humble/setup.bash
           set -u
-          bash scripts/test-ros2-workspace.sh
+          bash scripts/ros2/test.sh
       - name: Test ROS2 CMake integration
         env:
           BUILD_DIR: _output/build/ci-ros2

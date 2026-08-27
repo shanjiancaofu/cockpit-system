@@ -2,7 +2,21 @@
 set -euo pipefail
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "${root_dir}/scripts/common.sh"
+
+
+cockpit_native_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) echo "x86_64" ;;
+    aarch64|arm64) echo "arm64" ;;
+    *) echo "unsupported native architecture: $(uname -m)" >&2; return 1 ;;
+  esac
+}
+
+cockpit_output_dir() { echo "${COCKPIT_OUTPUT_DIR:-${root_dir}/_output}"; }
+cockpit_default_debug_build_dir() { echo "$(cockpit_output_dir)/build/$(cockpit_native_arch)-debug"; }
+cockpit_default_release_build_dir() { echo "$(cockpit_output_dir)/build/$(cockpit_native_arch)-release"; }
+cockpit_default_runtime_dir() { echo "$(cockpit_output_dir)/runtime"; }
+
 
 main_build_dir="$(realpath -m "${BUILD_DIR:-${root_dir}/_output/build/ros2}")"
 ros2_install="$(realpath -m "${ROS2_INSTALL_DIR:-${root_dir}/_output/ros2/install}")"
@@ -19,7 +33,7 @@ navigator_log="${run_dir}/navigator.log"
 nav2_log="${run_dir}/nav2.log"
 
 if [[ ! -f /opt/ros/humble/setup.bash || ! -f "${ros2_install}/setup.bash" ]]; then
-  echo "ROS2/Nav2 workspace is unavailable; run setup and build-ros2-workspace.sh" >&2
+  echo "ROS2/Nav2 workspace is unavailable; run scripts/setup/ros2/install.sh and scripts/ros2/build.sh" >&2
   exit 2
 fi
 # shellcheck disable=SC1091

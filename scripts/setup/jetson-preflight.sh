@@ -28,12 +28,31 @@ check_path() {
   fi
 }
 
+check_optional_path() {
+  local path="$1"
+  local description="$2"
+  if [[ -e "${path}" ]]; then
+    printf 'OK   %-24s %s\n' "${description}" "${path}"
+  else
+    printf 'INFO %-24s %s (optional; not present)\n' "${description}" "${path}"
+  fi
+}
+
 echo "Jetson cockpit-system read-only preflight"
 printf 'kernel       %s\n' "$(uname -sr)"
 printf 'architecture %s\n' "$(uname -m)"
 if [[ "$(uname -m)" != "aarch64" ]]; then
   echo "FAIL architecture must be aarch64 on Jetson" >&2
   failures=$((failures + 1))
+fi
+
+# Make the direct, documented invocation work even when the caller has not
+# sourced the ROS environment in its interactive shell.
+if ! command -v ros2 >/dev/null 2>&1 && [[ -f /opt/ros/humble/setup.bash ]]; then
+  set +u
+  # shellcheck disable=SC1091
+  source /opt/ros/humble/setup.bash
+  set -u
 fi
 
 for command_name in gcc g++ cmake ninja git ros2; do
@@ -54,7 +73,7 @@ fi
 check_path "/dev/snd" "ALSA device directory"
 check_path "/dev/video0" "camera device"
 check_path "/sys/class/net/can0" "CAN interface"
-check_path "/dev/gpiochip0" "GPIO chip (optional)"
+check_optional_path "/dev/gpiochip0" "GPIO chip (optional)"
 
 echo
 echo "No files, packages, permissions, devices, or services were modified."

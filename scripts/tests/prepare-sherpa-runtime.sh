@@ -23,7 +23,7 @@ ai_root="${work_dir}/ai"
 COCKPIT_AI_ROOT="${ai_root}" \
 COCKPIT_SHERPA_RUNTIME_ARCHIVE="${archive}" \
 COCKPIT_SHERPA_RUNTIME_SHA256="${digest}" \
-  bash "${root_dir}/scripts/prepare-sherpa-runtime.sh" >/dev/null
+  bash "${root_dir}/scripts/ai/prepare-sherpa-runtime.sh" >/dev/null
 
 runtime="${ai_root}/runtime/sherpa-onnx/v1.13.4"
 [[ -f "${runtime}/LICENSE" ]]
@@ -31,10 +31,10 @@ grep -Fxq "archive_sha256=${digest}" "${runtime}/MANIFEST.txt"
 [[ "$(readlink "${ai_root}/runtime/sherpa-onnx/current")" == v1.13.4 ]]
 
 # A second run must reuse the verified runtime without requiring its source archive.
-COCKPIT_AI_ROOT="${ai_root}" bash "${root_dir}/scripts/prepare-sherpa-runtime.sh" >/dev/null
+COCKPIT_AI_ROOT="${ai_root}" bash "${root_dir}/scripts/ai/prepare-sherpa-runtime.sh" >/dev/null
 
 printf 'tampered\n' >>"${runtime}/LICENSE"
-if COCKPIT_AI_ROOT="${ai_root}" bash "${root_dir}/scripts/prepare-sherpa-runtime.sh" \
+if COCKPIT_AI_ROOT="${ai_root}" bash "${root_dir}/scripts/ai/prepare-sherpa-runtime.sh" \
     >/dev/null 2>&1; then
   echo "Sherpa preparation reused a runtime with a modified license" >&2
   exit 1

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=ros2-humble-pins.env
-source "${script_dir}/ros2-humble-pins.env"
+# shellcheck source=/dev/null
+source "${script_dir}/versions.sh"
 
 verify_package() {
   local package="$1"

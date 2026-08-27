@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-project_root="$(cd "${script_dir}/.." && pwd)"
+project_root="$(cd "${script_dir}/../.." && pwd)"
 ai_root="${COCKPIT_AI_ROOT:-${project_root}/_output/ai}"
 
 kws_dir="${ai_root}/models/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20"

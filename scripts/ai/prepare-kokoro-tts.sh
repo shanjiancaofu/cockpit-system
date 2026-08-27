@@ -7,7 +7,7 @@ if [[ "$(id -u)" -eq 0 ]]; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-project_root="$(cd "${script_dir}/.." && pwd)"
+project_root="$(cd "${script_dir}/../.." && pwd)"
 ai_root="${COCKPIT_AI_ROOT:-${project_root}/_output/ai}"
 model_dir="${ai_root}/models/tts/kokoro-multi-lang-v1_1"
 downloads_dir="${ai_root}/downloads"

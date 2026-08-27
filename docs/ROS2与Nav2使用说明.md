@@ -45,25 +45,25 @@ cockpit-system/
 
 主项目继续使用普通 CMake；`ros2/src` 使用 colcon/ament。默认 CI 和默认产品构建保持
 `COCKPIT_ENABLE_ROS2=OFF`。官方 ROS 2/Nav2 deb 安装在 `/opt/ros/humble`，版本由
-`scripts/ros2-humble-pins.env` 固定。
+架构对应的 `scripts/setup/ros2/versions.sh` 或 `scripts/setup/ros2/versions.sh` 固定。
 
 ## 安装和构建
 
 ```bash
 cd /home/ffz/code/github/cockpit-system
 
-bash scripts/setup-ros2-humble-nav2.sh
-bash scripts/verify-ros2-humble.sh
-bash scripts/configure-ros2-dev.sh
-bash scripts/build-ros2-workspace.sh
-bash scripts/test-ros2-workspace.sh
+bash scripts/setup/ros2/install.sh
+bash scripts/setup/ros2/verify.sh
+bash scripts/ros2/configure.sh
+bash scripts/ros2/build.sh
+bash scripts/ros2/test.sh
 
 source /opt/ros/humble/setup.bash
 source _output/ros2/install/setup.bash
 ```
 
-`configure-ros2-dev.sh` 负责主项目 ROS adapter 和 clangd compile database；
-`build-ros2-workspace.sh` 负责两个 ament 包，并把全部 colcon 输出放入 `_output/ros2`。
+`scripts/ros2/configure.sh` 负责主项目 ROS adapter 和 clangd compile database；
+`scripts/ros2/build.sh` 负责两个 ament 包，并把全部 colcon 输出放入 `_output/ros2`。
 安装脚本只使用 sudo 写入 apt key、ROS deb 和首次 `rosdep init` 的系统目录；源码、构建和运行过程不以
 root 执行。
 GitHub CI 使用 `COCKPIT_SKIP_ROSDEP_SETUP=1`，因为所有构建依赖已经由 pinned apt 清单显式安装，
@@ -121,7 +121,7 @@ ament package 和外置参数组织；没有复制其中 ROS1 `move_base`、节�
 Jetson 到位后先运行只读环境检查，不要在 VM 中伪造这些结果：
 
 ```bash
-bash scripts/jetson-preflight.sh
+bash scripts/setup/jetson-preflight.sh
 ```
 
 该脚本只检查 aarch64、GCC/CMake/Ninja/Git/ROS2、CUDA 可见性和 `/dev/snd`、`/dev/video0`、`can0`

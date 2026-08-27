@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-project_root="$(cd -- "${script_dir}/.." && pwd)"
+project_root="$(cd -- "${script_dir}/../.." && pwd)"
 ai_root="${COCKPIT_AI_ROOT:-${project_root}/_output/ai}"
 profile="${COCKPIT_LLM_MODEL_PROFILE:-production}"
 case "${profile}" in
