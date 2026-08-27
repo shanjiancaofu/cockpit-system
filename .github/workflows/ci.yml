@@ -27,7 +27,7 @@ jobs:
           mapfile -t shell_files < <(find scripts -type f -name '*.sh' -print)
           bash -n "${shell_files[@]}"
       - name: Run flake8
-        run: flake8 --exclude '_output,build,logs,log' .
+        run: python3 -m flake8 --exclude '_output,build,logs,log' .
       - name: Run pre-commit
         run: pre-commit run --all-files
   build-and-test:

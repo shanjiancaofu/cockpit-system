@@ -98,7 +98,7 @@ ros2 pkg prefix nav2_msgs >/dev/null
 ros2 pkg prefix sensor_msgs >/dev/null
 ros2 pkg prefix rclcpp >/dev/null
 
-bash "${SCRIPT_DIR}/verify-ros2-humble.sh"
+bash "${SCRIPT_DIR}/verify.sh"
 
 echo "ROS 2 Humble and Nav2 installation verified"
 ros2 --version || true
