@@ -75,14 +75,18 @@ sudo apt-get install -y \
   python3-rosdep \
   python3-vcstool
 
-if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
-  sudo rosdep init >/dev/null
+if [[ "${COCKPIT_SKIP_ROSDEP_SETUP:-0}" == "1" ]]; then
+  echo "Skipping rosdep init/update; pinned CI dependencies are installed explicitly"
+else
+  if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
+    sudo rosdep init >/dev/null
+  fi
+  if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
+    echo "rosdep init did not create /etc/ros/rosdep/sources.list.d/20-default.list" >&2
+    exit 1
+  fi
+  rosdep update
 fi
-if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
-  echo "rosdep init did not create /etc/ros/rosdep/sources.list.d/20-default.list" >&2
-  exit 1
-fi
-rosdep update
 
 if ! grep -Fqx 'source /opt/ros/humble/setup.bash' "${HOME}/.bashrc" 2>/dev/null; then
   printf '\nsource /opt/ros/humble/setup.bash\n' >>"${HOME}/.bashrc"

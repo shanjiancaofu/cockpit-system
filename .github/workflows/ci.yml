@@ -119,6 +119,8 @@ jobs:
             qml6-module-qtquick-controls qml6-module-qtquick-layouts \
             qml6-module-qtquick-templates qml6-module-qtquick-window
       - name: Install pinned ROS2 Humble/Nav2
+        env:
+          COCKPIT_SKIP_ROSDEP_SETUP: "1"
         run: bash scripts/setup-ros2-humble-nav2.sh
       - name: Verify pinned ROS2 packages
         run: bash scripts/verify-ros2-humble.sh

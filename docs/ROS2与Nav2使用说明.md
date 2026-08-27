@@ -66,6 +66,8 @@ source _output/ros2/install/setup.bash
 `build-ros2-workspace.sh` 负责两个 ament 包，并把全部 colcon 输出放入 `_output/ros2`。
 安装脚本只使用 sudo 写入 apt key、ROS deb 和首次 `rosdep init` 的系统目录；源码、构建和运行过程不以
 root 执行。
+GitHub CI 使用 `COCKPIT_SKIP_ROSDEP_SETUP=1`，因为所有构建依赖已经由 pinned apt 清单显式安装，
+避免 `rosdep update` 对 rosdistro/GitHub 临时网络状态形成无关门禁。
 
 `cockpit_nav2_test_support` 的 `cmd_vel_safety_test` 直接验证线速度/角速度限幅、侧向速度归零和
 250 ms watchdog freshness；它与 full-process smoke 分开，避免只通过导航结果间接证明安全边界。
