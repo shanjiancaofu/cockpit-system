@@ -26,6 +26,7 @@ sudo apt-get install -y \
   protobuf-compiler \
   protobuf-compiler-grpc \
   pre-commit \
+  ripgrep \
   qml6-module-qtqml-workerscript \
   qml6-module-qtquick \
   qml6-module-qtquick-controls \
