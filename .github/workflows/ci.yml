@@ -137,7 +137,7 @@ jobs:
         run: |
           git status --short
           git diff --check
-          git diff --exit-code -- . ':!_output/'
+          git diff --exit-code
       - name: Run pre-commit and diff checks
         run: |
           pre-commit --version
@@ -147,7 +147,7 @@ jobs:
           pre-commit run --all-files
           git status --short
           git diff --check
-          git diff --exit-code -- . ':!_output/'
+          git diff --exit-code
 
   ros2-nav2:
     name: ros2-nav2
