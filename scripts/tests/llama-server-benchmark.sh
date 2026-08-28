@@ -233,8 +233,8 @@ run_profile() {
 
   grep -Ei 'CUDA|offload|buffer size|device' "${server_log}" >"${gpu_evidence}" || true
   if [[ "${require_gpu_offload}" == "ON" ]]; then
-    grep -Eq 'offloaded [0-9]+/[0-9]+ layers to GPU' "${gpu_evidence}" || {
-      echo "${profile} benchmark did not prove GPU layer offload" >&2
+    grep -Eq 'offloaded [1-9][0-9]*/[0-9]+ layers to GPU' "${gpu_evidence}" || {
+      echo "${profile} benchmark did not prove non-zero GPU layer offload" >&2
       return 1
     }
   fi
