@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <utility>
 
 #include "cockpit/core/time/time.h"
@@ -130,6 +131,10 @@ void V4l2PreviewSource::IspLoop() {
       std::lock_guard<std::mutex> lock(mutex_);
       ++stats_.processed_frames;
       latency_samples_ms_.push_back(latency);
+      constexpr std::size_t kLatencyWindow = 2048U;
+      if (latency_samples_ms_.size() > kLatencyWindow) {
+        latency_samples_ms_.pop_front();
+      }
       const auto add_mean = [](double current, double value, std::uint64_t count) {
         return current + (value - current) / static_cast<double>(count);
       };
@@ -155,9 +160,15 @@ V4l2PreviewStats V4l2PreviewSource::stats() const {
   std::lock_guard<std::mutex> lock(mutex_);
   V4l2PreviewStats result = stats_;
   if (!latency_samples_ms_.empty()) {
-    auto samples = latency_samples_ms_;
+    std::vector<double> samples(latency_samples_ms_.begin(), latency_samples_ms_.end());
     std::sort(samples.begin(), samples.end());
-    result.capture_to_output_p50_ms = samples[(samples.size() - 1U) / 2U];
+    const auto percentile = [&samples](double fraction) {
+      const auto index =
+          static_cast<std::size_t>(std::ceil(fraction * static_cast<double>(samples.size())));
+      return samples[std::max<std::size_t>(1U, index) - 1U];
+    };
+    result.capture_to_output_p50_ms = percentile(0.50);
+    result.capture_to_output_p95_ms = percentile(0.95);
   }
   return result;
 }

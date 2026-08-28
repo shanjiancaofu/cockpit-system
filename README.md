@@ -206,8 +206,8 @@ P50 约 16.6 ms，队列丢帧和 source sequence gap 均为 0；进程 CPU 约 
 
 ```bash
 _output/build/arm64-debug/bin/v4l2-mmap-capture --frames 10
-_output/build/arm64-debug/bin/camera-isp-cpu-benchmark RAW 1920 1080 300 cpu-bgrx.raw
-_output/build/arm64-debug/bin/camera-isp-cuda-benchmark RAW 1920 1080 300 cuda-bgrx.raw
+_output/build/arm64-debug/bin/camera-isp-cpu-benchmark RAW 1920 1080 3840 300 cpu-bgrx.raw
+_output/build/arm64-debug/bin/camera-isp-cuda-benchmark RAW 1920 1080 3840 300 cuda-bgrx.raw
 ```
 
 ## USB 摄像头权限

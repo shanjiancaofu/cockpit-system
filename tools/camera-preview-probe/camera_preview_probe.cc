@@ -12,7 +12,9 @@
 
 #include "cockpit/core/runtime/process_runtime.h"
 #include "cockpit/modules/camera/capture/gstreamer_preview_pipeline.h"
+#if defined(COCKPIT_CAMERA_HAS_V4L2_ISP)
 #include "cockpit/modules/camera/capture/v4l2_preview_source.h"
+#endif
 
 namespace {
 
@@ -59,9 +61,12 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
   ProbeState state;
   const std::string backend = runtime.args().GetString("backend", "argus");
   std::unique_ptr<cockpit::camera::CameraPreviewSource> preview;
+#if defined(COCKPIT_CAMERA_HAS_V4L2_ISP)
   if (backend == "v4l2") {
     preview = std::make_unique<cockpit::camera::V4l2PreviewSource>();
-  } else if (backend == "argus" || backend == "gstreamer") {
+  } else
+#endif
+      if (backend == "argus" || backend == "gstreamer") {
     preview = std::make_unique<cockpit::camera::GstreamerPreviewPipeline>();
   } else {
     std::cerr << "backend must be argus or v4l2\n";
@@ -71,7 +76,11 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
   const auto wall_started = std::chrono::steady_clock::now();
   rusage usage_started{};
   getrusage(RUSAGE_SELF, &usage_started);
+#if defined(COCKPIT_CAMERA_HAS_V4L2_ISP)
   auto* v4l2_preview = dynamic_cast<cockpit::camera::V4l2PreviewSource*>(preview.get());
+#else
+  void* v4l2_preview = nullptr;
+#endif
   const bool started = preview->Start(
       config,
       [&state, target_frames](const cockpit::camera::CameraFrame& frame) {
@@ -124,6 +133,7 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
   std::cout << "captured " << state.frames << " frame(s) from " << config.device
             << " size=" << state.width << 'x' << state.height << " stride=" << state.stride_bytes
             << " bytes=" << state.bytes << " fps=" << fps << '\n';
+#if defined(COCKPIT_CAMERA_HAS_V4L2_ISP)
   if (v4l2_preview != nullptr) {
     const auto stats = v4l2_preview->stats();
     const auto cpu_time = [](const rusage& usage) {
@@ -149,6 +159,7 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
               << " process_cpu_percent=" << (wall_ms > 0.0 ? cpu_ms / wall_ms * 100.0 : 0.0)
               << '\n';
   }
+#endif
   if (!complete) {
     std::cerr << "timed out before requested frame count\n";
     return 1;

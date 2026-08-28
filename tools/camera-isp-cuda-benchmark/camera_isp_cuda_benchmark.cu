@@ -1,9 +1,9 @@
 #include <cuda_runtime.h>
-
 #include <sys/resource.h>
 
 #include <chrono>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -12,17 +12,17 @@
 
 namespace {
 
-#define CUDA_CHECK(call)                                                                            \
-  do {                                                                                              \
-    const cudaError_t status = (call);                                                             \
-    if (status != cudaSuccess) {                                                                   \
-      std::cerr << #call << " failed: " << cudaGetErrorString(status) << '\n';                    \
-      return 1;                                                                                   \
-    }                                                                                               \
+#define CUDA_CHECK(call)                                                       \
+  do {                                                                         \
+    const cudaError_t status = (call);                                         \
+    if (status != cudaSuccess) {                                               \
+      std::cerr << #call << " failed: " << cudaGetErrorString(status) << '\n'; \
+      return 1;                                                                \
+    }                                                                          \
   } while (false)
 
 __device__ __forceinline__ std::uint16_t Sample(const std::uint16_t* raw, int width, int height,
-                                                 int x, int y) {
+                                                int x, int y) {
   x = max(0, min(width - 1, x));
   y = max(0, min(height - 1, y));
   return raw[y * width + x];
@@ -50,20 +50,18 @@ __global__ void ProcessKernel(const std::uint16_t* raw, std::uint8_t* bgra, int 
   std::uint8_t blue = 0;
   if (row_red && col_red) {
     red = value(x, y);
-    green = static_cast<std::uint8_t>((value(x - 1, y) + value(x + 1, y) + value(x, y - 1) +
-                                       value(x, y + 1)) /
-                                      4U);
-    blue = static_cast<std::uint8_t>((value(x - 1, y - 1) + value(x + 1, y - 1) +
-                                      value(x - 1, y + 1) + value(x + 1, y + 1)) /
-                                     4U);
+    green = static_cast<std::uint8_t>(
+        (value(x - 1, y) + value(x + 1, y) + value(x, y - 1) + value(x, y + 1)) / 4U);
+    blue = static_cast<std::uint8_t>(
+        (value(x - 1, y - 1) + value(x + 1, y - 1) + value(x - 1, y + 1) + value(x + 1, y + 1)) /
+        4U);
   } else if (!row_red && !col_red) {
     blue = value(x, y);
-    green = static_cast<std::uint8_t>((value(x - 1, y) + value(x + 1, y) + value(x, y - 1) +
-                                       value(x, y + 1)) /
-                                      4U);
-    red = static_cast<std::uint8_t>((value(x - 1, y - 1) + value(x + 1, y - 1) +
-                                     value(x - 1, y + 1) + value(x + 1, y + 1)) /
-                                    4U);
+    green = static_cast<std::uint8_t>(
+        (value(x - 1, y) + value(x + 1, y) + value(x, y - 1) + value(x, y + 1)) / 4U);
+    red = static_cast<std::uint8_t>(
+        (value(x - 1, y - 1) + value(x + 1, y - 1) + value(x - 1, y + 1) + value(x + 1, y + 1)) /
+        4U);
   } else {
     green = value(x, y);
     const bool red_row = row_red;
@@ -87,23 +85,33 @@ double CpuMs(const rusage& usage) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc < 4 || argc > 6) {
-    std::cerr << "usage: camera-isp-cuda-benchmark RAW WIDTH HEIGHT [ITERATIONS] [OUTPUT_BGRX]\n";
+  if (argc < 5 || argc > 7) {
+    std::cerr
+        << "usage: camera-isp-cuda-benchmark RAW WIDTH HEIGHT STRIDE [ITERATIONS] [OUTPUT_BGRX]\n";
     return 2;
   }
   const std::string path = argv[1];
   const int width = std::stoi(argv[2]);
   const int height = std::stoi(argv[3]);
-  const int iterations = argc >= 5 ? std::stoi(argv[4]) : 300;
-  const std::string output_path = argc == 6 ? argv[5] : "";
-  if (width <= 0 || height <= 0 || iterations <= 0) return 2;
+  const std::size_t stride = std::stoul(argv[4]);
+  const int iterations = argc >= 6 ? std::stoi(argv[5]) : 300;
+  const std::string output_path = argc == 7 ? argv[6] : "";
+  if (width <= 0 || height <= 0 || iterations <= 0 || stride < static_cast<std::size_t>(width) * 2U)
+    return 2;
   const std::size_t pixels = static_cast<std::size_t>(width) * height;
-  std::vector<std::uint16_t> host_raw(pixels);
+  const std::size_t raw_size = stride * static_cast<std::size_t>(height);
+  std::vector<std::uint8_t> raw_bytes(raw_size);
   std::ifstream input(path, std::ios::binary);
-  input.read(reinterpret_cast<char*>(host_raw.data()), static_cast<std::streamsize>(pixels * 2U));
-  if (input.gcount() != static_cast<std::streamsize>(pixels * 2U)) {
+  input.read(reinterpret_cast<char*>(raw_bytes.data()), static_cast<std::streamsize>(raw_size));
+  if (input.gcount() != static_cast<std::streamsize>(raw_size)) {
     std::cerr << "RAW file is shorter than width*height*2\n";
     return 1;
+  }
+  std::vector<std::uint16_t> host_raw(pixels);
+  for (int y = 0; y < height; ++y) {
+    std::memcpy(host_raw.data() + static_cast<std::size_t>(y) * width,
+                raw_bytes.data() + static_cast<std::size_t>(y) * stride,
+                static_cast<std::size_t>(width) * 2U);
   }
   std::uint16_t* device_raw = nullptr;
   std::uint8_t* device_bgra = nullptr;
@@ -113,7 +121,8 @@ int main(int argc, char** argv) {
   const dim3 block(16, 16);
   const dim3 grid((width + block.x - 1) / block.x, (height + block.y - 1) / block.y);
   for (int i = 0; i < 10; ++i) {
-    CUDA_CHECK(cudaMemcpy(device_raw, host_raw.data(), pixels * sizeof(std::uint16_t), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(device_raw, host_raw.data(), pixels * sizeof(std::uint16_t),
+                          cudaMemcpyHostToDevice));
     ProcessKernel<<<grid, block>>>(device_raw, device_bgra, width, height);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
@@ -129,7 +138,8 @@ int main(int argc, char** argv) {
   float total_kernel_ms = 0.0F;
   CUDA_CHECK(cudaEventRecord(begin));
   for (int i = 0; i < iterations; ++i) {
-    CUDA_CHECK(cudaMemcpy(device_raw, host_raw.data(), pixels * sizeof(std::uint16_t), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(device_raw, host_raw.data(), pixels * sizeof(std::uint16_t),
+                          cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaEventRecord(kernel_begin));
     ProcessKernel<<<grid, block>>>(device_raw, device_bgra, width, height);
     CUDA_CHECK(cudaEventRecord(kernel_end));
@@ -157,12 +167,12 @@ int main(int argc, char** argv) {
     }
     std::cout << "output_path=" << output_path << '\n';
   }
-  std::cout << std::fixed << std::setprecision(3)
-            << "iterations=" << iterations << " pixels=" << pixels << '\n'
+  std::cout << std::fixed << std::setprecision(3) << "iterations=" << iterations
+            << " pixels=" << pixels << '\n'
             << "cuda_kernel_mean_ms=" << total_kernel_ms / iterations << '\n'
             << "cuda_end_to_end_mean_ms=" << wall_ms / iterations << '\n'
-            << "process_cpu_ms=" << cpu_ms << " process_cpu_percent="
-            << (wall_ms > 0.0 ? cpu_ms / wall_ms * 100.0 : 0.0) << '\n'
+            << "process_cpu_ms=" << cpu_ms
+            << " process_cpu_percent=" << (wall_ms > 0.0 ? cpu_ms / wall_ms * 100.0 : 0.0) << '\n'
             << "output_bytes=" << host_bgra.size() << '\n';
   cudaEventDestroy(begin);
   cudaEventDestroy(end);

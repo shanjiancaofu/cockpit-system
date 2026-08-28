@@ -22,6 +22,7 @@ struct V4l2PreviewStats {
   std::uint64_t source_sequence_gaps = 0;
   double capture_to_output_mean_ms = 0.0;
   double capture_to_output_p50_ms = 0.0;
+  double capture_to_output_p95_ms = 0.0;
   double capture_to_output_max_ms = 0.0;
   SoftwareIspTimingMs isp_mean_ms;
 };
@@ -56,7 +57,7 @@ class V4l2PreviewSource final : public CameraPreviewSource {
   mutable std::mutex mutex_;
   std::condition_variable queue_condition_;
   std::deque<PendingFrame> queue_;
-  std::vector<double> latency_samples_ms_;
+  std::deque<double> latency_samples_ms_;
   V4l2PreviewStats stats_;
   std::atomic_bool stop_requested_{false};
   std::atomic_bool running_{false};

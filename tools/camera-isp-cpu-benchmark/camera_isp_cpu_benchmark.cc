@@ -18,18 +18,20 @@ double CpuMs(const rusage& usage) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc < 4 || argc > 6) {
-    std::cerr << "usage: camera-isp-cpu-benchmark RAW WIDTH HEIGHT [ITERATIONS] [OUTPUT_BGRX]\n";
+  if (argc < 5 || argc > 7) {
+    std::cerr
+        << "usage: camera-isp-cpu-benchmark RAW WIDTH HEIGHT STRIDE [ITERATIONS] [OUTPUT_BGRX]\n";
     return 2;
   }
   const std::string raw_path = argv[1];
   const std::uint32_t width = static_cast<std::uint32_t>(std::stoul(argv[2]));
   const std::uint32_t height = static_cast<std::uint32_t>(std::stoul(argv[3]));
-  const int iterations = argc >= 5 ? std::stoi(argv[4]) : 300;
-  const std::string output_path = argc == 6 ? argv[5] : "";
+  const std::size_t bytes_per_line = std::stoul(argv[4]);
+  const int iterations = argc >= 6 ? std::stoi(argv[5]) : 300;
+  const std::string output_path = argc == 7 ? argv[6] : "";
   if (width == 0 || height == 0 || iterations <= 0) return 2;
 
-  const std::size_t bytes_per_line = static_cast<std::size_t>(width) * 2U;
+  if (bytes_per_line < static_cast<std::size_t>(width) * 2U) return 2;
   const std::size_t raw_size = bytes_per_line * height;
   std::vector<std::uint8_t> raw_data(raw_size);
   std::ifstream input(raw_path, std::ios::binary);
