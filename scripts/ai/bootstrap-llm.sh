@@ -30,7 +30,11 @@ case "$(uname -m)" in
 esac
 
 llama_cuda="${COCKPIT_LLAMA_CPP_CUDA:-${default_cuda}}"
-llama_cuda_architectures="${COCKPIT_LLAMA_CPP_CUDA_ARCHITECTURES:-${default_cuda_architectures}}"
+if [[ "${llama_cuda}" == "ON" ]]; then
+  llama_cuda_architectures="${COCKPIT_LLAMA_CPP_CUDA_ARCHITECTURES:-${default_cuda_architectures}}"
+else
+  llama_cuda_architectures=""
+fi
 llm_build_dir="${COCKPIT_LLM_BUILD_DIR:-${project_root}/_output/build/${native_arch}-debug}"
 
 ai_root="${COCKPIT_AI_ROOT:-${project_root}/_output/ai}"

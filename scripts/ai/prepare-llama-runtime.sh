@@ -128,6 +128,9 @@ fi
 cmake "${cmake_args[@]}"
 cmake --build "${build_dir}" --target llama-server --parallel "${JOBS:-$(nproc)}"
 
+if [[ -e "${runtime_dir}/bin" ]]; then
+  rm -rf --one-file-system "${runtime_dir}/bin"
+fi
 mkdir -p "${runtime_dir}/bin"
 cp -a "${build_dir}/bin/." "${runtime_dir}/bin/"
 if [[ ! -x "${server_bin}" ]]; then
