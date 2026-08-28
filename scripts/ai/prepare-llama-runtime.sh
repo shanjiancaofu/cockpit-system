@@ -9,6 +9,8 @@ source_sha256="${COCKPIT_LLAMA_CPP_SOURCE_SHA256:-}"
 runtime_arch="$(uname -m)"
 cuda="${COCKPIT_LLAMA_CPP_CUDA:-OFF}"
 cuda_architectures="${COCKPIT_LLAMA_CPP_CUDA_ARCHITECTURES:-}"
+build_ui="${COCKPIT_LLAMA_CPP_BUILD_UI:-OFF}"
+use_prebuilt_ui="${COCKPIT_LLAMA_CPP_USE_PREBUILT_UI:-OFF}"
 
 if [[ -z "${revision}" ]]; then
   echo "COCKPIT_LLAMA_CPP_REVISION must name the reviewed llama.cpp commit" >&2
@@ -20,6 +22,14 @@ if [[ ! "${revision}" =~ ^[0-9a-f]{7,40}$ ]]; then
 fi
 if [[ "${cuda}" != "ON" && "${cuda}" != "OFF" ]]; then
   echo "COCKPIT_LLAMA_CPP_CUDA must be ON or OFF" >&2
+  exit 2
+fi
+if [[ "${build_ui}" != "ON" && "${build_ui}" != "OFF" ]]; then
+  echo "COCKPIT_LLAMA_CPP_BUILD_UI must be ON or OFF" >&2
+  exit 2
+fi
+if [[ "${use_prebuilt_ui}" != "ON" && "${use_prebuilt_ui}" != "OFF" ]]; then
+  echo "COCKPIT_LLAMA_CPP_USE_PREBUILT_UI must be ON or OFF" >&2
   exit 2
 fi
 if [[ "${cuda}" == "OFF" && -n "${cuda_architectures}" ]]; then
@@ -39,7 +49,9 @@ if [[ -x "${server_bin}" ]]; then
      grep -Fxq "revision=${revision}" "${manifest}" &&
      grep -Fxq "arch=${runtime_arch}" "${manifest}" &&
      grep -Fxq "cuda=${cuda}" "${manifest}" &&
-     grep -Fxq "cuda_architectures=${cuda_architectures}" "${manifest}"; then
+     grep -Fxq "cuda_architectures=${cuda_architectures}" "${manifest}" &&
+     grep -Fxq "build_ui=${build_ui}" "${manifest}" &&
+     grep -Fxq "use_prebuilt_ui=${use_prebuilt_ui}" "${manifest}"; then
     ln -sfn "${revision}" "${ai_root}/runtime/llama.cpp/current"
     printf 'llama.cpp runtime already prepared: %s\n' "${runtime_dir}"
     exit 0
@@ -119,6 +131,8 @@ cmake_args=(
   -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_SHARED_LIBS=ON \
   -DLLAMA_CURL=OFF \
+  -DLLAMA_BUILD_UI="${build_ui}" \
+  -DLLAMA_USE_PREBUILT_UI="${use_prebuilt_ui}" \
   -DGGML_NATIVE=OFF \
   -DGGML_CUDA="${cuda}"
 )
@@ -146,6 +160,8 @@ fi
   printf 'arch=%s\n' "${runtime_arch}"
   printf 'cuda=%s\n' "${cuda}"
   printf 'cuda_architectures=%s\n' "${cuda_architectures}"
+  printf 'build_ui=%s\n' "${build_ui}"
+  printf 'use_prebuilt_ui=%s\n' "${use_prebuilt_ui}"
   printf 'compiler=%s\n' "$(c++ --version | head -n 1)"
 } >"${runtime_dir}/MANIFEST.txt"
 

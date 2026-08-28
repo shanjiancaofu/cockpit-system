@@ -105,6 +105,7 @@ bash scripts/ai/prepare-voice-models.sh
 # 默认准备 Qwen3.5-2B；4B 对照需设置 COCKPIT_LLM_MODEL_PROFILE=comparison
 bash scripts/ai/prepare-llama-runtime.sh
 bash scripts/ai/prepare-llm-model.sh
+bash scripts/ai/build-llama-runtime.sh       # native runtime build + manifest/ldd/model checks
 bash scripts/tests/llama-server-smoke.sh
 # 一次准备 runtime、2B/4B 模型并运行 smoke（禁止 sudo）：
 bash scripts/ai/bootstrap-llm.sh
@@ -230,9 +231,9 @@ ASR、确定性 action、Kokoro、Audio Driver playback receipt 一一完成，�
 client 增量消费 SSE token stream，分别执行首 token 超时和整次回复总超时；取消会关闭当前本地连接。
 Qwen3.5 的语音请求显式设置 `chat_template_kwargs.enable_thinking=false`，只把 `delta.content` 作为
 用户可见或可播报正文；`reasoning_content` 不会进入回复。
-Qwen3.5 2B/4B 的 Ubuntu x86_64 有界质量、双并发、RSS 和 tokens/s 基线使用
-`bash scripts/tests/llama-server-benchmark.sh`，结果写入 `_output/build/x86_64-debug/llm-benchmark`。
-该基准只使用本地已校验资源并只监听 loopback；质量输出保留在结果文件供人工审核，不将小样本自动评分当作生产质量结论。
+Qwen3.5 的原生有界质量、并发、RSS、温度和 tokens/s 基线使用
+`bash scripts/tests/llama-server-benchmark.sh`，结果写入当前架构 Debug 构建目录的 `llm-benchmark`。
+Jetson 默认只验证 production 2B 并显式要求 GPU offload；x86_64 默认验证 2B/4B。该基准只使用本地已校验资源、强制 offline 并只监听 loopback；质量输出保留供人工审核，不将小样本自动评分当作生产质量结论。
 Sherpa runtime 独立交付必须通过 `bash scripts/ai/prepare-sherpa-runtime.sh`，提供固定
 `COCKPIT_SHERPA_RUNTIME_SHA256` 的归档；归档必须含 `include/`、`lib/` 和 `LICENSE`，脚本验证私有
 `ldd`、许可证哈希并以临时目录和原子 rename 安装，不使用 sudo。Stage 14 资源切换使用
