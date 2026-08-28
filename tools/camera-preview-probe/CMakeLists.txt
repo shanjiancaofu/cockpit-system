@@ -1,5 +1,5 @@
 if(TARGET gstreamer_camera)
     add_executable(camera-preview-probe main.cc camera_preview_probe.cc)
     target_include_directories(camera-preview-probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(camera-preview-probe PRIVATE gstreamer_camera logging runtime)
+    target_link_libraries(camera-preview-probe PRIVATE gstreamer_camera v4l2_camera_source logging runtime)
 endif()

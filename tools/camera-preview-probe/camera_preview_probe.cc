@@ -4,16 +4,18 @@
 #include <condition_variable>
 #include <cstdint>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <string>
 
 #include "cockpit/core/runtime/process_runtime.h"
 #include "cockpit/modules/camera/capture/gstreamer_preview_pipeline.h"
+#include "cockpit/modules/camera/capture/v4l2_preview_source.h"
 
 namespace {
 
 void PrintUsage() {
-  std::cout << "camera-preview-probe --device /dev/video0 [--frames 30] "
+  std::cout << "camera-preview-probe --backend argus|v4l2 --device /dev/video0 [--frames 30] "
                "[--width 640] [--height 480] [--fps 30] "
                "[--timeout-ms 5000] [--config configs/development.yaml]\n";
 }
@@ -53,9 +55,18 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
   }
 
   ProbeState state;
-  cockpit::camera::GstreamerPreviewPipeline preview;
+  const std::string backend = runtime.args().GetString("backend", "argus");
+  std::unique_ptr<cockpit::camera::CameraPreviewSource> preview;
+  if (backend == "v4l2") {
+    preview = std::make_unique<cockpit::camera::V4l2PreviewSource>();
+  } else if (backend == "argus" || backend == "gstreamer") {
+    preview = std::make_unique<cockpit::camera::GstreamerPreviewPipeline>();
+  } else {
+    std::cerr << "backend must be argus or v4l2\n";
+    return 2;
+  }
   std::string error;
-  const bool started = preview.Start(
+  const bool started = preview->Start(
       config,
       [&state, target_frames](const cockpit::camera::CameraFrame& frame) {
         std::lock_guard<std::mutex> lock(state.mutex);
@@ -86,7 +97,7 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
                                           return state.frames >= target_frames;
                                         });
   }
-  preview.Stop();
+  preview->Stop();
 
   std::lock_guard<std::mutex> lock(state.mutex);
   if (state.frames == 0) {

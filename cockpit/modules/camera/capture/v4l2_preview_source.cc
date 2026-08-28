@@ -64,16 +64,20 @@ void V4l2PreviewSource::Run() {
       if (stop_requested_.load()) break;
       continue;
     }
+    RawBayerFrame raw_bayer;
+    raw_bayer.width = raw.width;
+    raw_bayer.height = raw.height;
+    raw_bayer.bytes_per_line = raw.bytes_per_line;
+    raw_bayer.bytes_used = raw.bytes_used;
+    raw_bayer.sequence = raw.sequence;
+    raw_bayer.timestamp_ms = raw.timestamp_ns > 0
+                                 ? static_cast<std::uint64_t>(raw.timestamp_ns / 1000000LL)
+                                 : static_cast<std::uint64_t>(time::NowMs());
+    raw_bayer.data = std::move(raw.data);
     CameraFrame frame;
-    frame.sequence = raw.sequence;
-    frame.timestamp_ms = raw.timestamp_ns > 0
-                             ? static_cast<std::uint64_t>(raw.timestamp_ns / 1000000LL)
-                             : static_cast<std::uint64_t>(time::NowMs());
-    frame.width = raw.width;
-    frame.height = raw.height;
-    frame.stride_bytes = raw.bytes_per_line;
-    frame.format = CameraPixelFormat::kSrgGb10;
-    frame.data = std::move(raw.data);
+    if (!isp_.Process(raw_bayer, &frame, &error)) {
+      continue;
+    }
     callback(std::move(frame));
   }
   running_.store(false);

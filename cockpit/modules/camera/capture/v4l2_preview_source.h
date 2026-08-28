@@ -7,6 +7,7 @@
 
 #include "cockpit/drivers/v4l2/v4l2_mmap_capture.h"
 #include "cockpit/modules/camera/capture/camera_preview_source.h"
+#include "cockpit/modules/camera/isp/software_isp.h"
 
 namespace cockpit::camera {
 
@@ -26,6 +27,7 @@ class V4l2PreviewSource final : public CameraPreviewSource {
   void Run();
 
   std::unique_ptr<V4l2MmapCapture> capture_;
+  SoftwareIsp isp_;
   CameraPreviewConfig config_;
   FrameCallback callback_;
   mutable std::mutex mutex_;
