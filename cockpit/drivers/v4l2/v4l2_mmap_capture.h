@@ -36,13 +36,27 @@ class V4l2MmapCapture final {
   bool WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string* error);
   void Stop();
   bool running() const;
-  const V4l2MmapConfig& config() const { return config_; }
-  std::uint32_t width() const { return width_; }
-  std::uint32_t height() const { return height_; }
-  std::uint32_t bytes_per_line() const { return bytes_per_line_; }
-  std::uint32_t size_image() const { return size_image_; }
-  std::string driver() const { return driver_; }
-  std::string card() const { return card_; }
+  const V4l2MmapConfig& config() const {
+    return config_;
+  }
+  std::uint32_t width() const {
+    return width_;
+  }
+  std::uint32_t height() const {
+    return height_;
+  }
+  std::uint32_t bytes_per_line() const {
+    return bytes_per_line_;
+  }
+  std::uint32_t size_image() const {
+    return size_image_;
+  }
+  std::string driver() const {
+    return driver_;
+  }
+  std::string card() const {
+    return card_;
+  }
 
  private:
   struct Buffer {

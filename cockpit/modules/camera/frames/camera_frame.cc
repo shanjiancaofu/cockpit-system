@@ -23,6 +23,8 @@ std::size_t BytesPerPixel(CameraPixelFormat format) {
       return 4;
     case CameraPixelFormat::kYuyv:
       return 2;
+    case CameraPixelFormat::kSrgGb10:
+      return 2;
     case CameraPixelFormat::kUnknown:
     case CameraPixelFormat::kMjpeg:
     case CameraPixelFormat::kNv12:
@@ -89,6 +91,8 @@ std::string ToString(CameraPixelFormat format) {
       return "mjpeg";
     case CameraPixelFormat::kNv12:
       return "nv12";
+    case CameraPixelFormat::kSrgGb10:
+      return "srg_gb10";
     case CameraPixelFormat::kUnknown:
       break;
   }

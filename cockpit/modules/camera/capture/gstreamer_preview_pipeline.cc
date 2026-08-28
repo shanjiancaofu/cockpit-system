@@ -132,6 +132,10 @@ bool GstreamerPreviewPipeline::Start(const CameraPreviewConfig& config, FrameCal
     SetError(error, "invalid camera preview config");
     return false;
   }
+  if (normalized.device.rfind("nvargus://", 0) != 0) {
+    SetError(error, "GStreamer camera source requires an nvargus://<sensor-id> device");
+    return false;
+  }
   if (normalized.device.rfind("nvargus://", 0) == 0) {
     int sensor_id = -1;
     if (!ParseNvArgusSensorId(normalized.device, &sensor_id)) {
@@ -320,11 +324,6 @@ std::string GstreamerPreviewPipeline::BuildPipelineDescription(
     stream << "videorate ! video/x-raw,format=" << GstFormat(config.output_format)
            << ",width=" << config.width << ",height=" << config.height
            << ",framerate=" << config.fps << "/1 ! ";
-  } else {
-    stream << "v4l2src device=" << config.device << " ! "
-           << "videoconvert ! videoscale ! videorate ! "
-           << "video/x-raw,format=" << GstFormat(config.output_format) << ",width=" << config.width
-           << ",height=" << config.height << ",framerate=" << config.fps << "/1 ! ";
   }
   stream << "appsink name=preview_sink emit-signals=true sync=false max-buffers=2 drop=true";
   return stream.str();

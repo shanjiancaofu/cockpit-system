@@ -60,7 +60,10 @@ struct CameraStartPreviewRequest {
 
 struct CameraServiceOptions {
   std::uint64_t preview_stale_timeout_ms = 2000;
+  std::string capture_backend = "gstreamer";
 };
+
+std::unique_ptr<CameraPreviewSource> CreateCameraPreviewSource(const std::string& backend);
 
 class CameraService {
  public:

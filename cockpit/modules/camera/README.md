@@ -3,11 +3,33 @@
 ```text
 camera/
 ├── frames/         CameraFrame、sink、latest-frame buffer
-├── capture/        preview source、可选 GStreamer pipeline 和合成故障源
+├── capture/        Argus/GStreamer、Direct V4L2 和合成 preview source
 └── shared_memory/  跨进程双缓冲
 ```
 
 对应 target：`camera_frames`、`camera_capture`、`camera_shm`。父级 `camera` 是轻量聚合。
+
+相机后端保持明确分层：
+
+```text
+capture_backend: synthetic
+  → SyntheticPreviewSource
+
+capture_backend: gstreamer 或 argus
+  → GstreamerPreviewPipeline
+  → nvarguscamerasrc / NVIDIA ISP
+  → BGRx/RGB CameraFrame
+
+capture_backend: v4l2
+  → V4l2PreviewSource
+  → V4l2MmapCapture
+  → ioctl/MMAP/poll
+  → RG10 Bayer CameraFrame
+```
+
+`gstreamer` 和 `argus` 都表示 Jetson Argus/GStreamer 路径；`v4l2` 表示 Direct V4L2
+userspace 路径，不再通过 `v4l2src` 混入 GStreamer。两条路径可以访问同一个 IMX219，但不能同时
+占用同一个 sensor session。
 
 预览 callback 通过 move 传递 frame。`LatestFrameBuffer` 只保存最新帧，不形成无界视频队列。
 共享内存使用两个槽位，writer 写入非活动槽后切换 generation，图片像素不经过 gRPC。

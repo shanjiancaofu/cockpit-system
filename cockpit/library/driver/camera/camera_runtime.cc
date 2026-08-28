@@ -13,6 +13,7 @@
 #include "cockpit/core/config/system_config.h"
 #include "cockpit/core/event/message_bus.h"
 #include "cockpit/core/logging/logger.h"
+#include "cockpit/drivers/v4l2/v4l2_camera.h"
 #include "cockpit/library/driver/camera/control/camera_service.h"
 #include "cockpit/library/driver/camera/grpc/camera_grpc_service.h"
 #include "cockpit/library/driver/camera/photo/camera_photo_service.h"
@@ -70,6 +71,7 @@ bool CameraRuntime::Start(const std::string& config_path) {
     CameraServiceOptions camera_options;
     camera_options.preview_stale_timeout_ms =
         static_cast<std::uint64_t>(camera_config.preview_stale_timeout_ms);
+    camera_options.capture_backend = camera_config.capture_backend;
     if (camera_config.capture_backend == "synthetic") {
       SyntheticCameraOptions synthetic_options;
       synthetic_options.fault = ParseSyntheticCameraFault(camera_config.synthetic_fault);
@@ -90,8 +92,12 @@ bool CameraRuntime::Start(const std::string& config_path) {
           std::make_unique<SyntheticPreviewSource>(synthetic_options), std::move(frame_sink),
           impl_->message_bus, camera_options);
     } else {
-      impl_->service = std::make_unique<CameraService>(std::move(frame_sink), impl_->message_bus,
-                                                       camera_options);
+      auto preview_source = CreateCameraPreviewSource(camera_config.capture_backend);
+      impl_->service = std::make_unique<CameraService>(
+          [](std::string* list_error) {
+            return V4l2Camera::ListDevices(list_error);
+          },
+          std::move(preview_source), std::move(frame_sink), impl_->message_bus, camera_options);
     }
 
     std::filesystem::path photo_directory(camera_config.photo_directory);

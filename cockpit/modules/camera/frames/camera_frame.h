@@ -15,6 +15,7 @@ enum class CameraPixelFormat {
   kYuyv,
   kMjpeg,
   kNv12,
+  kSrgGb10,
 };
 
 struct CameraFrame {

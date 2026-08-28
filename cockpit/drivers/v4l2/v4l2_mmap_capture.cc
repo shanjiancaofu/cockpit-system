@@ -139,8 +139,8 @@ bool V4l2MmapCapture::Start(const V4l2MmapConfig& config, std::string* error) {
       return false;
     }
     buffers_[index].length = buffer.length;
-    buffers_[index].start = mmap(nullptr, buffer.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd_,
-                                 buffer.m.offset);
+    buffers_[index].start =
+        mmap(nullptr, buffer.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, buffer.m.offset);
     if (buffers_[index].start == MAP_FAILED) {
       buffers_[index].start = nullptr;
       SetError(error, ErrorMessage("mmap V4L2 buffer"));
@@ -204,8 +204,9 @@ bool V4l2MmapCapture::WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string
   frame->sequence = buffer.sequence;
   frame->timestamp_ns = static_cast<std::int64_t>(buffer.timestamp.tv_sec) * 1000000000LL +
                         static_cast<std::int64_t>(buffer.timestamp.tv_usec) * 1000LL;
-  frame->data.assign(static_cast<const std::uint8_t*>(buffers_[buffer.index].start),
-                     static_cast<const std::uint8_t*>(buffers_[buffer.index].start) + buffer.bytesused);
+  frame->data.assign(
+      static_cast<const std::uint8_t*>(buffers_[buffer.index].start),
+      static_cast<const std::uint8_t*>(buffers_[buffer.index].start) + buffer.bytesused);
   if (Xioctl(fd_, VIDIOC_QBUF, &buffer) < 0) {
     SetError(error, ErrorMessage("VIDIOC_QBUF after frame"));
     return false;

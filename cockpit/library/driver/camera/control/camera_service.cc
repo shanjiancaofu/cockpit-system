@@ -8,6 +8,7 @@
 #include "cockpit/core/json/json.h"
 #include "cockpit/core/time/time.h"
 #include "cockpit/modules/camera/capture/gstreamer_preview_pipeline.h"
+#include "cockpit/modules/camera/capture/v4l2_preview_source.h"
 #include "cockpit/modules/camera/frames/latest_frame_buffer.h"
 
 namespace cockpit {
@@ -24,7 +25,22 @@ std::unique_ptr<CameraPreviewSource> CreateDefaultPreviewSource() {
   return std::make_unique<GstreamerPreviewPipeline>();
 }
 
-std::vector<VideoDeviceInfo> NormalizePreviewDevices(std::vector<VideoDeviceInfo> devices) {
+}  // namespace
+
+std::unique_ptr<CameraPreviewSource> CreateCameraPreviewSource(const std::string& backend) {
+  if (backend == "v4l2") {
+    return std::make_unique<V4l2PreviewSource>();
+  }
+  return std::make_unique<GstreamerPreviewPipeline>();
+}
+
+namespace {
+
+std::vector<VideoDeviceInfo> NormalizePreviewDevices(std::vector<VideoDeviceInfo> devices,
+                                                     const std::string& backend) {
+  if (backend == "v4l2" || backend == "synthetic") {
+    return devices;
+  }
   std::uint32_t argus_sensor_id = 0;
   for (auto& device : devices) {
     const bool jetson_csi = device.query_ok && device.supports_capture &&
@@ -100,7 +116,7 @@ CameraService::~CameraService() {
 }
 
 std::vector<VideoDeviceInfo> CameraService::ListDevices(std::string* error) const {
-  return NormalizePreviewDevices(device_lister_(error));
+  return NormalizePreviewDevices(device_lister_(error), options_.capture_backend);
 }
 
 bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::string* error) {

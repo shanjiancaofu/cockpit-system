@@ -581,8 +581,11 @@ void SystemConfig::Validate() const {
         "features.voice.speech_segment.pre_roll_ms must be less than max_segment_ms");
   }
   ValidateAddress(services_.camera.grpc.listen_address, "services.camera.grpc.listen_address");
-  if (!IsOneOf(services_.camera.capture_backend, "gstreamer", "synthetic")) {
-    throw std::runtime_error("services.camera.capture_backend must be gstreamer or synthetic");
+  const auto& camera_backend = services_.camera.capture_backend;
+  if (camera_backend != "gstreamer" && camera_backend != "argus" && camera_backend != "v4l2" &&
+      camera_backend != "synthetic") {
+    throw std::runtime_error(
+        "services.camera.capture_backend must be gstreamer, argus, v4l2, or synthetic");
   }
   RequirePositive(services_.camera.preview_stale_timeout_ms,
                   "services.camera.preview_stale_timeout_ms");

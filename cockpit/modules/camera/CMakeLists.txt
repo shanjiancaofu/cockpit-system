@@ -8,6 +8,10 @@ pkg_check_modules(GSTREAMER REQUIRED
 add_library(camera_frames STATIC frames/camera_frame.cc frames/latest_frame_buffer.cc)
 
 add_library(camera_capture INTERFACE)
+
+add_library(v4l2_camera_source STATIC capture/v4l2_preview_source.cc)
+target_link_libraries(v4l2_camera_source PUBLIC camera_capture v4l2_camera time_util Threads::Threads)
+target_include_directories(v4l2_camera_source PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(camera_capture INTERFACE ${PROJECT_SOURCE_DIR})
 target_link_libraries(camera_capture INTERFACE camera_frames)
 

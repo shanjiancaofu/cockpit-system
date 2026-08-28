@@ -1,8 +1,3 @@
-#include <opencv2/calib3d.hpp>
-#include <opencv2/core.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -14,6 +9,10 @@
 #include <iostream>
 #include <limits>
 #include <mutex>
+#include <opencv2/calib3d.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -139,13 +138,15 @@ bool ParseOptions(int argc, char** argv, Options* options) {
     } else if (arg == "--frames") {
       if (!require_value("--frames") || !ParseInt(value, &options->frames)) return false;
     } else if (arg == "--timeout-seconds") {
-      if (!require_value("--timeout-seconds") || !ParseInt(value, &options->timeout_seconds)) return false;
+      if (!require_value("--timeout-seconds") || !ParseInt(value, &options->timeout_seconds))
+        return false;
     } else if (arg == "--corners-x") {
       if (!require_value("--corners-x") || !ParseInt(value, &options->corners_x)) return false;
     } else if (arg == "--corners-y") {
       if (!require_value("--corners-y") || !ParseInt(value, &options->corners_y)) return false;
     } else if (arg == "--square-size") {
-      if (!require_value("--square-size") || !ParseDouble(value, &options->square_size)) return false;
+      if (!require_value("--square-size") || !ParseDouble(value, &options->square_size))
+        return false;
     } else if (arg == "--blur-min") {
       if (!require_value("--blur-min") || !ParseDouble(value, &options->blur_min)) return false;
     } else if (arg == "--mean-min") {
@@ -157,9 +158,12 @@ bool ParseOptions(int argc, char** argv, Options* options) {
     } else if (arg == "--area-max") {
       if (!require_value("--area-max") || !ParseDouble(value, &options->area_max)) return false;
     } else if (arg == "--grid-required") {
-      if (!require_value("--grid-required") || !ParseInt(value, &options->grid_required)) return false;
+      if (!require_value("--grid-required") || !ParseInt(value, &options->grid_required))
+        return false;
     } else if (arg == "--duplicate-threshold") {
-      if (!require_value("--duplicate-threshold") || !ParseDouble(value, &options->duplicate_threshold)) return false;
+      if (!require_value("--duplicate-threshold") ||
+          !ParseDouble(value, &options->duplicate_threshold))
+        return false;
     } else {
       std::cerr << "unknown option: " << arg << "\n";
       Usage();
@@ -244,7 +248,8 @@ std::optional<AcceptedFrame> Analyze(const cv::Mat& image, std::uint64_t sequenc
   const double blur = BlurScore(gray);
   const double mean = cv::mean(gray)[0];
   const cv::Rect bounds = cv::boundingRect(corners);
-  const double area = static_cast<double>(bounds.area()) / static_cast<double>(image.cols * image.rows);
+  const double area =
+      static_cast<double>(bounds.area()) / static_cast<double>(image.cols * image.rows);
   const int grid = GridCoverage(corners, image.size());
   if (blur < options.blur_min || mean < options.mean_min || mean > options.mean_max ||
       area < options.area_min || area > options.area_max || grid < options.grid_required ||
@@ -304,7 +309,7 @@ bool Calibrate(const Options& options, const std::vector<AcceptedFrame>& accepte
   cv::Mat distortion = cv::Mat::zeros(5, 1, CV_64F);
   std::vector<cv::Mat> rotations, translations;
   const double rms = cv::calibrateCamera(object_points, image_points, image_size, camera_matrix,
-                                          distortion, rotations, translations);
+                                         distortion, rotations, translations);
   double error_sum = 0.0;
   double max_error = 0.0;
   std::vector<double> per_view;
@@ -330,13 +335,14 @@ bool Calibrate(const Options& options, const std::vector<AcceptedFrame>& accepte
   const auto json_path = options.output_dir / "calibration_report.json";
   const auto preview_path = options.output_dir / "undistorted_preview.jpg";
   cv::FileStorage yaml(yaml_path.string(), cv::FileStorage::WRITE);
-  yaml << "image_width" << image_size.width << "image_height" << image_size.height
-       << "fx" << camera_matrix.at<double>(0, 0) << "fy" << camera_matrix.at<double>(1, 1)
-       << "cx" << camera_matrix.at<double>(0, 2) << "cy" << camera_matrix.at<double>(1, 2)
-       << "distortion_model" << "plumb_bob" << "k1" << distortion.at<double>(0)
-       << "k2" << distortion.at<double>(1) << "p1" << distortion.at<double>(2)
-       << "p2" << distortion.at<double>(3) << "k3" << distortion.at<double>(4)
-       << "rms" << rms << "mean_reprojection_error_px" << mean_error
+  yaml << "image_width" << image_size.width << "image_height" << image_size.height << "fx"
+       << camera_matrix.at<double>(0, 0) << "fy" << camera_matrix.at<double>(1, 1) << "cx"
+       << camera_matrix.at<double>(0, 2) << "cy" << camera_matrix.at<double>(1, 2)
+       << "distortion_model"
+       << "plumb_bob"
+       << "k1" << distortion.at<double>(0) << "k2" << distortion.at<double>(1) << "p1"
+       << distortion.at<double>(2) << "p2" << distortion.at<double>(3) << "k3"
+       << distortion.at<double>(4) << "rms" << rms << "mean_reprojection_error_px" << mean_error
        << "max_reprojection_error_px" << max_error;
   yaml.release();
   std::ofstream csv(csv_path);
@@ -350,8 +356,7 @@ bool Calibrate(const Options& options, const std::vector<AcceptedFrame>& accepte
   cv::undistort(accepted.front().image, undistorted, camera_matrix, distortion);
   cv::imwrite(preview_path.string(), undistorted);
   WriteJson(json_path, options, accepted, rms, mean_error, max_error, pass);
-  std::cout << std::fixed << std::setprecision(4)
-            << "accepted_samples=" << accepted.size() << "\n"
+  std::cout << std::fixed << std::setprecision(4) << "accepted_samples=" << accepted.size() << "\n"
             << "fx=" << camera_matrix.at<double>(0, 0) << " fy=" << camera_matrix.at<double>(1, 1)
             << " cx=" << camera_matrix.at<double>(0, 2) << " cy=" << camera_matrix.at<double>(1, 2)
             << "\n"
@@ -391,10 +396,10 @@ int main(int argc, char** argv) {
     std::condition_variable condition;
     std::string error;
     const bool started = pipeline.Start(
-        cockpit::camera::CameraPreviewConfig{options.device, static_cast<std::uint32_t>(options.width),
-                                             static_cast<std::uint32_t>(options.height),
-                                             static_cast<std::uint32_t>(options.fps),
-                                             cockpit::camera::CameraPixelFormat::kBgrx},
+        cockpit::camera::CameraPreviewConfig{
+            options.device, static_cast<std::uint32_t>(options.width),
+            static_cast<std::uint32_t>(options.height), static_cast<std::uint32_t>(options.fps),
+            cockpit::camera::CameraPixelFormat::kBgrx},
         [&](cockpit::camera::CameraFrame frame) {
           cv::Mat image = ToBgr(frame);
           std::lock_guard<std::mutex> lock(mutex);
@@ -409,7 +414,8 @@ int main(int argc, char** argv) {
       std::cerr << "capture failed: " << (error.empty() ? "unknown error" : error) << '\n';
       return 1;
     }
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(options.timeout_seconds);
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(options.timeout_seconds);
     {
       std::unique_lock<std::mutex> lock(mutex);
       condition.wait_until(lock, deadline, [&] {
@@ -418,7 +424,8 @@ int main(int argc, char** argv) {
     }
     pipeline.Stop();
     if (static_cast<int>(accepted.size()) < options.frames) {
-      std::cerr << "capture timed out: accepted " << accepted.size() << '/' << options.frames << "\n";
+      std::cerr << "capture timed out: accepted " << accepted.size() << '/' << options.frames
+                << "\n";
       return 1;
     }
   }
