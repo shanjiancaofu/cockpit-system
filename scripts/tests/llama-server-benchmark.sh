@@ -43,6 +43,22 @@ if grep -q 'not found' <<<"${ldd_output}"; then
 fi
 
 runtime_cuda="$(sed -n 's/^cuda=//p' "${manifest}")"
+require_gpu_offload="${COCKPIT_LLM_BENCHMARK_REQUIRE_GPU_OFFLOAD:-}"
+if [[ -z "${require_gpu_offload}" ]]; then
+  if [[ "${native_arch}" == "arm64" ]]; then
+    require_gpu_offload=ON
+  else
+    require_gpu_offload=OFF
+  fi
+fi
+if [[ "${require_gpu_offload}" != "ON" && "${require_gpu_offload}" != "OFF" ]]; then
+  echo "COCKPIT_LLM_BENCHMARK_REQUIRE_GPU_OFFLOAD must be ON or OFF" >&2
+  exit 2
+fi
+if [[ "${require_gpu_offload}" == "ON" && "${runtime_cuda}" != "ON" ]]; then
+  echo "GPU-offload benchmark requires a CUDA llama-server runtime" >&2
+  exit 2
+fi
 if [[ "${runtime_cuda}" == "ON" ]]; then
   gpu_layers="${COCKPIT_LLAMA_GPU_LAYERS:-all}"
 else
@@ -216,7 +232,7 @@ run_profile() {
   fi
 
   grep -Ei 'CUDA|offload|buffer size|device' "${server_log}" >"${gpu_evidence}" || true
-  if [[ "${runtime_cuda}" == "ON" ]]; then
+  if [[ "${require_gpu_offload}" == "ON" ]]; then
     grep -Eq 'offloaded [0-9]+/[0-9]+ layers to GPU' "${gpu_evidence}" || {
       echo "${profile} benchmark did not prove GPU layer offload" >&2
       return 1
@@ -233,8 +249,8 @@ run_profile() {
     >"${total_response_values}"
 
   {
-    printf 'profile=%s\nmodel=%s\narch=%s\nruntime_cuda=%s\ngpu_layers=%s\n' \
-      "${profile}" "${model_name}" "${native_arch}" "${runtime_cuda}" "${gpu_layers}"
+    printf 'profile=%s\nmodel=%s\narch=%s\nruntime_cuda=%s\nrequire_gpu_offload=%s\ngpu_layers=%s\n' \
+      "${profile}" "${model_name}" "${native_arch}" "${runtime_cuda}" "${require_gpu_offload}" "${gpu_layers}"
     printf 'ready_ms=%s\npeak_rss_kib=%s\npeak_temperature_millic=%s\n' \
       "${ready_ms}" "${peak_rss}" "${peak_temperature}"
     printf 'repetitions=%s\nconcurrency=%s\nnetwork_scope=loopback-only\n' \

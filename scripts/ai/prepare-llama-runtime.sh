@@ -120,7 +120,7 @@ if [[ -z "${build_dir}" ]]; then
       backend="cuda-${cuda_architectures:-default}"
       backend="${backend//;/_}"
     fi
-    build_dir="${ai_root}/build/llama.cpp/${revision}-${backend}"
+    build_dir="${ai_root}/build/llama.cpp/${revision}-${runtime_arch}-${backend}"
   else
     build_dir="${tmp_dir}/build"
   fi
