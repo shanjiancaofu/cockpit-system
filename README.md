@@ -13,7 +13,9 @@
 - mock ASR/TTS 语音链路，以及显式 Agent 构建中的 Sherpa KWS / Silero VAD / SenseVoice / Kokoro
   provider；Ubuntu x86_64 已有固定资源 smoke，默认构建仍不加载模型。
 - 语音意图、动作分发、车辆状态查询和 Qt 相机页面控制。
-- V4L2/GStreamer USB 摄像头和 Jetson Argus CSI 摄像头预览。
+- 三层 Camera 链路：Direct V4L2 userspace（ioctl/MMAP/RG10/RAW）、GStreamer + Jetson Argus 硬件 ISP，以及独立的 V4L2 kernel driver 学习线。
+- Direct V4L2 已支持 IMX219 RG10 MMAP、`bypass_mode=0`、采集/ISP 双线程有界队列、Software ISP（BLC/WB/demosaic/gamma）和 ARM64 NEON；1920×1080@30 实测 0 丢帧。
+- Jetson Argus CSI 通过 GStreamer 获取 ISP 后 BGRx；CUDA ISP 目前仅为性能 prototype，完成了性能和图像质量对比，尚未替换 CPU 默认路径。
 - 相机帧 POSIX shared memory 双缓冲。
 - 基于最新共享帧的 JPEG 拍照，支持 camera-ctl 和 Qt UI。
 - 研发录包会话、事件与文件索引、artifact 校验、时间线、报告和异常中断恢复。
@@ -179,6 +181,33 @@ Jetson CSI 默认使用 `nvargus://0`。USB 摄像头可显式指定：
 
 ```bash
 CAMERA_DEVICE=/dev/video0 bash scripts/run/cockpit-ui.sh --camera
+```
+
+## Camera V4L2/Argus/ISP 性能基线
+
+```bash
+# Argus + Jetson 硬件 ISP
+_output/build/arm64-debug/bin/camera-preview-probe \
+  --backend argus --device nvargus://0 --width 1920 --height 1080 \
+  --fps 30 --frames 30 --config configs/development.yaml
+
+# Direct V4L2 + Software ISP（需要 Jetson tegra-video 的 bypass_mode=0）
+_output/build/arm64-debug/bin/camera-preview-probe \
+  --backend v4l2 --device /dev/video0 --width 1920 --height 1080 \
+  --fps 30 --frames 300 --timeout-ms 30000 --config configs/development.yaml
+```
+
+Jetson 实测 Direct V4L2 + NEON Software ISP 在 1920×1080 下约 30 fps，ISP 平均约 16.3 ms，端到端
+P50 约 16.6 ms，队列丢帧和 source sequence gap 均为 0；进程 CPU 约 111--117%。CUDA prototype
+的 H2D/kernel/D2H 约 7.0 ms，进程 CPU 约 39%，但和 CPU OpenCV demosaic 的红蓝通道尚未完全对齐，
+暂不作为默认生产 backend。
+
+底层 RAW 和 CPU/CUDA 对比入口：
+
+```bash
+_output/build/arm64-debug/bin/v4l2-mmap-capture --frames 10
+_output/build/arm64-debug/bin/camera-isp-cpu-benchmark RAW 1920 1080 300 cpu-bgrx.raw
+_output/build/arm64-debug/bin/camera-isp-cuda-benchmark RAW 1920 1080 300 cuda-bgrx.raw
 ```
 
 ## USB 摄像头权限

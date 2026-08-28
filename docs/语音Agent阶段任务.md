@@ -12,13 +12,13 @@
 | --- | --- | --- |
 | 阶段 0–5 | 分层、Audio Driver、PCM、Agent 基础 | 工程迁移完成；真实声学验收延后 |
 | 阶段 6–10 | 会话、KWS、Sherpa、ASR、命令路由 | Ubuntu x86_64 主链路和固定基准已完成；Jetson/扩展语料待做 |
-| 阶段 11–15 | LLM、TTS、前处理、模型发布 | Stage 11/12 Ubuntu 功能基线和 Stage 14 资源回滚原型完成；Stage 13/15 未完成 |
+| 阶段 11–15 | LLM、TTS、前处理、模型发布 | Stage 11/12 Ubuntu 功能基线、Stage 14 资源回滚原型和 Jetson Qwen3.5-2B CUDA 稳定性完成；Stage 13/15 未完成 |
 | 实施顺序和优先级 | 文末 | 持续更新 |
 
 ## 当前交接信息
 
 ```text
-当前开发主线：用户车机 UI；语音侧保留 SenseVoice 扩展标注、长稳和 Jetson 声学/性能验收
+当前开发主线：用户车机 UI 与真实语音链路；LLM Jetson ARM64/CUDA 已封板，语音侧保留 SenseVoice 扩展标注、长稳和 Jetson 声学性能验收
 已完成：分环节 deadline、固定错误提示、request-scoped Action 取消、single-flight playback 取消、
         ASR Stop stale-success 隔离、真实播放回执/取消和 FOLLOW_UP 窗口；TranscriptNormalizer、
         现有三种 Action 的显式正向整句 allowlist；所有非白名单 transcript fail closed；
@@ -29,7 +29,7 @@
         服务级回放和 RSS 基准；Qwen3.5-2B/4B 真实 llama-server smoke；Navigator module hidden
         visibility、version script、`--exclude-libs,ALL` 和安装态 `$ORIGIN` RPATH
 下一主线：不新增 Python ASR provider；补齐可追踪人工 ASR 标注并扩展长时间服务稳定性；
-          Jetson 继续完成 Sherpa/音频硬件声学和性能验收
+          Jetson 继续完成 Sherpa/音频硬件声学和性能验收，之后进入相机/CAN/Nav2 真机主线
 当前实现入口：agent/llm/, agent/runtime/agent_runtime.cc, agent/speech/providers/sherpa/,
              cockpit/modules/voice/assistant/
 验证基线：Debug/Release、ASan/UBSan、TSan 和 driver dependency boundary 由 CI 持续验证

@@ -1,0 +1,8 @@
+include(CheckLanguage)
+check_language(CUDA)
+if(CMAKE_CUDA_COMPILER)
+  enable_language(CUDA)
+  add_executable(camera-isp-cuda-benchmark camera_isp_cuda_benchmark.cu)
+  set_target_properties(camera-isp-cuda-benchmark PROPERTIES CUDA_STANDARD 17 CUDA_STANDARD_REQUIRED ON)
+  target_compile_options(camera-isp-cuda-benchmark PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-O3>)
+endif()

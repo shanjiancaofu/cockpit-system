@@ -27,9 +27,7 @@ capture_backend: v4l2
   → RG10 Bayer CameraFrame
 ```
 
-`gstreamer` 和 `argus` 都表示 Jetson Argus/GStreamer 路径；`v4l2` 表示 Direct V4L2
-userspace 路径，不再通过 `v4l2src` 混入 GStreamer。两条路径可以访问同一个 IMX219，但不能同时
-占用同一个 sensor session。
+`gstreamer` 和 `argus` 都表示 Jetson Argus/GStreamer 路径；`v4l2` 表示 Direct V4L2 userspace 路径，不再通过 `v4l2src` 混入 GStreamer。V4L2 backend 经 `SoftwareIsp` 输出 BGRx；底层诊断 CLI 仍可保留原始 RG10。Software ISP 使用预分配 buffer、NEON unpack 和采集/ISP 双线程有界队列，当前 1920×1080@30 实测 0 丢帧。两条路径可以访问同一个 IMX219，但不能同时占用同一个 sensor session。
 
 预览 callback 通过 move 传递 frame。`LatestFrameBuffer` 只保存最新帧，不形成无界视频队列。
 共享内存使用两个槽位，writer 写入非活动槽后切换 generation，图片像素不经过 gRPC。
@@ -49,6 +47,8 @@ Jetson CSI 通过 Argus/NVMM 获取 ISP 处理后的帧，不把 V4L2 暴露的 
 _output/build/arm64-debug/bin/camera-preview-probe \
   --device nvargus://0 --frames 30 --config configs/development.yaml
 ```
+
+CUDA ISP 仅作为性能 prototype；它的 H2D/kernel/D2H 速度优于 CPU，但与 CPU OpenCV demosaic 的红蓝通道尚未完全对齐，不作为默认 backend。
 
 `SyntheticPreviewSource` 提供不依赖摄像头硬件的 BGRx 帧，并支持 no-frames、stall 和 disconnect
 故障注入；它只用于开发验证和稳定性测试，不替代 Jetson 实机 pipeline 验证。

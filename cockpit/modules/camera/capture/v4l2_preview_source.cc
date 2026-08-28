@@ -32,55 +32,134 @@ bool V4l2PreviewSource::Start(const CameraPreviewConfig& config, FrameCallback c
     config_ = config;
     callback_ = std::move(callback);
     capture_ = std::move(capture);
+    ResetStats();
   }
   stop_requested_.store(false);
   running_.store(true);
-  worker_ = std::thread(&V4l2PreviewSource::Run, this);
+  capture_worker_ = std::thread(&V4l2PreviewSource::CaptureLoop, this);
+  isp_worker_ = std::thread(&V4l2PreviewSource::IspLoop, this);
   return true;
 }
 
 void V4l2PreviewSource::Stop() {
   stop_requested_.store(true);
-  if (worker_.joinable()) worker_.join();
+  queue_condition_.notify_all();
+  if (capture_worker_.joinable()) capture_worker_.join();
+  if (isp_worker_.joinable()) isp_worker_.join();
   std::lock_guard<std::mutex> lock(mutex_);
+  queue_.clear();
   capture_.reset();
   callback_ = nullptr;
   running_.store(false);
 }
 
-void V4l2PreviewSource::Run() {
+void V4l2PreviewSource::ResetStats() {
+  queue_.clear();
+  latency_samples_ms_.clear();
+  stats_ = {};
+}
+
+void V4l2PreviewSource::CaptureLoop() {
+  std::uint32_t previous_sequence = 0;
+  bool have_sequence = false;
   while (!stop_requested_.load()) {
     V4l2RawFrame raw;
     std::string error;
     V4l2MmapCapture* capture = nullptr;
-    FrameCallback callback;
     {
       std::lock_guard<std::mutex> lock(mutex_);
       capture = capture_.get();
-      callback = callback_;
     }
-    if (capture == nullptr || !callback) break;
+    if (capture == nullptr) break;
     if (!capture->WaitFrame(&raw, 1000, &error)) {
       if (stop_requested_.load()) break;
       continue;
     }
-    RawBayerFrame raw_bayer;
-    raw_bayer.width = raw.width;
-    raw_bayer.height = raw.height;
-    raw_bayer.bytes_per_line = raw.bytes_per_line;
-    raw_bayer.bytes_used = raw.bytes_used;
-    raw_bayer.sequence = raw.sequence;
-    raw_bayer.timestamp_ms = raw.timestamp_ns > 0
-                                 ? static_cast<std::uint64_t>(raw.timestamp_ns / 1000000LL)
-                                 : static_cast<std::uint64_t>(time::NowMs());
-    raw_bayer.data = std::move(raw.data);
+    const auto enqueued_at = std::chrono::steady_clock::now();
+    std::lock_guard<std::mutex> lock(mutex_);
+    ++stats_.captured_frames;
+    if (have_sequence && raw.sequence > previous_sequence + 1U) {
+      stats_.source_sequence_gaps += raw.sequence - previous_sequence - 1U;
+    }
+    previous_sequence = raw.sequence;
+    have_sequence = true;
+    if (queue_.size() >= 2U) {
+      queue_.pop_front();
+      ++stats_.dropped_queue_frames;
+    }
+    PendingFrame pending;
+    pending.frame.width = raw.width;
+    pending.frame.height = raw.height;
+    pending.frame.bytes_per_line = raw.bytes_per_line;
+    pending.frame.bytes_used = raw.bytes_used;
+    pending.frame.sequence = raw.sequence;
+    pending.frame.timestamp_ms = raw.timestamp_ns > 0
+                                     ? static_cast<std::uint64_t>(raw.timestamp_ns / 1000000LL)
+                                     : static_cast<std::uint64_t>(time::NowMs());
+    pending.frame.data = std::move(raw.data);
+    pending.enqueued_at = enqueued_at;
+    queue_.push_back(std::move(pending));
+    queue_condition_.notify_one();
+  }
+}
+
+void V4l2PreviewSource::IspLoop() {
+  while (!stop_requested_.load()) {
+    PendingFrame pending;
+    FrameCallback callback;
+    {
+      std::unique_lock<std::mutex> lock(mutex_);
+      queue_condition_.wait(lock, [this] {
+        return stop_requested_.load() || !queue_.empty();
+      });
+      if (queue_.empty()) continue;
+      pending = std::move(queue_.front());
+      queue_.pop_front();
+      callback = callback_;
+    }
+    if (!callback) break;
     CameraFrame frame;
-    if (!isp_.Process(raw_bayer, &frame, &error)) {
-      continue;
+    RawBayerFrame raw = std::move(pending.frame);
+    SoftwareIspTimingMs timing;
+    std::string error;
+    if (!isp_.Process(raw, &frame, &error, &timing)) continue;
+    const double latency = std::chrono::duration<double, std::milli>(
+                               std::chrono::steady_clock::now() - pending.enqueued_at)
+                               .count();
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      ++stats_.processed_frames;
+      latency_samples_ms_.push_back(latency);
+      const auto add_mean = [](double current, double value, std::uint64_t count) {
+        return current + (value - current) / static_cast<double>(count);
+      };
+      const auto count = stats_.processed_frames;
+      stats_.capture_to_output_mean_ms = add_mean(stats_.capture_to_output_mean_ms, latency, count);
+      stats_.capture_to_output_max_ms = std::max(stats_.capture_to_output_max_ms, latency);
+      stats_.isp_mean_ms.raw_unpack =
+          add_mean(stats_.isp_mean_ms.raw_unpack, timing.raw_unpack, count);
+      stats_.isp_mean_ms.normalize =
+          add_mean(stats_.isp_mean_ms.normalize, timing.normalize, count);
+      stats_.isp_mean_ms.demosaic = add_mean(stats_.isp_mean_ms.demosaic, timing.demosaic, count);
+      stats_.isp_mean_ms.color_correction =
+          add_mean(stats_.isp_mean_ms.color_correction, timing.color_correction, count);
+      stats_.isp_mean_ms.output = add_mean(stats_.isp_mean_ms.output, timing.output, count);
+      stats_.isp_mean_ms.total = add_mean(stats_.isp_mean_ms.total, timing.total, count);
     }
     callback(std::move(frame));
   }
   running_.store(false);
+}
+
+V4l2PreviewStats V4l2PreviewSource::stats() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  V4l2PreviewStats result = stats_;
+  if (!latency_samples_ms_.empty()) {
+    auto samples = latency_samples_ms_;
+    std::sort(samples.begin(), samples.end());
+    result.capture_to_output_p50_ms = samples[(samples.size() - 1U) / 2U];
+  }
+  return result;
 }
 
 }  // namespace cockpit::camera

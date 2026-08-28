@@ -4,8 +4,12 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <opencv2/imgproc.hpp>
+#if defined(__aarch64__)
+#include <arm_neon.h>
+#endif
 
 namespace cockpit::camera {
 namespace {
@@ -41,7 +45,8 @@ SoftwareIsp::SoftwareIsp(SoftwareIspConfig config)
       red_lut_(BuildLut(config.red_gain, config.gamma)) {
 }
 
-bool SoftwareIsp::Process(const RawBayerFrame& raw, CameraFrame* output, std::string* error) const {
+bool SoftwareIsp::Process(const RawBayerFrame& raw, CameraFrame* output, std::string* error,
+                          SoftwareIspTimingMs* timing) {
   const std::size_t minimum_bytes = static_cast<std::size_t>(raw.bytes_per_line) * raw.height;
   if (output == nullptr || raw.width == 0 || raw.height == 0 ||
       raw.bytes_per_line < raw.width * 2U || raw.data.size() < raw.bytes_used ||
@@ -54,11 +59,19 @@ bool SoftwareIsp::Process(const RawBayerFrame& raw, CameraFrame* output, std::st
     return false;
   }
 
-  cv::Mat raw16(static_cast<int>(raw.height), static_cast<int>(raw.width), CV_16UC1);
+  const auto total_started = std::chrono::steady_clock::now();
+  raw16_.create(static_cast<int>(raw.height), static_cast<int>(raw.width), CV_16UC1);
   for (std::uint32_t y = 0; y < raw.height; ++y) {
     const auto* source = raw.data.data() + static_cast<std::size_t>(y) * raw.bytes_per_line;
-    auto* destination = raw16.ptr<std::uint16_t>(static_cast<int>(y));
-    for (std::uint32_t x = 0; x < raw.width; ++x) {
+    auto* destination = raw16_.ptr<std::uint16_t>(static_cast<int>(y));
+    std::uint32_t x = 0;
+#if defined(__aarch64__)
+    for (; x + 8U <= raw.width; x += 8U) {
+      const auto samples = vld1q_u16(reinterpret_cast<const std::uint16_t*>(source) + x);
+      vst1q_u16(destination + x, vshrq_n_u16(samples, 6));
+    }
+#endif
+    for (; x < raw.width; ++x) {
       const std::size_t offset = static_cast<std::size_t>(x) * 2U;
       const std::uint16_t container = static_cast<std::uint16_t>(source[offset]) |
                                       static_cast<std::uint16_t>(source[offset + 1U]) << 8U;
@@ -66,29 +79,44 @@ bool SoftwareIsp::Process(const RawBayerFrame& raw, CameraFrame* output, std::st
     }
   }
 
-  cv::Mat raw8;
+  const auto unpack_finished = std::chrono::steady_clock::now();
   const double scale = 255.0 / static_cast<double>(1023U - config_.black_level);
   const double offset = -static_cast<double>(config_.black_level) * scale;
-  raw16.convertTo(raw8, CV_8UC1, scale, offset);
+  raw16_.convertTo(raw8_, CV_8UC1, scale, offset);
+  const auto normalize_finished = std::chrono::steady_clock::now();
 
-  cv::Mat bgr;
-  cv::cvtColor(raw8, bgr, cv::COLOR_BayerRG2BGR);
-  std::vector<cv::Mat> channels;
-  cv::split(bgr, channels);
-  cv::LUT(channels[0], blue_lut_, channels[0]);
-  cv::LUT(channels[1], green_lut_, channels[1]);
-  cv::LUT(channels[2], red_lut_, channels[2]);
-  cv::merge(channels, bgr);
+  cv::cvtColor(raw8_, bgr_, cv::COLOR_BayerRG2BGR);
+  const auto demosaic_finished = std::chrono::steady_clock::now();
+  if (channels_.size() != 3U) channels_.resize(3U);
+  cv::split(bgr_, channels_);
+  cv::LUT(channels_[0], blue_lut_, channels_[0]);
+  cv::LUT(channels_[1], green_lut_, channels_[1]);
+  cv::LUT(channels_[2], red_lut_, channels_[2]);
+  cv::merge(channels_, bgr_);
+  const auto color_finished = std::chrono::steady_clock::now();
 
-  cv::Mat bgra;
-  cv::cvtColor(bgr, bgra, cv::COLOR_BGR2BGRA);
   output->sequence = raw.sequence;
   output->timestamp_ms = raw.timestamp_ms;
   output->width = raw.width;
   output->height = raw.height;
-  output->stride_bytes = static_cast<std::uint32_t>(bgra.step);
+  output->stride_bytes = raw.width * 4U;
   output->format = CameraPixelFormat::kBgrx;
-  output->data.assign(bgra.datastart, bgra.dataend);
+  const std::size_t output_size = static_cast<std::size_t>(output->stride_bytes) * output->height;
+  output->data.resize(output_size);
+  cv::Mat output_bgra(static_cast<int>(output->height), static_cast<int>(output->width), CV_8UC4,
+                      output->data.data(), output->stride_bytes);
+  cv::cvtColor(bgr_, output_bgra, cv::COLOR_BGR2BGRA);
+  if (timing != nullptr) {
+    const auto milliseconds = [](auto duration) {
+      return std::chrono::duration<double, std::milli>(duration).count();
+    };
+    timing->raw_unpack = milliseconds(unpack_finished - total_started);
+    timing->normalize = milliseconds(normalize_finished - unpack_finished);
+    timing->demosaic = milliseconds(demosaic_finished - normalize_finished);
+    timing->color_correction = milliseconds(color_finished - demosaic_finished);
+    timing->output = milliseconds(std::chrono::steady_clock::now() - color_finished);
+    timing->total = milliseconds(std::chrono::steady_clock::now() - total_started);
+  }
   return true;
 }
 

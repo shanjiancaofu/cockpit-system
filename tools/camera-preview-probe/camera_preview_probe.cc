@@ -1,5 +1,7 @@
 #include "camera_preview_probe.h"
 
+#include <sys/resource.h>
+
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -66,6 +68,10 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
     return 2;
   }
   std::string error;
+  const auto wall_started = std::chrono::steady_clock::now();
+  rusage usage_started{};
+  getrusage(RUSAGE_SELF, &usage_started);
+  auto* v4l2_preview = dynamic_cast<cockpit::camera::V4l2PreviewSource*>(preview.get());
   const bool started = preview->Start(
       config,
       [&state, target_frames](const cockpit::camera::CameraFrame& frame) {
@@ -98,6 +104,9 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
                                         });
   }
   preview->Stop();
+  const auto wall_elapsed = std::chrono::steady_clock::now() - wall_started;
+  rusage usage_finished{};
+  getrusage(RUSAGE_SELF, &usage_finished);
 
   std::lock_guard<std::mutex> lock(state.mutex);
   if (state.frames == 0) {
@@ -115,6 +124,31 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
   std::cout << "captured " << state.frames << " frame(s) from " << config.device
             << " size=" << state.width << 'x' << state.height << " stride=" << state.stride_bytes
             << " bytes=" << state.bytes << " fps=" << fps << '\n';
+  if (v4l2_preview != nullptr) {
+    const auto stats = v4l2_preview->stats();
+    const auto cpu_time = [](const rusage& usage) {
+      return static_cast<double>(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) * 1000.0 +
+             static_cast<double>(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1000.0;
+    };
+    const double wall_ms = std::chrono::duration<double, std::milli>(wall_elapsed).count();
+    const double cpu_ms = cpu_time(usage_finished) - cpu_time(usage_started);
+    std::cout << "v4l2_captured_frames=" << stats.captured_frames
+              << " processed_frames=" << stats.processed_frames
+              << " queue_dropped_frames=" << stats.dropped_queue_frames
+              << " source_sequence_gaps=" << stats.source_sequence_gaps << '\n'
+              << "capture_to_output_mean_ms=" << stats.capture_to_output_mean_ms
+              << " p50_ms=" << stats.capture_to_output_p50_ms
+              << " max_ms=" << stats.capture_to_output_max_ms << '\n'
+              << "isp_mean_raw_unpack_ms=" << stats.isp_mean_ms.raw_unpack
+              << " normalize_ms=" << stats.isp_mean_ms.normalize
+              << " demosaic_ms=" << stats.isp_mean_ms.demosaic
+              << " color_correction_ms=" << stats.isp_mean_ms.color_correction
+              << " output_ms=" << stats.isp_mean_ms.output
+              << " total_ms=" << stats.isp_mean_ms.total << '\n'
+              << "process_cpu_ms=" << cpu_ms << " process_wall_ms=" << wall_ms
+              << " process_cpu_percent=" << (wall_ms > 0.0 ? cpu_ms / wall_ms * 100.0 : 0.0)
+              << '\n';
+  }
   if (!complete) {
     std::cerr << "timed out before requested frame count\n";
     return 1;

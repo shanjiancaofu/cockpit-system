@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <opencv2/core.hpp>
 #include <string>
@@ -24,6 +25,15 @@ struct RawBayerFrame {
   std::vector<std::uint8_t> data;
 };
 
+struct SoftwareIspTimingMs {
+  double raw_unpack = 0.0;
+  double normalize = 0.0;
+  double demosaic = 0.0;
+  double color_correction = 0.0;
+  double output = 0.0;
+  double total = 0.0;
+};
+
 struct SoftwareIspConfig {
   std::uint16_t black_level = 64;
   float red_gain = 1.8F;
@@ -36,13 +46,18 @@ class SoftwareIsp final {
  public:
   explicit SoftwareIsp(SoftwareIspConfig config = {});
 
-  bool Process(const RawBayerFrame& raw, CameraFrame* output, std::string* error) const;
+  bool Process(const RawBayerFrame& raw, CameraFrame* output, std::string* error,
+               SoftwareIspTimingMs* timing = nullptr);
 
  private:
   SoftwareIspConfig config_;
   cv::Mat blue_lut_;
   cv::Mat green_lut_;
   cv::Mat red_lut_;
+  cv::Mat raw16_;
+  cv::Mat raw8_;
+  cv::Mat bgr_;
+  std::vector<cv::Mat> channels_;
 };
 
 }  // namespace cockpit::camera
