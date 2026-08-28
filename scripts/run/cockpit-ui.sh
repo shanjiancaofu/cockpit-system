@@ -2,38 +2,36 @@
 set -euo pipefail
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=scripts/lib/common.sh
+source "${root_dir}/scripts/lib/common.sh"
 
 
-cockpit_native_arch() {
-  case "$(uname -m)" in
-    x86_64|amd64) echo "x86_64" ;;
-    aarch64|arm64) echo "arm64" ;;
-    *) echo "unsupported native architecture: $(uname -m)" >&2; return 1 ;;
-  esac
+usage() {
+  echo "usage: $0 [--offscreen] [--camera]"
 }
 
-cockpit_output_dir() { echo "${COCKPIT_OUTPUT_DIR:-${root_dir}/_output}"; }
-cockpit_default_debug_build_dir() { echo "$(cockpit_output_dir)/build/$(cockpit_native_arch)-debug"; }
-cockpit_default_release_build_dir() { echo "$(cockpit_output_dir)/build/$(cockpit_native_arch)-release"; }
-cockpit_default_runtime_dir() { echo "$(cockpit_output_dir)/runtime"; }
-
-
-camera_preset=false
-if [[ "${1:-}" == "--offscreen" ]]; then
-  export QT_QPA_PLATFORM=offscreen
+while (($# > 0)); do
+  case "$1" in
+    --offscreen)
+      export QT_QPA_PLATFORM=offscreen
+      ;;
+    --camera)
+      export CAMERA_REQUIRED=true
+      export CAMERA_AUTO_START=true
+      export CAMERA_DEVICE="${CAMERA_DEVICE:-nvargus://0}"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
   shift
-fi
-if [[ "${1:-}" == "--camera" ]]; then
-  camera_preset=true
-  export CAMERA_REQUIRED=true
-  export CAMERA_AUTO_START=true
-  export CAMERA_DEVICE="${CAMERA_DEVICE:-nvargus://0}"
-  shift
-fi
-if [[ "$#" -ne 0 ]]; then
-  echo "usage: $0 [--offscreen] [--camera]" >&2
-  exit 2
-fi
+done
 
 build_dir="$(realpath -m "${BUILD_DIR:-$(cockpit_default_debug_build_dir)}")"
 export COCKPIT_RUNTIME_DIR="${COCKPIT_RUNTIME_DIR:-$(cockpit_default_runtime_dir)}"

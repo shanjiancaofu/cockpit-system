@@ -6,6 +6,9 @@ project_root="$(cd -- "${script_dir}/../.." && pwd)"
 ai_root="${COCKPIT_AI_ROOT:-${project_root}/_output/ai}"
 revision="${COCKPIT_LLAMA_CPP_REVISION:-}"
 source_sha256="${COCKPIT_LLAMA_CPP_SOURCE_SHA256:-}"
+runtime_arch="$(uname -m)"
+cuda="${COCKPIT_LLAMA_CPP_CUDA:-OFF}"
+cuda_architectures="${COCKPIT_LLAMA_CPP_CUDA_ARCHITECTURES:-}"
 
 if [[ -z "${revision}" ]]; then
   echo "COCKPIT_LLAMA_CPP_REVISION must name the reviewed llama.cpp commit" >&2
@@ -15,18 +18,34 @@ if [[ ! "${revision}" =~ ^[0-9a-f]{7,40}$ ]]; then
   echo "COCKPIT_LLAMA_CPP_REVISION must be a 7-40 character hexadecimal commit" >&2
   exit 2
 fi
+if [[ "${cuda}" != "ON" && "${cuda}" != "OFF" ]]; then
+  echo "COCKPIT_LLAMA_CPP_CUDA must be ON or OFF" >&2
+  exit 2
+fi
+if [[ "${cuda}" == "OFF" && -n "${cuda_architectures}" ]]; then
+  echo "COCKPIT_LLAMA_CPP_CUDA_ARCHITECTURES requires COCKPIT_LLAMA_CPP_CUDA=ON" >&2
+  exit 2
+fi
+if [[ "${cuda}" == "ON" ]] && ! command -v nvcc >/dev/null 2>&1; then
+  echo "CUDA llama.cpp build requires nvcc in PATH" >&2
+  exit 2
+fi
 
 runtime_dir="${ai_root}/runtime/llama.cpp/${revision}"
 server_bin="${runtime_dir}/bin/llama-server"
 if [[ -x "${server_bin}" ]]; then
-  if [[ ! -f "${runtime_dir}/MANIFEST.txt" ]] ||
-     ! grep -Fxq "revision=${revision}" "${runtime_dir}/MANIFEST.txt"; then
-    printf 'existing llama.cpp runtime manifest does not match revision %s\n' "${revision}" >&2
-    exit 1
+  manifest="${runtime_dir}/MANIFEST.txt"
+  if [[ -f "${manifest}" ]] &&
+     grep -Fxq "revision=${revision}" "${manifest}" &&
+     grep -Fxq "arch=${runtime_arch}" "${manifest}" &&
+     grep -Fxq "cuda=${cuda}" "${manifest}" &&
+     grep -Fxq "cuda_architectures=${cuda_architectures}" "${manifest}"; then
+    ln -sfn "${revision}" "${ai_root}/runtime/llama.cpp/current"
+    printf 'llama.cpp runtime already prepared: %s\n' "${runtime_dir}"
+    exit 0
   fi
-  ln -sfn "${revision}" "${ai_root}/runtime/llama.cpp/current"
-  printf 'llama.cpp runtime already prepared: %s\n' "${runtime_dir}"
-  exit 0
+  printf 'existing llama.cpp runtime does not match requested arch/CUDA profile; rebuilding: %s\n' \
+    "${runtime_dir}" >&2
 fi
 
 tmp_dir="$(mktemp -d)"
@@ -81,9 +100,20 @@ elif [[ "${source_is_verified_archive}" != true ]]; then
   exit 2
 fi
 
-build_dir="${tmp_dir}/build"
-cuda="${COCKPIT_LLAMA_CPP_CUDA:-OFF}"
-cuda_architectures="${COCKPIT_LLAMA_CPP_CUDA_ARCHITECTURES:-}"
+build_dir="${COCKPIT_LLAMA_CPP_BUILD_DIR:-}"
+if [[ -z "${build_dir}" ]]; then
+  if [[ -d "${source_dir}/.git" ]]; then
+    backend=cpu
+    if [[ "${cuda}" == "ON" ]]; then
+      backend="cuda-${cuda_architectures:-default}"
+      backend="${backend//;/_}"
+    fi
+    build_dir="${ai_root}/build/llama.cpp/${revision}-${backend}"
+  else
+    build_dir="${tmp_dir}/build"
+  fi
+fi
+build_dir="$(realpath -m "${build_dir}")"
 cmake_args=(
   -S "${source_dir}" -B "${build_dir}" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
@@ -110,10 +140,9 @@ fi
   if [[ -n "${source_sha256}" ]]; then
     printf 'source_sha256=%s\n' "${source_sha256,,}"
   fi
+  printf 'arch=%s\n' "${runtime_arch}"
   printf 'cuda=%s\n' "${cuda}"
-  if [[ -n "${cuda_architectures}" ]]; then
-    printf 'cuda_architectures=%s\n' "${cuda_architectures}"
-  fi
+  printf 'cuda_architectures=%s\n' "${cuda_architectures}"
   printf 'compiler=%s\n' "$(c++ --version | head -n 1)"
 } >"${runtime_dir}/MANIFEST.txt"
 

@@ -45,7 +45,7 @@ cockpit-system/
 
 主项目继续使用普通 CMake；`ros2/src` 使用 colcon/ament。默认 CI 和默认产品构建保持
 `COCKPIT_ENABLE_ROS2=OFF`。官方 ROS 2/Nav2 deb 安装在 `/opt/ros/humble`，版本由
-架构对应的 `scripts/setup/ros2/versions.sh` 或 `scripts/setup/ros2/versions.sh` 固定。
+`scripts/setup/ros2/versions.sh` 按架构选择。
 
 ## 安装和构建
 

@@ -6,20 +6,8 @@ if ! command -v rg >/dev/null 2>&1; then
   echo "ripgrep is required for repository dependency checks" >&2
   exit 1
 fi
-
-
-cockpit_native_arch() {
-  case "$(uname -m)" in
-    x86_64|amd64) echo "x86_64" ;;
-    aarch64|arm64) echo "arm64" ;;
-    *) echo "unsupported native architecture: $(uname -m)" >&2; return 1 ;;
-  esac
-}
-
-cockpit_output_dir() { echo "${COCKPIT_OUTPUT_DIR:-${root_dir}/_output}"; }
-cockpit_default_debug_build_dir() { echo "$(cockpit_output_dir)/build/$(cockpit_native_arch)-debug"; }
-cockpit_default_release_build_dir() { echo "$(cockpit_output_dir)/build/$(cockpit_native_arch)-release"; }
-cockpit_default_runtime_dir() { echo "$(cockpit_output_dir)/runtime"; }
+# shellcheck source=scripts/lib/common.sh
+source "${root_dir}/scripts/lib/common.sh"
 
 
 build_dir="${BUILD_DIR:-$(cockpit_default_debug_build_dir)}"
