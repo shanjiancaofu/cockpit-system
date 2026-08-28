@@ -32,7 +32,10 @@ int main() {
       !Check(cockpit::camera::ToString(frame.format) == "bgrx",
              "unexpected camera format string") ||
       !Check(cockpit::camera::ToString(cockpit::camera::CameraPixelFormat::kNv12) == "nv12",
-             "unexpected NV12 format string")) {
+             "unexpected NV12 format string") ||
+      !Check(cockpit::camera::ToString(cockpit::camera::CameraTimestampClock::kMonotonic) ==
+                 "monotonic",
+             "unexpected camera timestamp clock string")) {
     return 1;
   }
 

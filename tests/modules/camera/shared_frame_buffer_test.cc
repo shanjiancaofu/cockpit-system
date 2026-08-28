@@ -20,6 +20,11 @@ cockpit::camera::CameraFrame MakeFrame(std::uint64_t sequence, std::uint8_t valu
   cockpit::camera::CameraFrame frame;
   frame.sequence = sequence;
   frame.timestamp_ms = sequence * 10;
+  frame.source_timestamp_ns = static_cast<std::int64_t>(sequence * 1000000U);
+  frame.received_at_ns = static_cast<std::int64_t>(sequence * 10000000U);
+  frame.source_clock = cockpit::camera::CameraTimestampClock::kMonotonic;
+  frame.source_timestamp_flags = 0x2000U;
+  frame.source_timestamp_valid = true;
   frame.width = 2;
   frame.height = 2;
   frame.stride_bytes = 8;
@@ -59,6 +64,11 @@ int main() {
       !Check(reader->ReadLatest(&output, &generation, &error), "read first shared frame failed") ||
       !Check(output.sequence == 1 && output.data.front() == 0x11,
              "first shared frame payload mismatch") ||
+      !Check(output.source_timestamp_valid && output.source_timestamp_ns == 1000000 &&
+                 output.received_at_ns == 10000000 &&
+                 output.source_clock == cockpit::camera::CameraTimestampClock::kMonotonic &&
+                 output.source_timestamp_flags == 0x2000U,
+             "first shared frame timestamp metadata mismatch") ||
       !Check(generation == 1, "first shared frame generation mismatch") ||
       !Check(writer->Publish(MakeFrame(2, 0x22)), "publish second shared frame failed") ||
       !Check(reader->ReadLatest(&output, &generation, &error), "read second shared frame failed") ||

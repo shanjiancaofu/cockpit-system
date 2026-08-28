@@ -11,5 +11,11 @@ std::int64_t NowMs() {
       .count();
 }
 
+std::int64_t NowNs() {
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(
+             std::chrono::system_clock::now().time_since_epoch())
+      .count();
+}
+
 }  // namespace time
 }  // namespace cockpit

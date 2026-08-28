@@ -5,6 +5,7 @@
 #include <gst/video/video-info.h>
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <cstring>
 #include <limits>
@@ -65,6 +66,18 @@ bool ParseNvArgusSensorId(const std::string& device, int* sensor_id) {
   }
   *sensor_id = parsed;
   return true;
+}
+
+bool IsV4l2VideoDevice(const std::string& device) {
+  constexpr char kPrefix[] = "/dev/video";
+  if (device.compare(0, sizeof(kPrefix) - 1, kPrefix) != 0 ||
+      device.size() == sizeof(kPrefix) - 1) {
+    return false;
+  }
+  return std::all_of(device.begin() + static_cast<std::ptrdiff_t>(sizeof(kPrefix) - 1),
+                     device.end(), [](unsigned char character) {
+                       return std::isdigit(character) != 0;
+                     });
 }
 
 std::string ReadBusError(GstElement* pipeline, const std::string& fallback) {
@@ -132,11 +145,13 @@ bool GstreamerPreviewPipeline::Start(const CameraPreviewConfig& config, FrameCal
     SetError(error, "invalid camera preview config");
     return false;
   }
-  if (normalized.device.rfind("nvargus://", 0) != 0) {
-    SetError(error, "GStreamer camera source requires an nvargus://<sensor-id> device");
+  const bool is_argus = normalized.device.rfind("nvargus://", 0) == 0;
+  const bool is_v4l2 = IsV4l2VideoDevice(normalized.device);
+  if (!is_argus && !is_v4l2) {
+    SetError(error, "GStreamer camera source requires nvargus://<sensor-id> or /dev/video<N>");
     return false;
   }
-  if (normalized.device.rfind("nvargus://", 0) == 0) {
+  if (is_argus) {
     int sensor_id = -1;
     if (!ParseNvArgusSensorId(normalized.device, &sensor_id)) {
       SetError(error, "invalid nvargus camera device; expected nvargus://<sensor-id>");
@@ -274,7 +289,13 @@ int GstreamerPreviewPipeline::HandleNewSample(GstSample* sample) {
 
   CameraFrame frame;
   frame.sequence = sequence;
-  frame.timestamp_ms = static_cast<std::uint64_t>(cockpit::time::NowMs());
+  frame.received_at_ns = cockpit::time::NowNs();
+  frame.timestamp_ms = static_cast<std::uint64_t>(frame.received_at_ns / 1000000LL);
+  if (GST_BUFFER_PTS_IS_VALID(buffer)) {
+    frame.source_timestamp_ns = static_cast<std::int64_t>(GST_BUFFER_PTS(buffer));
+    frame.source_timestamp_valid = true;
+    frame.source_clock = CameraTimestampClock::kGstreamerRunningTime;
+  }
   frame.width = GST_VIDEO_INFO_WIDTH(&video_info);
   frame.height = GST_VIDEO_INFO_HEIGHT(&video_info);
   frame.stride_bytes = static_cast<std::uint32_t>(GST_VIDEO_INFO_PLANE_STRIDE(&video_info, 0));
@@ -324,6 +345,10 @@ std::string GstreamerPreviewPipeline::BuildPipelineDescription(
     stream << "videorate ! video/x-raw,format=" << GstFormat(config.output_format)
            << ",width=" << config.width << ",height=" << config.height
            << ",framerate=" << config.fps << "/1 ! ";
+  } else if (IsV4l2VideoDevice(config.device)) {
+    stream << "v4l2src device=" << config.device << " ! videoconvert ! videoscale ! videorate ! "
+           << "video/x-raw,format=" << GstFormat(config.output_format) << ",width=" << config.width
+           << ",height=" << config.height << ",framerate=" << config.fps << "/1 ! ";
   }
   stream << "appsink name=preview_sink emit-signals=true sync=false max-buffers=2 drop=true";
   return stream.str();

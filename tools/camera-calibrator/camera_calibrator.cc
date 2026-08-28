@@ -43,6 +43,12 @@ struct Options {
   double duplicate_threshold = 2.0;
 };
 
+enum class ParseResult {
+  kOk,
+  kHelp,
+  kError,
+};
+
 struct AcceptedFrame {
   cv::Mat image;
   std::vector<cv::Point2f> corners;
@@ -105,12 +111,12 @@ bool ParseDouble(const std::string& text, double* value) {
   }
 }
 
-bool ParseOptions(int argc, char** argv, Options* options) {
+ParseResult ParseOptions(int argc, char** argv, Options* options) {
   for (int index = 1; index < argc; ++index) {
     const std::string arg = argv[index];
     if (arg == "--help" || arg == "-h") {
       Usage();
-      return false;
+      return ParseResult::kHelp;
     }
     std::string value;
     auto require_value = [&](const char* name) {
@@ -121,53 +127,63 @@ bool ParseOptions(int argc, char** argv, Options* options) {
       return true;
     };
     if (arg == "--device") {
-      if (!require_value("--device")) return false;
+      if (!require_value("--device")) return ParseResult::kError;
       options->device = value;
     } else if (arg == "--input-dir") {
-      if (!require_value("--input-dir")) return false;
+      if (!require_value("--input-dir")) return ParseResult::kError;
       options->input_dir = value;
     } else if (arg == "--output-dir") {
-      if (!require_value("--output-dir")) return false;
+      if (!require_value("--output-dir")) return ParseResult::kError;
       options->output_dir = value;
     } else if (arg == "--width") {
-      if (!require_value("--width") || !ParseInt(value, &options->width)) return false;
+      if (!require_value("--width") || !ParseInt(value, &options->width))
+        return ParseResult::kError;
     } else if (arg == "--height") {
-      if (!require_value("--height") || !ParseInt(value, &options->height)) return false;
+      if (!require_value("--height") || !ParseInt(value, &options->height))
+        return ParseResult::kError;
     } else if (arg == "--fps") {
-      if (!require_value("--fps") || !ParseInt(value, &options->fps)) return false;
+      if (!require_value("--fps") || !ParseInt(value, &options->fps)) return ParseResult::kError;
     } else if (arg == "--frames") {
-      if (!require_value("--frames") || !ParseInt(value, &options->frames)) return false;
+      if (!require_value("--frames") || !ParseInt(value, &options->frames))
+        return ParseResult::kError;
     } else if (arg == "--timeout-seconds") {
       if (!require_value("--timeout-seconds") || !ParseInt(value, &options->timeout_seconds))
-        return false;
+        return ParseResult::kError;
     } else if (arg == "--corners-x") {
-      if (!require_value("--corners-x") || !ParseInt(value, &options->corners_x)) return false;
+      if (!require_value("--corners-x") || !ParseInt(value, &options->corners_x))
+        return ParseResult::kError;
     } else if (arg == "--corners-y") {
-      if (!require_value("--corners-y") || !ParseInt(value, &options->corners_y)) return false;
+      if (!require_value("--corners-y") || !ParseInt(value, &options->corners_y))
+        return ParseResult::kError;
     } else if (arg == "--square-size") {
       if (!require_value("--square-size") || !ParseDouble(value, &options->square_size))
-        return false;
+        return ParseResult::kError;
     } else if (arg == "--blur-min") {
-      if (!require_value("--blur-min") || !ParseDouble(value, &options->blur_min)) return false;
+      if (!require_value("--blur-min") || !ParseDouble(value, &options->blur_min))
+        return ParseResult::kError;
     } else if (arg == "--mean-min") {
-      if (!require_value("--mean-min") || !ParseDouble(value, &options->mean_min)) return false;
+      if (!require_value("--mean-min") || !ParseDouble(value, &options->mean_min))
+        return ParseResult::kError;
     } else if (arg == "--mean-max") {
-      if (!require_value("--mean-max") || !ParseDouble(value, &options->mean_max)) return false;
+      if (!require_value("--mean-max") || !ParseDouble(value, &options->mean_max))
+        return ParseResult::kError;
     } else if (arg == "--area-min") {
-      if (!require_value("--area-min") || !ParseDouble(value, &options->area_min)) return false;
+      if (!require_value("--area-min") || !ParseDouble(value, &options->area_min))
+        return ParseResult::kError;
     } else if (arg == "--area-max") {
-      if (!require_value("--area-max") || !ParseDouble(value, &options->area_max)) return false;
+      if (!require_value("--area-max") || !ParseDouble(value, &options->area_max))
+        return ParseResult::kError;
     } else if (arg == "--grid-required") {
       if (!require_value("--grid-required") || !ParseInt(value, &options->grid_required))
-        return false;
+        return ParseResult::kError;
     } else if (arg == "--duplicate-threshold") {
       if (!require_value("--duplicate-threshold") ||
           !ParseDouble(value, &options->duplicate_threshold))
-        return false;
+        return ParseResult::kError;
     } else {
       std::cerr << "unknown option: " << arg << "\n";
       Usage();
-      return false;
+      return ParseResult::kError;
     }
   }
   if (options->width <= 0 || options->height <= 0 || options->fps <= 0 || options->frames <= 0 ||
@@ -176,9 +192,9 @@ bool ParseOptions(int argc, char** argv, Options* options) {
       options->area_min >= options->area_max || options->grid_required < 1 ||
       options->grid_required > 9 || options->duplicate_threshold < 0.0) {
     std::cerr << "invalid calibration options\n";
-    return false;
+    return ParseResult::kError;
   }
-  return true;
+  return ParseResult::kOk;
 }
 
 cv::Mat ToBgr(const cockpit::camera::CameraFrame& frame) {
@@ -235,7 +251,9 @@ bool SimilarToAccepted(const cv::Mat& image, const std::vector<AcceptedFrame>& a
 std::optional<AcceptedFrame> Analyze(const cv::Mat& image, std::uint64_t sequence,
                                      const Options& options,
                                      const std::vector<AcceptedFrame>& accepted) {
-  if (image.empty()) return std::nullopt;
+  if (image.empty() || image.cols <= options.corners_x || image.rows <= options.corners_y) {
+    return std::nullopt;
+  }
   cv::Mat gray;
   cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
   std::vector<cv::Point2f> corners;
@@ -264,7 +282,8 @@ std::vector<std::filesystem::path> ImageFiles(const std::filesystem::path& direc
   for (const auto& entry : std::filesystem::directory_iterator(directory)) {
     if (!entry.is_regular_file()) continue;
     const auto extension = entry.path().extension().string();
-    if (extension == ".jpg" || extension == ".jpeg" || extension == ".png" || extension == ".bmp") {
+    if (extension == ".jpg" || extension == ".jpeg" || extension == ".png" || extension == ".bmp" ||
+        extension == ".ppm") {
       files.push_back(entry.path());
     }
   }
@@ -273,13 +292,13 @@ std::vector<std::filesystem::path> ImageFiles(const std::filesystem::path& direc
 }
 
 void WriteJson(const std::filesystem::path& path, const Options& options,
-               const std::vector<AcceptedFrame>& accepted, double rms, double mean_error,
-               double max_error, bool pass) {
+               const cv::Size& image_size, const std::vector<AcceptedFrame>& accepted, double rms,
+               double mean_error, double max_error, bool pass) {
   std::ofstream output(path);
   output << std::fixed << std::setprecision(6);
   output << "{\n  \"pass\": " << (pass ? "true" : "false") << ",\n"
-         << "  \"image_width\": " << options.width << ",\n"
-         << "  \"image_height\": " << options.height << ",\n"
+         << "  \"image_width\": " << image_size.width << ",\n"
+         << "  \"image_height\": " << image_size.height << ",\n"
          << "  \"board_corners_x\": " << options.corners_x << ",\n"
          << "  \"board_corners_y\": " << options.corners_y << ",\n"
          << "  \"accepted_samples\": " << accepted.size() << ",\n"
@@ -296,6 +315,12 @@ bool Calibrate(const Options& options, const std::vector<AcceptedFrame>& accepte
   std::vector<std::vector<cv::Point3f>> object_points(accepted.size());
   std::vector<std::vector<cv::Point2f>> image_points;
   const cv::Size image_size = accepted.front().image.size();
+  if (std::any_of(accepted.begin(), accepted.end(), [&image_size](const AcceptedFrame& frame) {
+        return frame.image.size() != image_size;
+      })) {
+    std::cerr << "FAIL: accepted calibration images do not have a uniform resolution\n";
+    return false;
+  }
   for (auto& frame : object_points) {
     for (int y = 0; y < options.corners_y; ++y) {
       for (int x = 0; x < options.corners_x; ++x) {
@@ -355,7 +380,7 @@ bool Calibrate(const Options& options, const std::vector<AcceptedFrame>& accepte
   cv::Mat undistorted;
   cv::undistort(accepted.front().image, undistorted, camera_matrix, distortion);
   cv::imwrite(preview_path.string(), undistorted);
-  WriteJson(json_path, options, accepted, rms, mean_error, max_error, pass);
+  WriteJson(json_path, options, image_size, accepted, rms, mean_error, max_error, pass);
   std::cout << std::fixed << std::setprecision(4) << "accepted_samples=" << accepted.size() << "\n"
             << "fx=" << camera_matrix.at<double>(0, 0) << " fy=" << camera_matrix.at<double>(1, 1)
             << " cx=" << camera_matrix.at<double>(0, 2) << " cy=" << camera_matrix.at<double>(1, 2)
@@ -377,15 +402,32 @@ bool Calibrate(const Options& options, const std::vector<AcceptedFrame>& accepte
 
 int main(int argc, char** argv) {
   Options options;
-  if (!ParseOptions(argc, argv, &options)) return argc == 1 ? 2 : 0;
+  const ParseResult parse_result = ParseOptions(argc, argv, &options);
+  if (parse_result == ParseResult::kHelp) return 0;
+  if (parse_result == ParseResult::kError) return 2;
   std::vector<AcceptedFrame> accepted;
   if (!options.input_dir.empty()) {
     if (!std::filesystem::is_directory(options.input_dir)) {
       std::cerr << "input directory does not exist: " << options.input_dir << '\n';
       return 2;
     }
-    for (const auto& file : ImageFiles(options.input_dir)) {
+    const auto image_files = ImageFiles(options.input_dir);
+    std::optional<cv::Size> expected_size;
+    for (const auto& file : image_files) {
       cv::Mat image = cv::imread(file.string(), cv::IMREAD_COLOR);
+      if (image.empty()) continue;
+      if (!expected_size.has_value()) {
+        expected_size = image.size();
+      } else if (image.size() != *expected_size) {
+        std::cerr << "input image resolution mismatch: " << file << " is " << image.cols << 'x'
+                  << image.rows << ", expected " << expected_size->width << 'x'
+                  << expected_size->height << '\n';
+        return 2;
+      }
+    }
+    for (const auto& file : image_files) {
+      cv::Mat image = cv::imread(file.string(), cv::IMREAD_COLOR);
+      if (image.empty()) continue;
       auto analyzed = Analyze(image, accepted.size() + 1, options, accepted);
       if (analyzed.has_value()) accepted.push_back(std::move(*analyzed));
       if (static_cast<int>(accepted.size()) >= options.frames) break;

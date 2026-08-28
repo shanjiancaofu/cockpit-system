@@ -72,7 +72,7 @@ jobs:
             build-essential cmake git libasound2-dev libgstreamer1.0-dev \
             gstreamer1.0-plugins-good libgstreamer-plugins-base1.0-dev \
             libgrpc++-dev libssl-dev \
-            libprotobuf-dev libunwind-dev libxkbcommon-dev libyaml-cpp-dev ninja-build \
+            libopencv-dev libprotobuf-dev libunwind-dev libxkbcommon-dev libyaml-cpp-dev ninja-build \
             openssl pkg-config protobuf-compiler protobuf-compiler-grpc qt6-base-dev ripgrep \
             qt6-declarative-dev qml6-module-qtqml-workerscript qml6-module-qtquick \
             qml6-module-qtquick-controls qml6-module-qtquick-layouts \
@@ -102,7 +102,7 @@ jobs:
           if [[ -n "${{ matrix.test_label_exclude }}" ]]; then
             test_args+=(-LE "${{ matrix.test_label_exclude }}")
           fi
-          ctest "${test_args[@]}"
+          scripts/tests/ctest.sh "${test_args[@]}"
 
       - name: Runtime smoke
         if: matrix.name == 'debug'
@@ -129,7 +129,7 @@ jobs:
           sudo apt-get install -y \
             build-essential cmake git libasound2-dev libgstreamer1.0-dev \
             gstreamer1.0-plugins-good libgstreamer-plugins-base1.0-dev \
-            libgrpc++-dev libprotobuf-dev libssl-dev libunwind-dev libxkbcommon-dev \
+            libgrpc++-dev libopencv-dev libprotobuf-dev libssl-dev libunwind-dev libxkbcommon-dev \
             libyaml-cpp-dev ninja-build openssl pkg-config protobuf-compiler \
             protobuf-compiler-grpc qt6-base-dev qt6-declarative-dev ripgrep python3-flake8 \
             qml6-module-qtqml-workerscript qml6-module-qtquick \

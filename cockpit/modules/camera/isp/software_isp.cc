@@ -97,6 +97,11 @@ bool SoftwareIsp::Process(const RawBayerFrame& raw, CameraFrame* output, std::st
 
   output->sequence = raw.sequence;
   output->timestamp_ms = raw.timestamp_ms;
+  output->source_timestamp_ns = raw.source_timestamp_ns;
+  output->received_at_ns = raw.received_at_ns;
+  output->source_clock = raw.source_clock;
+  output->source_timestamp_flags = raw.source_timestamp_flags;
+  output->source_timestamp_valid = raw.source_timestamp_valid;
   output->width = raw.width;
   output->height = raw.height;
   output->stride_bytes = raw.width * 4U;

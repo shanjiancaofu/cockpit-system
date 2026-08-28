@@ -22,6 +22,7 @@ struct V4l2RawFrame {
   std::uint32_t bytes_used = 0;
   std::uint32_t sequence = 0;
   std::int64_t timestamp_ns = 0;
+  std::uint32_t timestamp_flags = 0;
   std::vector<std::uint8_t> data;
 };
 

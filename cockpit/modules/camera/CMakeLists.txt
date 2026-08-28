@@ -1,25 +1,22 @@
 find_package(PkgConfig REQUIRED)
-find_package(OpenCV QUIET COMPONENTS imgproc)
+find_package(OpenCV REQUIRED COMPONENTS imgproc)
 pkg_check_modules(GSTREAMER REQUIRED
     gstreamer-1.0
     gstreamer-app-1.0
     gstreamer-video-1.0
 )
 
-if(OpenCV_FOUND)
-  add_library(camera_isp STATIC isp/software_isp.cc)
-  target_include_directories(camera_isp PUBLIC ${PROJECT_SOURCE_DIR} ${OpenCV_INCLUDE_DIRS})
-  target_link_libraries(camera_isp PUBLIC camera_frames ${OpenCV_LIBS})
-endif()
 add_library(camera_frames STATIC frames/camera_frame.cc frames/latest_frame_buffer.cc)
+
+add_library(camera_isp STATIC isp/software_isp.cc)
+target_include_directories(camera_isp PUBLIC ${PROJECT_SOURCE_DIR} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(camera_isp PUBLIC camera_frames ${OpenCV_LIBS})
 
 add_library(camera_capture INTERFACE)
 
-if(OpenCV_FOUND)
-  add_library(v4l2_camera_source STATIC capture/v4l2_preview_source.cc)
-  target_link_libraries(v4l2_camera_source PUBLIC camera_capture camera_isp v4l2_camera time_util Threads::Threads)
-  target_include_directories(v4l2_camera_source PUBLIC ${PROJECT_SOURCE_DIR})
-endif()
+add_library(v4l2_camera_source STATIC capture/v4l2_preview_source.cc)
+target_link_libraries(v4l2_camera_source PUBLIC camera_capture camera_isp v4l2_camera time_util Threads::Threads)
+target_include_directories(v4l2_camera_source PUBLIC ${PROJECT_SOURCE_DIR})
 add_library(synthetic_camera STATIC capture/synthetic_preview_source.cc)
 target_link_libraries(synthetic_camera PUBLIC camera_capture time_util Threads::Threads)
 

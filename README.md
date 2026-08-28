@@ -197,10 +197,16 @@ _output/build/arm64-debug/bin/camera-preview-probe \
   --fps 30 --frames 300 --timeout-ms 30000 --config configs/development.yaml
 ```
 
-Jetson 实测 Direct V4L2 + NEON Software ISP 在 1920×1080 下约 30 fps，ISP 平均约 16.3 ms，端到端
-P50 约 16.6 ms，队列丢帧和 source sequence gap 均为 0；进程 CPU 约 111--117%。CUDA prototype
+Jetson 实测 Direct V4L2 + NEON Software ISP 在 1920×1080 下约 30 fps，ISP 平均约 16.3 ms，最近
+2048 帧 dequeue/queue-to-output P50 约 16.6 ms，队列丢帧和 source sequence gap 均为 0；进程 CPU
+约 111--117%。CUDA prototype
 的 H2D/kernel/D2H 约 7.0 ms，进程 CPU 约 39%，但和 CPU OpenCV demosaic 的红蓝通道尚未完全对齐，
 暂不作为默认生产 backend。
+
+`CameraFrame.timestamp_ms` 保留为主机接收时刻的 Unix epoch 毫秒兼容字段；源时间使用
+`source_timestamp_ns + source_clock + source_timestamp_valid`，主机接收时间使用 `received_at_ns`。
+V4L2 保留驱动 buffer 时间及 clock flag，GStreamer 使用 pipeline running-time PTS，跨 Camera/LiDAR
+同步前必须按 clock domain 转换，不能直接混用。
 
 底层 RAW 和 CPU/CUDA 对比入口：
 

@@ -98,7 +98,8 @@ void SyntheticPreviewSource::Run() {
 
     CameraFrame frame;
     frame.sequence = ++emitted_frames;
-    frame.timestamp_ms = static_cast<std::uint64_t>(time::NowMs());
+    frame.received_at_ns = time::NowNs();
+    frame.timestamp_ms = static_cast<std::uint64_t>(frame.received_at_ns / 1000000LL);
     frame.width = config.width;
     frame.height = config.height;
     frame.stride_bytes = stride;

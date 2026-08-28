@@ -99,5 +99,19 @@ std::string ToString(CameraPixelFormat format) {
   return "unknown";
 }
 
+std::string ToString(CameraTimestampClock clock) {
+  switch (clock) {
+    case CameraTimestampClock::kMonotonic:
+      return "monotonic";
+    case CameraTimestampClock::kRealtime:
+      return "realtime";
+    case CameraTimestampClock::kGstreamerRunningTime:
+      return "gstreamer_running_time";
+    case CameraTimestampClock::kUnknown:
+      break;
+  }
+  return "unknown";
+}
+
 }  // namespace camera
 }  // namespace cockpit

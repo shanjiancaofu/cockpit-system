@@ -18,6 +18,7 @@ sudo apt-get install -y \
   libasound2-dev \
   libgstreamer1.0-dev \
   libgstreamer-plugins-base1.0-dev \
+  libopencv-dev \
   libprotobuf-dev \
   libxkbcommon-dev \
   libyaml-cpp-dev \

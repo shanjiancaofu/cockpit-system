@@ -1,8 +1,11 @@
 #include "cockpit/modules/camera/capture/v4l2_preview_source.h"
 
+#include <linux/videodev2.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <numeric>
 #include <utility>
 
 #include "cockpit/core/time/time.h"
@@ -77,6 +80,7 @@ void V4l2PreviewSource::CaptureLoop() {
       continue;
     }
     const auto enqueued_at = std::chrono::steady_clock::now();
+    const auto received_at_ns = time::NowNs();
     std::lock_guard<std::mutex> lock(mutex_);
     ++stats_.captured_frames;
     if (have_sequence && raw.sequence > previous_sequence + 1U) {
@@ -94,9 +98,14 @@ void V4l2PreviewSource::CaptureLoop() {
     pending.frame.bytes_per_line = raw.bytes_per_line;
     pending.frame.bytes_used = raw.bytes_used;
     pending.frame.sequence = raw.sequence;
-    pending.frame.timestamp_ms = raw.timestamp_ns > 0
-                                     ? static_cast<std::uint64_t>(raw.timestamp_ns / 1000000LL)
-                                     : static_cast<std::uint64_t>(time::NowMs());
+    pending.frame.timestamp_ms = static_cast<std::uint64_t>(received_at_ns / 1000000LL);
+    pending.frame.received_at_ns = received_at_ns;
+    pending.frame.source_timestamp_ns = raw.timestamp_ns;
+    pending.frame.source_timestamp_flags = raw.timestamp_flags;
+    pending.frame.source_timestamp_valid = raw.timestamp_ns > 0;
+    if ((raw.timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK) == V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC) {
+      pending.frame.source_clock = CameraTimestampClock::kMonotonic;
+    }
     pending.frame.data = std::move(raw.data);
     pending.enqueued_at = enqueued_at;
     queue_.push_back(std::move(pending));
@@ -139,8 +148,6 @@ void V4l2PreviewSource::IspLoop() {
         return current + (value - current) / static_cast<double>(count);
       };
       const auto count = stats_.processed_frames;
-      stats_.capture_to_output_mean_ms = add_mean(stats_.capture_to_output_mean_ms, latency, count);
-      stats_.capture_to_output_max_ms = std::max(stats_.capture_to_output_max_ms, latency);
       stats_.isp_mean_ms.raw_unpack =
           add_mean(stats_.isp_mean_ms.raw_unpack, timing.raw_unpack, count);
       stats_.isp_mean_ms.normalize =
@@ -167,8 +174,11 @@ V4l2PreviewStats V4l2PreviewSource::stats() const {
           static_cast<std::size_t>(std::ceil(fraction * static_cast<double>(samples.size())));
       return samples[std::max<std::size_t>(1U, index) - 1U];
     };
-    result.capture_to_output_p50_ms = percentile(0.50);
-    result.capture_to_output_p95_ms = percentile(0.95);
+    result.queue_to_output_mean_ms =
+        std::accumulate(samples.begin(), samples.end(), 0.0) / static_cast<double>(samples.size());
+    result.queue_to_output_p50_ms = percentile(0.50);
+    result.queue_to_output_p95_ms = percentile(0.95);
+    result.queue_to_output_max_ms = samples.back();
   }
   return result;
 }

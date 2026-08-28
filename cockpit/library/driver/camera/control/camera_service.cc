@@ -364,6 +364,11 @@ void CameraService::PublishFrameEvent(const CameraFrame& frame,
   payload << "{"
           << "\"sequence\":" << frame.sequence << ','
           << "\"frame_timestamp_ms\":" << frame.timestamp_ms << ','
+          << "\"source_timestamp_ns\":" << frame.source_timestamp_ns << ','
+          << "\"source_timestamp_valid\":" << (frame.source_timestamp_valid ? "true" : "false")
+          << ',' << "\"source_clock\":\"" << ToString(frame.source_clock) << "\","
+          << "\"source_timestamp_flags\":" << frame.source_timestamp_flags << ','
+          << "\"frame_received_at_ns\":" << frame.received_at_ns << ','
           << "\"received_at_ms\":" << received_at_ms << ',' << "\"width\":" << frame.width << ','
           << "\"height\":" << frame.height << ',' << "\"stride_bytes\":" << frame.stride_bytes
           << ',' << "\"size_bytes\":" << frame.data.size() << '}';

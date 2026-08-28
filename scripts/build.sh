@@ -188,7 +188,8 @@ fi
 cmake --build "${build_dir}"
 
 if [[ "${run_tests}" == true ]]; then
-  ctest --test-dir "${build_dir}" --output-on-failure --no-tests=error
+  "${root_dir}/scripts/tests/ctest.sh" --test-dir "${build_dir}" --output-on-failure \
+    --no-tests=error
 elif [[ "${cross_compiling}" == true ]]; then
   echo "tests skipped: ARM64 binaries cannot run on the x86_64 build machine"
 else

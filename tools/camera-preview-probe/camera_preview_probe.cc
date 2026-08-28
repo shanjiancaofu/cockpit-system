@@ -146,9 +146,10 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
               << " processed_frames=" << stats.processed_frames
               << " queue_dropped_frames=" << stats.dropped_queue_frames
               << " source_sequence_gaps=" << stats.source_sequence_gaps << '\n'
-              << "capture_to_output_mean_ms=" << stats.capture_to_output_mean_ms
-              << " p50_ms=" << stats.capture_to_output_p50_ms
-              << " max_ms=" << stats.capture_to_output_max_ms << '\n'
+              << "queue_to_output_mean_ms=" << stats.queue_to_output_mean_ms
+              << " p50_ms=" << stats.queue_to_output_p50_ms
+              << " p95_ms=" << stats.queue_to_output_p95_ms
+              << " max_ms=" << stats.queue_to_output_max_ms << '\n'
               << "isp_mean_raw_unpack_ms=" << stats.isp_mean_ms.raw_unpack
               << " normalize_ms=" << stats.isp_mean_ms.normalize
               << " demosaic_ms=" << stats.isp_mean_ms.demosaic

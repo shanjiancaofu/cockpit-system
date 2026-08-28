@@ -17,7 +17,7 @@ namespace camera {
 namespace {
 
 constexpr std::uint32_t kMagic = 0x43414D46U;
-constexpr std::uint32_t kVersion = 2;
+constexpr std::uint32_t kVersion = 3;
 constexpr std::size_t kSlotCount = 2;
 constexpr std::size_t kAlignment = 64;
 
@@ -37,11 +37,16 @@ struct alignas(kAlignment) SharedSlot {
   std::uint64_t generation = 0;
   std::uint64_t sequence = 0;
   std::uint64_t timestamp_ms = 0;
+  std::int64_t source_timestamp_ns = 0;
+  std::int64_t received_at_ns = 0;
   std::uint64_t payload_size = 0;
   std::uint32_t width = 0;
   std::uint32_t height = 0;
   std::uint32_t stride_bytes = 0;
   std::uint32_t format = 0;
+  std::uint32_t source_clock = 0;
+  std::uint32_t source_timestamp_flags = 0;
+  std::uint32_t source_timestamp_valid = 0;
 };
 
 std::size_t AlignUp(std::size_t value) {
@@ -113,11 +118,16 @@ void ClearSlot(SharedSlot* slot) {
   slot->generation = 0;
   slot->sequence = 0;
   slot->timestamp_ms = 0;
+  slot->source_timestamp_ns = 0;
+  slot->received_at_ns = 0;
   slot->payload_size = 0;
   slot->width = 0;
   slot->height = 0;
   slot->stride_bytes = 0;
   slot->format = static_cast<std::uint32_t>(CameraPixelFormat::kUnknown);
+  slot->source_clock = static_cast<std::uint32_t>(CameraTimestampClock::kUnknown);
+  slot->source_timestamp_flags = 0;
+  slot->source_timestamp_valid = 0;
 }
 
 bool InitializeSlot(SharedSlot* slot, std::string* error) {
@@ -286,11 +296,16 @@ bool SharedFrameWriter::Publish(CameraFrame frame) {
   slot->generation = next_generation;
   slot->sequence = frame.sequence;
   slot->timestamp_ms = frame.timestamp_ms;
+  slot->source_timestamp_ns = frame.source_timestamp_ns;
+  slot->received_at_ns = frame.received_at_ns;
   slot->payload_size = frame.data.size();
   slot->width = frame.width;
   slot->height = frame.height;
   slot->stride_bytes = frame.stride_bytes;
   slot->format = static_cast<std::uint32_t>(frame.format);
+  slot->source_clock = static_cast<std::uint32_t>(frame.source_clock);
+  slot->source_timestamp_flags = frame.source_timestamp_flags;
+  slot->source_timestamp_valid = frame.source_timestamp_valid ? 1U : 0U;
   std::memcpy(Payload(slot), frame.data.data(), frame.data.size());
   pthread_mutex_unlock(&slot->lock);
 
@@ -367,10 +382,15 @@ bool SharedFrameReader::ReadLatest(CameraFrame* frame, std::uint64_t* generation
   }
   frame->sequence = slot->sequence;
   frame->timestamp_ms = slot->timestamp_ms;
+  frame->source_timestamp_ns = slot->source_timestamp_ns;
+  frame->received_at_ns = slot->received_at_ns;
   frame->width = slot->width;
   frame->height = slot->height;
   frame->stride_bytes = slot->stride_bytes;
   frame->format = static_cast<CameraPixelFormat>(slot->format);
+  frame->source_clock = static_cast<CameraTimestampClock>(slot->source_clock);
+  frame->source_timestamp_flags = slot->source_timestamp_flags;
+  frame->source_timestamp_valid = slot->source_timestamp_valid != 0U;
   frame->data.assign(Payload(slot), Payload(slot) + slot->payload_size);
   const std::uint64_t frame_generation = slot->generation;
   pthread_mutex_unlock(&mutable_slot->lock);

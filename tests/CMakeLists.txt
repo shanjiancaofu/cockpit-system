@@ -283,6 +283,11 @@ add_executable(camera_calibration_loader_test
 target_link_libraries(camera_calibration_loader_test PRIVATE hawkeye)
 add_test(NAME camera_calibration_loader_test COMMAND camera_calibration_loader_test)
 
+add_test(NAME camera_calibrator_cli_test COMMAND bash
+    ${PROJECT_SOURCE_DIR}/tests/tools/camera_calibrator_cli_test.sh
+    $<TARGET_FILE:camera-calibrator>
+)
+
 add_executable(latest_frame_buffer_test modules/camera/latest_frame_buffer_test.cc)
 target_link_libraries(latest_frame_buffer_test PRIVATE camera)
 add_test(NAME latest_frame_buffer_test COMMAND latest_frame_buffer_test)
@@ -479,6 +484,7 @@ if(TARGET ui_model)
     if(COCKPIT_ENABLE_TSAN)
         set_property(TEST app_launcher_model_test APPEND PROPERTY ENVIRONMENT
             "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/sanitizers/qt6-test-tsan.supp"
+            "QTEST_FUNCTION_TIMEOUT=0"
         )
     endif()
 
@@ -489,6 +495,7 @@ if(TARGET ui_model)
     if(COCKPIT_ENABLE_TSAN)
         set_property(TEST media_control_model_test APPEND PROPERTY ENVIRONMENT
             "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/sanitizers/qt6-test-tsan.supp"
+            "QTEST_FUNCTION_TIMEOUT=0"
         )
     endif()
 

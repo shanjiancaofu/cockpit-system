@@ -21,6 +21,11 @@ struct RawBayerFrame {
   std::uint32_t bytes_used = 0;
   std::uint64_t sequence = 0;
   std::uint64_t timestamp_ms = 0;
+  std::int64_t source_timestamp_ns = 0;
+  std::int64_t received_at_ns = 0;
+  CameraTimestampClock source_clock = CameraTimestampClock::kUnknown;
+  std::uint32_t source_timestamp_flags = 0;
+  bool source_timestamp_valid = false;
   BayerPattern pattern = BayerPattern::kRggb;
   std::vector<std::uint8_t> data;
 };

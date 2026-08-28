@@ -204,6 +204,8 @@ bool V4l2MmapCapture::WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string
   frame->sequence = buffer.sequence;
   frame->timestamp_ns = static_cast<std::int64_t>(buffer.timestamp.tv_sec) * 1000000000LL +
                         static_cast<std::int64_t>(buffer.timestamp.tv_usec) * 1000LL;
+  frame->timestamp_flags =
+      buffer.flags & (V4L2_BUF_FLAG_TIMESTAMP_MASK | V4L2_BUF_FLAG_TSTAMP_SRC_MASK);
   frame->data.assign(
       static_cast<const std::uint8_t*>(buffers_[buffer.index].start),
       static_cast<const std::uint8_t*>(buffers_[buffer.index].start) + buffer.bytesused);
