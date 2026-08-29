@@ -51,6 +51,7 @@ std::vector<cockpit::camera::PixelFormatInfo> UvcMjpegFormats(const std::string&
   cockpit::camera::PixelFormatInfo format;
   format.fourcc = V4L2_PIX_FMT_MJPEG;
   format.fourcc_text = "MJPG";
+  format.frame_sizes = {{1280, 720}};
   return {format};
 }
 
@@ -215,6 +216,30 @@ int main() {
     return 1;
   }
 
+  int synthetic_list_calls = 0;
+  cockpit::camera::CameraServiceOptions synthetic_options;
+  synthetic_options.capture_pipeline = cockpit::camera::CameraCapturePipeline::kSynthetic;
+  cockpit::camera::CameraService synthetic_service(
+      [&synthetic_list_calls](std::string*) {
+        ++synthetic_list_calls;
+        return std::vector<cockpit::camera::VideoDeviceInfo>{};
+      },
+      std::make_unique<FakePreviewSource>(), nullptr, nullptr, synthetic_options);
+  const auto synthetic_devices = synthetic_service.ListDevices(nullptr);
+  cockpit::camera::CameraStartPreviewRequest synthetic_request;
+  synthetic_request.device = "synthetic://0";
+  std::string synthetic_error;
+  if (!Check(synthetic_devices.size() == 1 && synthetic_devices[0].path == "synthetic://0",
+             "Synthetic pipeline did not expose its virtual device") ||
+      !Check(synthetic_list_calls == 0,
+             "Synthetic pipeline unexpectedly enumerated physical devices") ||
+      !Check(synthetic_service.StartPreview(synthetic_request, &synthetic_error),
+             "Headless synthetic preview did not start")) {
+    std::cerr << synthetic_error << '\n';
+    return 1;
+  }
+  synthetic_service.StopPreview();
+
   int list_calls = 0;
   auto preview_source = std::make_unique<FakePreviewSource>();
   auto* preview_source_ptr = preview_source.get();
@@ -235,6 +260,23 @@ int main() {
              "MJPEG UVC pipeline accepted a YUYV-only device") ||
       !Check(mismatched_uvc_error.find("configured pipeline format") != std::string::npos,
              "UVC format mismatch did not report a deterministic error")) {
+    return 1;
+  }
+  cockpit::camera::CameraService mismatched_uvc_size_service(
+      [](std::string*) {
+        return std::vector<cockpit::camera::VideoDeviceInfo>{CaptureDevice("/dev/video9")};
+      },
+      std::make_unique<FakePreviewSource>(), nullptr, nullptr, uvc_options, UvcMjpegFormats);
+  cockpit::camera::CameraStartPreviewRequest mismatched_uvc_size_request;
+  mismatched_uvc_size_request.device = "/dev/video9";
+  mismatched_uvc_size_request.width = 1920;
+  mismatched_uvc_size_request.height = 1080;
+  std::string mismatched_uvc_size_error;
+  if (!Check(!mismatched_uvc_size_service.StartPreview(mismatched_uvc_size_request,
+                                                       &mismatched_uvc_size_error),
+             "UVC pipeline accepted an unsupported frame size") ||
+      !Check(mismatched_uvc_size_error.find("frame size") != std::string::npos,
+             "UVC frame-size mismatch did not report a deterministic error")) {
     return 1;
   }
   cockpit::camera::CameraService service(

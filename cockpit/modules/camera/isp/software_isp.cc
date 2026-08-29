@@ -62,12 +62,14 @@ bool SoftwareIsp::Process(const RawBayerFrame& raw, CameraFrame* output, std::st
 
   const auto total_started = std::chrono::steady_clock::now();
   raw16_.create(static_cast<int>(raw.height), static_cast<int>(raw.width), CV_16UC1);
+#if defined(__aarch64__)
+  const bool disable_neon = std::getenv("COCKPIT_CAMERA_DISABLE_NEON") != nullptr;
+#endif
   for (std::uint32_t y = 0; y < raw.height; ++y) {
     const auto* source = raw.data.data() + static_cast<std::size_t>(y) * raw.bytes_per_line;
     auto* destination = raw16_.ptr<std::uint16_t>(static_cast<int>(y));
     std::uint32_t x = 0;
 #if defined(__aarch64__)
-    const bool disable_neon = std::getenv("COCKPIT_CAMERA_DISABLE_NEON") != nullptr;
     for (; !disable_neon && x + 8U <= raw.width; x += 8U) {
       const auto samples = vld1q_u16(reinterpret_cast<const std::uint16_t*>(source) + x);
       vst1q_u16(destination + x, vshrq_n_u16(samples, 6));

@@ -291,9 +291,16 @@ int GstreamerPreviewPipeline::HandleNewSample(GstSample* sample) {
   frame.received_at_ns = cockpit::time::NowNs();
   frame.timestamp_ms = static_cast<std::uint64_t>(frame.received_at_ns / 1000000LL);
   if (GST_BUFFER_PTS_IS_VALID(buffer)) {
-    frame.source_timestamp_ns = static_cast<std::int64_t>(GST_BUFFER_PTS(buffer));
-    frame.source_timestamp_valid = true;
-    frame.source_clock = CameraTimestampClock::kGstreamerRunningTime;
+    const GstSegment* segment = gst_sample_get_segment(sample);
+    if (segment != nullptr && segment->format == GST_FORMAT_TIME) {
+      const GstClockTime running_time =
+          gst_segment_to_running_time(segment, GST_FORMAT_TIME, GST_BUFFER_PTS(buffer));
+      if (GST_CLOCK_TIME_IS_VALID(running_time)) {
+        frame.source_timestamp_ns = static_cast<std::int64_t>(running_time);
+        frame.source_timestamp_valid = true;
+        frame.source_clock = CameraTimestampClock::kGstreamerRunningTime;
+      }
+    }
   }
   frame.width = GST_VIDEO_INFO_WIDTH(&video_info);
   frame.height = GST_VIDEO_INFO_HEIGHT(&video_info);

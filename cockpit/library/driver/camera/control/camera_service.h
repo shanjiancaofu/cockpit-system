@@ -98,7 +98,8 @@ class CameraService {
   CameraServiceStatus status() const;
 
  private:
-  bool DeviceExists(const std::string& device, std::string* error) const;
+  bool DeviceExists(const std::string& device, std::uint32_t width, std::uint32_t height,
+                    std::string* error) const;
   void HandleFrame(CameraFrame frame);
   void SetError(std::string kind, std::string error);
   void PublishStatusEvent(const CameraServiceStatus& status) const;

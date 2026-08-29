@@ -10,15 +10,6 @@
 
 namespace {
 
-cockpit::camera::VideoDeviceInfo SyntheticDevice() {
-  cockpit::camera::VideoDeviceInfo device;
-  device.path = "synthetic://camera0";
-  device.query_ok = true;
-  device.supports_capture = true;
-  device.supports_streaming = true;
-  return device;
-}
-
 bool Check(bool condition, const char* message) {
   if (!condition) {
     std::cerr << message << '\n';
@@ -61,12 +52,12 @@ bool TestFault(cockpit::camera::SyntheticCameraFault fault, std::uint64_t fault_
   service_options.capture_pipeline = cockpit::camera::CameraCapturePipeline::kSynthetic;
   cockpit::camera::CameraService service(
       [](std::string*) {
-        return std::vector<cockpit::camera::VideoDeviceInfo>{SyntheticDevice()};
+        return std::vector<cockpit::camera::VideoDeviceInfo>{};
       },
       std::move(source), nullptr, nullptr, service_options);
 
   cockpit::camera::CameraStartPreviewRequest request;
-  request.device = "synthetic://camera0";
+  request.device = "synthetic://0";
   request.width = 64;
   request.height = 48;
   request.fps = 100;

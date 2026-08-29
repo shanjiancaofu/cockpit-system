@@ -80,15 +80,7 @@ bool CameraRuntime::Start(const std::string& config_path) {
           static_cast<std::uint64_t>(camera_config.synthetic_fault_after_frames);
       impl_->service = std::make_unique<CameraService>(
           [](std::string*) {
-            VideoDeviceInfo device;
-            device.path = "synthetic://camera0";
-            device.driver = "cockpit-synthetic";
-            device.card = "Cockpit Synthetic Camera";
-            device.bus_info = "in-process";
-            device.query_ok = true;
-            device.supports_capture = true;
-            device.supports_streaming = true;
-            return std::vector<VideoDeviceInfo>{std::move(device)};
+            return std::vector<VideoDeviceInfo>{};
           },
           std::make_unique<SyntheticPreviewSource>(synthetic_options), std::move(frame_sink),
           impl_->message_bus, camera_options);

@@ -64,7 +64,15 @@ namespace {
 std::vector<VideoDeviceInfo> NormalizePreviewDevices(std::vector<VideoDeviceInfo> devices,
                                                      CameraCapturePipeline pipeline) {
   if (pipeline == CameraCapturePipeline::kSynthetic) {
-    return devices;
+    VideoDeviceInfo device;
+    device.path = "synthetic://0";
+    device.driver = "cockpit-synthetic";
+    device.card = "Cockpit Synthetic Camera";
+    device.bus_info = "in-process";
+    device.query_ok = true;
+    device.supports_capture = true;
+    device.supports_streaming = true;
+    return {std::move(device)};
   }
   std::vector<VideoDeviceInfo> normalized;
   std::uint32_t argus_sensor_id = 0;
@@ -152,6 +160,9 @@ CameraService::~CameraService() {
 }
 
 std::vector<VideoDeviceInfo> CameraService::ListDevices(std::string* error) const {
+  if (options_.capture_pipeline == CameraCapturePipeline::kSynthetic) {
+    return NormalizePreviewDevices({}, options_.capture_pipeline);
+  }
   return NormalizePreviewDevices(device_lister_(error), options_.capture_pipeline);
 }
 
@@ -181,7 +192,7 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     SetError("invalid_argument", "camera preview width, height, and fps must be positive");
     return false;
   }
-  if (!DeviceExists(request.device, error)) {
+  if (!DeviceExists(request.device, request.width, request.height, error)) {
     SetError("device_unavailable", error == nullptr ? "camera device is not available" : *error);
     return false;
   }
@@ -302,7 +313,8 @@ CameraServiceStatus CameraService::status() const {
   return result;
 }
 
-bool CameraService::DeviceExists(const std::string& device, std::string* error) const {
+bool CameraService::DeviceExists(const std::string& device, std::uint32_t width,
+                                 std::uint32_t height, std::string* error) const {
   std::string list_error;
   const auto devices = ListDevices(&list_error);
   for (const auto& info : devices) {
@@ -317,16 +329,26 @@ bool CameraService::DeviceExists(const std::string& device, std::string* error) 
           options_.capture_pipeline == CameraCapturePipeline::kSoftwareIsp ? V4L2_PIX_FMT_SRGGB10
           : options_.uvc_input_format == CameraUvcInputFormat::kMjpeg      ? V4L2_PIX_FMT_MJPEG
                                                                            : V4L2_PIX_FMT_YUYV;
-      const bool format_supported = std::any_of(formats.begin(), formats.end(),
-                                                [required_fourcc](const PixelFormatInfo& format) {
-                                                  return format.fourcc == required_fourcc;
-                                                });
+      const bool require_frame_size = options_.capture_pipeline == CameraCapturePipeline::kUvc;
+      const bool format_supported =
+          std::any_of(formats.begin(), formats.end(), [&](const PixelFormatInfo& format) {
+            if (format.fourcc != required_fourcc) {
+              return false;
+            }
+            return !require_frame_size ||
+                   std::any_of(format.frame_sizes.begin(), format.frame_sizes.end(),
+                               [width, height](const FrameSizeInfo& size) {
+                                 return size.width == width && size.height == height;
+                               });
+          });
       if (format_supported) {
         return true;
       }
       AssignError(error,
                   format_error.empty()
-                      ? "camera device does not support the configured pipeline format: " + device
+                      ? "camera device does not support the configured pipeline format and frame "
+                        "size: " +
+                            device
                       : format_error);
       return false;
     }
