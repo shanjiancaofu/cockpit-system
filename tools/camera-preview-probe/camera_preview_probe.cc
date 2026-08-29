@@ -149,15 +149,15 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
   std::cout << "captured " << state.frames << " frame(s) from " << config.device
             << " size=" << state.width << 'x' << state.height << " stride=" << state.stride_bytes
             << " bytes=" << state.bytes << " fps=" << fps << '\n';
+  const auto cpu_time = [](const rusage& usage) {
+    return static_cast<double>(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) * 1000.0 +
+           static_cast<double>(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1000.0;
+  };
+  const double wall_ms = std::chrono::duration<double, std::milli>(wall_elapsed).count();
+  const double cpu_ms = cpu_time(usage_finished) - cpu_time(usage_started);
 #if defined(COCKPIT_CAMERA_HAS_SOFTWARE_ISP)
   if (software_isp_preview != nullptr) {
     const auto stats = software_isp_preview->stats();
-    const auto cpu_time = [](const rusage& usage) {
-      return static_cast<double>(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) * 1000.0 +
-             static_cast<double>(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1000.0;
-    };
-    const double wall_ms = std::chrono::duration<double, std::milli>(wall_elapsed).count();
-    const double cpu_ms = cpu_time(usage_finished) - cpu_time(usage_started);
     std::cout << "software_isp_captured_frames=" << stats.captured_frames
               << " processed_frames=" << stats.processed_frames
               << " queue_dropped_frames=" << stats.dropped_queue_frames
@@ -177,6 +177,9 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
               << " max_rss_kib=" << usage_finished.ru_maxrss << '\n';
   }
 #endif
+  std::cout << "process_cpu_ms=" << cpu_ms << " process_wall_ms=" << wall_ms
+            << " process_cpu_percent=" << (wall_ms > 0.0 ? cpu_ms / wall_ms * 100.0 : 0.0)
+            << " max_rss_kib=" << usage_finished.ru_maxrss << '\n';
   if (!complete) {
     std::cerr << "timed out before requested frame count\n";
     return 1;

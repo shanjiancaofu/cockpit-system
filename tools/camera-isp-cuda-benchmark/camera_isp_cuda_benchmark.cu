@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 #include <sys/resource.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
@@ -82,6 +83,16 @@ double CpuMs(const rusage& usage) {
          static_cast<double>(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1000.0;
 }
 
+double Percentile(std::vector<double> samples, double quantile) {
+  if (samples.empty()) return 0.0;
+  std::sort(samples.begin(), samples.end());
+  const double position = quantile * static_cast<double>(samples.size() - 1U);
+  const auto lower = static_cast<std::size_t>(position);
+  const auto upper = std::min(lower + 1U, samples.size() - 1U);
+  const double fraction = position - static_cast<double>(lower);
+  return samples[lower] + (samples[upper] - samples[lower]) * fraction;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -136,8 +147,11 @@ int main(int argc, char** argv) {
   getrusage(RUSAGE_SELF, &usage_started);
   const auto wall_started = std::chrono::steady_clock::now();
   float total_kernel_ms = 0.0F;
+  std::vector<double> end_to_end_samples;
+  end_to_end_samples.reserve(static_cast<std::size_t>(iterations));
   CUDA_CHECK(cudaEventRecord(begin));
   for (int i = 0; i < iterations; ++i) {
+    const auto iteration_started = std::chrono::steady_clock::now();
     CUDA_CHECK(cudaMemcpy(device_raw, host_raw.data(), pixels * sizeof(std::uint16_t),
                           cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaEventRecord(kernel_begin));
@@ -149,6 +163,9 @@ int main(int argc, char** argv) {
     float kernel_ms = 0.0F;
     CUDA_CHECK(cudaEventElapsedTime(&kernel_ms, kernel_begin, kernel_end));
     total_kernel_ms += kernel_ms;
+    end_to_end_samples.push_back(std::chrono::duration<double, std::milli>(
+                                     std::chrono::steady_clock::now() - iteration_started)
+                                     .count());
   }
   CUDA_CHECK(cudaEventRecord(end));
   CUDA_CHECK(cudaEventSynchronize(end));
@@ -171,8 +188,13 @@ int main(int argc, char** argv) {
             << " pixels=" << pixels << '\n'
             << "cuda_kernel_mean_ms=" << total_kernel_ms / iterations << '\n'
             << "cuda_end_to_end_mean_ms=" << wall_ms / iterations << '\n'
+            << "cuda_end_to_end_p50_ms=" << Percentile(end_to_end_samples, 0.50) << '\n'
+            << "cuda_end_to_end_p95_ms=" << Percentile(end_to_end_samples, 0.95) << '\n'
+            << "cuda_end_to_end_max_ms="
+            << *std::max_element(end_to_end_samples.begin(), end_to_end_samples.end()) << '\n'
             << "process_cpu_ms=" << cpu_ms
             << " process_cpu_percent=" << (wall_ms > 0.0 ? cpu_ms / wall_ms * 100.0 : 0.0) << '\n'
+            << "max_rss_kib=" << usage_finished.ru_maxrss << '\n'
             << "output_bytes=" << host_bgra.size() << '\n';
   cudaEventDestroy(begin);
   cudaEventDestroy(end);
