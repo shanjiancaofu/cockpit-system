@@ -2,11 +2,13 @@
 
 #include <unistd.h>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <thread>
 
 namespace {
 
@@ -121,6 +123,23 @@ int main() {
                 limit_error.find("byte limit") != std::string::npos,
             "limited recording session did not enter a diagnostic fault");
 
+  cockpit::recording::RecordingSessionLimits duration_limits;
+  duration_limits.max_duration_ms = 1;
+  duration_limits.min_free_bytes = 1;
+  duration_limits.allowed_data_root = root;
+  cockpit::recording::RecordingSession duration_session(root / "duration", "test_vehicle", {},
+                                                        duration_limits);
+  std::string duration_error;
+  bool duration_limit_result = Check(duration_session.Start("duration_limit", &duration_error),
+                                     "duration-limited recording session did not start");
+  if (duration_limit_result) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    duration_limit_result = Check(!duration_session.AppendEvent(event, &duration_error),
+                                  "recording session exceeded its duration limit") &&
+                            Check(duration_error.find("duration limit") != std::string::npos,
+                                  "recording duration limit error was not diagnostic");
+  }
+
   const auto allowed_root = root / "allowed";
   std::filesystem::create_directories(allowed_root);
   const auto blocked_source = root / "blocked.bin";
@@ -197,7 +216,7 @@ int main() {
       Check(recovered == 1, "interrupted recording recovery count mismatch") &&
       Check(std::filesystem::exists(interrupted_directory / "INTERRUPTED"),
             "interrupted recording marker missing") &&
-      byte_limit_result && path_limit_result;
+      byte_limit_result && duration_limit_result && path_limit_result;
   std::filesystem::remove_all(root);
   return result ? 0 : 1;
 }

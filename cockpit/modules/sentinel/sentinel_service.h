@@ -77,6 +77,7 @@ class SentinelService final {
   SentinelStatus status_;
   bool running_ = false;
   bool stopping_ = false;
+  std::int64_t cooldown_until_steady_ms_ = 0;
   std::thread worker_;
 };
 

@@ -151,7 +151,7 @@ AudioPlaybackWaitStatus AudioPlayback::WaitForResult(std::uint64_t playback_id,
     return AudioPlaybackWaitStatus::kNotFound;
   }
   if (found->second.status == AudioPlaybackStatus::kPending) {
-    result_changed_.wait_until(lock, std::chrono::system_clock::now() + timeout,
+    result_changed_.wait_until(lock, std::chrono::steady_clock::now() + timeout,
                                [this, playback_id] {
                                  const auto current = results_.find(playback_id);
                                  return current == results_.end() ||

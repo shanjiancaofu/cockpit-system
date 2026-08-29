@@ -69,28 +69,22 @@ bool IsValidVersion(const std::string& version) {
 
 struct SemanticVersion {
   std::vector<unsigned long long> core;
-  std::string prerelease;
 };
 
 bool ParseSemanticVersion(const std::string& value, SemanticVersion* version) {
-  if (version == nullptr) {
+  if (version == nullptr || value.find('-') != std::string::npos) {
     return false;
   }
-  const std::size_t separator = value.find('-');
-  const std::string core = value.substr(0, separator);
-  const std::string prerelease =
-      separator == std::string::npos ? std::string() : value.substr(separator + 1U);
-  if (core.empty() || (separator != std::string::npos && prerelease.empty())) {
+  if (value.empty()) {
     return false;
   }
 
   SemanticVersion parsed;
-  parsed.prerelease = prerelease;
   std::size_t begin = 0;
-  while (begin <= core.size()) {
-    const std::size_t end = core.find('.', begin);
+  while (begin <= value.size()) {
+    const std::size_t end = value.find('.', begin);
     const std::string component =
-        core.substr(begin, end == std::string::npos ? std::string::npos : end - begin);
+        value.substr(begin, end == std::string::npos ? std::string::npos : end - begin);
     if (component.empty() ||
         !std::all_of(component.begin(), component.end(), [](unsigned char character) {
           return std::isdigit(character) != 0;
@@ -111,12 +105,7 @@ bool ParseSemanticVersion(const std::string& value, SemanticVersion* version) {
     }
     begin = end + 1U;
   }
-  if (parsed.core.size() != 3U || (!parsed.prerelease.empty() &&
-                                   !std::all_of(parsed.prerelease.begin(), parsed.prerelease.end(),
-                                                [](unsigned char character) {
-                                                  return std::isalnum(character) != 0 ||
-                                                         character == '.' || character == '-';
-                                                }))) {
+  if (parsed.core.size() != 3U) {
     return false;
   }
   *version = std::move(parsed);
@@ -130,13 +119,7 @@ int CompareSemanticVersions(const SemanticVersion& left, const SemanticVersion& 
                ? -1
                : 1;
   }
-  if (left.prerelease.empty() != right.prerelease.empty()) {
-    return left.prerelease.empty() ? 1 : -1;
-  }
-  if (left.prerelease == right.prerelease) {
-    return 0;
-  }
-  return left.prerelease < right.prerelease ? -1 : 1;
+  return 0;
 }
 
 bool ReadVersionFile(const std::filesystem::path& path, std::string* version, std::string* error) {

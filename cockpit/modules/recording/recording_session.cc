@@ -34,7 +34,7 @@ void AssignError(std::string* error, const std::string& message) {
 }
 
 std::string MakeSessionId() {
-  return std::to_string(time::NowMs()) + "_" + std::to_string(getpid()) + "_" +
+  return std::to_string(time::WallNowMs()) + "_" + std::to_string(getpid()) + "_" +
          std::to_string(g_session_sequence.fetch_add(1U));
 }
 
@@ -93,7 +93,8 @@ bool RecordingSession::Start(const std::string& trigger, std::string* error) {
     status_.state = RecordingState::kRecording;
     status_.session_id = MakeSessionId();
     status_.trigger = trigger.empty() ? "manual" : trigger;
-    status_.started_at_ms = time::NowMs();
+    status_.started_at_ms = time::WallNowMs();
+    started_at_steady_ms_ = time::SteadyNowMs();
     active_bytes_ = 0;
     vehicle_messages_since_flush_ = 0;
     event_messages_since_flush_ = 0;
@@ -273,7 +274,7 @@ bool RecordingSession::Stop(std::string* error) {
         return false;
       }
     }
-    status_.stopped_at_ms = time::NowMs();
+    status_.stopped_at_ms = time::WallNowMs();
     if (!WriteManifest(temporary_directory_, "complete", error)) {
       SetError(error == nullptr ? "write recording manifest failed" : *error);
       return false;
@@ -329,7 +330,7 @@ std::size_t RecordingSession::RecoverInterrupted(const std::filesystem::path& ro
       const std::filesystem::path destination =
           sessions_directory / ("interrupted_" + name.substr(std::string(".recording_").size()));
       std::string marker_error;
-      if (!WriteMarker(entry.path() / "INTERRUPTED", time::NowMs(), &marker_error)) {
+      if (!WriteMarker(entry.path() / "INTERRUPTED", time::WallNowMs(), &marker_error)) {
         AssignError(error, marker_error);
         return recovered;
       }
@@ -348,9 +349,10 @@ std::size_t RecordingSession::RecoverInterrupted(const std::filesystem::path& ro
 }
 
 bool RecordingSession::EnsureCapacity(std::uint64_t additional_bytes, std::string* error) {
-  const std::int64_t now_ms = time::NowMs();
-  if (limits_.max_duration_ms > 0 && status_.started_at_ms > 0 && now_ms > status_.started_at_ms &&
-      static_cast<std::uint64_t>(now_ms - status_.started_at_ms) > limits_.max_duration_ms) {
+  const std::int64_t steady_now_ms = time::SteadyNowMs();
+  if (limits_.max_duration_ms > 0 && started_at_steady_ms_ > 0 &&
+      steady_now_ms > started_at_steady_ms_ &&
+      static_cast<std::uint64_t>(steady_now_ms - started_at_steady_ms_) > limits_.max_duration_ms) {
     SetError("recording session duration limit reached");
     AssignError(error, status_.last_error);
     return false;

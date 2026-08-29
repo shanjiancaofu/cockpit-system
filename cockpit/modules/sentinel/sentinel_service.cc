@@ -47,6 +47,7 @@ bool SentinelService::Start(bool armed) {
     stopping_ = false;
     running_ = true;
     status_ = SentinelStatus{};
+    cooldown_until_steady_ms_ = 0;
     status_.state = armed ? SentinelState::kArmed : SentinelState::kDisabled;
   }
   worker_ = std::thread(&SentinelService::Run, this);
@@ -68,6 +69,7 @@ void SentinelService::Stop() {
   running_ = false;
   status_.state = SentinelState::kDisabled;
   status_.cooldown_until_ms = 0;
+  cooldown_until_steady_ms_ = 0;
 }
 
 bool SentinelService::Arm(std::string* error) {
@@ -87,6 +89,7 @@ bool SentinelService::Arm(std::string* error) {
   }
   status_.state = SentinelState::kArmed;
   status_.cooldown_until_ms = 0;
+  cooldown_until_steady_ms_ = 0;
   status_.last_error.clear();
   return true;
 }
@@ -102,6 +105,7 @@ bool SentinelService::Disarm(std::string* error) {
     }
     status_.state = SentinelState::kDisabled;
     status_.cooldown_until_ms = 0;
+    cooldown_until_steady_ms_ = 0;
   }
   static_cast<void>(events_.DiscardPending());
   actions_->Cancel();
@@ -134,10 +138,11 @@ SentinelStatus SentinelService::status() const {
   return status_;
 }
 
-void SentinelService::UpdateCooldownLocked(std::int64_t now_ms) {
-  if (status_.state == SentinelState::kCooldown && now_ms >= status_.cooldown_until_ms) {
+void SentinelService::UpdateCooldownLocked(std::int64_t steady_now_ms) {
+  if (status_.state == SentinelState::kCooldown && steady_now_ms >= cooldown_until_steady_ms_) {
     status_.state = SentinelState::kArmed;
     status_.cooldown_until_ms = 0;
+    cooldown_until_steady_ms_ = 0;
   }
 }
 
@@ -149,7 +154,7 @@ void SentinelService::Run() {
       if (stopping_) return;
       if (status_.state == SentinelState::kCooldown) {
         wait_duration = std::chrono::milliseconds(
-            std::max<std::int64_t>(1, status_.cooldown_until_ms - time::NowMs()));
+            std::max<std::int64_t>(1, cooldown_until_steady_ms_ - time::SteadyNowMs()));
       }
     }
 
@@ -157,14 +162,14 @@ void SentinelService::Run() {
     {
       std::lock_guard<std::mutex> lock(mutex_);
       if (stopping_) return;
-      const std::int64_t now_ms = time::NowMs();
-      UpdateCooldownLocked(now_ms);
+      const std::int64_t wall_now_ms = time::WallNowMs();
+      UpdateCooldownLocked(time::SteadyNowMs());
       if (!pending.has_value()) continue;
       const vehicle::ChassisEvent& event = *pending;
 
       const bool duplicate = event.sequence <= status_.last_event_sequence;
-      const bool stale = event.timestamp_ms > now_ms ||
-                         now_ms - event.timestamp_ms > policy_.max_event_age.count();
+      const bool stale = event.timestamp_ms > wall_now_ms ||
+                         wall_now_ms - event.timestamp_ms > policy_.max_event_age.count();
       const bool unavailable = status_.state != SentinelState::kArmed;
       if (!duplicate) {
         status_.last_event_sequence = event.sequence;
@@ -196,7 +201,8 @@ void SentinelService::Run() {
       status_.last_error = error.empty() ? "sentinel trigger action failed" : std::move(error);
     }
     status_.state = SentinelState::kCooldown;
-    status_.cooldown_until_ms = time::NowMs() + policy_.cooldown.count();
+    status_.cooldown_until_ms = time::WallNowMs() + policy_.cooldown.count();
+    cooldown_until_steady_ms_ = time::SteadyNowMs() + policy_.cooldown.count();
   }
 }
 

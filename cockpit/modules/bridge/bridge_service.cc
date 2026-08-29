@@ -13,6 +13,15 @@ bool IsActiveNavigationState(NavigationState state) {
   return state == NavigationState::kAccepted || state == NavigationState::kExecuting;
 }
 
+namespace {
+
+bool IsConfirmedTerminalState(NavigationState state) {
+  return state == NavigationState::kCancelled || state == NavigationState::kFailed ||
+         state == NavigationState::kSucceeded;
+}
+
+}  // namespace
+
 const char* NavigationStateName(NavigationState state) {
   switch (state) {
     case NavigationState::kDisabled:
@@ -40,12 +49,13 @@ const char* NavigationStateName(NavigationState state) {
 }
 
 BridgeService::BridgeService(std::unique_ptr<NavigationProvider> provider,
-                             std::int64_t goal_timeout_ms, Clock clock)
+                             std::int64_t goal_timeout_ms, Clock steady_clock, Clock wall_clock)
     : provider_(std::move(provider)),
       goal_timeout_ms_(goal_timeout_ms),
-      clock_(clock == nullptr ? Clock(time::NowMs) : std::move(clock)) {
+      steady_clock_(steady_clock == nullptr ? Clock(time::SteadyNowMs) : std::move(steady_clock)),
+      wall_clock_(wall_clock == nullptr ? Clock(time::WallNowMs) : std::move(wall_clock)) {
   status_.state = provider_ == nullptr ? NavigationState::kDisabled : NavigationState::kIdle;
-  status_.updated_at_ms = clock_();
+  status_.updated_at_ms = wall_clock_();
 }
 
 bool BridgeService::ValidateGoal(const NavigationGoal& goal, std::string* error) {
@@ -89,11 +99,14 @@ bool BridgeService::SubmitNavigationGoal(const NavigationGoal& goal, NavigationS
   }
   status_ = provider_->SubmitNavigationGoal(goal);
   if (IsActiveNavigationState(status_.state)) {
-    status_.accepted_at_ms = clock_();
+    accepted_at_steady_ms_ = steady_clock_();
+    status_.accepted_at_ms = wall_clock_();
   } else {
+    accepted_at_steady_ms_ = 0;
     status_.accepted_at_ms = 0;
   }
-  status_.updated_at_ms = clock_();
+  timeout_cancel_requested_ = false;
+  status_.updated_at_ms = wall_clock_();
   *status = status_;
   if (status_.state == NavigationState::kRejected ||
       status_.state == NavigationState::kDisconnected ||
@@ -121,9 +134,19 @@ bool BridgeService::CancelNavigationGoal(const std::string& goal_id, NavigationS
     return false;
   }
   const std::int64_t accepted_at_ms = status_.accepted_at_ms;
-  status_ = provider_->CancelNavigationGoal(goal_id);
+  const NavigationStatus active_status = status_;
+  const NavigationStatus cancellation = provider_->CancelNavigationGoal(goal_id);
+  if (IsConfirmedTerminalState(cancellation.state)) {
+    status_ = cancellation;
+    accepted_at_steady_ms_ = 0;
+    timeout_cancel_requested_ = false;
+  } else {
+    status_ = active_status;
+    status_.last_error = cancellation.last_error.empty() ? "bridge cancellation not confirmed"
+                                                         : cancellation.last_error;
+  }
   status_.accepted_at_ms = accepted_at_ms;
-  status_.updated_at_ms = clock_();
+  status_.updated_at_ms = wall_clock_();
   *status = status_;
   if (status_.state != NavigationState::kCancelled) {
     *error = status_.last_error.empty() ? "bridge cancel failed" : status_.last_error;
@@ -141,24 +164,57 @@ NavigationStatus BridgeService::GetNavigationStatus() {
 void BridgeService::RefreshLocked() {
   if (provider_ == nullptr) return;
   if (status_.state == NavigationState::kTimedOut) return;
-  const std::int64_t now_ms = clock_();
-  if (IsActiveNavigationState(status_.state) && status_.accepted_at_ms > 0 &&
-      now_ms - status_.accepted_at_ms >= goal_timeout_ms_) {
-    static_cast<void>(provider_->CancelNavigationGoal(status_.goal_id));
-    status_.state = NavigationState::kTimedOut;
-    status_.updated_at_ms = now_ms;
-    status_.message = "bridge goal timed out";
-    status_.last_error = status_.message;
-    return;
-  }
+  const std::int64_t steady_now_ms = steady_clock_();
+  const std::int64_t wall_now_ms = wall_clock_();
+  const NavigationStatus previous = status_;
   const NavigationStatus refreshed = provider_->GetNavigationStatus();
   if (status_.goal_id.empty() || refreshed.goal_id.empty() ||
       refreshed.goal_id == status_.goal_id) {
-    const std::int64_t accepted_at_ms = refreshed.goal_id.empty() ? 0 : status_.accepted_at_ms;
-    status_ = refreshed;
-    status_.accepted_at_ms = accepted_at_ms;
+    if (timeout_cancel_requested_ && !IsActiveNavigationState(refreshed.state) &&
+        !IsConfirmedTerminalState(refreshed.state)) {
+      status_ = previous;
+    } else {
+      const std::int64_t accepted_at_ms = refreshed.goal_id.empty() ? 0 : status_.accepted_at_ms;
+      status_ = refreshed;
+      status_.accepted_at_ms = accepted_at_ms;
+      if (!IsActiveNavigationState(status_.state)) {
+        accepted_at_steady_ms_ = 0;
+      }
+    }
   }
-  status_.updated_at_ms = now_ms;
+  if (timeout_cancel_requested_ && IsConfirmedTerminalState(status_.state)) {
+    accepted_at_steady_ms_ = 0;
+    if (status_.state == NavigationState::kCancelled) {
+      status_.state = NavigationState::kTimedOut;
+      status_.message = "bridge goal timed out; cancellation confirmed";
+      status_.last_error = status_.message;
+    }
+    status_.updated_at_ms = wall_now_ms;
+    return;
+  }
+  if (IsActiveNavigationState(status_.state) && accepted_at_steady_ms_ > 0 &&
+      steady_now_ms - accepted_at_steady_ms_ >= goal_timeout_ms_) {
+    if (!timeout_cancel_requested_) {
+      const std::int64_t accepted_at_ms = status_.accepted_at_ms;
+      const NavigationStatus cancellation = provider_->CancelNavigationGoal(status_.goal_id);
+      timeout_cancel_requested_ = true;
+      if (IsConfirmedTerminalState(cancellation.state)) {
+        status_ = cancellation;
+        status_.accepted_at_ms = accepted_at_ms;
+        accepted_at_steady_ms_ = 0;
+        if (status_.state == NavigationState::kCancelled) {
+          status_.state = NavigationState::kTimedOut;
+          status_.message = "bridge goal timed out; cancellation confirmed";
+          status_.last_error = status_.message;
+        }
+        status_.updated_at_ms = wall_now_ms;
+        return;
+      }
+    }
+    status_.message = "bridge goal timed out; retaining active guard";
+    status_.last_error = "goal timeout; cancellation not confirmed";
+  }
+  status_.updated_at_ms = wall_now_ms;
 }
 
 }  // namespace cockpit::bridge

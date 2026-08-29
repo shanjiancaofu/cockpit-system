@@ -99,6 +99,10 @@ add_executable(event_queue_test core/event_queue_test.cc)
 target_link_libraries(event_queue_test PRIVATE event Threads::Threads)
 add_test(NAME event_queue_test COMMAND event_queue_test)
 
+add_executable(time_test core/time_test.cc)
+target_link_libraries(time_test PRIVATE time_util)
+add_test(NAME time_test COMMAND time_test)
+
 add_executable(message_bus_test core/message_bus_test.cc)
 target_link_libraries(message_bus_test PRIVATE event)
 add_test(NAME message_bus_test COMMAND message_bus_test)

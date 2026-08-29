@@ -23,18 +23,20 @@ VehicleStateClient::VehicleStateClient(const std::string& address, int stream_ti
 int VehicleStateClient::Stream(int sample_count, int max_hz, const StateHandler& handler,
                                const ContinueHandler& should_continue) {
   const bool unlimited = sample_count <= 0;
-  const auto bounded_deadline =
-      std::chrono::system_clock::now() + std::chrono::milliseconds(stream_timeout_ms_);
+  const auto steady_deadline =
+      std::chrono::steady_clock::now() + std::chrono::milliseconds(stream_timeout_ms_);
   int received = 0;
   std::int64_t last_timestamp_ms = 0;
   grpc::Status last_status;
-  while (should_continue() &&
-         (unlimited ||
-          (received < sample_count && std::chrono::system_clock::now() < bounded_deadline))) {
+  while (should_continue() && (unlimited || (received < sample_count &&
+                                             std::chrono::steady_clock::now() < steady_deadline))) {
     grpc::ClientContext context;
-    const auto stream_deadline =
-        unlimited ? std::chrono::system_clock::now() + std::chrono::milliseconds(stream_timeout_ms_)
-                  : bounded_deadline;
+    const auto remaining = unlimited
+                               ? std::chrono::milliseconds(stream_timeout_ms_)
+                               : std::chrono::duration_cast<std::chrono::milliseconds>(
+                                     std::max(std::chrono::steady_clock::duration::zero(),
+                                              steady_deadline - std::chrono::steady_clock::now()));
+    const auto stream_deadline = std::chrono::system_clock::now() + remaining;
     context.set_deadline(stream_deadline);
     context.set_wait_for_ready(true);
 
@@ -74,7 +76,7 @@ int VehicleStateClient::Stream(int sample_count, int max_hz, const StateHandler&
     stream_finished.store(true);
     stop_watcher.join();
     if (should_continue() && (unlimited || (received < sample_count &&
-                                            std::chrono::system_clock::now() < bounded_deadline))) {
+                                            std::chrono::steady_clock::now() < steady_deadline))) {
       LOG_WARN("vehicle state stream interrupted; retrying grpc_code=" +
                std::to_string(last_status.error_code()));
       std::this_thread::sleep_for(std::chrono::milliseconds(retry_delay_ms_));

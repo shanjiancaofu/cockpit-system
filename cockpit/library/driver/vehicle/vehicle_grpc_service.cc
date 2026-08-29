@@ -313,7 +313,7 @@ grpc::Status VehicleGrpcService::GetStatus(grpc::ServerContext*, const proto::co
   response->set_interface_name(status.interface_name);
   response->set_fd_enabled(status.fd_enabled);
   response->set_state(ToProto(status.state));
-  const std::uint64_t now_ms = static_cast<std::uint64_t>(time::NowMs());
+  const std::uint64_t now_ms = static_cast<std::uint64_t>(time::WallNowMs());
   response->set_last_rx_age_ms(status.last_rx_timestamp_ms == 0 ||
                                        now_ms < status.last_rx_timestamp_ms
                                    ? 0

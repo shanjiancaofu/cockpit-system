@@ -19,6 +19,7 @@ class ChassisClient {
   static constexpr std::int64_t kHeartbeatPeriodMs = 100;
 
   ChassisClient();
+  explicit ChassisClient(std::int64_t started_steady_ms);
 
   ChassisClientDecodeStatus ProcessFrame(const can::CanFrame& frame, std::int64_t now_ms,
                                          ChassisState* state);

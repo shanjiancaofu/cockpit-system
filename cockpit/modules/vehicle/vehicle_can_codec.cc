@@ -33,7 +33,7 @@ VehicleCanDecodeStatus VehicleCanCodec::Decode(const can::CanFrame& frame, Vehic
   const std::uint16_t speed =
       static_cast<std::uint16_t>(data[0]) | (static_cast<std::uint16_t>(data[1]) << 8U);
 
-  state->timestamp_ms = time::NowMs();
+  state->timestamp_ms = time::WallNowMs();
   state->speed_kph = static_cast<double>(speed) / 10.0;
   state->gear = data[2];
   state->soc_percent = std::min(static_cast<int>(data[3]), 100);

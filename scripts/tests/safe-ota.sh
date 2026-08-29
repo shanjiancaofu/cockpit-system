@@ -141,6 +141,17 @@ set -e
 [[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
 [[ ! -e "${install_root}/releases/1.5.0" ]]
 
+package_prerelease="${work_dir}/package-prerelease"
+make_package "${package_prerelease}" 2.1.0-rc.1
+set +e
+"${safe_ota}" --package "${package_prerelease}" --confirm 2.1.0-rc.1 --root "${install_root}" \
+  --public-key "${ota_public_key}" --health-command /bin/true --standalone
+prerelease_result=$?
+set -e
+[[ "${prerelease_result}" -eq 1 ]]
+[[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
+[[ ! -e "${install_root}/releases/2.1.0-rc.1" ]]
+
 mkdir -p "${install_root}/releases/2.1.0"
 printf 'state: prepared\nversion: 2.1.0\nprevious_release: releases/2.0.0\n' \
   >"${install_root}/run/upgrade-transaction.yaml"

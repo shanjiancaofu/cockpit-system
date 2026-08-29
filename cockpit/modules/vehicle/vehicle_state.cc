@@ -23,7 +23,7 @@ std::string VehicleState::ToJson() const {
 
 VehicleState MakeMockVehicleState(int sequence) {
   VehicleState state;
-  state.timestamp_ms = cockpit::time::NowMs();
+  state.timestamp_ms = cockpit::time::WallNowMs();
   state.speed_kph = 12.0 + (sequence % 9) * 3.5;
   state.gear = sequence % 4;
   state.soc_percent = 88 - (sequence % 8);

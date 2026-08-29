@@ -40,6 +40,17 @@ capture_pipeline: software_isp
 `argus_isp` 只接受 `nvargus://N`；`uvc` 只接受 `uvcvideo` USB 节点并显式选择
 `mjpeg|yuyv`；`software_isp` 只接受 `tegra-video + RG10`。普通 USB UVC 相机通常已在设备内部完成 Bayer ISP，不再进入 `SoftwareIsp`。Software ISP 使用预分配 buffer、NEON unpack 和采集/ISP 双线程有界队列，公开输出始终是 BGRx；底层诊断 CLI 才保留 RG10。Argus ISP 与 Software ISP 可以访问同一颗 IMX219，但不能同时占用 sensor session。
 
+Jetson + IMX219 的 ARM64/NEON 合入门禁在真机执行：
+
+```bash
+scripts/tests/jetson-camera-gate.sh
+```
+
+该门禁会原生构建 ARM64 Debug、运行 `raw10_unpack_test`，再通过 `/dev/video0` 执行
+`RG10 → NEON RAW unpack → Software ISP` 实际采集。设备、分辨率、帧率和帧数可通过
+`JETSON_CAMERA_DEVICE`、`JETSON_CAMERA_WIDTH`、`JETSON_CAMERA_HEIGHT`、
+`JETSON_CAMERA_FPS`、`JETSON_CAMERA_FRAMES` 覆盖。
+
 预览 callback 通过 move 传递 frame。`LatestFrameBuffer` 只保存最新帧，不形成无界视频队列。
 共享内存使用两个槽位，writer 写入非活动槽后切换 generation，图片像素不经过 gRPC。
 

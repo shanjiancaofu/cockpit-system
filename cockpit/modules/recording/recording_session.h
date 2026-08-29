@@ -104,6 +104,7 @@ class RecordingSession {
   std::uint64_t vehicle_messages_since_flush_{0};
   std::uint64_t event_messages_since_flush_{0};
   std::uint64_t data_messages_since_flush_{0};
+  std::int64_t started_at_steady_ms_{0};
 };
 
 }  // namespace recording

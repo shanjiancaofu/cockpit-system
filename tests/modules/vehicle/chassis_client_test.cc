@@ -37,10 +37,10 @@ int main() {
   using cockpit::vehicle::ChassisHeartbeatStatus;
   using cockpit::vehicle::ChassisState;
 
-  ChassisClient client;
+  constexpr std::int64_t started_ms = 1000;
+  ChassisClient client(started_ms);
   ChassisState state;
   CanFrame heartbeat;
-  const std::int64_t started_ms = client.GetState(0).timestamp_ms;
   if (!client.HeartbeatDue(started_ms) || !client.BuildHeartbeat(started_ms, &heartbeat) ||
       heartbeat.id() != ChassisCanCodec::kHeartbeatId || client.HeartbeatDue(started_ms + 50) ||
       !client.HeartbeatDue(started_ms + 100)) {

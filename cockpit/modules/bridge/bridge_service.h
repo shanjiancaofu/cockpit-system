@@ -15,7 +15,7 @@ class BridgeService final {
   using Clock = std::function<std::int64_t()>;
 
   BridgeService(std::unique_ptr<NavigationProvider> provider, std::int64_t goal_timeout_ms,
-                Clock clock = nullptr);
+                Clock steady_clock = nullptr, Clock wall_clock = nullptr);
 
   bool SubmitNavigationGoal(const NavigationGoal& goal, NavigationStatus* status,
                             std::string* error);
@@ -29,9 +29,12 @@ class BridgeService final {
 
   std::unique_ptr<NavigationProvider> provider_;
   const std::int64_t goal_timeout_ms_;
-  const Clock clock_;
+  const Clock steady_clock_;
+  const Clock wall_clock_;
   std::mutex mutex_;
   NavigationStatus status_;
+  std::int64_t accepted_at_steady_ms_ = 0;
+  bool timeout_cancel_requested_ = false;
 };
 
 }  // namespace cockpit::bridge

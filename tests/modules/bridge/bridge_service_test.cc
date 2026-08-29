@@ -12,7 +12,9 @@ namespace {
 
 using cockpit::bridge::BridgeService;
 using cockpit::bridge::FakeBridgeOutcome;
+using cockpit::bridge::IsActiveNavigationState;
 using cockpit::bridge::NavigationGoal;
+using cockpit::bridge::NavigationProvider;
 using cockpit::bridge::NavigationState;
 using cockpit::bridge::NavigationStatus;
 
@@ -33,6 +35,45 @@ NavigationGoal Goal(std::string id = "goal-1") {
   return goal;
 }
 
+class DelayedCancelProvider final : public NavigationProvider {
+ public:
+  NavigationStatus SubmitNavigationGoal(const NavigationGoal& goal) override {
+    status_ = {};
+    status_.state = NavigationState::kAccepted;
+    status_.goal_id = goal.goal_id;
+    status_.target = goal.target;
+    return status_;
+  }
+
+  NavigationStatus CancelNavigationGoal(const std::string&) override {
+    ++cancel_count;
+    cancel_pending_ = true;
+    cancel_poll_count_ = 0;
+    status_.state = NavigationState::kExecuting;
+    status_.last_error = "fake cancellation not confirmed";
+    return status_;
+  }
+
+  NavigationStatus GetNavigationStatus() override {
+    if (status_.goal_id.empty()) {
+      status_.state = NavigationState::kIdle;
+    } else if (!cancel_pending_) {
+      status_.state = NavigationState::kExecuting;
+    } else if (++cancel_poll_count_ >= 2) {
+      status_.state = NavigationState::kCancelled;
+      status_.last_error.clear();
+    }
+    return status_;
+  }
+
+  int cancel_count = 0;
+
+ private:
+  NavigationStatus status_;
+  bool cancel_pending_ = false;
+  int cancel_poll_count_ = 0;
+};
+
 }  // namespace
 
 int main() {
@@ -41,7 +82,11 @@ int main() {
   std::string error;
 
   BridgeService success(
-      cockpit::bridge::CreateFakeNavigationProvider(FakeBridgeOutcome::kSucceeded), 1000, [&] {
+      cockpit::bridge::CreateFakeNavigationProvider(FakeBridgeOutcome::kSucceeded), 1000,
+      [&] {
+        return now_ms;
+      },
+      [&] {
         return now_ms;
       });
   Require(success.SubmitNavigationGoal(Goal(), &status, &error) &&
@@ -83,6 +128,50 @@ int main() {
   Require(status.state == NavigationState::kTimedOut, "stalled bridge goal did not time out");
   Require(timeout.GetNavigationStatus().state == NavigationState::kTimedOut,
           "timed-out terminal state was not latched");
+
+  std::int64_t steady_ms = 5000;
+  std::int64_t wall_ms = 20000;
+  BridgeService wall_rollback_timeout(
+      cockpit::bridge::CreateFakeNavigationProvider(FakeBridgeOutcome::kStalled), 100,
+      [&] {
+        return steady_ms;
+      },
+      [&] {
+        return wall_ms;
+      });
+  Require(wall_rollback_timeout.SubmitNavigationGoal(Goal("wall-rollback"), &status, &error) &&
+              status.accepted_at_ms == wall_ms,
+          "wall rollback timeout fixture submit failed");
+  steady_ms += 100;
+  wall_ms -= 10000;
+  Require(wall_rollback_timeout.GetNavigationStatus().state == NavigationState::kTimedOut,
+          "wall clock rollback postponed the monotonic goal timeout");
+
+  auto delayed_cancel_provider = std::make_unique<DelayedCancelProvider>();
+  auto* delayed_cancel_provider_ptr = delayed_cancel_provider.get();
+  BridgeService delayed_timeout(
+      std::move(delayed_cancel_provider), 100,
+      [&] {
+        return now_ms;
+      },
+      [&] {
+        return now_ms + 10000;
+      });
+  Require(delayed_timeout.SubmitNavigationGoal(Goal("delayed-timeout"), &status, &error),
+          "delayed timeout fixture submit failed");
+  now_ms += 100;
+  status = delayed_timeout.GetNavigationStatus();
+  Require(IsActiveNavigationState(status.state) &&
+              status.last_error == "goal timeout; cancellation not confirmed" &&
+              delayed_cancel_provider_ptr->cancel_count == 1,
+          "unconfirmed timeout cancellation did not retain the active guard");
+  status = delayed_timeout.GetNavigationStatus();
+  Require(IsActiveNavigationState(status.state) && delayed_cancel_provider_ptr->cancel_count == 1,
+          "pending timeout cancellation was retried or terminated early");
+  status = delayed_timeout.GetNavigationStatus();
+  Require(
+      status.state == NavigationState::kTimedOut && delayed_cancel_provider_ptr->cancel_count == 1,
+      "confirmed timeout cancellation did not become terminal");
 
   BridgeService rejected(
       cockpit::bridge::CreateFakeNavigationProvider(FakeBridgeOutcome::kRejected), 1000);
