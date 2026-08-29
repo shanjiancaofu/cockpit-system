@@ -30,6 +30,11 @@ scripts/tests/jetson-camera-calibration-gate.sh
 它不会自动修改配置、提交 YAML 或将结果标记为 `VERIFIED`；完成后需要人工检查样本分布、
 RMS、逐视角重投影误差和 undistort 对比。
 
+离线或真机运行都会输出 `camera_calibration.yaml`、`calibration_report.json`、
+`per_view_errors.csv`、`original_preview.jpg` 和 `undistorted_preview.jpg`。报告会记录每个样本的
+归一化中心、yaw/pitch/roll、距离、reprojection error、selected/outlier 标记，以及整体 median、
+MAD、P95 和空间/姿态/距离 coverage；所有离线结果的 verification 状态固定为 `UNVERIFIED`。
+
 ## 文件命名
 
 建议使用：
