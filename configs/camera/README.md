@@ -18,6 +18,18 @@ ROS2 bridge 只能加载 `cockpit::hawkeye::CameraCalibration`，再转换为
 即 `square_size=0.005` m。profile 只描述几何参数，不代表已经完成 IMX219 真机标定；真实参数
 在实体板采集和误差验收前仍保持 `NOT VERIFIED`。
 
+## Jetson 真机 gate
+
+标定板到货后，在 Jetson 原生运行：
+
+```bash
+scripts/tests/jetson-camera-calibration-gate.sh
+```
+
+该 gate 固定使用 `nvargus://0`、1920×1080@30 和 `q12-70-5`，输出只写入 `_output/`。
+它不会自动修改配置、提交 YAML 或将结果标记为 `VERIFIED`；完成后需要人工检查样本分布、
+RMS、逐视角重投影误差和 undistort 对比。
+
 ## 文件命名
 
 建议使用：
