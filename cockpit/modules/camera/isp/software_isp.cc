@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <opencv2/imgproc.hpp>
@@ -66,7 +67,8 @@ bool SoftwareIsp::Process(const RawBayerFrame& raw, CameraFrame* output, std::st
     auto* destination = raw16_.ptr<std::uint16_t>(static_cast<int>(y));
     std::uint32_t x = 0;
 #if defined(__aarch64__)
-    for (; x + 8U <= raw.width; x += 8U) {
+    const bool disable_neon = std::getenv("COCKPIT_CAMERA_DISABLE_NEON") != nullptr;
+    for (; !disable_neon && x + 8U <= raw.width; x += 8U) {
       const auto samples = vld1q_u16(reinterpret_cast<const std::uint16_t*>(source) + x);
       vst1q_u16(destination + x, vshrq_n_u16(samples, 6));
     }

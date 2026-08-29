@@ -174,7 +174,7 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
               << " total_ms=" << stats.isp_mean_ms.total << '\n'
               << "process_cpu_ms=" << cpu_ms << " process_wall_ms=" << wall_ms
               << " process_cpu_percent=" << (wall_ms > 0.0 ? cpu_ms / wall_ms * 100.0 : 0.0)
-              << '\n';
+              << " max_rss_kib=" << usage_finished.ru_maxrss << '\n';
   }
 #endif
   if (!complete) {
