@@ -62,11 +62,10 @@ bool VoiceInteractionService::Start() {
 }
 
 void VoiceInteractionService::Stop() {
-  if (state_machine_.snapshot().state == InteractionState::kShuttingDown) {
-    return;
-  }
   worker_running_.store(false);
-  state_machine_.Handle(ConversationEvent::kShutdownRequested, "voice interaction stopping");
+  if (state_machine_.snapshot().state != InteractionState::kShuttingDown) {
+    state_machine_.Handle(ConversationEvent::kShutdownRequested, "voice interaction stopping");
+  }
   interrupt_generation_.fetch_add(1U);
   InvalidateOutputLifecycle();
   transcript_events_.Close();
