@@ -8,7 +8,16 @@ pkg_check_modules(GSTREAMER REQUIRED
 
 add_library(camera_frames STATIC frames/camera_frame.cc frames/latest_frame_buffer.cc)
 
-add_library(camera_isp STATIC isp/software_isp.cc)
+add_library(camera_isp STATIC
+    isp/raw10_unpack.cc
+    isp/raw10_unpack_scalar.cc
+    isp/software_isp.cc
+)
+if(COCKPIT_TARGET_ARCH STREQUAL "arm64")
+    target_sources(camera_isp PRIVATE isp/raw10_unpack_neon.cc)
+else()
+    target_sources(camera_isp PRIVATE isp/raw10_unpack_no_neon.cc)
+endif()
 target_include_directories(camera_isp PUBLIC ${PROJECT_SOURCE_DIR} ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(camera_isp PUBLIC camera_frames ${OpenCV_LIBS})
 

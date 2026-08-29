@@ -277,6 +277,10 @@ add_executable(camera_frame_test modules/camera/camera_frame_test.cc)
 target_link_libraries(camera_frame_test PRIVATE camera)
 add_test(NAME camera_frame_test COMMAND camera_frame_test)
 
+add_executable(raw10_unpack_test modules/camera/raw10_unpack_test.cc)
+target_link_libraries(raw10_unpack_test PRIVATE camera_isp)
+add_test(NAME raw10_unpack_test COMMAND raw10_unpack_test)
+
 add_executable(camera_calibration_loader_test
     modules/hawkeye/camera_calibration_loader_test.cc
 )
