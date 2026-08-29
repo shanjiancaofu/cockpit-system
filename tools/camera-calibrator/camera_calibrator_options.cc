@@ -156,13 +156,19 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
     options->corners_x = 11;
     options->corners_y = 8;
     options->square_size = 0.005;
+    options->area_min = 0.0005;
+    options->near_distance_m = 0.25;
+    options->far_distance_m = 0.55;
+    options->tilt_threshold_deg = 12.0;
   }
   if (options->width <= 0 || options->height <= 0 || options->fps <= 0 || options->frames <= 0 ||
       options->max_candidates < options->frames || options->max_candidates > 100 ||
       options->timeout_seconds <= 0 || options->corners_x <= 1 || options->corners_y <= 1 ||
       options->square_size <= 0.0 || options->area_min < 0.0 || options->area_max > 1.0 ||
       options->area_min >= options->area_max || options->grid_required < 1 ||
-      options->grid_required > 9 || options->duplicate_threshold < 0.0) {
+      options->grid_required > 9 || options->duplicate_threshold < 0.0 ||
+      options->near_distance_m <= 0.0 || options->far_distance_m <= options->near_distance_m ||
+      options->tilt_threshold_deg <= 0.0) {
     std::cerr << "invalid calibration options\n";
     return ParseResult::kError;
   }

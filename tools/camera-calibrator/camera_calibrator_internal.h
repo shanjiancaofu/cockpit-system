@@ -30,6 +30,9 @@ struct Options {
   double mean_max = 245.0;
   double area_min = 0.02;
   double area_max = 0.80;
+  double near_distance_m = 0.25;
+  double far_distance_m = 0.55;
+  double tilt_threshold_deg = 12.0;
   int grid_required = 5;
   double duplicate_threshold = 2.0;
   bool corners_x_explicit = false;
@@ -59,6 +62,24 @@ struct AcceptedFrame {
   bool outlier = false;
 };
 
+struct CoverageState {
+  int spatial_cells = 0;
+  bool front = false;
+  bool tilt_left = false;
+  bool tilt_right = false;
+  bool tilt_up = false;
+  bool tilt_down = false;
+  bool near = false;
+  bool mid = false;
+  bool far = false;
+
+  bool pose_complete() const {
+    return front && tilt_left && tilt_right && tilt_up && tilt_down;
+  }
+  bool distance_complete() const { return near && mid && far; }
+  bool complete() const { return spatial_cells >= 5 && pose_complete() && distance_complete(); }
+};
+
 void Usage();
 ParseResult ParseOptions(int argc, char** argv, Options* options);
 cv::Mat ToBgr(const cockpit::camera::CameraFrame& frame);
@@ -66,6 +87,11 @@ std::optional<AcceptedFrame> Analyze(const cv::Mat& image, std::uint64_t sequenc
                                      const Options& options,
                                      const std::vector<AcceptedFrame>& accepted);
 std::vector<std::filesystem::path> ImageFiles(const std::filesystem::path& directory);
+CoverageState BuildCoverage(const Options& options, const std::vector<AcceptedFrame>& frames);
+std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> candidates);
+bool CaptureComplete(const Options& options, const std::vector<AcceptedFrame>& candidates);
+bool FinalValidator(const Options& options, const CoverageState& coverage);
+bool safeToRemove(const Options& options, const std::vector<AcceptedFrame>& frames);
 bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted);
 
 }  // namespace cockpit::camera_calibrator

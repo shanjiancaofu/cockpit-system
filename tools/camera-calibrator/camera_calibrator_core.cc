@@ -74,20 +74,21 @@ void EstimatePose(AcceptedFrame* frame, const std::vector<cv::Point3f>& object_p
       std::isfinite(frame->in_plane_rotation_deg) && std::isfinite(frame->distance_m);
 }
 
-std::string PoseBucket(const AcceptedFrame& frame) {
+std::string PoseBucket(const AcceptedFrame& frame, const Options& options) {
   if (!frame.pose_valid) return "UNKNOWN";
-  if (std::abs(frame.horizontal_tilt_deg) < 12.0 && std::abs(frame.vertical_tilt_deg) < 12.0)
+  if (std::abs(frame.horizontal_tilt_deg) < options.tilt_threshold_deg &&
+      std::abs(frame.vertical_tilt_deg) < options.tilt_threshold_deg)
     return "FRONT";
-  if (frame.horizontal_tilt_deg <= -12.0) return "TILT_LEFT";
-  if (frame.horizontal_tilt_deg >= 12.0) return "TILT_RIGHT";
-  if (frame.vertical_tilt_deg <= -12.0) return "TILT_UP";
+  if (frame.horizontal_tilt_deg <= -options.tilt_threshold_deg) return "TILT_LEFT";
+  if (frame.horizontal_tilt_deg >= options.tilt_threshold_deg) return "TILT_RIGHT";
+  if (frame.vertical_tilt_deg <= -options.tilt_threshold_deg) return "TILT_UP";
   return "TILT_DOWN";
 }
 
-std::string DistanceBucket(const AcceptedFrame& frame) {
+std::string DistanceBucket(const AcceptedFrame& frame, const Options& options) {
   if (!frame.pose_valid) return "UNKNOWN";
-  if (frame.distance_m < 0.25) return "NEAR";
-  if (frame.distance_m > 0.55) return "FAR";
+  if (frame.distance_m < options.near_distance_m) return "NEAR";
+  if (frame.distance_m > options.far_distance_m) return "FAR";
   return "MID";
 }
 
@@ -288,10 +289,44 @@ double FeatureDistance(const AcceptedFrame& left, const AcceptedFrame& right) {
                    square((left.distance_m - right.distance_m) / 0.3));
 }
 
-std::vector<AcceptedFrame> SelectKeyframes(std::vector<AcceptedFrame> candidates,
+std::vector<AcceptedFrame> SelectKeyframes(const Options& options,
+                                           std::vector<AcceptedFrame> candidates,
                                            std::size_t target) {
   if (candidates.size() <= target) return candidates;
-  std::vector<std::size_t> selected{0U};
+  std::vector<std::size_t> selected;
+  const auto add_first_matching = [&selected, &candidates](const auto& predicate) {
+    for (std::size_t index = 0; index < candidates.size(); ++index) {
+      if (std::find(selected.begin(), selected.end(), index) == selected.end() &&
+          predicate(candidates[index])) {
+        selected.push_back(index);
+        return;
+      }
+    }
+  };
+  if (!options.board_profile.empty()) {
+    const char* const required_poses[] = {"FRONT", "TILT_LEFT", "TILT_RIGHT", "TILT_UP",
+                                          "TILT_DOWN"};
+    for (const char* required : required_poses) {
+      add_first_matching([&options, required](const AcceptedFrame& frame) {
+        return PoseBucket(frame, options) == required;
+      });
+    }
+    const char* const required_distances[] = {"NEAR", "MID", "FAR"};
+    for (const char* required : required_distances) {
+      add_first_matching([&options, required](const AcceptedFrame& frame) {
+        return DistanceBucket(frame, options) == required;
+      });
+    }
+    for (int y = 0; y < 3; ++y) {
+      for (int x = 0; x < 3; ++x) {
+        add_first_matching([x, y](const AcceptedFrame& frame) {
+          return std::clamp(static_cast<int>(frame.center_x_normalized * 3.0), 0, 2) == x &&
+                 std::clamp(static_cast<int>(frame.center_y_normalized * 3.0), 0, 2) == y;
+        });
+      }
+    }
+  }
+  if (selected.empty()) selected.push_back(0U);
   while (selected.size() < target) {
     double best_distance = -1.0;
     std::size_t best_index = 0U;
@@ -313,45 +348,61 @@ std::vector<AcceptedFrame> SelectKeyframes(std::vector<AcceptedFrame> candidates
   return result;
 }
 
+CoverageState BuildCoverage(const Options& options, const std::vector<AcceptedFrame>& frames) {
+  CoverageState coverage;
+  bool cells[3][3] = {};
+  for (const auto& frame : frames) {
+    const int x = std::clamp(static_cast<int>(frame.center_x_normalized * 3.0), 0, 2);
+    const int y = std::clamp(static_cast<int>(frame.center_y_normalized * 3.0), 0, 2);
+    cells[y][x] = true;
+    const std::string pose = PoseBucket(frame, options);
+    coverage.front = coverage.front || pose == "FRONT";
+    coverage.tilt_left = coverage.tilt_left || pose == "TILT_LEFT";
+    coverage.tilt_right = coverage.tilt_right || pose == "TILT_RIGHT";
+    coverage.tilt_up = coverage.tilt_up || pose == "TILT_UP";
+    coverage.tilt_down = coverage.tilt_down || pose == "TILT_DOWN";
+    const std::string distance = DistanceBucket(frame, options);
+    coverage.near = coverage.near || distance == "NEAR";
+    coverage.mid = coverage.mid || distance == "MID";
+    coverage.far = coverage.far || distance == "FAR";
+  }
+  for (const auto& row : cells) {
+    for (const bool cell : row) coverage.spatial_cells += cell ? 1 : 0;
+  }
+  return coverage;
+}
+
+bool FinalValidator(const Options& options, const CoverageState& coverage) {
+  return options.board_profile.empty() || coverage.complete();
+}
+
+bool safeToRemove(const Options& options, const std::vector<AcceptedFrame>& frames) {
+  return FinalValidator(options, BuildCoverage(options, frames));
+}
+
 std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> candidates) {
   if (candidates.size() < 10U) return "COLLECT COARSE SAMPLES";
   auto solution = SolveCalibration(options, &candidates);
   if (!std::isfinite(solution.rms)) return "COLLECT MORE DIVERSE VIEWS";
-  bool cells[3][3] = {};
-  std::vector<std::string> poses;
-  std::vector<std::string> distances;
-  for (const auto& frame : candidates) {
-    cells[std::clamp(static_cast<int>(frame.center_y_normalized * 3.0), 0, 2)]
-         [std::clamp(static_cast<int>(frame.center_x_normalized * 3.0), 0, 2)] = true;
-    poses.push_back(PoseBucket(frame));
-    distances.push_back(DistanceBucket(frame));
-  }
-  static constexpr const char* kCellActions[3][3] = {
-      {"MOVE BOARD TO TOP-LEFT", "MOVE BOARD TO TOP", "MOVE BOARD TO TOP-RIGHT"},
-      {"MOVE BOARD LEFT", "MOVE BOARD TO CENTER", "MOVE BOARD RIGHT"},
-      {"MOVE BOARD TO BOTTOM-LEFT", "MOVE BOARD TO BOTTOM", "MOVE BOARD TO BOTTOM-RIGHT"},
-  };
-  int covered = 0;
-  for (int y = 0; y < 3; ++y) {
-    for (int x = 0; x < 3; ++x) covered += cells[y][x] ? 1 : 0;
-  }
-  if (covered < 5) {
-    for (int y = 0; y < 3; ++y)
-      for (int x = 0; x < 3; ++x)
-        if (!cells[y][x]) return kCellActions[y][x];
-  }
-  const auto has = [](const std::vector<std::string>& values, const char* wanted) {
-    return std::find(values.begin(), values.end(), wanted) != values.end();
-  };
-  if (!has(poses, "FRONT")) return "FACE BOARD FORWARD";
-  if (!has(poses, "TILT_LEFT")) return "TILT BOARD LEFT";
-  if (!has(poses, "TILT_RIGHT")) return "TILT BOARD RIGHT";
-  if (!has(poses, "TILT_UP")) return "TILT BOARD UP";
-  if (!has(poses, "TILT_DOWN")) return "TILT BOARD DOWN";
-  if (!has(distances, "NEAR")) return "MOVE BOARD CLOSER";
-  if (!has(distances, "MID")) return "MOVE BOARD TO MID DISTANCE";
-  if (!has(distances, "FAR")) return "MOVE BOARD FARTHER";
+  const CoverageState coverage = BuildCoverage(options, candidates);
+  if (coverage.spatial_cells < 5) return "MOVE BOARD TO COVER A NEW IMAGE CELL";
+  if (!coverage.front) return "FACE BOARD FORWARD";
+  if (!coverage.tilt_left) return "TILT BOARD LEFT";
+  if (!coverage.tilt_right) return "TILT BOARD RIGHT";
+  if (!coverage.tilt_up) return "TILT BOARD UP";
+  if (!coverage.tilt_down) return "TILT BOARD DOWN";
+  if (!coverage.near) return "MOVE BOARD CLOSER";
+  if (!coverage.mid) return "MOVE BOARD TO MID DISTANCE";
+  if (!coverage.far) return "MOVE BOARD FARTHER";
   return "CAPTURE COMPLETE";
+}
+
+bool CaptureComplete(const Options& options, const std::vector<AcceptedFrame>& candidates) {
+  if (candidates.size() < static_cast<std::size_t>(options.frames)) return false;
+  if (options.board_profile.empty()) return true;
+  auto solved = candidates;
+  if (!std::isfinite(SolveCalibration(options, &solved).rms)) return false;
+  return FinalValidator(options, BuildCoverage(options, solved));
 }
 
 bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
@@ -372,7 +423,7 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
     std::cerr << "FAIL_PROVISIONAL_CALIBRATION\n";
     return false;
   }
-  accepted = SelectKeyframes(std::move(accepted),
+  accepted = SelectKeyframes(options, std::move(accepted),
                              std::min(candidate_count, static_cast<std::size_t>(options.frames)));
   auto solution = SolveCalibration(options, &accepted);
   cv::Mat camera_matrix = solution.camera_matrix;
@@ -397,7 +448,8 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
       return std::accumulate(values.begin(), values.end(), 0.0) /
              static_cast<double>(values.size());
     };
-    if (!std::isfinite(trial_solution.rms) || mean(per_view) - mean(trial_solution.per_view) < 0.01)
+    if (!std::isfinite(trial_solution.rms) || !safeToRemove(options, trial) ||
+        mean(per_view) - mean(trial_solution.per_view) < 0.01)
       break;
     accepted = std::move(trial);
     solution = std::move(trial_solution);
@@ -422,35 +474,16 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
     const auto index = static_cast<std::size_t>(0.95 * static_cast<double>(sorted.size() - 1U));
     return sorted[index];
   }();
-  const int spatial_coverage = [&accepted] {
-    bool cells[3][3] = {};
-    for (const auto& frame : accepted) {
-      const int x = std::clamp(static_cast<int>(frame.center_x_normalized * 3.0), 0, 2);
-      const int y = std::clamp(static_cast<int>(frame.center_y_normalized * 3.0), 0, 2);
-      cells[y][x] = true;
-    }
-    int count = 0;
-    for (const auto& row : cells) {
-      for (const bool cell : row) count += cell ? 1 : 0;
-    }
-    return count;
-  }();
+  const CoverageState coverage = BuildCoverage(options, accepted);
+  const int spatial_coverage = coverage.spatial_cells;
   std::vector<std::string> pose_buckets;
   std::vector<std::string> distance_buckets;
   for (const auto& frame : accepted) {
-    pose_buckets.push_back(PoseBucket(frame));
-    distance_buckets.push_back(DistanceBucket(frame));
+    pose_buckets.push_back(PoseBucket(frame, options));
+    distance_buckets.push_back(DistanceBucket(frame, options));
   }
-  const auto has_bucket = [](const std::vector<std::string>& buckets, const char* wanted) {
-    return std::find(buckets.begin(), buckets.end(), wanted) != buckets.end();
-  };
-  const bool pose_coverage =
-      has_bucket(pose_buckets, "FRONT") &&
-      (has_bucket(pose_buckets, "TILT_LEFT") || has_bucket(pose_buckets, "TILT_RIGHT")) &&
-      (has_bucket(pose_buckets, "TILT_UP") || has_bucket(pose_buckets, "TILT_DOWN"));
-  const bool distance_coverage = has_bucket(distance_buckets, "NEAR") &&
-                                 has_bucket(distance_buckets, "MID") &&
-                                 has_bucket(distance_buckets, "FAR");
+  const bool pose_coverage = coverage.pose_complete();
+  const bool distance_coverage = coverage.distance_complete();
   const double outlier_limit = std::max(2.0, median_error + 3.0 * 1.4826 * mad_error);
   for (auto& frame : accepted) frame.outlier = frame.reprojection_error_px > outlier_limit;
   const bool parameter_sane =
@@ -466,10 +499,10 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
     failure_reason = "FAIL_PARAMETER_SANITY";
   else if (coverage_required && spatial_coverage < 5)
     failure_reason = "FAIL_SPATIAL_COVERAGE";
-  else if (coverage_required && !pose_coverage)
-    failure_reason = "FAIL_POSE_DIVERSITY";
-  else if (coverage_required && !distance_coverage)
-    failure_reason = "FAIL_DISTANCE_DIVERSITY";
+  else if (coverage_required && !FinalValidator(options, coverage))
+    failure_reason = coverage.spatial_cells < 5 ? "FAIL_SPATIAL_COVERAGE"
+                      : !coverage.pose_complete() ? "FAIL_POSE_DIVERSITY"
+                                                   : "FAIL_DISTANCE_DIVERSITY";
   else if (rms >= 1.0 || mean_error >= 1.0 || p95_error >= 1.5 || max_error >= 2.0)
     failure_reason = "FAIL_REPROJECTION_ERROR";
   const bool pass = failure_reason == "PASS";
@@ -589,8 +622,7 @@ int RunImpl(int argc, char** argv) {
             accepted.push_back(std::move(*analyzed));
             const std::string next = GuidanceNext(options, accepted);
             std::cout << "candidates=" << accepted.size() << " next=\"" << next << "\"\n";
-            capture_complete = (accepted.size() >= static_cast<std::size_t>(options.frames) &&
-                                (options.board_profile.empty() || next == "CAPTURE COMPLETE")) ||
+            capture_complete = CaptureComplete(options, accepted) ||
                                accepted.size() >= static_cast<std::size_t>(options.max_candidates);
             condition.notify_one();
           }

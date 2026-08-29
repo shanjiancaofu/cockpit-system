@@ -24,8 +24,10 @@ Farthest Point 关键帧选择、MAD 异常检测、最多 6 轮且最多删除 
 ```
 
 该 profile 对应 DAFAN VISION Q12-70-5：12×9 个棋盘格、11×8 个内角点、5.0 mm 方格，
-即 `square_size=0.005` m。profile 只描述几何参数，不代表已经完成 IMX219 真机标定；真实参数
-在实体板采集和误差验收前仍保持 `NOT VERIFIED`。
+即 `square_size=0.005` m。profile 同时使用适配该小板的 `area_min=0.0005`、
+`near_distance=0.25 m`、`far_distance=0.55 m` 和 `tilt_threshold=12°`，避免 FAR 引导与面积
+门限互相阻塞。profile 只描述几何参数和采集门限，不代表已经完成 IMX219 真机标定；真实参数在
+实体板采集和误差验收前仍保持 `NOT VERIFIED`。
 
 ## Jetson 真机 gate
 
