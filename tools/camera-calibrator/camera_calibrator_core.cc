@@ -62,24 +62,26 @@ void EstimatePose(AcceptedFrame* frame, const std::vector<cv::Point3f>& object_p
   }
   cv::Mat rotation;
   cv::Rodrigues(rvec, rotation);
-  frame->yaw_deg = std::atan2(rotation.at<double>(1, 0), rotation.at<double>(0, 0)) * 180.0 / CV_PI;
-  frame->pitch_deg = std::atan2(-rotation.at<double>(2, 0),
-                                std::hypot(rotation.at<double>(2, 1), rotation.at<double>(2, 2))) *
-                     180.0 / CV_PI;
-  frame->roll_deg =
-      std::atan2(rotation.at<double>(2, 1), rotation.at<double>(2, 2)) * 180.0 / CV_PI;
+  const cv::Vec3d normal(rotation.at<double>(0, 2), rotation.at<double>(1, 2),
+                         rotation.at<double>(2, 2));
+  frame->horizontal_tilt_deg = std::atan2(normal[0], normal[2]) * 180.0 / CV_PI;
+  frame->vertical_tilt_deg = std::atan2(normal[1], normal[2]) * 180.0 / CV_PI;
+  frame->in_plane_rotation_deg =
+      std::atan2(rotation.at<double>(1, 0), rotation.at<double>(0, 0)) * 180.0 / CV_PI;
   frame->distance_m = cv::norm(tvec);
-  frame->pose_valid = std::isfinite(frame->yaw_deg) && std::isfinite(frame->pitch_deg) &&
-                      std::isfinite(frame->roll_deg) && std::isfinite(frame->distance_m);
+  frame->pose_valid =
+      std::isfinite(frame->horizontal_tilt_deg) && std::isfinite(frame->vertical_tilt_deg) &&
+      std::isfinite(frame->in_plane_rotation_deg) && std::isfinite(frame->distance_m);
 }
 
 std::string PoseBucket(const AcceptedFrame& frame) {
   if (!frame.pose_valid) return "UNKNOWN";
-  if (std::abs(frame.yaw_deg) < 12.0 && std::abs(frame.pitch_deg) < 12.0) return "FRONT";
-  if (frame.yaw_deg <= -12.0) return "YAW_LEFT";
-  if (frame.yaw_deg >= 12.0) return "YAW_RIGHT";
-  if (frame.pitch_deg <= -12.0) return "PITCH_UP";
-  return "PITCH_DOWN";
+  if (std::abs(frame.horizontal_tilt_deg) < 12.0 && std::abs(frame.vertical_tilt_deg) < 12.0)
+    return "FRONT";
+  if (frame.horizontal_tilt_deg <= -12.0) return "TILT_LEFT";
+  if (frame.horizontal_tilt_deg >= 12.0) return "TILT_RIGHT";
+  if (frame.vertical_tilt_deg <= -12.0) return "TILT_UP";
+  return "TILT_DOWN";
 }
 
 std::string DistanceBucket(const AcceptedFrame& frame) {
@@ -179,7 +181,8 @@ void WriteJson(const std::filesystem::path& path, const Options& options,
                const cv::Size& image_size, const std::vector<AcceptedFrame>& accepted, double rms,
                double mean_error, double median_error, double mad_error, double p95_error,
                double max_error, int spatial_coverage, bool pose_coverage, bool distance_coverage,
-               bool pass) {
+               std::size_t candidate_count, std::size_t removed_count,
+               const std::string& failure_reason, bool pass) {
   std::ofstream output(path);
   output << std::fixed << std::setprecision(6);
   output << "{\n  \"pass\": " << (pass ? "true" : "false") << ",\n"
@@ -187,14 +190,10 @@ void WriteJson(const std::filesystem::path& path, const Options& options,
          << "  \"image_height\": " << image_size.height << ",\n"
          << "  \"board_corners_x\": " << options.corners_x << ",\n"
          << "  \"board_corners_y\": " << options.corners_y << ",\n"
+         << "  \"candidate_samples\": " << candidate_count << ",\n"
          << "  \"accepted_samples\": " << accepted.size() << ",\n"
          << "  \"selected_samples\": " << accepted.size() << ",\n"
-         << "  \"outlier_samples\": "
-         << std::count_if(accepted.begin(), accepted.end(),
-                          [](const AcceptedFrame& frame) {
-                            return frame.outlier;
-                          })
-         << ",\n"
+         << "  \"outlier_samples\": " << removed_count << ",\n"
          << "  \"rms\": " << rms << ",\n"
          << "  \"mean_reprojection_error_px\": " << mean_error << ",\n"
          << "  \"median_reprojection_error_px\": " << median_error << ",\n"
@@ -204,14 +203,17 @@ void WriteJson(const std::filesystem::path& path, const Options& options,
          << "  \"spatial_coverage\": " << spatial_coverage << ",\n"
          << "  \"pose_coverage\": " << (pose_coverage ? "true" : "false") << ",\n"
          << "  \"distance_coverage\": " << (distance_coverage ? "true" : "false") << ",\n"
+         << "  \"failure_reason\": \"" << failure_reason << "\",\n"
          << "  \"verification\": \"UNVERIFIED\",\n  \"observations\": [\n";
   for (std::size_t index = 0; index < accepted.size(); ++index) {
     const auto& frame = accepted[index];
     output << "    {\"sequence\": " << frame.sequence
            << ", \"selected\": true, \"outlier\": " << (frame.outlier ? "true" : "false")
            << ", \"center_x\": " << frame.center_x_normalized
-           << ", \"center_y\": " << frame.center_y_normalized << ", \"yaw_deg\": " << frame.yaw_deg
-           << ", \"pitch_deg\": " << frame.pitch_deg << ", \"roll_deg\": " << frame.roll_deg
+           << ", \"center_y\": " << frame.center_y_normalized
+           << ", \"horizontal_tilt_deg\": " << frame.horizontal_tilt_deg
+           << ", \"vertical_tilt_deg\": " << frame.vertical_tilt_deg
+           << ", \"in_plane_rotation_deg\": " << frame.in_plane_rotation_deg
            << ", \"distance_m\": " << frame.distance_m
            << ", \"reprojection_error_px\": " << frame.reprojection_error_px << "}"
            << (index + 1U == accepted.size() ? "\n" : ",\n");
@@ -219,13 +221,144 @@ void WriteJson(const std::filesystem::path& path, const Options& options,
   output << "  ]\n}\n";
 }
 
+struct CalibrationSolution {
+  cv::Mat camera_matrix;
+  cv::Mat distortion;
+  double rms = std::numeric_limits<double>::infinity();
+  std::vector<double> per_view;
+};
+
+std::vector<cv::Point3f> BoardObjectPoints(const Options& options) {
+  std::vector<cv::Point3f> points;
+  for (int y = 0; y < options.corners_y; ++y) {
+    for (int x = 0; x < options.corners_x; ++x) {
+      points.emplace_back(static_cast<float>(x * options.square_size),
+                          static_cast<float>(y * options.square_size), 0.0F);
+    }
+  }
+  return points;
+}
+
+CalibrationSolution SolveCalibration(const Options& options, std::vector<AcceptedFrame>* frames) {
+  CalibrationSolution result;
+  if (frames == nullptr || frames->size() < 10U) return result;
+  const cv::Size image_size = frames->front().image.size();
+  const auto board_points = BoardObjectPoints(options);
+  std::vector<std::vector<cv::Point3f>> object_points(frames->size(), board_points);
+  std::vector<std::vector<cv::Point2f>> image_points;
+  for (const auto& frame : *frames) image_points.push_back(frame.corners);
+  result.camera_matrix = cv::Mat::eye(3, 3, CV_64F);
+  result.camera_matrix.at<double>(0, 0) = static_cast<double>(image_size.width);
+  result.camera_matrix.at<double>(1, 1) = static_cast<double>(image_size.width);
+  result.camera_matrix.at<double>(0, 2) = static_cast<double>(image_size.width) / 2.0;
+  result.camera_matrix.at<double>(1, 2) = static_cast<double>(image_size.height) / 2.0;
+  result.distortion = cv::Mat::zeros(5, 1, CV_64F);
+  std::vector<cv::Mat> rotations;
+  std::vector<cv::Mat> translations;
+  result.rms = cv::calibrateCamera(object_points, image_points, image_size, result.camera_matrix,
+                                   result.distortion, rotations, translations,
+                                   cv::CALIB_USE_INTRINSIC_GUESS);
+  for (std::size_t index = 0; index < frames->size(); ++index) {
+    std::vector<cv::Point2f> projected;
+    cv::projectPoints(board_points, rotations[index], translations[index], result.camera_matrix,
+                      result.distortion, projected);
+    double squared_error = 0.0;
+    for (std::size_t point = 0; point < projected.size(); ++point) {
+      const double error = cv::norm(projected[point] - image_points[index][point]);
+      squared_error += error * error;
+    }
+    const double view_error = std::sqrt(squared_error / static_cast<double>(projected.size()));
+    result.per_view.push_back(view_error);
+    (*frames)[index].reprojection_error_px = view_error;
+    EstimatePose(&(*frames)[index], board_points, result.camera_matrix, result.distortion);
+  }
+  return result;
+}
+
+double FeatureDistance(const AcceptedFrame& left, const AcceptedFrame& right) {
+  const auto square = [](double value) {
+    return value * value;
+  };
+  return std::sqrt(square((left.center_x_normalized - right.center_x_normalized) * 2.0) +
+                   square((left.center_y_normalized - right.center_y_normalized) * 2.0) +
+                   square(std::log(std::max(left.area, 1e-6) / std::max(right.area, 1e-6))) +
+                   square((left.horizontal_tilt_deg - right.horizontal_tilt_deg) / 35.0) +
+                   square((left.vertical_tilt_deg - right.vertical_tilt_deg) / 35.0) +
+                   square((left.in_plane_rotation_deg - right.in_plane_rotation_deg) / 90.0) +
+                   square((left.distance_m - right.distance_m) / 0.3));
+}
+
+std::vector<AcceptedFrame> SelectKeyframes(std::vector<AcceptedFrame> candidates,
+                                           std::size_t target) {
+  if (candidates.size() <= target) return candidates;
+  std::vector<std::size_t> selected{0U};
+  while (selected.size() < target) {
+    double best_distance = -1.0;
+    std::size_t best_index = 0U;
+    for (std::size_t index = 0; index < candidates.size(); ++index) {
+      if (std::find(selected.begin(), selected.end(), index) != selected.end()) continue;
+      double nearest = std::numeric_limits<double>::infinity();
+      for (const auto chosen : selected) {
+        nearest = std::min(nearest, FeatureDistance(candidates[index], candidates[chosen]));
+      }
+      if (nearest > best_distance) {
+        best_distance = nearest;
+        best_index = index;
+      }
+    }
+    selected.push_back(best_index);
+  }
+  std::vector<AcceptedFrame> result;
+  for (const auto index : selected) result.push_back(std::move(candidates[index]));
+  return result;
+}
+
+std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> candidates) {
+  if (candidates.size() < 10U) return "COLLECT COARSE SAMPLES";
+  auto solution = SolveCalibration(options, &candidates);
+  if (!std::isfinite(solution.rms)) return "COLLECT MORE DIVERSE VIEWS";
+  bool cells[3][3] = {};
+  std::vector<std::string> poses;
+  std::vector<std::string> distances;
+  for (const auto& frame : candidates) {
+    cells[std::clamp(static_cast<int>(frame.center_y_normalized * 3.0), 0, 2)]
+         [std::clamp(static_cast<int>(frame.center_x_normalized * 3.0), 0, 2)] = true;
+    poses.push_back(PoseBucket(frame));
+    distances.push_back(DistanceBucket(frame));
+  }
+  static constexpr const char* kCellActions[3][3] = {
+      {"MOVE BOARD TO TOP-LEFT", "MOVE BOARD TO TOP", "MOVE BOARD TO TOP-RIGHT"},
+      {"MOVE BOARD LEFT", "MOVE BOARD TO CENTER", "MOVE BOARD RIGHT"},
+      {"MOVE BOARD TO BOTTOM-LEFT", "MOVE BOARD TO BOTTOM", "MOVE BOARD TO BOTTOM-RIGHT"},
+  };
+  int covered = 0;
+  for (int y = 0; y < 3; ++y) {
+    for (int x = 0; x < 3; ++x) covered += cells[y][x] ? 1 : 0;
+  }
+  if (covered < 5) {
+    for (int y = 0; y < 3; ++y)
+      for (int x = 0; x < 3; ++x)
+        if (!cells[y][x]) return kCellActions[y][x];
+  }
+  const auto has = [](const std::vector<std::string>& values, const char* wanted) {
+    return std::find(values.begin(), values.end(), wanted) != values.end();
+  };
+  if (!has(poses, "FRONT")) return "FACE BOARD FORWARD";
+  if (!has(poses, "TILT_LEFT")) return "TILT BOARD LEFT";
+  if (!has(poses, "TILT_RIGHT")) return "TILT BOARD RIGHT";
+  if (!has(poses, "TILT_UP")) return "TILT BOARD UP";
+  if (!has(poses, "TILT_DOWN")) return "TILT BOARD DOWN";
+  if (!has(distances, "NEAR")) return "MOVE BOARD CLOSER";
+  if (!has(distances, "MID")) return "MOVE BOARD TO MID DISTANCE";
+  if (!has(distances, "FAR")) return "MOVE BOARD FARTHER";
+  return "CAPTURE COMPLETE";
+}
+
 bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
   if (accepted.size() < 10) {
     std::cerr << "FAIL: need at least 10 accepted samples, got " << accepted.size() << "\n";
     return false;
   }
-  std::vector<std::vector<cv::Point3f>> object_points(accepted.size());
-  std::vector<std::vector<cv::Point2f>> image_points;
   const cv::Size image_size = accepted.front().image.size();
   if (std::any_of(accepted.begin(), accepted.end(), [&image_size](const AcceptedFrame& frame) {
         return frame.image.size() != image_size;
@@ -233,43 +366,49 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
     std::cerr << "FAIL: accepted calibration images do not have a uniform resolution\n";
     return false;
   }
-  for (auto& frame : object_points) {
-    for (int y = 0; y < options.corners_y; ++y) {
-      for (int x = 0; x < options.corners_x; ++x) {
-        frame.emplace_back(static_cast<float>(x * options.square_size),
-                           static_cast<float>(y * options.square_size), 0.0F);
-      }
-    }
+  const std::size_t candidate_count = accepted.size();
+  auto provisional = SolveCalibration(options, &accepted);
+  if (!std::isfinite(provisional.rms)) {
+    std::cerr << "FAIL_PROVISIONAL_CALIBRATION\n";
+    return false;
   }
-  for (const auto& frame : accepted) image_points.push_back(frame.corners);
-  cv::Mat camera_matrix = cv::Mat::eye(3, 3, CV_64F);
-  camera_matrix.at<double>(0, 0) = static_cast<double>(image_size.width);
-  camera_matrix.at<double>(1, 1) = static_cast<double>(image_size.width);
-  camera_matrix.at<double>(0, 2) = static_cast<double>(image_size.width) / 2.0;
-  camera_matrix.at<double>(1, 2) = static_cast<double>(image_size.height) / 2.0;
-  cv::Mat distortion = cv::Mat::zeros(5, 1, CV_64F);
-  std::vector<cv::Mat> rotations, translations;
-  const double rms =
-      cv::calibrateCamera(object_points, image_points, image_size, camera_matrix, distortion,
-                          rotations, translations, cv::CALIB_USE_INTRINSIC_GUESS);
-  double error_sum = 0.0;
-  double max_error = 0.0;
-  std::vector<double> per_view;
-  for (std::size_t index = 0; index < accepted.size(); ++index) {
-    std::vector<cv::Point2f> projected;
-    cv::projectPoints(object_points[index], rotations[index], translations[index], camera_matrix,
-                      distortion, projected);
-    double sum = 0.0;
-    for (std::size_t point = 0; point < projected.size(); ++point) {
-      sum += cv::norm(projected[point] - image_points[index][point]);
-    }
-    const double view_error = sum / static_cast<double>(projected.size());
-    per_view.push_back(view_error);
-    accepted[index].reprojection_error_px = view_error;
-    EstimatePose(&accepted[index], object_points[index], camera_matrix, distortion);
-    error_sum += view_error;
-    max_error = std::max(max_error, view_error);
+  accepted = SelectKeyframes(std::move(accepted),
+                             std::min(candidate_count, static_cast<std::size_t>(options.frames)));
+  auto solution = SolveCalibration(options, &accepted);
+  cv::Mat camera_matrix = solution.camera_matrix;
+  cv::Mat distortion = solution.distortion;
+  double rms = solution.rms;
+  std::vector<double> per_view = solution.per_view;
+  std::size_t removed_count = 0U;
+  const std::size_t max_removed = accepted.size() / 5U;
+  for (int iteration = 0; iteration < 6 && accepted.size() > 20U && removed_count < max_removed;
+       ++iteration) {
+    const double median = Median(per_view);
+    std::vector<double> deviations;
+    for (const double value : per_view) deviations.push_back(std::abs(value - median));
+    const double threshold = std::max(0.75, median + 3.0 * 1.4826 * Median(deviations));
+    const auto worst = std::max_element(per_view.begin(), per_view.end());
+    if (worst == per_view.end() || *worst <= threshold) break;
+    const std::size_t index = static_cast<std::size_t>(worst - per_view.begin());
+    auto trial = accepted;
+    trial.erase(trial.begin() + static_cast<std::ptrdiff_t>(index));
+    auto trial_solution = SolveCalibration(options, &trial);
+    const auto mean = [](const std::vector<double>& values) {
+      return std::accumulate(values.begin(), values.end(), 0.0) /
+             static_cast<double>(values.size());
+    };
+    if (!std::isfinite(trial_solution.rms) || mean(per_view) - mean(trial_solution.per_view) < 0.01)
+      break;
+    accepted = std::move(trial);
+    solution = std::move(trial_solution);
+    camera_matrix = solution.camera_matrix;
+    distortion = solution.distortion;
+    rms = solution.rms;
+    per_view = solution.per_view;
+    ++removed_count;
   }
+  const double error_sum = std::accumulate(per_view.begin(), per_view.end(), 0.0);
+  const double max_error = *std::max_element(per_view.begin(), per_view.end());
   const double mean_error = error_sum / static_cast<double>(per_view.size());
   const double median_error = Median(per_view);
   std::vector<double> absolute_deviations;
@@ -307,14 +446,34 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
   };
   const bool pose_coverage =
       has_bucket(pose_buckets, "FRONT") &&
-      (has_bucket(pose_buckets, "YAW_LEFT") || has_bucket(pose_buckets, "YAW_RIGHT"));
+      (has_bucket(pose_buckets, "TILT_LEFT") || has_bucket(pose_buckets, "TILT_RIGHT")) &&
+      (has_bucket(pose_buckets, "TILT_UP") || has_bucket(pose_buckets, "TILT_DOWN"));
   const bool distance_coverage = has_bucket(distance_buckets, "NEAR") &&
                                  has_bucket(distance_buckets, "MID") &&
                                  has_bucket(distance_buckets, "FAR");
   const double outlier_limit = std::max(2.0, median_error + 3.0 * 1.4826 * mad_error);
   for (auto& frame : accepted) frame.outlier = frame.reprojection_error_px > outlier_limit;
-  const bool pass = accepted.size() >= 20 && mean_error < 1.0 && max_error < 2.0 &&
-                    std::isfinite(camera_matrix.at<double>(0, 0));
+  const bool parameter_sane =
+      std::isfinite(camera_matrix.at<double>(0, 0)) && camera_matrix.at<double>(0, 0) > 0.0 &&
+      camera_matrix.at<double>(1, 1) > 0.0 && camera_matrix.at<double>(0, 2) >= 0.0 &&
+      camera_matrix.at<double>(0, 2) <= image_size.width && camera_matrix.at<double>(1, 2) >= 0.0 &&
+      camera_matrix.at<double>(1, 2) <= image_size.height;
+  const bool coverage_required = !options.board_profile.empty();
+  std::string failure_reason = "PASS";
+  if (accepted.size() < 20)
+    failure_reason = "FAIL_INSUFFICIENT_SAMPLES";
+  else if (!parameter_sane)
+    failure_reason = "FAIL_PARAMETER_SANITY";
+  else if (coverage_required && spatial_coverage < 5)
+    failure_reason = "FAIL_SPATIAL_COVERAGE";
+  else if (coverage_required && !pose_coverage)
+    failure_reason = "FAIL_POSE_DIVERSITY";
+  else if (coverage_required && !distance_coverage)
+    failure_reason = "FAIL_DISTANCE_DIVERSITY";
+  else if (rms >= 1.0 || mean_error >= 1.0 || p95_error >= 1.5 || max_error >= 2.0)
+    failure_reason = "FAIL_REPROJECTION_ERROR";
+  const bool pass = failure_reason == "PASS";
+  if (!pass) std::cerr << failure_reason << '\n';
   std::filesystem::create_directories(options.output_dir);
   const auto yaml_path = options.output_dir / "camera_calibration.yaml";
   const auto csv_path = options.output_dir / "per_view_errors.csv";
@@ -333,15 +492,16 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
        << "max_reprojection_error_px" << max_error;
   yaml.release();
   std::ofstream csv(csv_path);
-  csv << "view,sequence,selected,outlier,blur,mean_gray,area,grid_coverage,center_x,center_y,yaw_"
-         "deg,pitch_deg,roll_deg,distance_m,pose_bucket,distance_bucket,reprojection_error_px\n";
+  csv << "view,sequence,selected,outlier,blur,mean_gray,area,grid_coverage,center_x,center_y,"
+         "horizontal_tilt_deg,vertical_tilt_deg,in_plane_rotation_deg,distance_m,pose_bucket,"
+         "distance_bucket,reprojection_error_px\n";
   for (std::size_t index = 0; index < accepted.size(); ++index) {
     csv << index << ',' << accepted[index].sequence << ',' << accepted[index].selected << ','
         << accepted[index].outlier << ',' << accepted[index].blur << ',' << accepted[index].mean
         << ',' << accepted[index].area << ',' << accepted[index].grid << ','
         << accepted[index].center_x_normalized << ',' << accepted[index].center_y_normalized << ','
-        << accepted[index].yaw_deg << ',' << accepted[index].pitch_deg << ','
-        << accepted[index].roll_deg << ',' << accepted[index].distance_m << ','
+        << accepted[index].horizontal_tilt_deg << ',' << accepted[index].vertical_tilt_deg << ','
+        << accepted[index].in_plane_rotation_deg << ',' << accepted[index].distance_m << ','
         << pose_buckets[index] << ',' << distance_buckets[index] << ',' << per_view[index] << '\n';
   }
   cv::Mat undistorted;
@@ -349,8 +509,11 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
   cv::imwrite(original_preview_path.string(), accepted.front().image);
   cv::imwrite(preview_path.string(), undistorted);
   WriteJson(json_path, options, image_size, accepted, rms, mean_error, median_error, mad_error,
-            p95_error, max_error, spatial_coverage, pose_coverage, distance_coverage, pass);
-  std::cout << std::fixed << std::setprecision(4) << "accepted_samples=" << accepted.size() << "\n"
+            p95_error, max_error, spatial_coverage, pose_coverage, distance_coverage,
+            candidate_count, removed_count, failure_reason, pass);
+  std::cout << std::fixed << std::setprecision(4) << "candidate_samples=" << candidate_count
+            << " selected_samples=" << accepted.size() << " removed_outliers=" << removed_count
+            << "\n"
             << "fx=" << camera_matrix.at<double>(0, 0) << " fy=" << camera_matrix.at<double>(1, 1)
             << " cx=" << camera_matrix.at<double>(0, 2) << " cy=" << camera_matrix.at<double>(1, 2)
             << "\n"
@@ -364,7 +527,7 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
             << " max_reprojection_error_px=" << max_error
             << " spatial_coverage=" << spatial_coverage << " pose_coverage=" << pose_coverage
             << " distance_coverage=" << distance_coverage << "\n"
-            << "status=" << (pass ? "PASS" : "FAIL") << "\n"
+            << "status=" << failure_reason << "\n"
             << "yaml=" << yaml_path << "\n"
             << "json=" << json_path << "\n"
             << "csv=" << csv_path << "\n"
@@ -379,6 +542,8 @@ int RunImpl(int argc, char** argv) {
   if (parse_result == ParseResult::kHelp) return 0;
   if (parse_result == ParseResult::kError) return 2;
   std::vector<AcceptedFrame> accepted;
+  const std::size_t candidate_goal = static_cast<std::size_t>(
+      std::min(options.max_candidates, std::max(options.frames + 10, options.frames)));
   if (!options.input_dir.empty()) {
     if (!std::filesystem::is_directory(options.input_dir)) {
       std::cerr << "input directory does not exist: " << options.input_dir << '\n';
@@ -403,12 +568,13 @@ int RunImpl(int argc, char** argv) {
       if (image.empty()) continue;
       auto analyzed = Analyze(image, accepted.size() + 1, options, accepted);
       if (analyzed.has_value()) accepted.push_back(std::move(*analyzed));
-      if (static_cast<int>(accepted.size()) >= options.frames) break;
+      if (accepted.size() >= candidate_goal) break;
     }
   } else {
     cockpit::camera::ArgusIspPreviewSource pipeline;
     std::mutex mutex;
     std::condition_variable condition;
+    bool capture_complete = false;
     std::string error;
     const bool started = pipeline.Start(
         cockpit::camera::CameraPreviewConfig{
@@ -421,6 +587,11 @@ int RunImpl(int argc, char** argv) {
           auto analyzed = Analyze(image, frame.sequence, options, accepted);
           if (analyzed.has_value()) {
             accepted.push_back(std::move(*analyzed));
+            const std::string next = GuidanceNext(options, accepted);
+            std::cout << "candidates=" << accepted.size() << " next=\"" << next << "\"\n";
+            capture_complete = (accepted.size() >= static_cast<std::size_t>(options.frames) &&
+                                (options.board_profile.empty() || next == "CAPTURE COMPLETE")) ||
+                               accepted.size() >= static_cast<std::size_t>(options.max_candidates);
             condition.notify_one();
           }
         },
@@ -434,13 +605,13 @@ int RunImpl(int argc, char** argv) {
     {
       std::unique_lock<std::mutex> lock(mutex);
       condition.wait_until(lock, deadline, [&] {
-        return static_cast<int>(accepted.size()) >= options.frames;
+        return capture_complete;
       });
     }
     pipeline.Stop();
-    if (static_cast<int>(accepted.size()) < options.frames) {
-      std::cerr << "capture timed out: accepted " << accepted.size() << '/' << options.frames
-                << "\n";
+    if (!capture_complete) {
+      std::cerr << "capture timed out: candidates=" << accepted.size() << " next=\""
+                << GuidanceNext(options, accepted) << "\"\n";
       return 1;
     }
   }

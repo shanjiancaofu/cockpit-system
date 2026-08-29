@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
@@ -46,7 +47,7 @@ bool WriteBoard(const std::filesystem::path& path, int index, bool degenerate = 
   cv::Vec3d tvec;
   if (degenerate) {
     rvec = {0.0, 0.0, 0.0};
-    tvec = {-0.025, -0.020, 0.22};
+    tvec = {-0.035 + 0.003 * (index % 8), -0.025 + 0.003 * ((index * 3) % 8), 0.22};
   } else {
     rvec = {(-0.18 + 0.06 * (index % 7)), (-0.20 + 0.07 * ((index * 3) % 7)),
             (-0.06 + 0.02 * (index % 5))};
@@ -120,12 +121,19 @@ int main(int argc, char** argv) {
     if (!WriteBoard(input_dir / ("frame-" + std::to_string(index) + ".png"), index)) return 1;
   }
   const int success =
-      Run(argv[1], input_dir, output_dir, "--duplicate-threshold 0 --grid-required 1 --blur-min 0");
+      Run(argv[1], input_dir, output_dir,
+          "--frames 20 --max-candidates 30 --duplicate-threshold 0 --grid-required 1 --blur-min 0");
   const bool artifacts = std::filesystem::exists(output_dir / "camera_calibration.yaml") &&
                          std::filesystem::exists(output_dir / "calibration_report.json") &&
                          std::filesystem::exists(output_dir / "per_view_errors.csv") &&
                          std::filesystem::exists(output_dir / "undistorted_preview.jpg");
   const bool recovered = CheckRecoveredCalibration(output_dir / "camera_calibration.yaml");
+  std::ifstream report_stream(output_dir / "calibration_report.json");
+  const std::string report((std::istreambuf_iterator<char>(report_stream)),
+                           std::istreambuf_iterator<char>());
+  const bool selection_reported = report.find("\"candidate_samples\": ") != std::string::npos &&
+                                  report.find("\"selected_samples\": 20") != std::string::npos &&
+                                  report.find("\"failure_reason\": \"PASS\"") != std::string::npos;
   const int insufficient = Run(argv[1], input_dir, root / "insufficient", "--frames 5");
   const int duplicate = Run(argv[1], input_dir, root / "duplicate");
   std::filesystem::copy_file(input_dir / "frame-0.png", input_dir / "mixed.png",
@@ -137,13 +145,16 @@ int main(int argc, char** argv) {
   const auto degenerate_dir = root / "degenerate";
   std::filesystem::create_directories(degenerate_dir);
   for (int index = 0; index < 24; ++index) {
-    if (!WriteBoard(degenerate_dir / ("frame-" + std::to_string(index) + ".png"), 0, true))
+    if (!WriteBoard(degenerate_dir / ("frame-" + std::to_string(index) + ".png"), index, true))
       return 1;
   }
-  const int degenerate_result = Run(argv[1], degenerate_dir, root / "degenerate-output");
+  const int degenerate_result =
+      Run(argv[1], degenerate_dir, root / "degenerate-output",
+          "--board-profile q12-70-5 --frames 20 --max-candidates 24 --duplicate-threshold 0 "
+          "--grid-required 1 --blur-min 0");
   std::filesystem::remove_all(root);
-  return success == 0 && artifacts && recovered && insufficient != 0 && duplicate != 0 &&
-                 mixed_result != 0 && degenerate_result != 0
+  return success == 0 && artifacts && recovered && selection_reported && insufficient != 0 &&
+                 duplicate != 0 && mixed_result != 0 && degenerate_result != 0
              ? 0
              : 1;
 }

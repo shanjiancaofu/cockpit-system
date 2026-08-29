@@ -15,6 +15,7 @@ void Usage() {
   --width N --height N       Capture dimensions (default: 1920x1080)
   --fps N                    Capture frame rate (default: 30)
   --frames N                 Accepted samples to collect (default: 30)
+  --max-candidates N         Hard candidate-pool limit (default: 50)
   --timeout-seconds N        Capture timeout (default: 120)
   --corners-x N --corners-y N Chessboard inner corners (default: 9x6)
   --square-size M            Square size in metres (default: 0.025)
@@ -95,6 +96,9 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
     } else if (arg == "--frames") {
       if (!require_value("--frames") || !ParseInt(value, &options->frames))
         return ParseResult::kError;
+    } else if (arg == "--max-candidates") {
+      if (!require_value("--max-candidates") || !ParseInt(value, &options->max_candidates))
+        return ParseResult::kError;
     } else if (arg == "--timeout-seconds") {
       if (!require_value("--timeout-seconds") || !ParseInt(value, &options->timeout_seconds))
         return ParseResult::kError;
@@ -154,6 +158,7 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
     options->square_size = 0.005;
   }
   if (options->width <= 0 || options->height <= 0 || options->fps <= 0 || options->frames <= 0 ||
+      options->max_candidates < options->frames || options->max_candidates > 100 ||
       options->timeout_seconds <= 0 || options->corners_x <= 1 || options->corners_y <= 1 ||
       options->square_size <= 0.0 || options->area_min < 0.0 || options->area_max > 1.0 ||
       options->area_min >= options->area_max || options->grid_required < 1 ||

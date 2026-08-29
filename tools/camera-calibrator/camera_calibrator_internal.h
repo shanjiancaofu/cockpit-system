@@ -20,6 +20,7 @@ struct Options {
   int height = 1080;
   int fps = 30;
   int frames = 30;
+  int max_candidates = 50;
   int timeout_seconds = 120;
   int corners_x = 9;
   int corners_y = 6;
@@ -49,9 +50,9 @@ struct AcceptedFrame {
   double center_x_normalized = 0.0;
   double center_y_normalized = 0.0;
   bool pose_valid = false;
-  double yaw_deg = 0.0;
-  double pitch_deg = 0.0;
-  double roll_deg = 0.0;
+  double horizontal_tilt_deg = 0.0;
+  double vertical_tilt_deg = 0.0;
+  double in_plane_rotation_deg = 0.0;
   double distance_m = 0.0;
   double reprojection_error_px = 0.0;
   bool selected = true;

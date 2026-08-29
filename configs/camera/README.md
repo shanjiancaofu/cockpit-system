@@ -6,6 +6,15 @@ ROS2 bridge 只能加载 `cockpit::hawkeye::CameraCalibration`，再转换为
 
 当前仓库没有经过棋盘格流程验证的 IMX219 参数，因此本目录不提供任何看起来像真实结果的 YAML。
 
+## Guided Calibration V1 状态
+
+软件侧 V1 已完成：粗标定、`solvePnP` 姿态估计、空间/倾斜/距离引导、候选池、Greedy
+Farthest Point 关键帧选择、MAD 异常检测、最多 6 轮且最多删除 20% 样本的有限重标定，以及带明确
+失败原因的综合 validator。真实采集会输出单一 `NEXT` 操作提示，并在 coverage 满足或达到硬上限时结束。
+
+该状态只表示软件链路完成；实体 Q12-70-5 尚未完成 IMX219 真机验收，所有生成结果仍为
+`UNVERIFIED`，不能进入 production CameraInfo。
+
 ## 已支持的标定板 profile
 
 `camera-calibrator` 支持显式的 `q12-70-5` profile：
