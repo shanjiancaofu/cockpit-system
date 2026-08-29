@@ -381,10 +381,11 @@ int cockpit::recording_ctl::ControlRecording(const cockpit::runtime::ProcessRunt
     ok = client.Stop(&status, &error);
   } else if (!event_topic.empty()) {
     const std::string payload = runtime.args().GetString("event-payload", "{}");
-    ok = client.AppendEvent(cockpit::time::NowMs(), event_topic, payload, &status, &error);
+    ok = client.AppendEvent(cockpit::time::WallTime::Now().ToMilliseconds(), event_topic, payload,
+                            &status, &error);
   } else if (!file_path.empty()) {
     cockpit::proto::recording::AppendRecordingDataFileRequest request;
-    request.set_timestamp_ms(cockpit::time::NowMs());
+    request.set_timestamp_ms(cockpit::time::WallTime::Now().ToMilliseconds());
     request.set_source(runtime.args().GetString("file-source", "manual"));
     request.set_kind(runtime.args().GetString("file-kind", "artifact"));
     request.set_path(file_path);

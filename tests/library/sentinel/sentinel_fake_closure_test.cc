@@ -156,7 +156,7 @@ int main() {
 
   cockpit::vehicle::ChassisEvent event;
   event.sequence = 1;
-  event.timestamp_ms = cockpit::time::NowMs();
+  event.timestamp_ms = cockpit::time::WallTime::Now().ToMilliseconds();
   event.source = "fake-stm32";
   event.sensor_id = 1;
   event.motion_detected = true;

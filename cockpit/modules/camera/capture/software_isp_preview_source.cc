@@ -80,7 +80,7 @@ void SoftwareIspPreviewSource::CaptureLoop() {
       continue;
     }
     const auto enqueued_at = std::chrono::steady_clock::now();
-    const auto received_at_ns = time::NowNs();
+    const auto received_at_ns = time::WallTime::Now().ToNanoseconds();
     std::lock_guard<std::mutex> lock(mutex_);
     ++stats_.captured_frames;
     if (have_sequence && raw.sequence > previous_sequence + 1U) {

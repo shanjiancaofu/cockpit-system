@@ -72,7 +72,7 @@ grpc::Status GatewayGrpcService::GetStatus(grpc::ServerContext*, const proto::co
   const bool fresh = has_vehicle_state && age <= kVehicleStateFreshTimeout;
   auto* health = response->mutable_health();
   health->set_service_name("cockpit-gateway-service");
-  health->set_checked_at_ms(time::NowMs());
+  health->set_checked_at_ms(time::WallTime::Now().ToMilliseconds());
   if (!has_vehicle_state) {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_DEGRADED);
     health->set_message("vehicle state is not available yet");

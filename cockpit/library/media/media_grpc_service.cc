@@ -25,7 +25,7 @@ proto::media::MediaPlaybackState ToProtoState(MediaPlaybackState state) {
 
 void FillHealth(const MediaPlaybackStatus& status, proto::common::ServiceHealth* health) {
   health->set_service_name("media-service");
-  health->set_checked_at_ms(time::NowMs());
+  health->set_checked_at_ms(time::WallTime::Now().ToMilliseconds());
   health->set_last_error(status.last_error);
   if (status.state == MediaPlaybackState::kFaulted) {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);

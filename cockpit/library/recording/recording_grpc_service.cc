@@ -65,7 +65,7 @@ proto::recording::RecordingSessionIntegrityState ToProtoSessionIntegrityState(
 
 void FillHealth(const RecordingStatus& status, proto::common::ServiceHealth* health) {
   health->set_service_name("recording-service");
-  health->set_checked_at_ms(time::NowMs());
+  health->set_checked_at_ms(time::WallTime::Now().ToMilliseconds());
   health->set_last_error(status.last_error);
   if (status.state == RecordingState::kFaulted) {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);

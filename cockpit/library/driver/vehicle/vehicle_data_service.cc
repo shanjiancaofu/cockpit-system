@@ -50,7 +50,8 @@ int VehicleDataService::RunMock() {
     Publish(MakeMockVehicleState(sequence));
     ++link_status.rx_frames;
     ++link_status.decoded_frames;
-    link_status.last_rx_timestamp_ms = static_cast<std::uint64_t>(time::WallNowMs());
+    link_status.last_rx_timestamp_ms =
+        static_cast<std::uint64_t>(time::WallTime::Now().ToMilliseconds());
     if (link_status_sink_) {
       link_status_sink_(link_status);
     }
@@ -88,7 +89,7 @@ int VehicleDataService::RunSocketCan() {
   int idle_timeouts = 0;
   int idle_elapsed_ms = 0;
   while (should_continue_() && (options_.forever || published < options_.samples)) {
-    const std::int64_t now_ms = time::SteadyNowMs();
+    const std::int64_t now_ms = time::SteadyTime::Now().ToMilliseconds();
     ChassisState heartbeat_state;
     if (chassis_client.Update(now_ms, &heartbeat_state)) {
       PublishChassis(heartbeat_state);
@@ -135,7 +136,8 @@ int VehicleDataService::RunSocketCan() {
 
     ++link_status.rx_frames;
     idle_elapsed_ms = 0;
-    link_status.last_rx_timestamp_ms = static_cast<std::uint64_t>(time::WallNowMs());
+    link_status.last_rx_timestamp_ms =
+        static_cast<std::uint64_t>(time::WallTime::Now().ToMilliseconds());
 
     if (socket_frame.error) {
       ++link_status.error_frames;
@@ -162,8 +164,8 @@ int VehicleDataService::RunSocketCan() {
     }
 
     ChassisState chassis_state;
-    const ChassisClientDecodeStatus chassis_status =
-        chassis_client.ProcessFrame(frame, time::SteadyNowMs(), &chassis_state);
+    const ChassisClientDecodeStatus chassis_status = chassis_client.ProcessFrame(
+        frame, time::SteadyTime::Now().ToMilliseconds(), &chassis_state);
     if (chassis_status == ChassisClientDecodeStatus::kUpdated) {
       idle_timeouts = 0;
       link_status.state = can::CanCommunicationState::kOnline;

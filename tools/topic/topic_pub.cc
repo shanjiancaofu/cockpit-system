@@ -39,7 +39,7 @@ int RunPubCommand(const cockpit::config::SystemConfig& config, const CommandLine
   const auto path = store.TopicFile(topic);
 
   for (int i = 0; i < repeat; ++i) {
-    const auto timestamp = cockpit::time::NowMs();
+    const auto timestamp = cockpit::time::WallTime::Now().ToMilliseconds();
     std::ofstream output(path, std::ios::app);
     output << "{\"timestamp_ms\":" << timestamp << ",\"topic\":\"" << json::EscapeString(topic)
            << "\",\"payload\":";

@@ -424,7 +424,7 @@ void ProcessManager::HandleExit(ProcessRecord* process, pid_t exited_pid, int wa
   TerminateRemainingProcessGroup(exited_pid);
   process->pid = 0;
   process->last_exit_code = ExitCode(wait_status);
-  process->last_failure_ms = time::NowMs();
+  process->last_failure_ms = time::WallTime::Now().ToMilliseconds();
   process->last_signal = TerminationSignal(wait_status);
   if (!process->desired) {
     process->state = ProcessState::kStopped;
@@ -485,7 +485,7 @@ void ProcessManager::MarkFailed(ProcessRecord* process) {
 void ProcessManager::RecordCrash(const ProcessRecord& process, pid_t exited_pid, int wait_status,
                                  const std::string& restart_result) {
   CrashReport report;
-  report.timestamp_ms = time::NowMs();
+  report.timestamp_ms = time::WallTime::Now().ToMilliseconds();
   report.module = ModuleName(process.config.id);
   report.mode = mode_;
   report.pid = exited_pid;

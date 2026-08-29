@@ -121,7 +121,7 @@ void BridgeGrpcService::FillStatus(const NavigationStatus& status,
   response->set_current_pose_valid(status.current_pose_valid);
   auto* health = response->mutable_health();
   health->set_service_name("bridge-service");
-  health->set_checked_at_ms(time::NowMs());
+  health->set_checked_at_ms(time::WallTime::Now().ToMilliseconds());
   health->set_last_error(status.last_error);
   if (status.state == NavigationState::kDisabled) {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_DISABLED);

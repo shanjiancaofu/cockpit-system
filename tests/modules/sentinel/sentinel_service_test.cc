@@ -68,7 +68,8 @@ class FakeActions final : public SentinelActions {
 ChassisEvent Motion(std::uint64_t sequence, std::int64_t timestamp_ms = 0) {
   ChassisEvent event;
   event.sequence = sequence;
-  event.timestamp_ms = timestamp_ms == 0 ? cockpit::time::NowMs() : timestamp_ms;
+  event.timestamp_ms =
+      timestamp_ms == 0 ? cockpit::time::WallTime::Now().ToMilliseconds() : timestamp_ms;
   event.source = "fake-stm32";
   event.sensor_id = 1;
   event.motion_detected = true;
@@ -126,7 +127,8 @@ int main() {
           }),
           "cooldown did not return to armed");
 
-  Require(service.Submit(Motion(3, cockpit::time::NowMs() - 1000)), "stale event rejected early");
+  Require(service.Submit(Motion(3, cockpit::time::WallTime::Now().ToMilliseconds() - 1000)),
+          "stale event rejected early");
   Require(WaitFor([&] {
             return service.status().suppressed_events == 3;
           }),

@@ -93,7 +93,7 @@ void SentinelGrpcService::FillStatus(const SentinelStatus& status,
   response->set_last_error(status.last_error);
   auto* health = response->mutable_health();
   health->set_service_name("sentinel-service");
-  health->set_checked_at_ms(time::NowMs());
+  health->set_checked_at_ms(time::WallTime::Now().ToMilliseconds());
   health->set_last_error(status.last_error);
   if (status.state == SentinelState::kFaulted) {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);

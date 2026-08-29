@@ -42,8 +42,9 @@ bool CameraPhotoService::TakePhoto(const std::string& filename, CameraPhotoResul
     return false;
   }
   const std::string resolved_filename =
-      filename.empty() ? "photo_" + std::to_string(time::NowMs()) + "_" + std::to_string(getpid()) +
-                             "_" + std::to_string(g_photo_sequence.fetch_add(1U)) + ".jpg"
+      filename.empty() ? "photo_" + std::to_string(time::WallTime::Now().ToMilliseconds()) + "_" +
+                             std::to_string(getpid()) + "_" +
+                             std::to_string(g_photo_sequence.fetch_add(1U)) + ".jpg"
                        : filename;
   if (!IsSafeFilename(resolved_filename)) {
     AssignError(error,
@@ -63,7 +64,7 @@ bool CameraPhotoService::TakePhoto(const std::string& filename, CameraPhotoResul
   if (!reader->ReadLatest(&frame, nullptr, error)) {
     return false;
   }
-  const std::int64_t now_ms = time::NowMs();
+  const std::int64_t now_ms = time::WallTime::Now().ToMilliseconds();
   if (frame.timestamp_ms == 0 || now_ms < static_cast<std::int64_t>(frame.timestamp_ms) ||
       now_ms - static_cast<std::int64_t>(frame.timestamp_ms) > max_frame_age_ms_) {
     AssignError(error, "latest camera frame is stale");

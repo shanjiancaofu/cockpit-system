@@ -86,7 +86,7 @@ bool MessageBus::Publish(EventMessage message) {
     return false;
   }
   if (message.timestamp_ms == 0) {
-    message.timestamp_ms = time::NowMs();
+    message.timestamp_ms = time::WallTime::Now().ToMilliseconds();
   }
 
   std::lock_guard<std::mutex> lock(mutex_);

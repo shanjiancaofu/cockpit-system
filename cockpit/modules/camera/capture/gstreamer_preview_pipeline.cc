@@ -288,7 +288,7 @@ int GstreamerPreviewPipeline::HandleNewSample(GstSample* sample) {
 
   CameraFrame frame;
   frame.sequence = sequence;
-  frame.received_at_ns = cockpit::time::NowNs();
+  frame.received_at_ns = cockpit::time::WallTime::Now().ToNanoseconds();
   frame.timestamp_ms = static_cast<std::uint64_t>(frame.received_at_ns / 1000000LL);
   if (GST_BUFFER_PTS_IS_VALID(buffer)) {
     const GstSegment* segment = gst_sample_get_segment(sample);

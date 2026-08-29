@@ -249,7 +249,8 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
   {
     std::lock_guard<std::mutex> lock(mutex_);
     status_.state = CameraPreviewState::kRunning;
-    status_.preview_started_at_ms = static_cast<std::uint64_t>(time::NowMs());
+    status_.preview_started_at_ms =
+        static_cast<std::uint64_t>(time::WallTime::Now().ToMilliseconds());
     preview_started_steady_ = std::chrono::steady_clock::now();
     if (previous_state == CameraPreviewState::kFaulted) {
       ++status_.recover_count;
@@ -374,7 +375,8 @@ void CameraService::HandleFrame(CameraFrame frame) {
 
   const std::uint64_t sequence = frame.sequence;
   const std::uint64_t timestamp_ms = frame.timestamp_ms;
-  const std::uint64_t received_at_ms = static_cast<std::uint64_t>(time::NowMs());
+  const std::uint64_t received_at_ms =
+      static_cast<std::uint64_t>(time::WallTime::Now().ToMilliseconds());
   PublishFrameEvent(frame, received_at_ms);
   if (frame_sink_ == nullptr || !frame_sink_->Publish(std::move(frame))) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -428,7 +430,8 @@ void CameraService::PublishStatusEvent(const CameraServiceStatus& status) const 
           << "\"restart_count\":" << status.restart_count << ','
           << "\"recover_count\":" << status.recover_count << '}';
   message_bus_->Publish(event::EventMessage{"/camera/status", "camera.status", "camera-service",
-                                            payload.str(), time::NowMs(), 0});
+                                            payload.str(), time::WallTime::Now().ToMilliseconds(),
+                                            0});
 }
 
 void CameraService::PublishFrameEvent(const CameraFrame& frame,

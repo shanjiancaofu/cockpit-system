@@ -6,12 +6,12 @@
 
 namespace cockpit::vehicle {
 
-ChassisClient::ChassisClient() : ChassisClient(time::SteadyNowMs()) {
+ChassisClient::ChassisClient() : ChassisClient(time::SteadyTime::Now().ToMilliseconds()) {
 }
 
 ChassisClient::ChassisClient(std::int64_t started_steady_ms)
     : started_ms_(started_steady_ms), heartbeat_due_ms_(started_ms_) {
-  state_.timestamp_ms = time::WallNowMs();
+  state_.timestamp_ms = time::WallTime::Now().ToMilliseconds();
 }
 
 ChassisClientDecodeStatus ChassisClient::ProcessFrame(const can::CanFrame& frame,
@@ -64,7 +64,7 @@ ChassisClientDecodeStatus ChassisClient::ProcessFrame(const can::CanFrame& frame
   } else {
     return ChassisClientDecodeStatus::kIgnored;
   }
-  state_.timestamp_ms = time::WallNowMs();
+  state_.timestamp_ms = time::WallTime::Now().ToMilliseconds();
   *state = state_;
   return ChassisClientDecodeStatus::kUpdated;
 }
@@ -79,7 +79,7 @@ bool ChassisClient::Update(std::int64_t now_ms, ChassisState* state) {
     return false;
   }
   reported_heartbeat_status_ = state_.heartbeat_status;
-  state_.timestamp_ms = time::WallNowMs();
+  state_.timestamp_ms = time::WallTime::Now().ToMilliseconds();
   *state = state_;
   return true;
 }

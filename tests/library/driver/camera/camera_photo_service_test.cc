@@ -47,7 +47,7 @@ int main() {
 
   cockpit::camera::CameraFrame frame;
   frame.sequence = 7;
-  frame.timestamp_ms = static_cast<std::uint64_t>(cockpit::time::NowMs());
+  frame.timestamp_ms = static_cast<std::uint64_t>(cockpit::time::WallTime::Now().ToMilliseconds());
   frame.width = 16;
   frame.height = 16;
   frame.stride_bytes = frame.width * 4;

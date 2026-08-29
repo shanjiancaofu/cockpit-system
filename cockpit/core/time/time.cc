@@ -5,6 +5,30 @@
 namespace cockpit {
 namespace time {
 
+WallTime WallTime::Now() {
+  return WallTime(WallNowNs());
+}
+
+std::int64_t WallTime::ToMilliseconds() const {
+  return nanoseconds_ / 1000000;
+}
+
+std::int64_t WallTime::ToNanoseconds() const {
+  return nanoseconds_;
+}
+
+SteadyTime SteadyTime::Now() {
+  return SteadyTime(SteadyNowNs());
+}
+
+std::int64_t SteadyTime::ToMilliseconds() const {
+  return nanoseconds_ / 1000000;
+}
+
+std::int64_t SteadyTime::ToNanoseconds() const {
+  return nanoseconds_;
+}
+
 std::int64_t WallNowMs() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
              std::chrono::system_clock::now().time_since_epoch())

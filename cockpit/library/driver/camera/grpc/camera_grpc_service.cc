@@ -44,7 +44,7 @@ proto::common::RuntimeModuleState ToProtoModuleState(runtime::ModuleState state)
 
 void FillHealth(const CameraServiceStatus& status, proto::common::ServiceHealth* health) {
   health->set_service_name("camera-service");
-  health->set_checked_at_ms(time::NowMs());
+  health->set_checked_at_ms(time::WallTime::Now().ToMilliseconds());
   health->set_last_error(status.last_error);
   if (status.state == CameraPreviewState::kFaulted) {
     health->set_state(proto::common::SERVICE_HEALTH_STATE_FAULTED);
@@ -169,7 +169,7 @@ grpc::Status CameraGrpcService::TakePhoto(grpc::ServerContext*,
   response->set_height(result.height);
   response->set_size_bytes(result.size_bytes);
   if (recording_events_ != nullptr) {
-    const auto timestamp_ms = static_cast<std::int64_t>(time::NowMs());
+    const auto timestamp_ms = static_cast<std::int64_t>(time::WallTime::Now().ToMilliseconds());
     proto::recording::AppendRecordingDataFileRequest data_file;
     data_file.set_timestamp_ms(timestamp_ms);
     data_file.set_source("camera");

@@ -153,8 +153,8 @@ void SentinelService::Run() {
       std::lock_guard<std::mutex> lock(mutex_);
       if (stopping_) return;
       if (status_.state == SentinelState::kCooldown) {
-        wait_duration = std::chrono::milliseconds(
-            std::max<std::int64_t>(1, cooldown_until_steady_ms_ - time::SteadyNowMs()));
+        wait_duration = std::chrono::milliseconds(std::max<std::int64_t>(
+            1, cooldown_until_steady_ms_ - time::SteadyTime::Now().ToMilliseconds()));
       }
     }
 
@@ -162,8 +162,8 @@ void SentinelService::Run() {
     {
       std::lock_guard<std::mutex> lock(mutex_);
       if (stopping_) return;
-      const std::int64_t wall_now_ms = time::WallNowMs();
-      UpdateCooldownLocked(time::SteadyNowMs());
+      const std::int64_t wall_now_ms = time::WallTime::Now().ToMilliseconds();
+      UpdateCooldownLocked(time::SteadyTime::Now().ToMilliseconds());
       if (!pending.has_value()) continue;
       const vehicle::ChassisEvent& event = *pending;
 
@@ -201,8 +201,8 @@ void SentinelService::Run() {
       status_.last_error = error.empty() ? "sentinel trigger action failed" : std::move(error);
     }
     status_.state = SentinelState::kCooldown;
-    status_.cooldown_until_ms = time::WallNowMs() + policy_.cooldown.count();
-    cooldown_until_steady_ms_ = time::SteadyNowMs() + policy_.cooldown.count();
+    status_.cooldown_until_ms = time::WallTime::Now().ToMilliseconds() + policy_.cooldown.count();
+    cooldown_until_steady_ms_ = time::SteadyTime::Now().ToMilliseconds() + policy_.cooldown.count();
   }
 }
 
