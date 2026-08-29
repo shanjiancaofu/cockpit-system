@@ -19,8 +19,8 @@ int main() {
     std::cerr << "steady clock moved backwards\n";
     return 1;
   }
-  if (cockpit::time::NowMs() < wall_ms) {
-    std::cerr << "legacy NowMs alias is not a wall clock\n";
+  if (cockpit::time::WallTime::Now().ToMilliseconds() < wall_ms) {
+    std::cerr << "wall clock moved backwards\n";
     return 1;
   }
   return 0;

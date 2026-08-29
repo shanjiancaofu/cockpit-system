@@ -52,8 +52,14 @@ BridgeService::BridgeService(std::unique_ptr<NavigationProvider> provider,
                              std::int64_t goal_timeout_ms, Clock steady_clock, Clock wall_clock)
     : provider_(std::move(provider)),
       goal_timeout_ms_(goal_timeout_ms),
-      steady_clock_(steady_clock == nullptr ? Clock(time::SteadyNowMs) : std::move(steady_clock)),
-      wall_clock_(wall_clock == nullptr ? Clock(time::WallNowMs) : std::move(wall_clock)) {
+      steady_clock_(steady_clock == nullptr ? Clock([] {
+        return time::SteadyTime::Now().ToMilliseconds();
+      })
+                                            : std::move(steady_clock)),
+      wall_clock_(wall_clock == nullptr ? Clock([] {
+        return time::WallTime::Now().ToMilliseconds();
+      })
+                                        : std::move(wall_clock)) {
   status_.state = provider_ == nullptr ? NavigationState::kDisabled : NavigationState::kIdle;
   status_.updated_at_ms = wall_clock_();
 }

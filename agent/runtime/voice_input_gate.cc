@@ -67,7 +67,8 @@ bool VoiceInputGate::ProcessFrame(const audio::AudioFrame& frame) {
       return true;
     }
     wake_detections_.fetch_add(1U);
-    last_wake_timestamp_ms_.store(static_cast<std::uint64_t>(time::NowMs()));
+    last_wake_timestamp_ms_.store(
+        static_cast<std::uint64_t>(time::WallTime::Now().ToMilliseconds()));
     detector_->Reset();
     speech_pipeline_->ResetInputState();
     if (!service_->NotifyWakeWordDetected()) {

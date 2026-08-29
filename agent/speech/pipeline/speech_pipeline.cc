@@ -196,7 +196,7 @@ void SpeechPipeline::RecognizeSegments() {
       }
       voice::SpeechTranscript transcript;
       transcript.id = next_transcript_id_.fetch_add(1U);
-      transcript.timestamp_ms = time::NowMs();
+      transcript.timestamp_ms = time::WallTime::Now().ToMilliseconds();
       transcript.start_sequence = segment->start_sequence;
       transcript.end_sequence = segment->end_sequence;
       transcript.duration_ms = segment->DurationMs();
