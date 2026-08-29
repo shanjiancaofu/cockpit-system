@@ -24,6 +24,9 @@ void Usage() {
   --area-min N --area-max N  Chessboard image-area range
   --grid-required N          Minimum occupied 3x3 cells
   --duplicate-threshold N    Mean absolute image difference threshold
+  --near-distance N          Near-distance upper bound in metres
+  --far-distance N           Far-distance lower bound in metres
+  --tilt-threshold N         Horizontal/vertical tilt threshold in degrees
   --help
 )";
 }
@@ -117,6 +120,7 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
     } else if (arg == "--blur-min") {
       if (!require_value("--blur-min") || !ParseDouble(value, &options->blur_min))
         return ParseResult::kError;
+      options->blur_min_explicit = true;
     } else if (arg == "--mean-min") {
       if (!require_value("--mean-min") || !ParseDouble(value, &options->mean_min))
         return ParseResult::kError;
@@ -126,16 +130,32 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
     } else if (arg == "--area-min") {
       if (!require_value("--area-min") || !ParseDouble(value, &options->area_min))
         return ParseResult::kError;
+      options->area_min_explicit = true;
     } else if (arg == "--area-max") {
       if (!require_value("--area-max") || !ParseDouble(value, &options->area_max))
         return ParseResult::kError;
+      options->area_max_explicit = true;
     } else if (arg == "--grid-required") {
       if (!require_value("--grid-required") || !ParseInt(value, &options->grid_required))
         return ParseResult::kError;
+      options->grid_required_explicit = true;
     } else if (arg == "--duplicate-threshold") {
       if (!require_value("--duplicate-threshold") ||
           !ParseDouble(value, &options->duplicate_threshold))
         return ParseResult::kError;
+      options->duplicate_threshold_explicit = true;
+    } else if (arg == "--near-distance") {
+      if (!require_value("--near-distance") || !ParseDouble(value, &options->near_distance_m))
+        return ParseResult::kError;
+      options->near_distance_explicit = true;
+    } else if (arg == "--far-distance") {
+      if (!require_value("--far-distance") || !ParseDouble(value, &options->far_distance_m))
+        return ParseResult::kError;
+      options->far_distance_explicit = true;
+    } else if (arg == "--tilt-threshold") {
+      if (!require_value("--tilt-threshold") || !ParseDouble(value, &options->tilt_threshold_deg))
+        return ParseResult::kError;
+      options->tilt_threshold_explicit = true;
     } else {
       std::cerr << "unknown option: " << arg << "\n";
       Usage();
@@ -156,10 +176,11 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
     options->corners_x = 11;
     options->corners_y = 8;
     options->square_size = 0.005;
-    options->area_min = 0.0005;
-    options->near_distance_m = 0.25;
-    options->far_distance_m = 0.55;
-    options->tilt_threshold_deg = 12.0;
+    if (!options->area_min_explicit) options->area_min = 0.0005;
+    if (!options->grid_required_explicit) options->grid_required = 1;
+    if (!options->near_distance_explicit) options->near_distance_m = 0.25;
+    if (!options->far_distance_explicit) options->far_distance_m = 0.55;
+    if (!options->tilt_threshold_explicit) options->tilt_threshold_deg = 12.0;
   }
   if (options->width <= 0 || options->height <= 0 || options->fps <= 0 || options->frames <= 0 ||
       options->max_candidates < options->frames || options->max_candidates > 100 ||

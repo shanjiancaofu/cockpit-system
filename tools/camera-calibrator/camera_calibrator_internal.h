@@ -38,6 +38,14 @@ struct Options {
   bool corners_x_explicit = false;
   bool corners_y_explicit = false;
   bool square_size_explicit = false;
+  bool blur_min_explicit = false;
+  bool area_min_explicit = false;
+  bool area_max_explicit = false;
+  bool grid_required_explicit = false;
+  bool duplicate_threshold_explicit = false;
+  bool near_distance_explicit = false;
+  bool far_distance_explicit = false;
+  bool tilt_threshold_explicit = false;
 };
 
 enum class ParseResult { kOk, kHelp, kError };
@@ -76,8 +84,12 @@ struct CoverageState {
   bool pose_complete() const {
     return front && tilt_left && tilt_right && tilt_up && tilt_down;
   }
-  bool distance_complete() const { return near && mid && far; }
-  bool complete() const { return spatial_cells >= 5 && pose_complete() && distance_complete(); }
+  bool distance_complete() const {
+    return near && mid && far;
+  }
+  bool complete() const {
+    return spatial_cells >= 5 && pose_complete() && distance_complete();
+  }
 };
 
 void Usage();

@@ -499,16 +499,17 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
     failure_reason = "FAIL_PARAMETER_SANITY";
   else if (coverage_required && spatial_coverage < 5)
     failure_reason = "FAIL_SPATIAL_COVERAGE";
-  else if (coverage_required && !FinalValidator(options, coverage))
-    failure_reason = coverage.spatial_cells < 5 ? "FAIL_SPATIAL_COVERAGE"
-                      : !coverage.pose_complete() ? "FAIL_POSE_DIVERSITY"
-                                                   : "FAIL_DISTANCE_DIVERSITY";
-  else if (rms >= 1.0 || mean_error >= 1.0 || p95_error >= 1.5 || max_error >= 2.0)
+  else if (coverage_required && !FinalValidator(options, coverage)) {
+    if (!coverage.pose_complete())
+      failure_reason = "FAIL_POSE_DIVERSITY";
+    else
+      failure_reason = "FAIL_DISTANCE_DIVERSITY";
+  } else if (rms >= 1.0 || mean_error >= 1.0 || p95_error >= 1.5 || max_error >= 2.0)
     failure_reason = "FAIL_REPROJECTION_ERROR";
   const bool pass = failure_reason == "PASS";
   if (!pass) std::cerr << failure_reason << '\n';
   std::filesystem::create_directories(options.output_dir);
-  const auto yaml_path = options.output_dir / "camera_calibration.yaml";
+  const auto yaml_path = options.output_dir / "calibration_result.yaml";
   const auto csv_path = options.output_dir / "per_view_errors.csv";
   const auto json_path = options.output_dir / "calibration_report.json";
   const auto preview_path = options.output_dir / "undistorted_preview.jpg";

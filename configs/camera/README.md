@@ -41,7 +41,7 @@ scripts/tests/jetson-camera-calibration-gate.sh
 它不会自动修改配置、提交 YAML 或将结果标记为 `VERIFIED`；完成后需要人工检查样本分布、
 RMS、逐视角重投影误差和 undistort 对比。
 
-离线或真机运行都会输出 `camera_calibration.yaml`、`calibration_report.json`、
+离线或真机运行都会输出 `calibration_result.yaml`、`calibration_report.json`、
 `per_view_errors.csv`、`original_preview.jpg` 和 `undistorted_preview.jpg`。报告会记录每个样本的
 归一化中心、yaw/pitch/roll、距离、reprojection error、selected/outlier 标记，以及整体 median、
 MAD、P95 和空间/姿态/距离 coverage；所有离线结果的 verification 状态固定为 `UNVERIFIED`。
@@ -59,7 +59,7 @@ MAD、P95 和空间/姿态/距离 coverage；所有离线结果的 verification 
 
 ## 字段格式
 
-标定 YAML 是单层 map，以下字段全部必填，未知字段会被拒绝：
+正式 production YAML 是单层 map，以下字段全部必填，未知字段会被拒绝：
 
 ```yaml
 image_width: <positive integer>
@@ -84,3 +84,6 @@ k3: <finite number>
 后续真实标定文件至少应同时记录在变更文档中：摄像头序列号、镜头、分辨率、采集模式、标定板规格、
 采集日期、标定工具版本、重投影误差和文件 SHA-256。只有完成目标设备上的复测后，才能把状态从
 `NOT VERIFIED` 改为已验证。
+
+`calibration_result.yaml` 仅是工具输出，允许携带标定误差和其他诊断字段，始终保持
+`UNVERIFIED`；通过真实验收后，才将其中的 production 字段提取到 `configs/camera/<camera>.yaml`。

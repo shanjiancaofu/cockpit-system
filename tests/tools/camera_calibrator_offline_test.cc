@@ -123,11 +123,11 @@ int main(int argc, char** argv) {
   const int success =
       Run(argv[1], input_dir, output_dir,
           "--frames 20 --max-candidates 30 --duplicate-threshold 0 --grid-required 1 --blur-min 0");
-  const bool artifacts = std::filesystem::exists(output_dir / "camera_calibration.yaml") &&
+  const bool artifacts = std::filesystem::exists(output_dir / "calibration_result.yaml") &&
                          std::filesystem::exists(output_dir / "calibration_report.json") &&
                          std::filesystem::exists(output_dir / "per_view_errors.csv") &&
                          std::filesystem::exists(output_dir / "undistorted_preview.jpg");
-  const bool recovered = CheckRecoveredCalibration(output_dir / "camera_calibration.yaml");
+  const bool recovered = CheckRecoveredCalibration(output_dir / "calibration_result.yaml");
   std::ifstream report_stream(output_dir / "calibration_report.json");
   const std::string report((std::istreambuf_iterator<char>(report_stream)),
                            std::istreambuf_iterator<char>());
