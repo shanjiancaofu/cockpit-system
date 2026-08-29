@@ -7,6 +7,7 @@ sudo apt-get install -y \
   alsa-utils \
   clang-format \
   clang-tidy \
+  clang \
   cmake \
   can-utils \
   iproute2 \

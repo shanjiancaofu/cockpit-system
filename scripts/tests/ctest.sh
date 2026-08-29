@@ -24,8 +24,8 @@ if [[ -n "$build_dir" && -f "$build_dir/CMakeCache.txt" ]] &&
     echo "warning: setarch is unavailable; running TSan with the host ASLR policy" >&2
     exec ctest "$@"
   fi
-  # GCC 11 libtsan reserves a fixed shadow-memory range. Linux 6.8 ASLR can map
-  # the PIE loader into that range before libtsan starts, producing a fatal
+  # TSan reserves a fixed shadow-memory range. Linux 6.8 ASLR can map the PIE
+  # loader into that range before the runtime starts, producing a fatal
   # "unexpected memory mapping" before test code executes. Disable ASLR only
   # for the CTest process tree; ThreadSanitizer itself remains fully enabled.
   if setarch x86_64 -R true 2>/dev/null; then

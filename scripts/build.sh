@@ -13,12 +13,14 @@ Usage: scripts/build.sh [options] [-- CMake options]
 Options:
   --arch x86_64|arm64   Target architecture (default: current machine)
   --type debug|release  Build type (default: debug)
+  --compiler gcc|clang  Native compiler (default: gcc)
   --no-test             Do not run tests after building
   -h, --help            Show this help
 
 Environment:
   COCKPIT_OUTPUT_DIR    Override the output root (default: _output)
   BUILD_DIR             Override _output/build/<arch>-<type>
+  BUILD_COMPILER        Native compiler: gcc or clang
   JETSON_SYSROOT        Jetson root filesystem used for x86_64 -> arm64 builds
   TOOLCHAIN_FILE        Override the ARM64 CMake toolchain file
 EOF
@@ -45,6 +47,8 @@ case "${BUILD_TYPE:-Debug}" in
     ;;
 esac
 run_tests=true
+compiler="${BUILD_COMPILER:-gcc}"
+expected_compiler_id="GNU"
 cmake_options=()
 
 while [[ $# -gt 0 ]]; do
@@ -64,6 +68,11 @@ while [[ $# -gt 0 ]]; do
           exit 2
           ;;
       esac
+      shift 2
+      ;;
+    --compiler)
+      [[ $# -ge 2 ]] || { echo "--compiler requires a value" >&2; exit 2; }
+      compiler="${2,,}"
       shift 2
       ;;
     --no-test)
@@ -86,6 +95,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "${compiler}" != "gcc" && "${compiler}" != "clang" ]]; then
+  echo "unsupported compiler: ${compiler}" >&2
+  exit 2
+fi
 
 build_type_name="${build_type,,}"
 output_dir="$(cockpit_output_dir)"
@@ -110,6 +124,10 @@ if [[ -f "${build_dir}/CMakeCache.txt" ]]; then
 fi
 
 if [[ "${target_arch}" != "${machine_arch}" ]]; then
+  if [[ "${compiler}" != "gcc" ]]; then
+    echo "ARM64 cross compilation currently requires GCC" >&2
+    exit 2
+  fi
   if [[ "${machine_arch}" != "x86_64" || "${target_arch}" != "arm64" ]]; then
     echo "unsupported cross compilation: ${machine_arch} -> ${target_arch}" >&2
     exit 2
@@ -134,10 +152,17 @@ if [[ "${target_arch}" != "${machine_arch}" ]]; then
 fi
 
 if [[ "${cross_compiling}" == false ]]; then
-  c_compiler="$(command -v gcc || true)"
-  cxx_compiler="$(command -v g++ || true)"
+  if [[ "${compiler}" == "clang" ]]; then
+    c_compiler="$(command -v clang || true)"
+    cxx_compiler="$(command -v clang++ || true)"
+    expected_compiler_id="Clang"
+  else
+    c_compiler="$(command -v gcc || true)"
+    cxx_compiler="$(command -v g++ || true)"
+    expected_compiler_id="GNU"
+  fi
   if [[ -z "${c_compiler:-}" || -z "${cxx_compiler:-}" ]]; then
-    echo "GCC C/C++ compilers not found" >&2
+    echo "${compiler} C/C++ compilers not found" >&2
     exit 1
   fi
   cmake_options+=(
@@ -147,7 +172,7 @@ if [[ "${cross_compiling}" == false ]]; then
   )
 fi
 
-echo "Configuring ${build_type} with GCC in ${build_dir}"
+echo "Configuring ${build_type} with ${compiler} in ${build_dir}"
 
 cmake_args=(
   -S "${root_dir}"
@@ -169,7 +194,6 @@ fi
 source "${package_info}"
 configured_build_type="${COCKPIT_BUILD_TYPE}"
 configured_compiler_id="${COCKPIT_COMPILER_ID}"
-expected_compiler_id="GNU"
 if [[ "${configured_build_type}" != "${build_type}" ||
       "${configured_compiler_id}" != "${expected_compiler_id}" ]]; then
   echo "CMake reset cached options while changing compilers; applying the requested configuration again"
