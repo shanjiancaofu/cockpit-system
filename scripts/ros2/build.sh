@@ -12,16 +12,12 @@ if [[ "$(id -u)" -eq 0 ]]; then
   echo "Do not build the ROS2 workspace as root" >&2
   exit 2
 fi
-if [[ ! -f /opt/ros/humble/setup.bash ]]; then
-  echo "ROS 2 Humble is not installed; run scripts/setup/ros2/install.sh" >&2
-  exit 2
-fi
 if ! command -v colcon >/dev/null 2>&1; then
   echo "colcon is not installed" >&2
   exit 2
 fi
 source "${root_dir}/scripts/lib/common.sh"
-cockpit_source_ros2_environment
+cockpit_source_ros2_environment required
 
 mkdir -p "${build_dir}" "${install_dir}" "${log_dir}"
 colcon --log-base "${log_dir}" build \

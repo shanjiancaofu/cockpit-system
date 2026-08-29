@@ -32,11 +32,16 @@ cockpit_default_runtime_dir() {
 }
 
 cockpit_source_ros2_environment() {
+  local required="${1:-optional}"
   if [[ -n "${AMENT_PREFIX_PATH:-}" ]]; then
     return 0
   fi
   local setup_file="${ROS2_SETUP_BASH:-/opt/ros/humble/setup.bash}"
   if [[ ! -f "${setup_file}" ]]; then
+    if [[ "${required}" == "required" ]]; then
+      echo "ROS 2 setup file not found: ${setup_file}" >&2
+      return 2
+    fi
     return 0
   fi
   set +u

@@ -5,6 +5,7 @@ ROS 2 Humble and Nav2 packages remain installed under `/opt/ros/humble`; their s
 vendored here.
 
 - `cockpit_nav2_bringup`: bounded Nav2 launch and test map owned by cockpit-system.
+- `cockpit_chassis_safety`: production-candidate fail-closed velocity safety adapter; no CAN sink.
 - `cockpit_nav2_test_support`: non-actuating planar robot fixture for Ubuntu functional tests.
 
 All colcon build, install, and log outputs must remain under `_output/ros2`.

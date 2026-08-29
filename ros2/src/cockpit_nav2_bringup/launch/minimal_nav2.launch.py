@@ -44,15 +44,30 @@ def generate_launch_description():
                 output="screen",
             ),
             Node(
-                package="cockpit_nav2_test_support",
-                executable="fake_cmd_vel_safety_adapter",
-                name="cockpit_fake_cmd_vel_safety_adapter",
+                package="cockpit_chassis_safety",
+                executable="chassis_safety_adapter",
+                name="cockpit_chassis_safety_adapter",
                 output="screen",
+                parameters=[
+                    {
+                        "enabled": True,
+                        "authority_granted": True,
+                        "peer_alive": True,
+                        "emergency_stop": False,
+                        "chassis_fault": False,
+                        "max_linear_velocity_mm_s": 400,
+                        "max_angular_velocity_mrad_s": 1200,
+                        "max_linear_acceleration_mm_s2": 400,
+                        "max_angular_acceleration_mrad_s2": 1200,
+                        "command_timeout_ms": 250,
+                        "output_period_ms": 20,
+                    }
+                ],
             ),
             Node(
                 package="cockpit_nav2_test_support",
-                executable="fake_cmd_vel_sink",
-                name="cockpit_fake_cmd_vel_sink",
+                executable="fake_chassis_sink",
+                name="cockpit_fake_chassis_sink",
                 output="screen",
             ),
             Node(

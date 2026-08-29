@@ -156,6 +156,10 @@ add_executable(chassis_client_test modules/vehicle/chassis_client_test.cc)
 target_link_libraries(chassis_client_test PRIVATE vehicle)
 add_test(NAME chassis_client_test COMMAND chassis_client_test)
 
+add_executable(chassis_safety_adapter_test modules/vehicle/chassis_safety_adapter_test.cc)
+target_link_libraries(chassis_safety_adapter_test PRIVATE vehicle)
+add_test(NAME chassis_safety_adapter_test COMMAND chassis_safety_adapter_test)
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_executable(vehicle_data_chassis_vcan_test
         library/driver/vehicle/vehicle_data_chassis_vcan_test.cc

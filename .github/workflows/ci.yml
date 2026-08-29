@@ -61,7 +61,7 @@ jobs:
             # GCC 11 TSan loses mutex ownership across steady-clock condition-variable
             # waits on current runners. Clang TSan remains focused on in-process
             # concurrency; process lifecycle stays in Debug, Release, and ASan/UBSan.
-            test_regex: "^(camera_service_test|camera_synthetic_stability_test|audio_capture_stream_test|audio_capture_controller_test|speech_pipeline_test|voice_interaction_service_test|async_voice_response_sink_test|audio_playback_test|audio_playback_client_test|app_launcher_model_test|media_control_model_test|sentinel_service_test)$"
+            test_regex: "^(camera_service_test|camera_synthetic_stability_test|chassis_safety_adapter_test|audio_capture_stream_test|audio_capture_controller_test|speech_pipeline_test|voice_interaction_service_test|async_voice_response_sink_test|audio_playback_test|audio_playback_client_test|app_launcher_model_test|media_control_model_test|sentinel_service_test)$"
             test_label_exclude: ""
 
     name: ${{ matrix.name }}

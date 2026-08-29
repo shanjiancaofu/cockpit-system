@@ -6,11 +6,7 @@ root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${root_dir}/scripts/lib/common.sh"
 build_dir="$(realpath -m "${BUILD_DIR:-${root_dir}/_output/build/ros2}")"
 
-if [[ ! -f /opt/ros/humble/setup.bash ]]; then
-  echo "ROS 2 Humble is not installed; run scripts/setup/ros2/install.sh" >&2
-  exit 2
-fi
-cockpit_source_ros2_environment
+cockpit_source_ros2_environment required
 
 cmake -S "${root_dir}" -B "${build_dir}" -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug \

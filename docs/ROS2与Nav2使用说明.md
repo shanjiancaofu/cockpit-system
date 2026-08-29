@@ -37,7 +37,8 @@ cockpit-system/
 ├── cockpit/library/bridge/             Navigator 生命周期、gRPC 和 ROS adapter
 ├── ros2/src/
 │   ├── cockpit_nav2_bringup/           launch、测试地图、参数所有权
-│   └── cockpit_nav2_test_support/       fake odom/TF/scan/cmd_vel sink/readiness
+│   ├── cockpit_chassis_safety/          production safety core ROS2 adapter
+│   └── cockpit_nav2_test_support/       fake odom/TF/scan/chassis/readiness
 └── _output/
     ├── build/ros2/                      主项目可选 ROS2 CMake 构建
     └── ros2/{build,install,log}/        colcon 输出
@@ -63,14 +64,15 @@ source _output/ros2/install/setup.bash
 ```
 
 `scripts/ros2/configure.sh` 负责主项目 ROS adapter 和 clangd compile database；
-`scripts/ros2/build.sh` 负责两个 ament 包，并把全部 colcon 输出放入 `_output/ros2`。
+`scripts/ros2/build.sh` 负责三个 ament 包，并把全部 colcon 输出放入 `_output/ros2`。
 安装脚本只使用 sudo 写入 apt key、ROS deb 和首次 `rosdep init` 的系统目录；源码、构建和运行过程不以
 root 执行。
 GitHub CI 使用 `COCKPIT_SKIP_ROSDEP_SETUP=1`，因为所有构建依赖已经由 pinned apt 清单显式安装，
 避免 `rosdep update` 对 rosdistro/GitHub 临时网络状态形成无关门禁。
 
-`cockpit_nav2_test_support` 的 `cmd_vel_safety_test` 直接验证线速度/角速度限幅、侧向速度归零和
-250 ms watchdog freshness；它与 full-process smoke 分开，避免只通过导航结果间接证明安全边界。
+主 CTest 的 `chassis_safety_adapter_test` 直接验证 finite/representable、线速度/角速度限幅、slew、
+250 ms watchdog、enable、authority、e-stop、peer、chassis fault、clock regression、reset 和 stop reason；
+它与 full-process smoke 分开，避免只通过导航结果间接证明安全边界。
 
 ## 运行和验证
 
@@ -102,13 +104,19 @@ BUILD_DIR=_output/build/ros2 bash scripts/tests/ros2-nav2-bridge-smoke.sh
 - `fake_odometry_node`：订阅 `/cmd_vel_safe`，只在内存中积分二维位置并发布 `/odom`、`odom→base_link`。
 - `fake_tf_node`：发布测试用 `map→odom` 和 `base_link→base_scan` 静态 TF。
 - `fake_scan_node`：发布无障碍物的 bounded LaserScan。
-- `fake_cmd_vel_safety_adapter`：将 Nav2 `/cmd_vel` 限幅到线速度 ±0.4 m/s、角速度 ±1.2 rad/s；命令
-  超过 250 ms 未刷新时输出零，并且只发布到测试用 `/cmd_vel_safe`。
-- `fake_cmd_vel_sink`：只统计 `/cmd_vel_safe`，明确不存在硬件/CAN 输出。
+- `cockpit_chassis_safety/chassis_safety_adapter`：产品安全核心的 ROS2 adapter，执行 finite、限幅、slew、
+  enable/authority/e-stop/peer/fault 和 250 ms watchdog，发布 `/cmd_vel_safe` 与明确 stop reason；节点本身不访问 SocketCAN。
+- `fake_chassis_sink`：消费 `/cmd_vel_safe`，记录命令数量、非零状态和 safety status，明确不存在硬件/CAN 输出。
 - `nav2_readiness_probe`：有界确认关键 lifecycle node 为 ACTIVE 且 NavigateToPose action ready。
 - `nav2_fault_control`：只在测试域开关 fake odometry，并确认最新 cmd_vel 已归零。
 
-这些节点只能存在于 `cockpit_nav2_test_support`，不得进入正式车辆 mode。
+fake odometry/TF/scan/chassis/fault-control 只能存在于 `cockpit_nav2_test_support`，不得进入正式车辆 mode；
+`cockpit_chassis_safety` 是产品候选安全层，但当前只完成 VM/fake 验证，真实车辆参数和 SocketCAN sink 仍未验收。
+
+当前 minimal launch 的 provisional policy 是线速度 ±400 mm/s、角速度 ±1200 mrad/s、线/角加速度
+400 mm/s² 与 1200 mrad/s²、命令 timeout 250 ms、输出周期 20 ms。它们只用于 VM/fake correctness，
+不是 STM32/电机量产参数。任一 interlock 进入不安全状态都会清除缓存命令；恢复后必须收到新的有效
+`/cmd_vel`，不会恢复 e-stop 前的旧速度。
 
 ## 参考项目审计
 
