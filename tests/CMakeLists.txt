@@ -315,7 +315,7 @@ add_executable(camera_synthetic_stability_test
 )
 
 if(TARGET camera-calibrator)
-    find_package(OpenCV REQUIRED COMPONENTS imgcodecs imgproc)
+    find_package(OpenCV REQUIRED COMPONENTS calib3d imgcodecs imgproc)
     add_executable(camera_calibrator_offline_test tools/camera_calibrator_offline_test.cc)
     target_include_directories(camera_calibrator_offline_test PRIVATE ${OpenCV_INCLUDE_DIRS})
     target_link_libraries(camera_calibrator_offline_test PRIVATE ${OpenCV_LIBS})

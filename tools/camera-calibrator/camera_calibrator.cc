@@ -357,10 +357,15 @@ bool Calibrate(const Options& options, const std::vector<AcceptedFrame>& accepte
   }
   for (const auto& frame : accepted) image_points.push_back(frame.corners);
   cv::Mat camera_matrix = cv::Mat::eye(3, 3, CV_64F);
+  camera_matrix.at<double>(0, 0) = static_cast<double>(image_size.width);
+  camera_matrix.at<double>(1, 1) = static_cast<double>(image_size.width);
+  camera_matrix.at<double>(0, 2) = static_cast<double>(image_size.width) / 2.0;
+  camera_matrix.at<double>(1, 2) = static_cast<double>(image_size.height) / 2.0;
   cv::Mat distortion = cv::Mat::zeros(5, 1, CV_64F);
   std::vector<cv::Mat> rotations, translations;
-  const double rms = cv::calibrateCamera(object_points, image_points, image_size, camera_matrix,
-                                         distortion, rotations, translations);
+  const double rms =
+      cv::calibrateCamera(object_points, image_points, image_size, camera_matrix, distortion,
+                          rotations, translations, cv::CALIB_USE_INTRINSIC_GUESS);
   double error_sum = 0.0;
   double max_error = 0.0;
   std::vector<double> per_view;
