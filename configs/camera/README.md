@@ -6,6 +6,18 @@ ROS2 bridge 只能加载 `cockpit::hawkeye::CameraCalibration`，再转换为
 
 当前仓库没有经过棋盘格流程验证的 IMX219 参数，因此本目录不提供任何看起来像真实结果的 YAML。
 
+## 已支持的标定板 profile
+
+`camera-calibrator` 支持显式的 `q12-70-5` profile：
+
+```text
+--board-profile q12-70-5
+```
+
+该 profile 对应 DAFAN VISION Q12-70-5：12×9 个棋盘格、11×8 个内角点、5.0 mm 方格，
+即 `square_size=0.005` m。profile 只描述几何参数，不代表已经完成 IMX219 真机标定；真实参数
+在实体板采集和误差验收前仍保持 `NOT VERIFIED`。
+
 ## 文件命名
 
 建议使用：

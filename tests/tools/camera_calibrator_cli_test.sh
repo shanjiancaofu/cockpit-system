@@ -16,9 +16,16 @@ expect_status() {
   fi
 }
 
-expect_status 0 --help
+help_output="$($calibrator --help)"
+grep -Fq -- '--board-profile NAME' <<<"$help_output"
+grep -Fq -- 'q12-70-5' <<<"$help_output"
 expect_status 2 --unknown
 expect_status 2 --width invalid
+expect_status 2 --board-profile unknown
+expect_status 2 --board-profile q12-70-5 --corners-x 9
+expect_status 2 --board-profile q12-70-5 --corners-y 6
+expect_status 2 --board-profile q12-70-5 --square-size 0.025
+expect_status 2 --board-profile q12-70-5 --width invalid
 
 fixture_dir="$(mktemp -d)"
 trap 'rm -rf -- "$fixture_dir"' EXIT

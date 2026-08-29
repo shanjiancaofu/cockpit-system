@@ -26,6 +26,7 @@ struct Options {
   std::string device = "nvargus://0";
   std::filesystem::path input_dir;
   std::filesystem::path output_dir = "_output/runtime/camera-calibration";
+  std::string board_profile;
   int width = 1920;
   int height = 1080;
   int fps = 30;
@@ -41,6 +42,9 @@ struct Options {
   double area_max = 0.80;
   int grid_required = 5;
   double duplicate_threshold = 2.0;
+  bool corners_x_explicit = false;
+  bool corners_y_explicit = false;
+  bool square_size_explicit = false;
 };
 
 enum class ParseResult {
@@ -62,6 +66,7 @@ struct AcceptedFrame {
 void Usage() {
   std::cout << R"(camera-calibrator [options]
   --device nvargus://0       Capture device (default: nvargus://0)
+  --board-profile NAME        Board profile: q12-70-5 (12x9 squares, 11x8 corners, 5 mm)
   --input-dir DIR             Calibrate existing image files instead of capturing
   --output-dir DIR            Output directory
   --width N --height N        Capture dimensions (default: 1920x1080)
@@ -129,6 +134,9 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
     if (arg == "--device") {
       if (!require_value("--device")) return ParseResult::kError;
       options->device = value;
+    } else if (arg == "--board-profile") {
+      if (!require_value("--board-profile")) return ParseResult::kError;
+      options->board_profile = value;
     } else if (arg == "--input-dir") {
       if (!require_value("--input-dir")) return ParseResult::kError;
       options->input_dir = value;
@@ -152,12 +160,15 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
     } else if (arg == "--corners-x") {
       if (!require_value("--corners-x") || !ParseInt(value, &options->corners_x))
         return ParseResult::kError;
+      options->corners_x_explicit = true;
     } else if (arg == "--corners-y") {
       if (!require_value("--corners-y") || !ParseInt(value, &options->corners_y))
         return ParseResult::kError;
+      options->corners_y_explicit = true;
     } else if (arg == "--square-size") {
       if (!require_value("--square-size") || !ParseDouble(value, &options->square_size))
         return ParseResult::kError;
+      options->square_size_explicit = true;
     } else if (arg == "--blur-min") {
       if (!require_value("--blur-min") || !ParseDouble(value, &options->blur_min))
         return ParseResult::kError;
@@ -185,6 +196,21 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
       Usage();
       return ParseResult::kError;
     }
+  }
+  if (!options->board_profile.empty()) {
+    if (options->board_profile != "q12-70-5") {
+      std::cerr << "unknown board profile: " << options->board_profile << "\n";
+      return ParseResult::kError;
+    }
+    if ((options->corners_x_explicit && options->corners_x != 11) ||
+        (options->corners_y_explicit && options->corners_y != 8) ||
+        (options->square_size_explicit && options->square_size != 0.005)) {
+      std::cerr << "board profile q12-70-5 conflicts with explicit board geometry\n";
+      return ParseResult::kError;
+    }
+    options->corners_x = 11;
+    options->corners_y = 8;
+    options->square_size = 0.005;
   }
   if (options->width <= 0 || options->height <= 0 || options->fps <= 0 || options->frames <= 0 ||
       options->timeout_seconds <= 0 || options->corners_x <= 1 || options->corners_y <= 1 ||
