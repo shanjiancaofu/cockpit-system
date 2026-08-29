@@ -2,18 +2,15 @@
 set -euo pipefail
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=scripts/lib/common.sh
+source "${root_dir}/scripts/lib/common.sh"
 build_dir="$(realpath -m "${BUILD_DIR:-${root_dir}/_output/build/ros2}")"
 
 if [[ ! -f /opt/ros/humble/setup.bash ]]; then
   echo "ROS 2 Humble is not installed; run scripts/setup/ros2/install.sh" >&2
   exit 2
 fi
-
-# ROS setup scripts reference optional variables that are valid when unset.
-# shellcheck disable=SC1091
-set +u
-source /opt/ros/humble/setup.bash
-set -u
+cockpit_source_ros2_environment
 
 cmake -S "${root_dir}" -B "${build_dir}" -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug \

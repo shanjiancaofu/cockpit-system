@@ -30,3 +30,17 @@ cockpit_default_release_build_dir() {
 cockpit_default_runtime_dir() {
   echo "$(cockpit_output_dir)/runtime"
 }
+
+cockpit_source_ros2_environment() {
+  if [[ -n "${AMENT_PREFIX_PATH:-}" ]]; then
+    return 0
+  fi
+  local setup_file="${ROS2_SETUP_BASH:-/opt/ros/humble/setup.bash}"
+  if [[ ! -f "${setup_file}" ]]; then
+    return 0
+  fi
+  set +u
+  # shellcheck disable=SC1090
+  source "${setup_file}"
+  set -u
+}

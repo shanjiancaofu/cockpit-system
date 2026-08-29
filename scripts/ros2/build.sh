@@ -20,11 +20,8 @@ if ! command -v colcon >/dev/null 2>&1; then
   echo "colcon is not installed" >&2
   exit 2
 fi
-
-# shellcheck disable=SC1091
-set +u
-source /opt/ros/humble/setup.bash
-set -u
+source "${root_dir}/scripts/lib/common.sh"
+cockpit_source_ros2_environment
 
 mkdir -p "${build_dir}" "${install_dir}" "${log_dir}"
 colcon --log-base "${log_dir}" build \
