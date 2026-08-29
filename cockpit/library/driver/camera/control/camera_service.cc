@@ -335,7 +335,7 @@ bool CameraService::DeviceExists(const std::string& device, std::uint32_t width,
             if (format.fourcc != required_fourcc) {
               return false;
             }
-            return !require_frame_size ||
+            return !require_frame_size || format.frame_sizes.empty() ||
                    std::any_of(format.frame_sizes.begin(), format.frame_sizes.end(),
                                [width, height](const FrameSizeInfo& size) {
                                  return size.width == width && size.height == height;

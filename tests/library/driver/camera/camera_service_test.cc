@@ -55,6 +55,14 @@ std::vector<cockpit::camera::PixelFormatInfo> UvcMjpegFormats(const std::string&
   return {format};
 }
 
+std::vector<cockpit::camera::PixelFormatInfo> UvcMjpegUnknownSizes(const std::string&,
+                                                                   std::string*) {
+  cockpit::camera::PixelFormatInfo format;
+  format.fourcc = V4L2_PIX_FMT_MJPEG;
+  format.fourcc_text = "MJPG";
+  return {format};
+}
+
 std::vector<cockpit::camera::PixelFormatInfo> UvcYuyvFormats(const std::string&, std::string*) {
   cockpit::camera::PixelFormatInfo format;
   format.fourcc = V4L2_PIX_FMT_YUYV;
@@ -279,6 +287,23 @@ int main() {
              "UVC frame-size mismatch did not report a deterministic error")) {
     return 1;
   }
+  cockpit::camera::CameraService unknown_uvc_size_service(
+      [](std::string*) {
+        return std::vector<cockpit::camera::VideoDeviceInfo>{CaptureDevice("/dev/video9")};
+      },
+      std::make_unique<FakePreviewSource>(), nullptr, nullptr, uvc_options, UvcMjpegUnknownSizes);
+  cockpit::camera::CameraStartPreviewRequest unknown_uvc_size_request;
+  unknown_uvc_size_request.device = "/dev/video9";
+  unknown_uvc_size_request.width = 1280;
+  unknown_uvc_size_request.height = 720;
+  std::string unknown_uvc_size_error;
+  if (!Check(
+          unknown_uvc_size_service.StartPreview(unknown_uvc_size_request, &unknown_uvc_size_error),
+          "UVC pipeline rejected a format with unknown frame-size capabilities")) {
+    std::cerr << unknown_uvc_size_error << '\n';
+    return 1;
+  }
+  unknown_uvc_size_service.StopPreview();
   cockpit::camera::CameraService service(
       [&list_calls](std::string*) {
         ++list_calls;
