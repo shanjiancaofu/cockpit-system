@@ -24,12 +24,14 @@ const cv::Mat GroundTruthCameraMatrix() {
   return (cv::Mat_<double>(3, 3) << 1000.0, 0.0, 640.0, 0.0, 1020.0, 480.0, 0.0, 0.0, 1.0);
 }
 
-bool WriteBoard(const std::filesystem::path& path, int index, bool degenerate = false) {
-  const cv::Size board_size(kSquaresX * kSquarePixels, kSquaresY * kSquarePixels);
+bool WriteBoard(const std::filesystem::path& path, int index, bool degenerate = false,
+                bool profile = false, bool front_only = false, bool missing_far = false) {
+  const int square_pixels = profile ? 128 : kSquarePixels;
+  const cv::Size board_size(kSquaresX * square_pixels, kSquaresY * square_pixels);
   cv::Mat board(board_size, CV_8UC1);
   for (int y = 0; y < kSquaresY; ++y) {
     for (int x = 0; x < kSquaresX; ++x) {
-      board(cv::Rect(x * kSquarePixels, y * kSquarePixels, kSquarePixels, kSquarePixels)) =
+      board(cv::Rect(x * square_pixels, y * square_pixels, square_pixels, square_pixels)) =
           ((x + y) & 1) == 0 ? 255 : 0;
     }
   }
@@ -53,6 +55,31 @@ bool WriteBoard(const std::filesystem::path& path, int index, bool degenerate = 
             (-0.06 + 0.02 * (index % 5))};
     tvec = {-0.025 + 0.012 * (index % 6), -0.020 + 0.009 * ((index * 2) % 6),
             0.18 + 0.015 * (index % 8)};
+    if (profile) {
+      switch (front_only ? 0 : index % 5) {
+        case 0:
+          rvec = {0.0, 0.0, 0.0};
+          break;
+        case 1:
+          rvec = {0.0, 0.22, 0.0};
+          break;
+        case 2:
+          rvec = {0.0, -0.22, 0.0};
+          break;
+        case 3:
+          rvec = {0.22, 0.0, 0.0};
+          break;
+        default:
+          rvec = {-0.22, 0.0, 0.0};
+          break;
+      }
+      tvec[2] = 0.14 + 0.04 * (index % (missing_far ? 2 : 3));
+      const int position = (index / 5) % 9;
+      const double center_x = 300.0 + 340.0 * (position % 3);
+      const double center_y = 220.0 + 260.0 * (position / 3);
+      tvec[0] = (center_x - 640.0) * tvec[2] / 1000.0 - 0.03;
+      tvec[1] = (center_y - 480.0) * tvec[2] / 1020.0 - 0.0225;
+    }
   }
   std::vector<cv::Point2f> projected;
   cv::projectPoints(board_corners, rvec, tvec, camera_matrix, distortion, projected);
@@ -152,9 +179,65 @@ int main(int argc, char** argv) {
       Run(argv[1], degenerate_dir, root / "degenerate-output",
           "--board-profile q12-70-5 --frames 20 --max-candidates 24 --duplicate-threshold 0 "
           "--grid-required 1 --blur-min 0");
+  const auto profile_dir = root / "q12-good";
+  std::filesystem::create_directories(profile_dir);
+  for (int index = 0; index < 90; ++index) {
+    if (!WriteBoard(profile_dir / ("frame-" + std::to_string(index) + ".png"), index, false, true))
+      return 1;
+  }
+  const auto profile_output = root / "q12-good-output";
+  const int profile_result =
+      Run(argv[1], profile_dir, profile_output,
+          "--board-profile q12-70-5 --frames 20 --max-candidates 40 --duplicate-threshold 0 "
+          "--blur-min 0 --near-distance 0.16 --far-distance 0.20 --tilt-threshold 8");
+  std::ifstream profile_report_stream(profile_output / "calibration_report.json");
+  const std::string profile_report((std::istreambuf_iterator<char>(profile_report_stream)),
+                                   std::istreambuf_iterator<char>());
+  const bool profile_passed =
+      profile_report.find("\"failure_reason\": \"PASS\"") != std::string::npos &&
+      profile_report.find("\"pose_coverage\": true") != std::string::npos &&
+      profile_report.find("\"distance_coverage\": true") != std::string::npos;
+  const auto front_only_dir = root / "q12-front-only";
+  std::filesystem::create_directories(front_only_dir);
+  for (int index = 0; index < 30; ++index) {
+    if (!WriteBoard(front_only_dir / ("frame-" + std::to_string(index) + ".png"), index, false,
+                    true, true))
+      return 1;
+  }
+  const auto front_only_output = root / "q12-front-only-output";
+  const int front_only_result =
+      Run(argv[1], front_only_dir, front_only_output,
+          "--board-profile q12-70-5 --frames 20 --max-candidates 30 --duplicate-threshold 0 "
+          "--blur-min 0 --near-distance 0.16 --far-distance 0.20 --tilt-threshold 8");
+  std::ifstream front_only_report_stream(front_only_output / "calibration_report.json");
+  const std::string front_only_report((std::istreambuf_iterator<char>(front_only_report_stream)),
+                                      std::istreambuf_iterator<char>());
+  const bool front_only_failed =
+      front_only_result != 0 &&
+      front_only_report.find("\"failure_reason\": \"FAIL_POSE_DIVERSITY\"") != std::string::npos;
+  const auto missing_far_dir = root / "q12-missing-far";
+  std::filesystem::create_directories(missing_far_dir);
+  for (int index = 0; index < 30; ++index) {
+    if (!WriteBoard(missing_far_dir / ("frame-" + std::to_string(index) + ".png"), index, false,
+                    true, false, true))
+      return 1;
+  }
+  const auto missing_far_output = root / "q12-missing-far-output";
+  const int missing_far_result =
+      Run(argv[1], missing_far_dir, missing_far_output,
+          "--board-profile q12-70-5 --frames 20 --max-candidates 30 --duplicate-threshold 0 "
+          "--blur-min 0 --near-distance 0.16 --far-distance 0.80 --tilt-threshold 8");
+  std::ifstream missing_far_report_stream(missing_far_output / "calibration_report.json");
+  const std::string missing_far_report((std::istreambuf_iterator<char>(missing_far_report_stream)),
+                                       std::istreambuf_iterator<char>());
+  const bool missing_far_failed =
+      missing_far_result != 0 &&
+      missing_far_report.find("\"failure_reason\": \"FAIL_DISTANCE_DIVERSITY\"") !=
+          std::string::npos;
   std::filesystem::remove_all(root);
   return success == 0 && artifacts && recovered && selection_reported && insufficient != 0 &&
-                 duplicate != 0 && mixed_result != 0 && degenerate_result != 0
+                 duplicate != 0 && mixed_result != 0 && degenerate_result != 0 &&
+                 profile_result == 0 && profile_passed && front_only_failed && missing_far_failed
              ? 0
              : 1;
 }
