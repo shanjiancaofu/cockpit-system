@@ -18,7 +18,14 @@ while (($# > 0)); do
     --camera)
       export CAMERA_REQUIRED=true
       export CAMERA_AUTO_START=true
-      export CAMERA_DEVICE="${CAMERA_DEVICE:-nvargus://0}"
+      export CAMERA_PIPELINE="${CAMERA_PIPELINE:-argus_isp}"
+      if [[ -z "${CAMERA_DEVICE:-}" ]]; then
+        if [[ "${CAMERA_PIPELINE}" == "argus_isp" ]]; then
+          export CAMERA_DEVICE="nvargus://0"
+        else
+          export CAMERA_DEVICE="/dev/video0"
+        fi
+      fi
       ;;
     -h|--help)
       usage
@@ -40,6 +47,8 @@ module_dir="${build_dir}/lib/cockpit/modules"
 source_config="$(realpath "${CONFIG_PATH:-${root_dir}/configs/development.yaml}")"
 vehicle_source="${VEHICLE_SOURCE:-mock}"
 camera_device="${CAMERA_DEVICE:-/dev/video0}"
+camera_pipeline="${CAMERA_PIPELINE:-argus_isp}"
+camera_uvc_input_format="${CAMERA_UVC_INPUT_FORMAT:-mjpeg}"
 camera_auto_start="${CAMERA_AUTO_START:-true}"
 camera_required="${CAMERA_REQUIRED:-false}"
 run_dir="${COCKPIT_RUNTIME_DIR}/run/ui-${BASHPID}"
@@ -61,8 +70,15 @@ if [[ ! -d "${module_dir}" ]]; then
 fi
 
 mkdir -p "${run_dir}"
-awk -v source="${vehicle_source}" '
+awk -v source="${vehicle_source}" -v camera_pipeline="${camera_pipeline}" \
+    -v camera_uvc_input_format="${camera_uvc_input_format}" '
   /^    source: / { sub(/source: .*/, "source: " source) }
+  /^    capture_pipeline: / {
+    sub(/capture_pipeline: .*/, "capture_pipeline: " camera_pipeline)
+  }
+  /^    uvc_input_format: / {
+    sub(/uvc_input_format: .*/, "uvc_input_format: " camera_uvc_input_format)
+  }
   { print }
 ' "${source_config}" >"${config_path}"
 

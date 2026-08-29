@@ -1,0 +1,4 @@
+services:
+  camera:
+    capture_pipeline: uvc
+    uvc_input_format: auto

@@ -1,0 +1,3 @@
+services:
+  camera:
+    capture_backend: v4l2

@@ -13,9 +13,13 @@
 namespace cockpit {
 namespace camera {
 
+enum class GstreamerCameraSource {
+  kArgusIsp,
+  kUvc,
+};
+
 class GstreamerPreviewPipeline : public CameraPreviewSource {
  public:
-  GstreamerPreviewPipeline();
   ~GstreamerPreviewPipeline() override;
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(GstreamerPreviewPipeline);
@@ -28,6 +32,12 @@ class GstreamerPreviewPipeline : public CameraPreviewSource {
   }
 
  private:
+  friend class ArgusIspPreviewSource;
+  friend class UvcPreviewSource;
+
+  explicit GstreamerPreviewPipeline(
+      GstreamerCameraSource source,
+      CameraUvcInputFormat uvc_input_format = CameraUvcInputFormat::kMjpeg);
   static void EnsureGstreamerInitialized();
   static int OnNewSample(void* appsink, void* user_data);
 
@@ -40,6 +50,8 @@ class GstreamerPreviewPipeline : public CameraPreviewSource {
   GstElement* appsink_ = nullptr;
   FrameCallback callback_;
   CameraPreviewConfig config_;
+  const GstreamerCameraSource source_;
+  const CameraUvcInputFormat uvc_input_format_;
   std::atomic_bool running_{false};
   std::uint64_t sequence_ = 0;
 };

@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
             << "process_cpu_percent=" << (wall_ms > 0.0 ? cpu_ms / wall_ms * 100.0 : 0.0) << '\n'
             << "last_raw_unpack_ms=" << timing.raw_unpack
             << " last_normalize_ms=" << timing.normalize << " last_demosaic_ms=" << timing.demosaic
-            << " last_color_correction_ms=" << timing.color_correction
-            << " last_output_ms=" << timing.output << '\n';
+            << " last_gain_gamma_ms=" << timing.gain_gamma << " last_output_ms=" << timing.output
+            << '\n';
   return 0;
 }

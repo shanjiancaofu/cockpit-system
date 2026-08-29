@@ -1,5 +1,7 @@
 #include "cockpit/library/driver/camera/control/camera_service.h"
 
+#include <linux/videodev2.h>
+
 #include <atomic>
 #include <iostream>
 #include <memory>
@@ -43,6 +45,20 @@ cockpit::camera::VideoDeviceInfo JetsonCsiDevice(const std::string& path) {
   device.card = "vi-output, imx219";
   device.bus_info = "platform:tegra-capture-vi:1";
   return device;
+}
+
+std::vector<cockpit::camera::PixelFormatInfo> UvcMjpegFormats(const std::string&, std::string*) {
+  cockpit::camera::PixelFormatInfo format;
+  format.fourcc = V4L2_PIX_FMT_MJPEG;
+  format.fourcc_text = "MJPG";
+  return {format};
+}
+
+std::vector<cockpit::camera::PixelFormatInfo> UvcYuyvFormats(const std::string&, std::string*) {
+  cockpit::camera::PixelFormatInfo format;
+  format.fourcc = V4L2_PIX_FMT_YUYV;
+  format.fourcc_text = "YUYV";
+  return {format};
 }
 
 bool Check(bool condition, const char* message) {
@@ -109,6 +125,40 @@ class FakePreviewSource : public cockpit::camera::CameraPreviewSource {
 }  // namespace
 
 int main() {
+  cockpit::camera::CameraPreviewConfig invalid_pipeline_config;
+  invalid_pipeline_config.width = 640;
+  invalid_pipeline_config.height = 480;
+  invalid_pipeline_config.fps = 30;
+  const auto discard_frame = [](cockpit::camera::CameraFrame) {
+  };
+  std::string pipeline_error;
+  auto argus_source =
+      cockpit::camera::CreateCameraPreviewSource(cockpit::camera::CameraCapturePipeline::kArgusIsp,
+                                                 cockpit::camera::CameraUvcInputFormat::kMjpeg);
+  invalid_pipeline_config.device = "/dev/video0";
+  if (!Check(argus_source != nullptr &&
+                 !argus_source->Start(invalid_pipeline_config, discard_frame, &pipeline_error),
+             "Argus pipeline accepted a V4L2 path")) {
+    return 1;
+  }
+  auto uvc_source = cockpit::camera::CreateCameraPreviewSource(
+      cockpit::camera::CameraCapturePipeline::kUvc, cockpit::camera::CameraUvcInputFormat::kMjpeg);
+  invalid_pipeline_config.device = "nvargus://0";
+  if (!Check(uvc_source != nullptr &&
+                 !uvc_source->Start(invalid_pipeline_config, discard_frame, &pipeline_error),
+             "UVC pipeline accepted an Argus URI")) {
+    return 1;
+  }
+  auto software_isp_source = cockpit::camera::CreateCameraPreviewSource(
+      cockpit::camera::CameraCapturePipeline::kSoftwareIsp,
+      cockpit::camera::CameraUvcInputFormat::kMjpeg);
+  if (!Check(
+          software_isp_source != nullptr &&
+              !software_isp_source->Start(invalid_pipeline_config, discard_frame, &pipeline_error),
+          "Software ISP pipeline accepted an Argus URI")) {
+    return 1;
+  }
+
   cockpit::camera::CameraRecordingBridgeFilter bridge_filter;
   cockpit::event::EventMessage status_message{
       "/camera/status", "camera.status", "camera-service", "{}", 100, 0};
@@ -137,7 +187,8 @@ int main() {
   cockpit::camera::CameraService jetson_device_service(
       [](std::string*) {
         return std::vector<cockpit::camera::VideoDeviceInfo>{JetsonCsiDevice("/dev/video0"),
-                                                             JetsonCsiDevice("/dev/video1")};
+                                                             JetsonCsiDevice("/dev/video1"),
+                                                             CaptureDevice("/dev/video2")};
       },
       std::make_unique<FakePreviewSource>(), nullptr);
   const auto jetson_devices = jetson_device_service.ListDevices(nullptr);
@@ -149,23 +200,55 @@ int main() {
     return 1;
   }
 
+  cockpit::camera::CameraServiceOptions software_isp_options;
+  software_isp_options.capture_pipeline = cockpit::camera::CameraCapturePipeline::kSoftwareIsp;
+  cockpit::camera::CameraService software_isp_device_service(
+      [](std::string*) {
+        return std::vector<cockpit::camera::VideoDeviceInfo>{CaptureDevice("/dev/video0"),
+                                                             JetsonCsiDevice("/dev/video2")};
+      },
+      std::make_unique<FakePreviewSource>(), nullptr, nullptr, software_isp_options);
+  const auto software_isp_devices = software_isp_device_service.ListDevices(nullptr);
+  if (!Check(software_isp_devices.size() == 1 && software_isp_devices[0].path == "/dev/video2" &&
+                 software_isp_devices[0].driver == "tegra-video",
+             "Software ISP pipeline did not isolate the tegra-video device")) {
+    return 1;
+  }
+
   int list_calls = 0;
   auto preview_source = std::make_unique<FakePreviewSource>();
   auto* preview_source_ptr = preview_source.get();
   auto message_bus = std::make_shared<cockpit::event::MessageBus>();
   auto camera_status_events = message_bus->Subscribe("/camera/status");
   auto camera_frame_events = message_bus->Subscribe("/camera/frame_meta");
+  cockpit::camera::CameraServiceOptions uvc_options;
+  uvc_options.capture_pipeline = cockpit::camera::CameraCapturePipeline::kUvc;
+  cockpit::camera::CameraService mismatched_uvc_service(
+      [](std::string*) {
+        return std::vector<cockpit::camera::VideoDeviceInfo>{CaptureDevice("/dev/video9")};
+      },
+      std::make_unique<FakePreviewSource>(), nullptr, nullptr, uvc_options, UvcYuyvFormats);
+  cockpit::camera::CameraStartPreviewRequest mismatched_uvc_request;
+  mismatched_uvc_request.device = "/dev/video9";
+  std::string mismatched_uvc_error;
+  if (!Check(!mismatched_uvc_service.StartPreview(mismatched_uvc_request, &mismatched_uvc_error),
+             "MJPEG UVC pipeline accepted a YUYV-only device") ||
+      !Check(mismatched_uvc_error.find("configured pipeline format") != std::string::npos,
+             "UVC format mismatch did not report a deterministic error")) {
+    return 1;
+  }
   cockpit::camera::CameraService service(
       [&list_calls](std::string*) {
         ++list_calls;
         return std::vector<cockpit::camera::VideoDeviceInfo>{CaptureDevice("/dev/video0"),
                                                              MetadataDevice("/dev/video1")};
       },
-      std::move(preview_source), nullptr, message_bus);
+      std::move(preview_source), nullptr, message_bus, uvc_options, UvcMjpegFormats);
 
   std::string error;
   const auto devices = service.ListDevices(&error);
-  if (!Check(devices.size() == 2, "camera service did not list devices") ||
+  if (!Check(devices.size() == 1 && devices[0].path == "/dev/video0",
+             "UVC pipeline did not filter metadata-only devices") ||
       !Check(error.empty(), "camera service returned unexpected list error")) {
     return 1;
   }
@@ -264,9 +347,14 @@ int main() {
   }
 
   request.device = "nvargus://0";
-  if (!Check(service.StartPreview(request, &error), "nvargus camera preview start failed") ||
-      !Check(preview_source_ptr->config().device == "nvargus://0",
-             "nvargus camera preview device mismatch")) {
+  if (!Check(!service.StartPreview(request, &error), "UVC pipeline accepted an Argus device") ||
+      !Check(error.find("not available") != std::string::npos,
+             "UVC/Argus mismatch did not fail closed")) {
+    return 1;
+  }
+
+  request.device = "/dev/video0";
+  if (!Check(service.StartPreview(request, &error), "UVC preview did not recover after mismatch")) {
     std::cerr << error << '\n';
     return 1;
   }

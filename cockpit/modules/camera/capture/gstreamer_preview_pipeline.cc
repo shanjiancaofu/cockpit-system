@@ -122,7 +122,9 @@ std::string ReadBusError(GstElement* pipeline, const std::string& fallback) {
 
 }  // namespace
 
-GstreamerPreviewPipeline::GstreamerPreviewPipeline() {
+GstreamerPreviewPipeline::GstreamerPreviewPipeline(GstreamerCameraSource source,
+                                                   CameraUvcInputFormat uvc_input_format)
+    : source_(source), uvc_input_format_(uvc_input_format) {
   EnsureGstreamerInitialized();
 }
 
@@ -145,18 +147,15 @@ bool GstreamerPreviewPipeline::Start(const CameraPreviewConfig& config, FrameCal
     SetError(error, "invalid camera preview config");
     return false;
   }
-  const bool is_argus = normalized.device.rfind("nvargus://", 0) == 0;
-  const bool is_v4l2 = IsV4l2VideoDevice(normalized.device);
-  if (!is_argus && !is_v4l2) {
-    SetError(error, "GStreamer camera source requires nvargus://<sensor-id> or /dev/video<N>");
-    return false;
-  }
-  if (is_argus) {
+  if (source_ == GstreamerCameraSource::kArgusIsp) {
     int sensor_id = -1;
     if (!ParseNvArgusSensorId(normalized.device, &sensor_id)) {
-      SetError(error, "invalid nvargus camera device; expected nvargus://<sensor-id>");
+      SetError(error, "Argus ISP pipeline requires nvargus://<sensor-id>");
       return false;
     }
+  } else if (!IsV4l2VideoDevice(normalized.device)) {
+    SetError(error, "UVC pipeline requires a /dev/video<N> device");
+    return false;
   }
 
   GError* gst_error = nullptr;
@@ -345,10 +344,17 @@ std::string GstreamerPreviewPipeline::BuildPipelineDescription(
     stream << "videorate ! video/x-raw,format=" << GstFormat(config.output_format)
            << ",width=" << config.width << ",height=" << config.height
            << ",framerate=" << config.fps << "/1 ! ";
-  } else if (IsV4l2VideoDevice(config.device)) {
-    stream << "v4l2src device=" << config.device << " ! videoconvert ! videoscale ! videorate ! "
-           << "video/x-raw,format=" << GstFormat(config.output_format) << ",width=" << config.width
-           << ",height=" << config.height << ",framerate=" << config.fps << "/1 ! ";
+  } else if (source_ == GstreamerCameraSource::kUvc && IsV4l2VideoDevice(config.device)) {
+    stream << "v4l2src device=" << config.device << " ! ";
+    if (uvc_input_format_ == CameraUvcInputFormat::kMjpeg) {
+      stream << "image/jpeg,width=" << config.width << ",height=" << config.height
+             << ",framerate=" << config.fps << "/1 ! jpegparse ! jpegdec ! ";
+    } else {
+      stream << "video/x-raw,format=YUY2,width=" << config.width << ",height=" << config.height
+             << ",framerate=" << config.fps << "/1 ! ";
+    }
+    stream << "videoconvert ! video/x-raw,format=" << GstFormat(config.output_format)
+           << ",width=" << config.width << ",height=" << config.height << " ! ";
   }
   stream << "appsink name=preview_sink emit-signals=true sync=false max-buffers=2 drop=true";
   return stream.str();

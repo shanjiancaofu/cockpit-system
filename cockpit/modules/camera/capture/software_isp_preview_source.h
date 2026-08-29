@@ -15,7 +15,7 @@
 
 namespace cockpit::camera {
 
-struct V4l2PreviewStats {
+struct SoftwareIspPreviewStats {
   std::uint64_t captured_frames = 0;
   std::uint64_t processed_frames = 0;
   std::uint64_t dropped_queue_frames = 0;
@@ -27,10 +27,10 @@ struct V4l2PreviewStats {
   SoftwareIspTimingMs isp_mean_ms;
 };
 
-class V4l2PreviewSource final : public CameraPreviewSource {
+class SoftwareIspPreviewSource final : public CameraPreviewSource {
  public:
-  V4l2PreviewSource() = default;
-  ~V4l2PreviewSource() override;
+  SoftwareIspPreviewSource() = default;
+  ~SoftwareIspPreviewSource() override;
 
   bool Start(const CameraPreviewConfig& config, FrameCallback callback,
              std::string* error) override;
@@ -38,7 +38,7 @@ class V4l2PreviewSource final : public CameraPreviewSource {
   bool IsRunning() const override {
     return running_.load();
   }
-  V4l2PreviewStats stats() const;
+  SoftwareIspPreviewStats stats() const;
 
  private:
   struct PendingFrame {
@@ -58,7 +58,7 @@ class V4l2PreviewSource final : public CameraPreviewSource {
   std::condition_variable queue_condition_;
   std::deque<PendingFrame> queue_;
   std::deque<double> latency_samples_ms_;
-  V4l2PreviewStats stats_;
+  SoftwareIspPreviewStats stats_;
   std::atomic_bool stop_requested_{false};
   std::atomic_bool running_{false};
   std::thread capture_worker_;

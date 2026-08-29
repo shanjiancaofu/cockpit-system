@@ -71,8 +71,9 @@ bool CameraRuntime::Start(const std::string& config_path) {
     CameraServiceOptions camera_options;
     camera_options.preview_stale_timeout_ms =
         static_cast<std::uint64_t>(camera_config.preview_stale_timeout_ms);
-    camera_options.capture_backend = camera_config.capture_backend;
-    if (camera_config.capture_backend == "synthetic") {
+    camera_options.capture_pipeline = ParseCameraCapturePipeline(camera_config.capture_pipeline);
+    camera_options.uvc_input_format = ParseCameraUvcInputFormat(camera_config.uvc_input_format);
+    if (camera_options.capture_pipeline == CameraCapturePipeline::kSynthetic) {
       SyntheticCameraOptions synthetic_options;
       synthetic_options.fault = ParseSyntheticCameraFault(camera_config.synthetic_fault);
       synthetic_options.fault_after_frames =
@@ -92,7 +93,12 @@ bool CameraRuntime::Start(const std::string& config_path) {
           std::make_unique<SyntheticPreviewSource>(synthetic_options), std::move(frame_sink),
           impl_->message_bus, camera_options);
     } else {
-      auto preview_source = CreateCameraPreviewSource(camera_config.capture_backend);
+      auto preview_source = CreateCameraPreviewSource(camera_options.capture_pipeline,
+                                                      camera_options.uvc_input_format);
+      if (preview_source == nullptr) {
+        LOG_ERROR("camera capture pipeline has no preview source");
+        return false;
+      }
       impl_->service = std::make_unique<CameraService>(
           [](std::string* list_error) {
             return V4l2Camera::ListDevices(list_error);

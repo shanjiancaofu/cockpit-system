@@ -118,7 +118,7 @@ bool SoftwareIsp::Process(const RawBayerFrame& raw, CameraFrame* output, std::st
     timing->raw_unpack = milliseconds(unpack_finished - total_started);
     timing->normalize = milliseconds(normalize_finished - unpack_finished);
     timing->demosaic = milliseconds(demosaic_finished - normalize_finished);
-    timing->color_correction = milliseconds(color_finished - demosaic_finished);
+    timing->gain_gamma = milliseconds(color_finished - demosaic_finished);
     timing->output = milliseconds(std::chrono::steady_clock::now() - color_finished);
     timing->total = milliseconds(std::chrono::steady_clock::now() - total_started);
   }

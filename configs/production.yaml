@@ -31,7 +31,8 @@ services:
     grpc:
       listen_address: unix:/cockpit-system/run/audio.grpc.sock
   camera:
-    capture_backend: gstreamer
+    capture_pipeline: argus_isp
+    uvc_input_format: mjpeg
     preview_stale_timeout_ms: 2000
     synthetic_fault: none
     synthetic_fault_after_frames: 30

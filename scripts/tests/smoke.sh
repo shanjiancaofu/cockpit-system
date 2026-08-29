@@ -49,7 +49,7 @@ awk '
   }
   /^    input_device:/ { sub(/input_device:.*/, "input_device: \"null\"") }
   /^    output_device:/ { sub(/output_device:.*/, "output_device: \"null\"") }
-  /^    capture_backend: gstreamer$/ { sub(/gstreamer$/, "synthetic") }
+  /^    capture_pipeline: argus_isp$/ { sub(/argus_isp$/, "synthetic") }
   { print }
 ' "${source_config}" >"${config_path}"
 

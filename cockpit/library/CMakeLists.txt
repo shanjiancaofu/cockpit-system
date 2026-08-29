@@ -45,7 +45,7 @@ target_link_libraries(audio_runtime PUBLIC
 )
 
 add_library(camera_preview STATIC driver/camera/preview/camera_preview_module.cc)
-target_link_libraries(camera_preview PUBLIC camera_capture runtime v4l2_camera_source)
+target_link_libraries(camera_preview PUBLIC camera_capture runtime software_isp_camera_source)
 
 add_library(camera_control STATIC driver/camera/control/camera_service.cc)
 target_link_libraries(camera_control PUBLIC base camera_frames camera_preview event runtime v4l2_camera)

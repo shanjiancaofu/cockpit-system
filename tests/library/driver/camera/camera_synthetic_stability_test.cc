@@ -58,6 +58,7 @@ bool TestFault(cockpit::camera::SyntheticCameraFault fault, std::uint64_t fault_
   auto* source_ptr = source.get();
   cockpit::camera::CameraServiceOptions service_options;
   service_options.preview_stale_timeout_ms = 40;
+  service_options.capture_pipeline = cockpit::camera::CameraCapturePipeline::kSynthetic;
   cockpit::camera::CameraService service(
       [](std::string*) {
         return std::vector<cockpit::camera::VideoDeviceInfo>{SyntheticDevice()};

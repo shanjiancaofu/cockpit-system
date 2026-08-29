@@ -8,10 +8,22 @@
 namespace cockpit {
 namespace camera {
 
+enum class CameraCapturePipeline {
+  kArgusIsp,
+  kUvc,
+  kSoftwareIsp,
+  kSynthetic,
+};
+
+enum class CameraUvcInputFormat {
+  kMjpeg,
+  kYuyv,
+};
+
 struct CameraPreviewConfig {
   std::string device = "/dev/video0";
-  std::uint32_t width = 640;
-  std::uint32_t height = 480;
+  std::uint32_t width = 1920;
+  std::uint32_t height = 1080;
   std::uint32_t fps = 30;
   CameraPixelFormat output_format = CameraPixelFormat::kBgrx;
 };

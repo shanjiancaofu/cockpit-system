@@ -13,8 +13,8 @@
 - mock ASR/TTS 语音链路，以及显式 Agent 构建中的 Sherpa KWS / Silero VAD / SenseVoice / Kokoro
   provider；Ubuntu x86_64 已有固定资源 smoke，默认构建仍不加载模型。
 - 语音意图、动作分发、车辆状态查询和 Qt 相机页面控制。
-- 三层 Camera 链路：Direct V4L2 userspace（ioctl/MMAP/RG10/RAW）、GStreamer + Jetson Argus 硬件 ISP，以及独立的 V4L2 kernel driver 学习线。
-- Direct V4L2 已支持 IMX219 RG10 MMAP、`bypass_mode=0`、采集/ISP 双线程有界队列、Software ISP（BLC/WB/demosaic/gamma）和 ARM64 NEON；1920×1080@30 实测 0 丢帧。
+- 三条固定 Camera pipeline：`argus_isp`、USB `uvc` 和 `software_isp`；设备、输入 fourcc 与 ISP 组合严格校验，另保留独立 V4L2 kernel driver 学习线。
+- `software_isp` 已支持 IMX219 RG10 MMAP、`bypass_mode=0`、采集/ISP 双线程有界队列、BLC/WB/demosaic/gamma 和 ARM64 NEON；公开输出为 BGRx，1920×1080@30 实测 0 丢帧。
 - Jetson Argus CSI 通过 GStreamer 获取 ISP 后 BGRx；CUDA ISP 目前仅为性能 prototype，完成了性能和图像质量对比，尚未替换 CPU 默认路径。
 - 相机帧 POSIX shared memory 双缓冲。
 - 基于最新共享帧的 JPEG 拍照，支持 camera-ctl 和 Qt UI。
@@ -177,10 +177,12 @@ bash scripts/run/cockpit-ui.sh
 bash scripts/run/cockpit-ui.sh --camera
 ```
 
-Jetson CSI 默认使用 `nvargus://0`。USB 摄像头可显式指定：
+Jetson CSI 默认使用 `argus_isp + nvargus://0`。USB UVC 摄像头必须显式选择输入
+fourcc 策略；1080p30 常用 MJPEG，设备只提供未压缩格式时选择 YUYV：
 
 ```bash
-CAMERA_DEVICE=/dev/video0 bash scripts/run/cockpit-ui.sh --camera
+CAMERA_PIPELINE=uvc CAMERA_UVC_INPUT_FORMAT=mjpeg CAMERA_DEVICE=/dev/video0 \
+  bash scripts/run/cockpit-ui.sh --camera
 ```
 
 ## Camera V4L2/Argus/ISP 性能基线
@@ -191,10 +193,16 @@ _output/build/arm64-debug/bin/camera-preview-probe \
   --backend argus --device nvargus://0 --width 1920 --height 1080 \
   --fps 30 --frames 30 --config configs/development.yaml
 
-# Direct V4L2 + Software ISP（需要 Jetson tegra-video 的 bypass_mode=0）
+# V4L2 MMAP + Software ISP（需要 Jetson tegra-video 的 bypass_mode=0）
 _output/build/arm64-debug/bin/camera-preview-probe \
-  --backend v4l2 --device /dev/video0 --width 1920 --height 1080 \
+  --backend software_isp --device /dev/video0 --width 1920 --height 1080 \
   --fps 30 --frames 300 --timeout-ms 30000 --config configs/development.yaml
+
+# USB UVC MJPEG；若设备枚举只支持 YUYV，改成 --uvc-input-format yuyv
+_output/build/arm64-debug/bin/camera-preview-probe \
+  --backend uvc --uvc-input-format mjpeg --device /dev/video1 \
+  --width 1920 --height 1080 --fps 30 --frames 300 \
+  --timeout-ms 30000 --config configs/development.yaml
 ```
 
 Jetson 实测 Direct V4L2 + NEON Software ISP 在 1920×1080 下约 30 fps，ISP 平均约 16.3 ms，最近
@@ -227,7 +235,8 @@ newgrp video
 
 ```bash
 _output/build/x86_64-debug/bin/camera-preview-probe \
-  --device /dev/video0 --frames 30 --config configs/development.yaml
+  --backend uvc --uvc-input-format mjpeg --device /dev/video0 \
+  --frames 30 --config configs/development.yaml
 ```
 
 ## ASR

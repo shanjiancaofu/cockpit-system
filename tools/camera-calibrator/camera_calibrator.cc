@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-#include "cockpit/modules/camera/capture/gstreamer_preview_pipeline.h"
+#include "cockpit/modules/camera/capture/argus_isp_preview_source.h"
 
 namespace {
 
@@ -433,7 +433,7 @@ int main(int argc, char** argv) {
       if (static_cast<int>(accepted.size()) >= options.frames) break;
     }
   } else {
-    cockpit::camera::GstreamerPreviewPipeline pipeline;
+    cockpit::camera::ArgusIspPreviewSource pipeline;
     std::mutex mutex;
     std::condition_variable condition;
     std::string error;

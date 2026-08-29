@@ -34,7 +34,7 @@ struct SoftwareIspTimingMs {
   double raw_unpack = 0.0;
   double normalize = 0.0;
   double demosaic = 0.0;
-  double color_correction = 0.0;
+  double gain_gamma = 0.0;
   double output = 0.0;
   double total = 0.0;
 };

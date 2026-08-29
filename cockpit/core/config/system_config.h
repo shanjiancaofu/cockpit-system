@@ -66,7 +66,8 @@ struct AudioDriverConfig {
 
 struct CameraServiceConfig {
   GrpcServerConfig grpc{"127.0.0.1:50054"};
-  std::string capture_backend = "gstreamer";
+  std::string capture_pipeline = "argus_isp";
+  std::string uvc_input_format = "mjpeg";
   int preview_stale_timeout_ms = 2000;
   std::string synthetic_fault = "none";
   int synthetic_fault_after_frames = 30;

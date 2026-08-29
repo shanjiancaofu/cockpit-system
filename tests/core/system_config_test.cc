@@ -77,7 +77,8 @@ int main() {
       config.features().voice.kws.model_dir != "" ||
       config.features().voice.vad.provider != "mock" ||
       config.features().voice.speech_segment.max_segment_ms != 15000 ||
-      config.services().camera.capture_backend != "gstreamer" ||
+      config.services().camera.capture_pipeline != "argus_isp" ||
+      config.services().camera.uvc_input_format != "mjpeg" ||
       config.services().camera.preview_stale_timeout_ms != 2000 ||
       config.services().camera.synthetic_fault != "none" ||
       config.services().camera.synthetic_fault_after_frames != 30 ||
@@ -292,6 +293,43 @@ int main() {
     const std::string message = error.what();
     if (message.find("hardware.audio.sample_rate_hz") == std::string::npos) {
       std::cerr << "invalid audio format error did not identify config path: " << message
+                << std::endl;
+      return 1;
+    }
+  }
+
+  try {
+    cockpit::config::SystemConfig::LoadFromFile(INVALID_CAMERA_PIPELINE_PATH);
+    std::cerr << "invalid camera pipeline was accepted" << std::endl;
+    return 1;
+  } catch (const std::runtime_error& error) {
+    if (std::string(error.what()).find("services.camera.capture_pipeline") == std::string::npos) {
+      std::cerr << "invalid camera pipeline error did not identify config path: " << error.what()
+                << std::endl;
+      return 1;
+    }
+  }
+
+  try {
+    cockpit::config::SystemConfig::LoadFromFile(INVALID_CAMERA_UVC_FORMAT_PATH);
+    std::cerr << "invalid UVC input format was accepted" << std::endl;
+    return 1;
+  } catch (const std::runtime_error& error) {
+    if (std::string(error.what()).find("services.camera.uvc_input_format") == std::string::npos) {
+      std::cerr << "invalid UVC format error did not identify config path: " << error.what()
+                << std::endl;
+      return 1;
+    }
+  }
+
+  try {
+    cockpit::config::SystemConfig::LoadFromFile(INVALID_LEGACY_CAMERA_BACKEND_PATH);
+    std::cerr << "legacy camera backend was accepted" << std::endl;
+    return 1;
+  } catch (const std::runtime_error& error) {
+    if (std::string(error.what()).find("services.camera.capture_backend is not supported") ==
+        std::string::npos) {
+      std::cerr << "legacy camera backend error did not identify config path: " << error.what()
                 << std::endl;
       return 1;
     }

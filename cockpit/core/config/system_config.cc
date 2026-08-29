@@ -189,18 +189,22 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(audio_grpc, "listen_address", config.services_.audio.grpc.listen_address,
            "services.audio.grpc.listen_address");
   const YAML::Node camera_service = ChildMap(services, "camera", "services.camera");
-  ValidateKeys(camera_service, "services.camera",
-               {"grpc", "capture_backend", "preview_stale_timeout_ms", "synthetic_fault",
-                "synthetic_fault_after_frames", "shared_memory_name", "max_frame_bytes",
-                "photo_directory", "photo_jpeg_quality", "photo_max_frame_age_ms"});
+  ValidateKeys(
+      camera_service, "services.camera",
+      {"grpc", "capture_pipeline", "uvc_input_format", "preview_stale_timeout_ms",
+       "synthetic_fault", "synthetic_fault_after_frames", "shared_memory_name", "max_frame_bytes",
+       "photo_directory", "photo_jpeg_quality", "photo_max_frame_age_ms"});
   const YAML::Node camera_grpc = ChildMap(camera_service, "grpc", "services.camera.grpc");
   ValidateKeys(camera_grpc, "services.camera.grpc", {"listen_address"});
   config.services_.camera.grpc.listen_address =
       Read(camera_grpc, "listen_address", config.services_.camera.grpc.listen_address,
            "services.camera.grpc.listen_address");
-  config.services_.camera.capture_backend =
-      Read(camera_service, "capture_backend", config.services_.camera.capture_backend,
-           "services.camera.capture_backend");
+  config.services_.camera.capture_pipeline =
+      Read(camera_service, "capture_pipeline", config.services_.camera.capture_pipeline,
+           "services.camera.capture_pipeline");
+  config.services_.camera.uvc_input_format =
+      Read(camera_service, "uvc_input_format", config.services_.camera.uvc_input_format,
+           "services.camera.uvc_input_format");
   config.services_.camera.preview_stale_timeout_ms = Read(
       camera_service, "preview_stale_timeout_ms", config.services_.camera.preview_stale_timeout_ms,
       "services.camera.preview_stale_timeout_ms");
@@ -581,11 +585,14 @@ void SystemConfig::Validate() const {
         "features.voice.speech_segment.pre_roll_ms must be less than max_segment_ms");
   }
   ValidateAddress(services_.camera.grpc.listen_address, "services.camera.grpc.listen_address");
-  const auto& camera_backend = services_.camera.capture_backend;
-  if (camera_backend != "gstreamer" && camera_backend != "argus" && camera_backend != "v4l2" &&
-      camera_backend != "synthetic") {
+  const auto& camera_pipeline = services_.camera.capture_pipeline;
+  if (camera_pipeline != "argus_isp" && camera_pipeline != "uvc" &&
+      camera_pipeline != "software_isp" && camera_pipeline != "synthetic") {
     throw std::runtime_error(
-        "services.camera.capture_backend must be gstreamer, argus, v4l2, or synthetic");
+        "services.camera.capture_pipeline must be argus_isp, uvc, software_isp, or synthetic");
+  }
+  if (services_.camera.uvc_input_format != "mjpeg" && services_.camera.uvc_input_format != "yuyv") {
+    throw std::runtime_error("services.camera.uvc_input_format must be mjpeg or yuyv");
   }
   RequirePositive(services_.camera.preview_stale_timeout_ms,
                   "services.camera.preview_stale_timeout_ms");

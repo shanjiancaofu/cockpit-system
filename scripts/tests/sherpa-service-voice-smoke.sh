@@ -86,7 +86,7 @@ sed \
   -e "s|127.0.0.1:50057|unix:${run_root}/sentinel.sock|g" \
   -e "s|127.0.0.1:50058|unix:${run_root}/bridge.sock|g" \
   -e '/^  audio:$/,/^  camera:$/s/^    auto_start: false$/    auto_start: true/' \
-  -e 's/^    capture_backend: gstreamer$/    capture_backend: synthetic/' \
+  -e 's/^    capture_pipeline: argus_isp$/    capture_pipeline: synthetic/' \
   -e 's/^    input_device: .*$/    input_device: "null"/' \
   -e '0,/^    enabled: false$/s//    enabled: true/' \
   -e '/^    kws:$/,/^    vad:$/s/^      enabled: false$/      enabled: true/' \

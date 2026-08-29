@@ -1,4 +1,4 @@
-#include "cockpit/modules/camera/capture/v4l2_preview_source.h"
+#include "cockpit/modules/camera/capture/software_isp_preview_source.h"
 
 #include <linux/videodev2.h>
 
@@ -12,12 +12,12 @@
 
 namespace cockpit::camera {
 
-V4l2PreviewSource::~V4l2PreviewSource() {
+SoftwareIspPreviewSource::~SoftwareIspPreviewSource() {
   Stop();
 }
 
-bool V4l2PreviewSource::Start(const CameraPreviewConfig& config, FrameCallback callback,
-                              std::string* error) {
+bool SoftwareIspPreviewSource::Start(const CameraPreviewConfig& config, FrameCallback callback,
+                                     std::string* error) {
   Stop();
   if (!callback || config.device.rfind("/dev/video", 0) != 0 || config.width == 0 ||
       config.height == 0 || config.fps == 0) {
@@ -40,12 +40,12 @@ bool V4l2PreviewSource::Start(const CameraPreviewConfig& config, FrameCallback c
   }
   stop_requested_.store(false);
   running_.store(true);
-  capture_worker_ = std::thread(&V4l2PreviewSource::CaptureLoop, this);
-  isp_worker_ = std::thread(&V4l2PreviewSource::IspLoop, this);
+  capture_worker_ = std::thread(&SoftwareIspPreviewSource::CaptureLoop, this);
+  isp_worker_ = std::thread(&SoftwareIspPreviewSource::IspLoop, this);
   return true;
 }
 
-void V4l2PreviewSource::Stop() {
+void SoftwareIspPreviewSource::Stop() {
   stop_requested_.store(true);
   queue_condition_.notify_all();
   if (capture_worker_.joinable()) capture_worker_.join();
@@ -57,13 +57,13 @@ void V4l2PreviewSource::Stop() {
   running_.store(false);
 }
 
-void V4l2PreviewSource::ResetStats() {
+void SoftwareIspPreviewSource::ResetStats() {
   queue_.clear();
   latency_samples_ms_.clear();
   stats_ = {};
 }
 
-void V4l2PreviewSource::CaptureLoop() {
+void SoftwareIspPreviewSource::CaptureLoop() {
   std::uint32_t previous_sequence = 0;
   bool have_sequence = false;
   while (!stop_requested_.load()) {
@@ -113,7 +113,7 @@ void V4l2PreviewSource::CaptureLoop() {
   }
 }
 
-void V4l2PreviewSource::IspLoop() {
+void SoftwareIspPreviewSource::IspLoop() {
   while (!stop_requested_.load()) {
     PendingFrame pending;
     FrameCallback callback;
@@ -153,8 +153,8 @@ void V4l2PreviewSource::IspLoop() {
       stats_.isp_mean_ms.normalize =
           add_mean(stats_.isp_mean_ms.normalize, timing.normalize, count);
       stats_.isp_mean_ms.demosaic = add_mean(stats_.isp_mean_ms.demosaic, timing.demosaic, count);
-      stats_.isp_mean_ms.color_correction =
-          add_mean(stats_.isp_mean_ms.color_correction, timing.color_correction, count);
+      stats_.isp_mean_ms.gain_gamma =
+          add_mean(stats_.isp_mean_ms.gain_gamma, timing.gain_gamma, count);
       stats_.isp_mean_ms.output = add_mean(stats_.isp_mean_ms.output, timing.output, count);
       stats_.isp_mean_ms.total = add_mean(stats_.isp_mean_ms.total, timing.total, count);
     }
@@ -163,9 +163,9 @@ void V4l2PreviewSource::IspLoop() {
   running_.store(false);
 }
 
-V4l2PreviewStats V4l2PreviewSource::stats() const {
+SoftwareIspPreviewStats SoftwareIspPreviewSource::stats() const {
   std::lock_guard<std::mutex> lock(mutex_);
-  V4l2PreviewStats result = stats_;
+  SoftwareIspPreviewStats result = stats_;
   if (!latency_samples_ms_.empty()) {
     std::vector<double> samples(latency_samples_ms_.begin(), latency_samples_ms_.end());
     std::sort(samples.begin(), samples.end());

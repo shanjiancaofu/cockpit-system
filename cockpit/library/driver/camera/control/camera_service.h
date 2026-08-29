@@ -60,14 +60,20 @@ struct CameraStartPreviewRequest {
 
 struct CameraServiceOptions {
   std::uint64_t preview_stale_timeout_ms = 2000;
-  std::string capture_backend = "gstreamer";
+  CameraCapturePipeline capture_pipeline = CameraCapturePipeline::kArgusIsp;
+  CameraUvcInputFormat uvc_input_format = CameraUvcInputFormat::kMjpeg;
 };
 
-std::unique_ptr<CameraPreviewSource> CreateCameraPreviewSource(const std::string& backend);
+CameraCapturePipeline ParseCameraCapturePipeline(const std::string& value);
+CameraUvcInputFormat ParseCameraUvcInputFormat(const std::string& value);
+std::unique_ptr<CameraPreviewSource> CreateCameraPreviewSource(
+    CameraCapturePipeline pipeline, CameraUvcInputFormat uvc_input_format);
 
 class CameraService {
  public:
   using DeviceLister = std::function<std::vector<VideoDeviceInfo>(std::string*)>;
+  using FormatLister =
+      std::function<std::vector<PixelFormatInfo>(const std::string&, std::string*)>;
 
   CameraService();
   explicit CameraService(std::shared_ptr<CameraFrameSink> frame_sink);
@@ -79,7 +85,8 @@ class CameraService {
                 std::shared_ptr<CameraFrameSink> frame_sink = nullptr);
   CameraService(DeviceLister device_lister, std::unique_ptr<CameraPreviewSource> preview_source,
                 std::shared_ptr<CameraFrameSink> frame_sink,
-                std::shared_ptr<event::MessageBus> message_bus, CameraServiceOptions options = {});
+                std::shared_ptr<event::MessageBus> message_bus, CameraServiceOptions options = {},
+                FormatLister format_lister = {});
   ~CameraService();
 
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(CameraService);
@@ -98,6 +105,7 @@ class CameraService {
   void PublishFrameEvent(const CameraFrame& frame, std::uint64_t received_at_ms) const;
 
   DeviceLister device_lister_;
+  FormatLister format_lister_;
   runtime::ModuleManager module_manager_;
   CameraPreviewModule* preview_module_{nullptr};
   std::shared_ptr<CameraFrameSink> frame_sink_;

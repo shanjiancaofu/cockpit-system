@@ -14,9 +14,11 @@ target_link_libraries(camera_isp PUBLIC camera_frames ${OpenCV_LIBS})
 
 add_library(camera_capture INTERFACE)
 
-add_library(v4l2_camera_source STATIC capture/v4l2_preview_source.cc)
-target_link_libraries(v4l2_camera_source PUBLIC camera_capture camera_isp v4l2_camera time_util Threads::Threads)
-target_include_directories(v4l2_camera_source PUBLIC ${PROJECT_SOURCE_DIR})
+add_library(software_isp_camera_source STATIC capture/software_isp_preview_source.cc)
+target_link_libraries(software_isp_camera_source PUBLIC
+    camera_capture camera_isp v4l2_camera time_util Threads::Threads
+)
+target_include_directories(software_isp_camera_source PUBLIC ${PROJECT_SOURCE_DIR})
 add_library(synthetic_camera STATIC capture/synthetic_preview_source.cc)
 target_link_libraries(synthetic_camera PUBLIC camera_capture time_util Threads::Threads)
 

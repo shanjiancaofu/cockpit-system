@@ -1,14 +1,18 @@
 #include "camera_service.h"
 
+#include <linux/videodev2.h>
+
 #include <algorithm>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <utility>
 
 #include "cockpit/core/json/json.h"
 #include "cockpit/core/time/time.h"
-#include "cockpit/modules/camera/capture/gstreamer_preview_pipeline.h"
-#include "cockpit/modules/camera/capture/v4l2_preview_source.h"
+#include "cockpit/modules/camera/capture/argus_isp_preview_source.h"
+#include "cockpit/modules/camera/capture/software_isp_preview_source.h"
+#include "cockpit/modules/camera/capture/uvc_preview_source.h"
 #include "cockpit/modules/camera/frames/latest_frame_buffer.h"
 
 namespace cockpit {
@@ -22,38 +26,66 @@ void AssignError(std::string* error, const std::string& message) {
 }
 
 std::unique_ptr<CameraPreviewSource> CreateDefaultPreviewSource() {
-  return std::make_unique<GstreamerPreviewPipeline>();
+  return std::make_unique<ArgusIspPreviewSource>();
 }
 
 }  // namespace
 
-std::unique_ptr<CameraPreviewSource> CreateCameraPreviewSource(const std::string& backend) {
-  if (backend == "v4l2") {
-    return std::make_unique<V4l2PreviewSource>();
+CameraCapturePipeline ParseCameraCapturePipeline(const std::string& value) {
+  if (value == "argus_isp") return CameraCapturePipeline::kArgusIsp;
+  if (value == "uvc") return CameraCapturePipeline::kUvc;
+  if (value == "software_isp") return CameraCapturePipeline::kSoftwareIsp;
+  if (value == "synthetic") return CameraCapturePipeline::kSynthetic;
+  throw std::invalid_argument("unsupported camera capture pipeline: " + value);
+}
+
+CameraUvcInputFormat ParseCameraUvcInputFormat(const std::string& value) {
+  if (value == "mjpeg") return CameraUvcInputFormat::kMjpeg;
+  if (value == "yuyv") return CameraUvcInputFormat::kYuyv;
+  throw std::invalid_argument("unsupported UVC input format: " + value);
+}
+
+std::unique_ptr<CameraPreviewSource> CreateCameraPreviewSource(
+    CameraCapturePipeline pipeline, CameraUvcInputFormat uvc_input_format) {
+  if (pipeline == CameraCapturePipeline::kArgusIsp) {
+    return std::make_unique<ArgusIspPreviewSource>();
   }
-  return std::make_unique<GstreamerPreviewPipeline>();
+  if (pipeline == CameraCapturePipeline::kUvc) {
+    return std::make_unique<UvcPreviewSource>(uvc_input_format);
+  }
+  if (pipeline == CameraCapturePipeline::kSoftwareIsp) {
+    return std::make_unique<SoftwareIspPreviewSource>();
+  }
+  return nullptr;
 }
 
 namespace {
 
 std::vector<VideoDeviceInfo> NormalizePreviewDevices(std::vector<VideoDeviceInfo> devices,
-                                                     const std::string& backend) {
-  if (backend == "v4l2" || backend == "synthetic") {
+                                                     CameraCapturePipeline pipeline) {
+  if (pipeline == CameraCapturePipeline::kSynthetic) {
     return devices;
   }
+  std::vector<VideoDeviceInfo> normalized;
   std::uint32_t argus_sensor_id = 0;
-  for (auto& device : devices) {
+  for (auto device : devices) {
     const bool jetson_csi = device.query_ok && device.supports_capture &&
                             device.supports_streaming && device.driver == "tegra-video" &&
                             device.bus_info.rfind("platform:tegra-capture-vi", 0) == 0;
-    if (!jetson_csi) {
-      continue;
+    const bool uvc = device.query_ok && device.supports_capture && device.supports_streaming &&
+                     device.driver == "uvcvideo" && device.bus_info.rfind("usb-", 0) == 0;
+    if (pipeline == CameraCapturePipeline::kArgusIsp && jetson_csi) {
+      device.path = "nvargus://" + std::to_string(argus_sensor_id++);
+      device.driver = "nvargus";
+      device.card += " (Argus ISP)";
+      normalized.push_back(std::move(device));
+    } else if (pipeline == CameraCapturePipeline::kUvc && uvc) {
+      normalized.push_back(std::move(device));
+    } else if (pipeline == CameraCapturePipeline::kSoftwareIsp && jetson_csi) {
+      normalized.push_back(std::move(device));
     }
-    device.path = "nvargus://" + std::to_string(argus_sensor_id++);
-    device.driver = "nvargus";
-    device.card += " (Argus)";
   }
-  return devices;
+  return normalized;
 }
 
 }  // namespace
@@ -100,8 +132,12 @@ CameraService::CameraService(DeviceLister device_lister,
                              std::unique_ptr<CameraPreviewSource> preview_source,
                              std::shared_ptr<CameraFrameSink> frame_sink,
                              std::shared_ptr<event::MessageBus> message_bus,
-                             CameraServiceOptions options)
+                             CameraServiceOptions options, FormatLister format_lister)
     : device_lister_(std::move(device_lister)),
+      format_lister_(format_lister ? std::move(format_lister)
+                                   : [](const std::string& device, std::string* error) {
+                                       return V4l2Camera::ListFormats(device, error);
+                                     }),
       frame_sink_(frame_sink == nullptr ? std::make_shared<LatestFrameBuffer>()
                                         : std::move(frame_sink)),
       message_bus_(std::move(message_bus)),
@@ -116,7 +152,7 @@ CameraService::~CameraService() {
 }
 
 std::vector<VideoDeviceInfo> CameraService::ListDevices(std::string* error) const {
-  return NormalizePreviewDevices(device_lister_(error), options_.capture_backend);
+  return NormalizePreviewDevices(device_lister_(error), options_.capture_pipeline);
 }
 
 bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::string* error) {
@@ -267,14 +303,32 @@ CameraServiceStatus CameraService::status() const {
 }
 
 bool CameraService::DeviceExists(const std::string& device, std::string* error) const {
-  if (device.rfind("nvargus://", 0) == 0) {
-    return true;
-  }
   std::string list_error;
   const auto devices = ListDevices(&list_error);
   for (const auto& info : devices) {
     if (info.path == device && info.query_ok && info.supports_capture && info.supports_streaming) {
-      return true;
+      if (options_.capture_pipeline == CameraCapturePipeline::kArgusIsp ||
+          options_.capture_pipeline == CameraCapturePipeline::kSynthetic) {
+        return true;
+      }
+      std::string format_error;
+      const auto formats = format_lister_(device, &format_error);
+      const std::uint32_t required_fourcc =
+          options_.capture_pipeline == CameraCapturePipeline::kSoftwareIsp ? V4L2_PIX_FMT_SRGGB10
+          : options_.uvc_input_format == CameraUvcInputFormat::kMjpeg      ? V4L2_PIX_FMT_MJPEG
+                                                                           : V4L2_PIX_FMT_YUYV;
+      const bool format_supported = std::any_of(formats.begin(), formats.end(),
+                                                [required_fourcc](const PixelFormatInfo& format) {
+                                                  return format.fourcc == required_fourcc;
+                                                });
+      if (format_supported) {
+        return true;
+      }
+      AssignError(error,
+                  format_error.empty()
+                      ? "camera device does not support the configured pipeline format: " + device
+                      : format_error);
+      return false;
     }
   }
   if (!list_error.empty() && devices.empty()) {
