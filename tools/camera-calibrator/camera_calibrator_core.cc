@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+#include "camera_calibrator.h"
+
 #include "cockpit/modules/camera/capture/argus_isp_preview_source.h"
 
 namespace {
@@ -584,7 +586,7 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
+int RunImpl(int argc, char** argv) {
   Options options;
   const ParseResult parse_result = ParseOptions(argc, argv, &options);
   if (parse_result == ParseResult::kHelp) return 0;
@@ -657,3 +659,11 @@ int main(int argc, char** argv) {
   }
   return Calibrate(options, accepted) ? 0 : 1;
 }
+
+namespace cockpit::camera_calibrator {
+
+int Run(int argc, char** argv) {
+  return RunImpl(argc, argv);
+}
+
+}  // namespace cockpit::camera_calibrator
