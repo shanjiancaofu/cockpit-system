@@ -292,7 +292,7 @@ target_link_libraries(camera_calibration_loader_test PRIVATE hawkeye)
 add_test(NAME camera_calibration_loader_test COMMAND camera_calibration_loader_test)
 
 if(TARGET camera-calibrator)
-    add_test(NAME camera_calibrator_cli_test COMMAND bash
+add_test(NAME camera_calibrator_cli_test COMMAND bash
         ${PROJECT_SOURCE_DIR}/tests/tools/camera_calibrator_cli_test.sh
         $<TARGET_FILE:camera-calibrator>
     )
@@ -313,6 +313,17 @@ add_test(NAME camera_service_test COMMAND camera_service_test)
 add_executable(camera_synthetic_stability_test
     library/driver/camera/camera_synthetic_stability_test.cc
 )
+
+if(TARGET camera-calibrator)
+    find_package(OpenCV REQUIRED COMPONENTS imgcodecs imgproc)
+    add_executable(camera_calibrator_offline_test tools/camera_calibrator_offline_test.cc)
+    target_include_directories(camera_calibrator_offline_test PRIVATE ${OpenCV_INCLUDE_DIRS})
+    target_link_libraries(camera_calibrator_offline_test PRIVATE ${OpenCV_LIBS})
+    add_test(NAME camera_calibrator_offline_test COMMAND camera_calibrator_offline_test
+        $<TARGET_FILE:camera-calibrator>
+    )
+    set_tests_properties(camera_calibrator_offline_test PROPERTIES TIMEOUT 30)
+endif()
 target_link_libraries(camera_synthetic_stability_test PRIVATE camera_control synthetic_camera)
 add_test(NAME camera_synthetic_stability_test COMMAND camera_synthetic_stability_test)
 
