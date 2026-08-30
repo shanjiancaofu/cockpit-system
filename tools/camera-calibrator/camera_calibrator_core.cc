@@ -19,6 +19,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "camera_calibrator_internal.h"
@@ -665,6 +666,10 @@ int RunImpl(int argc, char** argv) {
     cv::Mat latest_image;
     std::uint64_t latest_sequence = 0;
     bool first_frame_logged = false;
+    cv::Mat analysis_image;
+    std::uint64_t analysis_sequence = 0;
+    bool analysis_pending = false;
+    bool analysis_stop = false;
     std::string error;
     const bool started = pipeline.Start(
         cockpit::camera::CameraPreviewConfig{
@@ -673,12 +678,13 @@ int RunImpl(int argc, char** argv) {
             cockpit::camera::CameraPixelFormat::kBgrx},
         [&](cockpit::camera::CameraFrame frame) {
           cv::Mat image = ToBgr(frame);
-          std::vector<AcceptedFrame> accepted_snapshot;
           {
             std::lock_guard<std::mutex> lock(mutex);
             latest_image = image.clone();
             latest_sequence = frame.sequence;
-            accepted_snapshot = accepted;
+            analysis_image = image;
+            analysis_sequence = frame.sequence;
+            analysis_pending = true;
             if (!first_frame_logged) {
               std::cerr << "camera frame callback: " << image.cols << 'x' << image.rows
                         << " type=" << image.type() << "\n";
@@ -686,22 +692,38 @@ int RunImpl(int argc, char** argv) {
             }
           }
           condition.notify_one();
-          auto analyzed = Analyze(image, frame.sequence, options, accepted_snapshot);
-          if (analyzed.has_value()) {
-            std::lock_guard<std::mutex> lock(mutex);
-            accepted.push_back(std::move(*analyzed));
-            const std::string next = GuidanceNext(options, accepted);
-            std::cout << "候选数=" << accepted.size() << "，下一步：" << next << "\n";
-            capture_complete = CaptureComplete(options, accepted) ||
-                               accepted.size() >= static_cast<std::size_t>(options.max_candidates);
-            condition.notify_one();
-          }
         },
         &error);
     if (!started) {
       std::cerr << "capture failed: " << (error.empty() ? "unknown error" : error) << '\n';
       return 1;
     }
+    std::thread analysis_thread([&] {
+      while (true) {
+        cv::Mat image;
+        std::uint64_t sequence = 0;
+        std::vector<AcceptedFrame> accepted_snapshot;
+        {
+          std::unique_lock<std::mutex> lock(mutex);
+          condition.wait(lock, [&] {
+            return analysis_pending || analysis_stop;
+          });
+          if (!analysis_pending && analysis_stop) return;
+          image = analysis_image;
+          sequence = analysis_sequence;
+          analysis_pending = false;
+          accepted_snapshot = accepted;
+        }
+        auto analyzed = Analyze(image, sequence, options, accepted_snapshot);
+        if (!analyzed.has_value()) continue;
+        std::lock_guard<std::mutex> lock(mutex);
+        accepted.push_back(std::move(*analyzed));
+        const std::string next = GuidanceNext(options, accepted);
+        std::cout << "候选数=" << accepted.size() << "，下一步：" << next << "\n";
+        capture_complete = CaptureComplete(options, accepted) ||
+                           accepted.size() >= static_cast<std::size_t>(options.max_candidates);
+      }
+    });
     if (options.preview) {
       try {
         setenv("GTK_MODULES", "", 1);
@@ -748,6 +770,12 @@ int RunImpl(int argc, char** argv) {
       }
     }
     pipeline.Stop();
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      analysis_stop = true;
+    }
+    condition.notify_one();
+    analysis_thread.join();
     if (preview_aborted) {
       std::cerr << "用户退出预览，采集已停止\n";
       return 1;
