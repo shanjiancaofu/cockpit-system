@@ -659,12 +659,18 @@ int RunImpl(int argc, char** argv) {
     std::condition_variable condition;
     bool capture_complete = false;
     cv::Mat latest_image;
+    bool first_frame_logged = false;
     std::string error;
     if (options.preview) {
       try {
         cv::namedWindow("Camera Calibration - press q to quit", cv::WINDOW_NORMAL);
         cv::resizeWindow("Camera Calibration - press q to quit", 960, 540);
         std::cout << "标定预览已打开：请按终端提示移动棋盘，按 q 或 Esc 退出\n";
+        cv::Mat waiting(540, 960, CV_8UC3, cv::Scalar(24, 24, 24));
+        cv::putText(waiting, "Waiting for camera frame...", cv::Point(20, 42),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.9, cv::Scalar(255, 255, 255), 2);
+        cv::imshow("Camera Calibration - press q to quit", waiting);
+        cv::waitKey(30);
       } catch (const cv::Exception& preview_error) {
         std::cerr << "预览窗口不可用：" << preview_error.what() << "；继续使用终端模式\n";
       }
@@ -678,6 +684,11 @@ int RunImpl(int argc, char** argv) {
           cv::Mat image = ToBgr(frame);
           std::lock_guard<std::mutex> lock(mutex);
           latest_image = image;
+          if (!first_frame_logged) {
+            std::cerr << "camera frame callback: " << image.cols << 'x' << image.rows
+                      << " type=" << image.type() << "\n";
+            first_frame_logged = true;
+          }
           auto analyzed = Analyze(image, frame.sequence, options, accepted);
           if (analyzed.has_value()) {
             accepted.push_back(std::move(*analyzed));
