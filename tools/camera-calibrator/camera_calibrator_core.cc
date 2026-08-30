@@ -432,8 +432,23 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
                                     "  Candidates: " + std::to_string(candidates.size()) +
                                     "  Spatial: " + std::to_string(coverage.spatial_cells) + "/5",
                 cv::Point(20, 30), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 255, 255), 2);
-    cv::putText(display, "Next: " + next, cv::Point(20, 68), cv::FONT_HERSHEY_SIMPLEX, 0.7,
-                cv::Scalar(255, 255, 255), 2);
+    const auto preview_instruction = [&next] {
+      if (next.find("完整放入画面") != std::string::npos) return std::string("Show full board");
+      if (next.find("基础样本") != std::string::npos) return std::string("Collect coarse views");
+      if (next.find("覆盖新的画面区域") != std::string::npos)
+        return std::string("Move board to a new image area");
+      if (next.find("左倾斜") != std::string::npos) return std::string("Tilt board LEFT");
+      if (next.find("右倾斜") != std::string::npos) return std::string("Tilt board RIGHT");
+      if (next.find("上倾斜") != std::string::npos) return std::string("Tilt board UP");
+      if (next.find("下倾斜") != std::string::npos) return std::string("Tilt board DOWN");
+      if (next.find("移近") != std::string::npos) return std::string("Move board CLOSER");
+      if (next.find("中距离") != std::string::npos) return std::string("Move board to MID");
+      if (next.find("移远") != std::string::npos) return std::string("Move board FARTHER");
+      if (next.find("采集完成") != std::string::npos) return std::string("Capture complete");
+      return std::string("See terminal");
+    }();
+    cv::putText(display, "Next: " + preview_instruction, cv::Point(20, 68),
+                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
     cv::imshow("Camera Calibration - press q to quit", display);
     const int key = cv::waitKey(1);
     if (key == 'q' || key == 'Q' || key == 27) {
