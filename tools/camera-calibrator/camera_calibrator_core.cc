@@ -682,15 +682,21 @@ int RunImpl(int argc, char** argv) {
             cockpit::camera::CameraPixelFormat::kBgrx},
         [&](cockpit::camera::CameraFrame frame) {
           cv::Mat image = ToBgr(frame);
-          std::lock_guard<std::mutex> lock(mutex);
-          latest_image = image;
-          if (!first_frame_logged) {
-            std::cerr << "camera frame callback: " << image.cols << 'x' << image.rows
-                      << " type=" << image.type() << "\n";
-            first_frame_logged = true;
+          std::vector<AcceptedFrame> accepted_snapshot;
+          {
+            std::lock_guard<std::mutex> lock(mutex);
+            latest_image = image;
+            accepted_snapshot = accepted;
+            if (!first_frame_logged) {
+              std::cerr << "camera frame callback: " << image.cols << 'x' << image.rows
+                        << " type=" << image.type() << "\n";
+              first_frame_logged = true;
+            }
           }
-          auto analyzed = Analyze(image, frame.sequence, options, accepted);
+          condition.notify_one();
+          auto analyzed = Analyze(image, frame.sequence, options, accepted_snapshot);
           if (analyzed.has_value()) {
+            std::lock_guard<std::mutex> lock(mutex);
             accepted.push_back(std::move(*analyzed));
             const std::string next = GuidanceNext(options, accepted);
             std::cout << "候选数=" << accepted.size() << "，下一步：" << next << "\n";
