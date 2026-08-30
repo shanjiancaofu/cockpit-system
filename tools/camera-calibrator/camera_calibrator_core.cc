@@ -428,8 +428,11 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
                               : "Candidates: " + std::to_string(candidates.size()) +
                                     "  Spatial: " + std::to_string(coverage.spatial_cells) + "/5",
                 cv::Point(20, 30), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 255, 255), 2);
-    cv::putText(display, "Next: " + std::to_string(next.size()) + " chars (see terminal)",
-                cv::Point(20, 68), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
+    const std::string preview_next = candidates.empty() ? "Show full checkerboard in camera view"
+                                     : candidates.size() < 10U ? "Collect more different views"
+                                                               : "Follow terminal instruction";
+    cv::putText(display, "Next: " + preview_next, cv::Point(20, 68), cv::FONT_HERSHEY_SIMPLEX, 0.7,
+                cv::Scalar(255, 255, 255), 2);
     cv::imshow("Camera Calibration - press q to quit", display);
     const int key = cv::waitKey(1);
     if (key == 'q' || key == 'Q' || key == 27) {
@@ -713,6 +716,8 @@ int RunImpl(int argc, char** argv) {
     const auto deadline =
         std::chrono::steady_clock::now() + std::chrono::seconds(options.timeout_seconds);
     bool preview_aborted = false;
+    auto last_status = std::chrono::steady_clock::now() - std::chrono::seconds(1);
+    std::cout << "下一步：请将 Q12-70-5 棋盘完整放入画面，保持清晰并缓慢移动\n";
     {
       while (true) {
         std::vector<AcceptedFrame> preview_candidates;
@@ -723,6 +728,11 @@ int RunImpl(int argc, char** argv) {
           condition.wait_for(lock, std::chrono::milliseconds(50));
           preview_image = latest_image.clone();
           preview_candidates = accepted;
+        }
+        if (std::chrono::steady_clock::now() - last_status >= std::chrono::seconds(1)) {
+          std::cout << "状态：候选数=" << preview_candidates.size() << "，下一步："
+                    << GuidanceNext(options, preview_candidates) << "\n";
+          last_status = std::chrono::steady_clock::now();
         }
         if (ShowPreview(options, preview_image, preview_candidates)) {
           preview_aborted = true;
