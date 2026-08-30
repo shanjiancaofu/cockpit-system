@@ -403,7 +403,7 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
                  const std::vector<AcceptedFrame>& candidates) {
   static bool preview_disabled = false;
   static bool warning_printed = false;
-  if (!options.preview || image.empty() || preview_disabled) return false;
+  if (!options.preview || preview_disabled) return false;
   if (std::getenv("DISPLAY") == nullptr && std::getenv("WAYLAND_DISPLAY") == nullptr) {
     if (!warning_printed) {
       std::cerr
@@ -414,7 +414,8 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
     return false;
   }
   try {
-    cv::Mat display = image.clone();
+    cv::Mat display =
+        image.empty() ? cv::Mat(540, 960, CV_8UC3, cv::Scalar(24, 24, 24)) : image.clone();
     const CoverageState coverage = BuildCoverage(options, candidates);
     for (const auto& frame : candidates) {
       for (const auto& corner : frame.corners)
@@ -423,8 +424,9 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
     cv::rectangle(display, cv::Rect(0, 0, display.cols, 96), cv::Scalar(0, 0, 0), cv::FILLED);
     const std::string next = GuidanceNext(options, candidates);
     cv::putText(display,
-                "Candidates: " + std::to_string(candidates.size()) +
-                    "  Spatial: " + std::to_string(coverage.spatial_cells) + "/5",
+                image.empty() ? "Waiting for camera frame..."
+                              : "Candidates: " + std::to_string(candidates.size()) +
+                                    "  Spatial: " + std::to_string(coverage.spatial_cells) + "/5",
                 cv::Point(20, 30), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 255, 255), 2);
     cv::putText(display, "Next: " + std::to_string(next.size()) + " chars (see terminal)",
                 cv::Point(20, 68), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
@@ -660,7 +662,6 @@ int RunImpl(int argc, char** argv) {
     std::string error;
     if (options.preview) {
       try {
-        cv::startWindowThread();
         cv::namedWindow("Camera Calibration - press q to quit", cv::WINDOW_NORMAL);
         cv::resizeWindow("Camera Calibration - press q to quit", 960, 540);
         std::cout << "标定预览已打开：请按终端提示移动棋盘，按 q 或 Esc 退出\n";
