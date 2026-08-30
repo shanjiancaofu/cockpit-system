@@ -56,6 +56,30 @@ double Median(std::vector<double> values) {
   return values.size() % 2U == 0U ? (values[middle - 1U] + values[middle]) / 2.0 : values[middle];
 }
 
+const char* RejectReasonName(RejectReason reason) {
+  switch (reason) {
+    case RejectReason::kAccepted:
+      return "ACCEPTED";
+    case RejectReason::kNoChessboard:
+      return "NO_BOARD";
+    case RejectReason::kBlur:
+      return "BLUR";
+    case RejectReason::kExposure:
+      return "EXPOSURE";
+    case RejectReason::kAreaTooSmall:
+      return "AREA_SMALL";
+    case RejectReason::kAreaTooLarge:
+      return "AREA_LARGE";
+    case RejectReason::kGrid:
+      return "GRID";
+  }
+  return "UNKNOWN";
+}
+
+std::size_t RejectReasonIndex(RejectReason reason) {
+  return static_cast<std::size_t>(reason);
+}
+
 void EstimatePose(AcceptedFrame* frame, const std::vector<cv::Point3f>& object_points,
                   const cv::Mat& camera_matrix, const cv::Mat& distortion) {
   cv::Mat rvec;
@@ -88,6 +112,27 @@ std::string PoseBucket(const AcceptedFrame& frame, const Options& options) {
   return "TILT_DOWN";
 }
 
+bool IsFront(const AcceptedFrame& frame, const Options& options) {
+  return frame.pose_valid && std::abs(frame.horizontal_tilt_deg) < options.tilt_threshold_deg &&
+         std::abs(frame.vertical_tilt_deg) < options.tilt_threshold_deg;
+}
+
+bool IsTiltLeft(const AcceptedFrame& frame, const Options& options) {
+  return frame.pose_valid && frame.horizontal_tilt_deg <= -options.tilt_threshold_deg;
+}
+
+bool IsTiltRight(const AcceptedFrame& frame, const Options& options) {
+  return frame.pose_valid && frame.horizontal_tilt_deg >= options.tilt_threshold_deg;
+}
+
+bool IsTiltUp(const AcceptedFrame& frame, const Options& options) {
+  return frame.pose_valid && frame.vertical_tilt_deg <= -options.tilt_threshold_deg;
+}
+
+bool IsTiltDown(const AcceptedFrame& frame, const Options& options) {
+  return frame.pose_valid && frame.vertical_tilt_deg >= options.tilt_threshold_deg;
+}
+
 std::string DistanceBucket(const AcceptedFrame& frame, const Options& options) {
   if (!frame.pose_valid) return "UNKNOWN";
   if (frame.distance_m < options.near_distance_m) return "NEAR";
@@ -109,27 +154,11 @@ int GridCoverage(const std::vector<cv::Point2f>& corners, const cv::Size& image_
   return count;
 }
 
-bool SimilarToAccepted(const cv::Mat& image, const std::vector<AcceptedFrame>& accepted,
-                       double threshold) {
-  if (accepted.empty()) return false;
-  cv::Mat small;
-  cv::resize(image, small, cv::Size(32, 18), 0.0, 0.0, cv::INTER_AREA);
-  small.convertTo(small, CV_32F);
-  for (const auto& previous : accepted) {
-    cv::Mat previous_small;
-    cv::resize(previous.image, previous_small, cv::Size(32, 18), 0.0, 0.0, cv::INTER_AREA);
-    previous_small.convertTo(previous_small, CV_32F);
-    cv::Scalar difference = cv::mean(cv::abs(small - previous_small));
-    if (difference[0] < threshold) return true;
-  }
-  return false;
-}
-
-std::optional<AcceptedFrame> Analyze(const cv::Mat& image, std::uint64_t sequence,
-                                     const Options& options,
-                                     const std::vector<AcceptedFrame>& accepted) {
+AnalyzeResult Analyze(const cv::Mat& image, std::uint64_t sequence, const Options& options) {
+  AnalyzeResult result;
+  result.sequence = sequence;
   if (image.empty() || image.cols <= options.corners_x || image.rows <= options.corners_y) {
-    return std::nullopt;
+    return result;
   }
   cv::Mat gray;
   cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
@@ -137,19 +166,40 @@ std::optional<AcceptedFrame> Analyze(const cv::Mat& image, std::uint64_t sequenc
   const cv::Size pattern(options.corners_x, options.corners_y);
   const bool found = cv::findChessboardCorners(
       gray, pattern, corners, cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
-  if (!found) return std::nullopt;
+  if (!found) return result;
+  result.corners = corners;
   cv::cornerSubPix(gray, corners, cv::Size(11, 11), cv::Size(-1, -1),
                    cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::COUNT, 30, 0.01));
-  const double blur = BlurScore(gray);
-  const double mean = cv::mean(gray)[0];
+  result.corners = corners;
   const cv::Rect bounds = cv::boundingRect(corners);
-  const double area =
-      static_cast<double>(bounds.area()) / static_cast<double>(image.cols * image.rows);
-  const int grid = GridCoverage(corners, image.size());
-  if (blur < options.blur_min || mean < options.mean_min || mean > options.mean_max ||
-      area < options.area_min || area > options.area_max || grid < options.grid_required ||
-      SimilarToAccepted(image, accepted, options.duplicate_threshold)) {
-    return std::nullopt;
+  result.area = static_cast<double>(bounds.area()) / static_cast<double>(image.cols * image.rows);
+  const int margin_x = std::max(1, bounds.width / 5);
+  const int margin_y = std::max(1, bounds.height / 5);
+  const cv::Rect roi =
+      bounds & cv::Rect(std::max(0, bounds.x - margin_x), std::max(0, bounds.y - margin_y),
+                        bounds.width + margin_x * 2, bounds.height + margin_y * 2);
+  result.blur = BlurScore(gray(roi));
+  result.mean = cv::mean(gray(roi))[0];
+  result.grid = GridCoverage(corners, image.size());
+  if (result.blur < options.blur_min) {
+    result.reason = RejectReason::kBlur;
+    return result;
+  }
+  if (result.mean < options.mean_min || result.mean > options.mean_max) {
+    result.reason = RejectReason::kExposure;
+    return result;
+  }
+  if (result.area < options.area_min) {
+    result.reason = RejectReason::kAreaTooSmall;
+    return result;
+  }
+  if (result.area > options.area_max) {
+    result.reason = RejectReason::kAreaTooLarge;
+    return result;
+  }
+  if (result.grid < options.grid_required) {
+    result.reason = RejectReason::kGrid;
+    return result;
   }
   const double center_x = std::accumulate(corners.begin(), corners.end(), 0.0,
                                           [](double value, const cv::Point2f& point) {
@@ -161,9 +211,12 @@ std::optional<AcceptedFrame> Analyze(const cv::Mat& image, std::uint64_t sequenc
                                             return value + point.y;
                                           }) /
                           static_cast<double>(corners.size()) / static_cast<double>(image.rows);
-  AcceptedFrame result{image.clone(), std::move(corners), blur, mean, area, grid, sequence};
-  result.center_x_normalized = center_x;
-  result.center_y_normalized = center_y;
+  AcceptedFrame accepted_frame{image.clone(), std::move(corners), result.blur, result.mean,
+                               result.area,   result.grid,        sequence};
+  accepted_frame.center_x_normalized = center_x;
+  accepted_frame.center_y_normalized = center_y;
+  result.frame = std::move(accepted_frame);
+  result.reason = RejectReason::kAccepted;
   return result;
 }
 
@@ -292,6 +345,16 @@ double FeatureDistance(const AcceptedFrame& left, const AcceptedFrame& right) {
                    square((left.distance_m - right.distance_m) / 0.3));
 }
 
+std::string ScaleBucket(const AcceptedFrame& frame, double min_area, double max_area) {
+  if (max_area <= min_area || min_area <= 0.0) return "UNKNOWN";
+  const double span = std::log(max_area / min_area);
+  if (span < std::log(1.5)) return "MID";
+  const double position = std::log(std::max(frame.area, min_area) / min_area) / span;
+  if (position < 1.0 / 3.0) return "FAR";
+  if (position > 2.0 / 3.0) return "NEAR";
+  return "MID";
+}
+
 std::vector<AcceptedFrame> SelectKeyframes(const Options& options,
                                            std::vector<AcceptedFrame> candidates,
                                            std::size_t target) {
@@ -307,17 +370,32 @@ std::vector<AcceptedFrame> SelectKeyframes(const Options& options,
     }
   };
   if (!options.board_profile.empty()) {
-    const char* const required_poses[] = {"FRONT", "TILT_LEFT", "TILT_RIGHT", "TILT_UP",
-                                          "TILT_DOWN"};
-    for (const char* required : required_poses) {
-      add_first_matching([&options, required](const AcceptedFrame& frame) {
-        return PoseBucket(frame, options) == required;
-      });
-    }
+    add_first_matching([&options](const AcceptedFrame& frame) {
+      return IsFront(frame, options);
+    });
+    add_first_matching([&options](const AcceptedFrame& frame) {
+      return IsTiltLeft(frame, options);
+    });
+    add_first_matching([&options](const AcceptedFrame& frame) {
+      return IsTiltRight(frame, options);
+    });
+    add_first_matching([&options](const AcceptedFrame& frame) {
+      return IsTiltUp(frame, options);
+    });
+    add_first_matching([&options](const AcceptedFrame& frame) {
+      return IsTiltDown(frame, options);
+    });
+    const auto area_range =
+        std::minmax_element(candidates.begin(), candidates.end(),
+                            [](const AcceptedFrame& left, const AcceptedFrame& right) {
+                              return left.area < right.area;
+                            });
+    const double min_area = area_range.first->area;
+    const double max_area = area_range.second->area;
     const char* const required_distances[] = {"NEAR", "MID", "FAR"};
     for (const char* required : required_distances) {
-      add_first_matching([&options, required](const AcceptedFrame& frame) {
-        return DistanceBucket(frame, options) == required;
+      add_first_matching([min_area, max_area, required](const AcceptedFrame& frame) {
+        return ScaleBucket(frame, min_area, max_area) == required;
       });
     }
     for (int y = 0; y < 3; ++y) {
@@ -354,20 +432,26 @@ std::vector<AcceptedFrame> SelectKeyframes(const Options& options,
 CoverageState BuildCoverage(const Options& options, const std::vector<AcceptedFrame>& frames) {
   CoverageState coverage;
   bool cells[3][3] = {};
+  if (frames.empty()) return coverage;
+  const auto area_range = std::minmax_element(
+      frames.begin(), frames.end(), [](const AcceptedFrame& left, const AcceptedFrame& right) {
+        return left.area < right.area;
+      });
+  const double min_area = area_range.first->area;
+  const double max_area = area_range.second->area;
   for (const auto& frame : frames) {
     const int x = std::clamp(static_cast<int>(frame.center_x_normalized * 3.0), 0, 2);
     const int y = std::clamp(static_cast<int>(frame.center_y_normalized * 3.0), 0, 2);
     cells[y][x] = true;
-    const std::string pose = PoseBucket(frame, options);
-    coverage.front = coverage.front || pose == "FRONT";
-    coverage.tilt_left = coverage.tilt_left || pose == "TILT_LEFT";
-    coverage.tilt_right = coverage.tilt_right || pose == "TILT_RIGHT";
-    coverage.tilt_up = coverage.tilt_up || pose == "TILT_UP";
-    coverage.tilt_down = coverage.tilt_down || pose == "TILT_DOWN";
-    const std::string distance = DistanceBucket(frame, options);
-    coverage.near = coverage.near || distance == "NEAR";
-    coverage.mid = coverage.mid || distance == "MID";
-    coverage.far = coverage.far || distance == "FAR";
+    coverage.front = coverage.front || IsFront(frame, options);
+    coverage.tilt_left = coverage.tilt_left || IsTiltLeft(frame, options);
+    coverage.tilt_right = coverage.tilt_right || IsTiltRight(frame, options);
+    coverage.tilt_up = coverage.tilt_up || IsTiltUp(frame, options);
+    coverage.tilt_down = coverage.tilt_down || IsTiltDown(frame, options);
+    const std::string scale = ScaleBucket(frame, min_area, max_area);
+    coverage.near = coverage.near || scale == "NEAR";
+    coverage.mid = coverage.mid || scale == "MID";
+    coverage.far = coverage.far || scale == "FAR";
   }
   for (const auto& row : cells) {
     for (const bool cell : row) coverage.spatial_cells += cell ? 1 : 0;
@@ -384,28 +468,59 @@ bool safeToRemove(const Options& options, const std::vector<AcceptedFrame>& fram
 }
 
 std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> candidates) {
-  if (candidates.empty()) return "请将棋盘完整放入画面并保持清晰";
-  if (candidates.size() < 10U) return "先采集基础样本";
-  auto solution = SolveCalibration(options, &candidates);
-  if (!std::isfinite(solution.rms)) return "采集更多不同角度和位置";
-  const CoverageState coverage = BuildCoverage(options, candidates);
-  if (coverage.spatial_cells < 5) return "移动棋盘，覆盖新的画面区域";
-  if (!coverage.front) return "正对棋盘，保持正面";
-  if (!coverage.tilt_left) return "将棋盘向左倾斜";
-  if (!coverage.tilt_right) return "将棋盘向右倾斜";
-  if (!coverage.tilt_up) return "将棋盘向上倾斜";
-  if (!coverage.tilt_down) return "将棋盘向下倾斜";
-  if (!coverage.near) return "将棋盘移近";
-  if (!coverage.mid) return "将棋盘移动到中距离";
-  if (!coverage.far) return "将棋盘移远（超过远距离阈值）";
-  if (candidates.size() < static_cast<std::size_t>(options.frames))
-    return "覆盖完成，继续采集至目标样本数";
-  return "采集完成";
+  return EvaluateCapture(options, candidates).guidance;
+}
+
+CaptureEvaluation EvaluateCapture(const Options& options,
+                                  const std::vector<AcceptedFrame>& candidates) {
+  CaptureEvaluation evaluation;
+  if (candidates.empty()) {
+    evaluation.guidance = "请将棋盘完整放入画面并保持清晰";
+    return evaluation;
+  }
+  if (candidates.size() < 10U) {
+    evaluation.guidance = "先采集基础样本";
+    return evaluation;
+  }
+  auto solved_candidates = candidates;
+  const auto solution = SolveCalibration(options, &solved_candidates);
+  evaluation.provisional_rms = solution.rms;
+  if (!std::isfinite(solution.rms)) {
+    evaluation.guidance = "采集更多不同角度和位置";
+    return evaluation;
+  }
+  const CoverageState coverage = BuildCoverage(options, solved_candidates);
+  evaluation.coverage = coverage;
+  if (coverage.spatial_cells < 5)
+    evaluation.guidance = "移动棋盘，覆盖新的画面区域";
+  else if (!coverage.front)
+    evaluation.guidance = "正对棋盘，保持正面";
+  else if (!coverage.tilt_left)
+    evaluation.guidance = "将棋盘向左倾斜";
+  else if (!coverage.tilt_right)
+    evaluation.guidance = "将棋盘向右倾斜";
+  else if (!coverage.tilt_up)
+    evaluation.guidance = "将棋盘向上倾斜";
+  else if (!coverage.tilt_down)
+    evaluation.guidance = "将棋盘向下倾斜";
+  else if (!coverage.near)
+    evaluation.guidance = "将棋盘移近";
+  else if (!coverage.mid)
+    evaluation.guidance = "将棋盘移动到中距离";
+  else if (!coverage.far)
+    evaluation.guidance = "将棋盘移远（超过远距离阈值）";
+  else if (candidates.size() < static_cast<std::size_t>(options.frames))
+    evaluation.guidance = "覆盖完成，继续采集至目标样本数";
+  else
+    evaluation.guidance = "采集完成";
+  evaluation.complete = candidates.size() >= static_cast<std::size_t>(options.frames) &&
+                        FinalValidator(options, coverage);
+  return evaluation;
 }
 
 bool ShowPreview(const Options& options, const cv::Mat& image,
                  const std::vector<AcceptedFrame>& candidates, std::uint64_t sequence,
-                 const std::string& next) {
+                 const std::string& next, const AnalyzeResult& analysis) {
   static bool preview_disabled = false;
   static bool warning_printed = false;
   if (!options.preview || preview_disabled) return false;
@@ -422,12 +537,7 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
     cv::Mat display =
         image.empty() ? cv::Mat(540, 960, CV_8UC3, cv::Scalar(24, 24, 24)) : image.clone();
     const CoverageState coverage = BuildCoverage(options, candidates);
-    if (!candidates.empty()) {
-      for (const auto& corner : candidates.back().corners) {
-        cv::circle(display, corner, 3, cv::Scalar(0, 255, 0), -1);
-      }
-    }
-    cv::rectangle(display, cv::Rect(0, 0, display.cols, 96), cv::Scalar(0, 0, 0), cv::FILLED);
+    cv::rectangle(display, cv::Rect(0, 0, display.cols, 130), cv::Scalar(0, 0, 0), cv::FILLED);
     cv::putText(display,
                 image.empty() ? "Waiting for camera frame..."
                               : "Frame: " + std::to_string(sequence) +
@@ -451,6 +561,11 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
     }();
     cv::putText(display, "Next: " + preview_instruction, cv::Point(20, 68),
                 cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
+    cv::putText(display,
+                std::string("Analysis: ") + RejectReasonName(analysis.reason) +
+                    "  area=" + std::to_string(analysis.area) +
+                    "  blur=" + std::to_string(static_cast<int>(analysis.blur)),
+                cv::Point(20, 108), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(180, 220, 255), 2);
     cv::imshow("Camera Calibration - press q to quit", display);
     const int key = cv::waitKey(10);
     if (key == 'q' || key == 'Q' || key == 27) {
@@ -468,11 +583,7 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
 }
 
 bool CaptureComplete(const Options& options, const std::vector<AcceptedFrame>& candidates) {
-  if (candidates.size() < static_cast<std::size_t>(options.frames)) return false;
-  if (options.board_profile.empty()) return true;
-  auto solved = candidates;
-  if (!std::isfinite(SolveCalibration(options, &solved).rms)) return false;
-  return FinalValidator(options, BuildCoverage(options, solved));
+  return EvaluateCapture(options, candidates).complete;
 }
 
 bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
@@ -670,8 +781,8 @@ int RunImpl(int argc, char** argv) {
     for (const auto& file : image_files) {
       cv::Mat image = cv::imread(file.string(), cv::IMREAD_COLOR);
       if (image.empty()) continue;
-      auto analyzed = Analyze(image, accepted.size() + 1, options, accepted);
-      if (analyzed.has_value()) accepted.push_back(std::move(*analyzed));
+      auto analyzed = Analyze(image, accepted.size() + 1, options);
+      if (analyzed.frame.has_value()) accepted.push_back(std::move(*analyzed.frame));
       if (accepted.size() >= candidate_goal) break;
     }
   } else {
@@ -688,6 +799,11 @@ int RunImpl(int argc, char** argv) {
     bool analysis_stop = false;
     const std::uint64_t analysis_period_frames =
         std::max<std::uint64_t>(1U, static_cast<std::uint64_t>(options.fps) / 5U);
+    AnalyzeResult latest_analysis;
+    AnalysisStats analysis_stats;
+    CaptureEvaluation evaluation;
+    evaluation.guidance = "请将棋盘完整放入画面并保持清晰";
+    bool evaluation_valid = false;
     std::string error;
     const bool started = pipeline.Start(
         cockpit::camera::CameraPreviewConfig{
@@ -722,7 +838,6 @@ int RunImpl(int argc, char** argv) {
       while (true) {
         cv::Mat image;
         std::uint64_t sequence = 0;
-        std::vector<AcceptedFrame> accepted_snapshot;
         {
           std::unique_lock<std::mutex> lock(mutex);
           condition.wait(lock, [&] {
@@ -732,18 +847,30 @@ int RunImpl(int argc, char** argv) {
           image = analysis_image;
           sequence = analysis_sequence;
           analysis_pending = false;
-          accepted_snapshot = accepted;
         }
-        auto analyzed = Analyze(image, sequence, options, accepted_snapshot);
-        if (!analyzed.has_value()) continue;
+        auto analyzed = Analyze(image, sequence, options);
         std::vector<AcceptedFrame> updated_candidates;
         {
           std::lock_guard<std::mutex> lock(mutex);
-          accepted.push_back(std::move(*analyzed));
-          updated_candidates = accepted;
-          capture_complete = accepted.size() >= static_cast<std::size_t>(options.max_candidates);
+          latest_analysis = analyzed;
+          ++analysis_stats.analyzed;
+          if (analyzed.reason == RejectReason::kAccepted && analyzed.frame.has_value()) {
+            accepted.push_back(std::move(*analyzed.frame));
+            ++analysis_stats.accepted;
+            updated_candidates = accepted;
+          } else {
+            ++analysis_stats.rejected[RejectReasonIndex(analyzed.reason)];
+          }
         }
-        std::cout << "候选数=" << updated_candidates.size() << "\n";
+        if (!updated_candidates.empty()) {
+          const CaptureEvaluation updated_evaluation = EvaluateCapture(options, updated_candidates);
+          std::lock_guard<std::mutex> lock(mutex);
+          evaluation = updated_evaluation;
+          evaluation_valid = true;
+          capture_complete = updated_evaluation.complete ||
+                             accepted.size() >= static_cast<std::size_t>(options.max_candidates);
+          std::cout << "候选数=" << updated_candidates.size() << "\n";
+        }
       }
     });
     if (options.preview) {
@@ -773,6 +900,9 @@ int RunImpl(int argc, char** argv) {
         std::vector<AcceptedFrame> preview_candidates;
         cv::Mat preview_image;
         std::uint64_t preview_sequence = 0;
+        AnalyzeResult preview_analysis;
+        AnalysisStats preview_stats;
+        CaptureEvaluation preview_evaluation;
         {
           std::unique_lock<std::mutex> lock(mutex);
           if (capture_complete || std::chrono::steady_clock::now() >= deadline) break;
@@ -780,20 +910,31 @@ int RunImpl(int argc, char** argv) {
           preview_image = latest_image.clone();
           preview_candidates = accepted;
           preview_sequence = latest_sequence;
+          preview_analysis = latest_analysis;
+          preview_stats = analysis_stats;
+          preview_evaluation = evaluation;
         }
-        if (preview_candidates.size() >= static_cast<std::size_t>(options.frames) &&
-            preview_next == "采集完成") {
+        if (preview_evaluation.complete) {
           std::lock_guard<std::mutex> lock(mutex);
           capture_complete = true;
         }
         if (std::chrono::steady_clock::now() - last_status >= std::chrono::seconds(1)) {
-          preview_next = GuidanceNext(options, preview_candidates);
+          preview_next = preview_evaluation.guidance;
           std::cout << "状态：候选数=" << preview_candidates.size() << "，下一步：" << preview_next
-                    << "\n";
+                    << "，最近分析=" << RejectReasonName(preview_analysis.reason)
+                    << "，area=" << preview_analysis.area << "，blur=" << preview_analysis.blur
+                    << "，累计分析=" << preview_stats.analyzed
+                    << "，拒绝(no_board/blur/exposure/area_small/area_large/grid)="
+                    << preview_stats.rejected[RejectReasonIndex(RejectReason::kNoChessboard)] << '/'
+                    << preview_stats.rejected[RejectReasonIndex(RejectReason::kBlur)] << '/'
+                    << preview_stats.rejected[RejectReasonIndex(RejectReason::kExposure)] << '/'
+                    << preview_stats.rejected[RejectReasonIndex(RejectReason::kAreaTooSmall)] << '/'
+                    << preview_stats.rejected[RejectReasonIndex(RejectReason::kAreaTooLarge)] << '/'
+                    << preview_stats.rejected[RejectReasonIndex(RejectReason::kGrid)] << "\n";
           last_status = std::chrono::steady_clock::now();
         }
-        if (ShowPreview(options, preview_image, preview_candidates, preview_sequence,
-                        preview_next)) {
+        if (ShowPreview(options, preview_image, preview_candidates, preview_sequence, preview_next,
+                        preview_analysis)) {
           preview_aborted = true;
           break;
         }
@@ -808,7 +949,7 @@ int RunImpl(int argc, char** argv) {
     analysis_thread.join();
     {
       std::lock_guard<std::mutex> lock(mutex);
-      capture_complete = CaptureComplete(options, accepted) ||
+      capture_complete = (evaluation_valid && evaluation.complete) ||
                          accepted.size() >= static_cast<std::size_t>(options.max_candidates);
     }
     if (preview_aborted) {
@@ -816,8 +957,8 @@ int RunImpl(int argc, char** argv) {
       return 1;
     }
     if (!capture_complete) {
-      std::cerr << "采集超时：候选数=" << accepted.size() << "，下一步："
-                << GuidanceNext(options, accepted) << "\n";
+      std::cerr << "采集超时：候选数=" << accepted.size() << "，下一步：" << evaluation.guidance
+                << "\n";
       return 1;
     }
   }

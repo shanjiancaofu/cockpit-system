@@ -23,7 +23,7 @@ void Usage() {
   --mean-min N --mean-max N  Mean grayscale range
   --area-min N --area-max N  Chessboard image-area range
   --grid-required N          Minimum occupied 3x3 cells
-  --duplicate-threshold N    Mean absolute image difference threshold
+  --duplicate-threshold N    Legacy compatibility option; no capture hard reject
   --near-distance N          Near-distance upper bound in metres
   --far-distance N           Far-distance lower bound in metres
   --tilt-threshold N         Horizontal/vertical tilt threshold in degrees

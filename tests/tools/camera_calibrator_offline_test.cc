@@ -1,3 +1,4 @@
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <array>
@@ -73,7 +74,7 @@ bool WriteBoard(const std::filesystem::path& path, int index, bool degenerate = 
           rvec = {-0.22, 0.0, 0.0};
           break;
       }
-      tvec[2] = 0.14 + 0.04 * (index % (missing_far ? 2 : 3));
+      tvec[2] = missing_far ? 0.18 : 0.14 + 0.04 * (index % 3);
       const int position = (index / 5) % 9;
       const double center_x = 300.0 + 340.0 * (position % 3);
       const double center_y = 220.0 + 260.0 * (position / 3);
@@ -162,7 +163,8 @@ int main(int argc, char** argv) {
                                   report.find("\"selected_samples\": 20") != std::string::npos &&
                                   report.find("\"failure_reason\": \"PASS\"") != std::string::npos;
   const int insufficient = Run(argv[1], input_dir, root / "insufficient", "--frames 5");
-  const int duplicate = Run(argv[1], input_dir, root / "duplicate");
+  const int duplicate = Run(argv[1], input_dir, root / "duplicate",
+                            "--frames 20 --max-candidates 30 --grid-required 1 --blur-min 0");
   std::filesystem::copy_file(input_dir / "frame-0.png", input_dir / "mixed.png",
                              std::filesystem::copy_options::overwrite_existing);
   cv::Mat mixed = cv::imread((input_dir / "mixed.png").string(), cv::IMREAD_GRAYSCALE);
@@ -186,10 +188,8 @@ int main(int argc, char** argv) {
       return 1;
   }
   const auto profile_output = root / "q12-good-output";
-  const int profile_result =
-      Run(argv[1], profile_dir, profile_output,
-          "--board-profile q12-70-5 --frames 20 --max-candidates 40 --duplicate-threshold 0 "
-          "--blur-min 0 --near-distance 0.16 --far-distance 0.20 --tilt-threshold 8");
+  const int profile_result = Run(argv[1], profile_dir, profile_output,
+                                 "--board-profile q12-70-5 --frames 20 --max-candidates 40");
   std::ifstream profile_report_stream(profile_output / "calibration_report.json");
   const std::string profile_report((std::istreambuf_iterator<char>(profile_report_stream)),
                                    std::istreambuf_iterator<char>());
@@ -205,10 +205,8 @@ int main(int argc, char** argv) {
       return 1;
   }
   const auto front_only_output = root / "q12-front-only-output";
-  const int front_only_result =
-      Run(argv[1], front_only_dir, front_only_output,
-          "--board-profile q12-70-5 --frames 20 --max-candidates 30 --duplicate-threshold 0 "
-          "--blur-min 0 --near-distance 0.16 --far-distance 0.20 --tilt-threshold 8");
+  const int front_only_result = Run(argv[1], front_only_dir, front_only_output,
+                                    "--board-profile q12-70-5 --frames 20 --max-candidates 30");
   std::ifstream front_only_report_stream(front_only_output / "calibration_report.json");
   const std::string front_only_report((std::istreambuf_iterator<char>(front_only_report_stream)),
                                       std::istreambuf_iterator<char>());
@@ -223,10 +221,8 @@ int main(int argc, char** argv) {
       return 1;
   }
   const auto missing_far_output = root / "q12-missing-far-output";
-  const int missing_far_result =
-      Run(argv[1], missing_far_dir, missing_far_output,
-          "--board-profile q12-70-5 --frames 20 --max-candidates 30 --duplicate-threshold 0 "
-          "--blur-min 0 --near-distance 0.16 --far-distance 0.80 --tilt-threshold 8");
+  const int missing_far_result = Run(argv[1], missing_far_dir, missing_far_output,
+                                     "--board-profile q12-70-5 --frames 20 --max-candidates 30");
   std::ifstream missing_far_report_stream(missing_far_output / "calibration_report.json");
   const std::string missing_far_report((std::istreambuf_iterator<char>(missing_far_report_stream)),
                                        std::istreambuf_iterator<char>());
@@ -234,9 +230,10 @@ int main(int argc, char** argv) {
       missing_far_result != 0 &&
       missing_far_report.find("\"failure_reason\": \"FAIL_DISTANCE_DIVERSITY\"") !=
           std::string::npos;
+  const bool duplicate_accepted = WIFEXITED(duplicate) && WEXITSTATUS(duplicate) == 0;
   std::filesystem::remove_all(root);
   return success == 0 && artifacts && recovered && selection_reported && insufficient != 0 &&
-                 duplicate != 0 && mixed_result != 0 && degenerate_result != 0 &&
+                 duplicate_accepted && mixed_result != 0 && degenerate_result != 0 &&
                  profile_result == 0 && profile_passed && front_only_failed && missing_far_failed
              ? 0
              : 1;

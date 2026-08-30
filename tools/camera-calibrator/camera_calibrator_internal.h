@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <opencv2/core.hpp>
@@ -34,7 +35,7 @@ struct Options {
   double far_distance_m = 0.55;
   double tilt_threshold_deg = 12.0;
   int grid_required = 5;
-  double duplicate_threshold = 2.0;
+  double duplicate_threshold = 0.0;
   bool corners_x_explicit = false;
   bool corners_y_explicit = false;
   bool square_size_explicit = false;
@@ -71,6 +72,33 @@ struct AcceptedFrame {
   bool outlier = false;
 };
 
+enum class RejectReason {
+  kAccepted,
+  kNoChessboard,
+  kBlur,
+  kExposure,
+  kAreaTooSmall,
+  kAreaTooLarge,
+  kGrid,
+};
+
+struct AnalyzeResult {
+  std::optional<AcceptedFrame> frame;
+  RejectReason reason = RejectReason::kNoChessboard;
+  std::vector<cv::Point2f> corners;
+  double blur = 0.0;
+  double mean = 0.0;
+  double area = 0.0;
+  int grid = 0;
+  std::uint64_t sequence = 0;
+};
+
+struct AnalysisStats {
+  std::uint64_t analyzed = 0;
+  std::uint64_t accepted = 0;
+  std::array<std::uint64_t, 7> rejected{};
+};
+
 struct CoverageState {
   int spatial_cells = 0;
   bool front = false;
@@ -93,14 +121,21 @@ struct CoverageState {
   }
 };
 
+struct CaptureEvaluation {
+  CoverageState coverage;
+  std::string guidance;
+  bool complete = false;
+  double provisional_rms = 0.0;
+};
+
 void Usage();
 ParseResult ParseOptions(int argc, char** argv, Options* options);
 cv::Mat ToBgr(const cockpit::camera::CameraFrame& frame);
-std::optional<AcceptedFrame> Analyze(const cv::Mat& image, std::uint64_t sequence,
-                                     const Options& options,
-                                     const std::vector<AcceptedFrame>& accepted);
+AnalyzeResult Analyze(const cv::Mat& image, std::uint64_t sequence, const Options& options);
 std::vector<std::filesystem::path> ImageFiles(const std::filesystem::path& directory);
 CoverageState BuildCoverage(const Options& options, const std::vector<AcceptedFrame>& frames);
+CaptureEvaluation EvaluateCapture(const Options& options,
+                                  const std::vector<AcceptedFrame>& candidates);
 std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> candidates);
 bool CaptureComplete(const Options& options, const std::vector<AcceptedFrame>& candidates);
 bool FinalValidator(const Options& options, const CoverageState& coverage);

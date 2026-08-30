@@ -29,6 +29,10 @@ Farthest Point 关键帧选择、MAD 异常检测、最多 6 轮且最多删除 
 门限互相阻塞。profile 只描述几何参数和采集门限，不代表已经完成 IMX219 真机标定；真实参数在
 实体板采集和误差验收前仍保持 `NOT VERIFIED`。
 
+采集阶段不再使用整幅图像的 duplicate hard gate；`duplicate-threshold` 仅为兼容旧命令保留，
+候选池会交给 geometry-aware keyframe selection 处理重复和多样性。NEAR/MID/FAR coverage
+在采集阶段基于棋盘 apparent area 的尺度变化判断，最终报告仍记录 solvePnP 的实际距离。
+
 ## Jetson 真机 gate
 
 标定板到货后，在 Jetson 原生运行：
