@@ -37,6 +37,20 @@ Farthest Point 关键帧选择、MAD 异常检测、最多 6 轮且最多删除 
 scripts/tests/jetson-camera-calibration-gate.sh
 ```
 
+需要现场交互调整棋盘位置时，可直接运行带预览的 CLI：
+
+```bash
+_output/build/arm64-debug/bin/camera-calibrator \
+  --device nvargus://0 --width 1920 --height 1080 --fps 30 \
+  --frames 30 --timeout-seconds 300 \
+  --board-profile q12-70-5 --preview \
+  --output-dir _output/runtime/camera-calibration/imx219-q12-70-5
+```
+
+终端会输出中文 `下一步` 指令；预览窗口会持续刷新当前画面，并叠加已接受角点、候选数和空间
+coverage。窗口中的状态文字使用 OpenCV ASCII 字体，详细中文动作以终端为准；按 `q` 或 `Esc`
+可关闭预览窗口。每收集一个有效候选后，按照终端提示改变棋盘的位置、倾角或距离。
+
 该 gate 固定使用 `nvargus://0`、1920×1080@30 和 `q12-70-5`，输出只写入 `_output/`。
 它不会自动修改配置、提交 YAML 或将结果标记为 `VERIFIED`；完成后需要人工检查样本分布、
 RMS、逐视角重投影误差和 undistort 对比。

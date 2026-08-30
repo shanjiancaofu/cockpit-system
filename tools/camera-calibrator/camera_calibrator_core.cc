@@ -12,6 +12,7 @@
 #include <numeric>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 #include <optional>
@@ -381,20 +382,44 @@ bool safeToRemove(const Options& options, const std::vector<AcceptedFrame>& fram
 }
 
 std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> candidates) {
-  if (candidates.size() < 10U) return "COLLECT COARSE SAMPLES";
+  if (candidates.size() < 10U) return "先采集基础样本";
   auto solution = SolveCalibration(options, &candidates);
-  if (!std::isfinite(solution.rms)) return "COLLECT MORE DIVERSE VIEWS";
+  if (!std::isfinite(solution.rms)) return "采集更多不同角度和位置";
   const CoverageState coverage = BuildCoverage(options, candidates);
-  if (coverage.spatial_cells < 5) return "MOVE BOARD TO COVER A NEW IMAGE CELL";
-  if (!coverage.front) return "FACE BOARD FORWARD";
-  if (!coverage.tilt_left) return "TILT BOARD LEFT";
-  if (!coverage.tilt_right) return "TILT BOARD RIGHT";
-  if (!coverage.tilt_up) return "TILT BOARD UP";
-  if (!coverage.tilt_down) return "TILT BOARD DOWN";
-  if (!coverage.near) return "MOVE BOARD CLOSER";
-  if (!coverage.mid) return "MOVE BOARD TO MID DISTANCE";
-  if (!coverage.far) return "MOVE BOARD FARTHER";
-  return "CAPTURE COMPLETE";
+  if (coverage.spatial_cells < 5) return "移动棋盘，覆盖新的画面区域";
+  if (!coverage.front) return "正对棋盘，保持正面";
+  if (!coverage.tilt_left) return "将棋盘向左倾斜";
+  if (!coverage.tilt_right) return "将棋盘向右倾斜";
+  if (!coverage.tilt_up) return "将棋盘向上倾斜";
+  if (!coverage.tilt_down) return "将棋盘向下倾斜";
+  if (!coverage.near) return "将棋盘移近";
+  if (!coverage.mid) return "将棋盘移动到中距离";
+  if (!coverage.far) return "将棋盘移远（超过远距离阈值）";
+  return "采集完成";
+}
+
+void ShowPreview(const Options& options, const cv::Mat& image,
+                 const std::vector<AcceptedFrame>& candidates) {
+  if (!options.preview || image.empty()) return;
+  cv::Mat display = image.clone();
+  const CoverageState coverage = BuildCoverage(options, candidates);
+  for (const auto& frame : candidates) {
+    for (const auto& corner : frame.corners)
+      cv::circle(display, corner, 3, cv::Scalar(0, 255, 0), -1);
+  }
+  cv::rectangle(display, cv::Rect(0, 0, display.cols, 96), cv::Scalar(0, 0, 0), cv::FILLED);
+  const std::string next = GuidanceNext(options, candidates);
+  cv::putText(display,
+              "Candidates: " + std::to_string(candidates.size()) +
+                  "  Spatial: " + std::to_string(coverage.spatial_cells) + "/5",
+              cv::Point(20, 30), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 255, 255), 2);
+  cv::putText(display, "Next: " + std::to_string(next.size()) + " chars (see terminal)",
+              cv::Point(20, 68), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
+  cv::imshow("Camera Calibration - press q to quit", display);
+  const int key = cv::waitKey(1);
+  if (key == 'q' || key == 'Q' || key == 27) {
+    cv::destroyWindow("Camera Calibration - press q to quit");
+  }
 }
 
 bool CaptureComplete(const Options& options, const std::vector<AcceptedFrame>& candidates) {
@@ -618,11 +643,13 @@ int RunImpl(int argc, char** argv) {
         [&](cockpit::camera::CameraFrame frame) {
           cv::Mat image = ToBgr(frame);
           std::lock_guard<std::mutex> lock(mutex);
+          ShowPreview(options, image, accepted);
           auto analyzed = Analyze(image, frame.sequence, options, accepted);
           if (analyzed.has_value()) {
             accepted.push_back(std::move(*analyzed));
             const std::string next = GuidanceNext(options, accepted);
-            std::cout << "candidates=" << accepted.size() << " next=\"" << next << "\"\n";
+            std::cout << "候选数=" << accepted.size() << "，下一步：" << next << "\n";
+            ShowPreview(options, image, accepted);
             capture_complete = CaptureComplete(options, accepted) ||
                                accepted.size() >= static_cast<std::size_t>(options.max_candidates);
             condition.notify_one();
@@ -643,11 +670,12 @@ int RunImpl(int argc, char** argv) {
     }
     pipeline.Stop();
     if (!capture_complete) {
-      std::cerr << "capture timed out: candidates=" << accepted.size() << " next=\""
-                << GuidanceNext(options, accepted) << "\"\n";
+      std::cerr << "采集超时：候选数=" << accepted.size() << "，下一步："
+                << GuidanceNext(options, accepted) << "\n";
       return 1;
     }
   }
+  if (options.preview) cv::destroyAllWindows();
   return Calibrate(options, accepted) ? 0 : 1;
 }
 

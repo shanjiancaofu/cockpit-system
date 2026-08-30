@@ -46,6 +46,7 @@ struct Options {
   bool near_distance_explicit = false;
   bool far_distance_explicit = false;
   bool tilt_threshold_explicit = false;
+  bool preview = false;
 };
 
 enum class ParseResult { kOk, kHelp, kError };

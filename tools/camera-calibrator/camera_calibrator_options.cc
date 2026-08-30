@@ -27,6 +27,7 @@ void Usage() {
   --near-distance N          Near-distance upper bound in metres
   --far-distance N           Far-distance lower bound in metres
   --tilt-threshold N         Horizontal/vertical tilt threshold in degrees
+  --preview                  Show live camera guidance window
   --help
 )";
 }
@@ -67,6 +68,10 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
     if (arg == "--help" || arg == "-h") {
       Usage();
       return ParseResult::kHelp;
+    }
+    if (arg == "--preview") {
+      options->preview = true;
+      continue;
     }
     std::string value;
     auto require_value = [&](const char* name) {
