@@ -326,7 +326,9 @@ if(TARGET camera-calibrator)
     add_test(NAME camera_calibrator_offline_test COMMAND camera_calibrator_offline_test
         $<TARGET_FILE:camera-calibrator>
     )
-    set_tests_properties(camera_calibrator_offline_test PROPERTIES TIMEOUT 30)
+    # Q12 positive and negative image-generation regressions take about 25 s in
+    # Debug and can exceed 30 s under ASan instrumentation on shared CI runners.
+    set_tests_properties(camera_calibrator_offline_test PROPERTIES TIMEOUT 90)
 endif()
 target_link_libraries(camera_synthetic_stability_test PRIVATE camera_control synthetic_camera)
 add_test(NAME camera_synthetic_stability_test COMMAND camera_synthetic_stability_test)
