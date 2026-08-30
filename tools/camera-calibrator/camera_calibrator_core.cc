@@ -398,6 +398,8 @@ std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> cand
   if (!coverage.near) return "将棋盘移近";
   if (!coverage.mid) return "将棋盘移动到中距离";
   if (!coverage.far) return "将棋盘移远（超过远距离阈值）";
+  if (candidates.size() < static_cast<std::size_t>(options.frames))
+    return "覆盖完成，继续采集至目标样本数";
   return "采集完成";
 }
 
