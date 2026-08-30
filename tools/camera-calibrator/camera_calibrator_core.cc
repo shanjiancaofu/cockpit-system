@@ -399,12 +399,12 @@ std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> cand
   return "采集完成";
 }
 
-void ShowPreview(const Options& options, const cv::Mat& image,
+bool ShowPreview(const Options& options, const cv::Mat& image,
                  const std::vector<AcceptedFrame>& candidates) {
   static bool preview_disabled = false;
   static bool warning_printed = false;
   static bool window_initialized = false;
-  if (!options.preview || image.empty() || preview_disabled) return;
+  if (!options.preview || image.empty() || preview_disabled) return false;
   if (std::getenv("DISPLAY") == nullptr && std::getenv("WAYLAND_DISPLAY") == nullptr) {
     if (!warning_printed) {
       std::cerr
@@ -412,7 +412,7 @@ void ShowPreview(const Options& options, const cv::Mat& image,
       warning_printed = true;
     }
     preview_disabled = true;
-    return;
+    return false;
   }
   try {
     cv::Mat display = image.clone();
@@ -438,6 +438,7 @@ void ShowPreview(const Options& options, const cv::Mat& image,
     const int key = cv::waitKey(1);
     if (key == 'q' || key == 'Q' || key == 27) {
       cv::destroyWindow("Camera Calibration - press q to quit");
+      return true;
     }
   } catch (const cv::Exception& error) {
     if (!warning_printed) {
@@ -446,6 +447,7 @@ void ShowPreview(const Options& options, const cv::Mat& image,
     }
     preview_disabled = true;
   }
+  return false;
 }
 
 bool CaptureComplete(const Options& options, const std::vector<AcceptedFrame>& candidates) {
@@ -660,6 +662,7 @@ int RunImpl(int argc, char** argv) {
     std::mutex mutex;
     std::condition_variable condition;
     bool capture_complete = false;
+    cv::Mat latest_image;
     std::string error;
     const bool started = pipeline.Start(
         cockpit::camera::CameraPreviewConfig{
@@ -669,13 +672,12 @@ int RunImpl(int argc, char** argv) {
         [&](cockpit::camera::CameraFrame frame) {
           cv::Mat image = ToBgr(frame);
           std::lock_guard<std::mutex> lock(mutex);
-          ShowPreview(options, image, accepted);
+          latest_image = image;
           auto analyzed = Analyze(image, frame.sequence, options, accepted);
           if (analyzed.has_value()) {
             accepted.push_back(std::move(*analyzed));
             const std::string next = GuidanceNext(options, accepted);
             std::cout << "候选数=" << accepted.size() << "，下一步：" << next << "\n";
-            ShowPreview(options, image, accepted);
             capture_complete = CaptureComplete(options, accepted) ||
                                accepted.size() >= static_cast<std::size_t>(options.max_candidates);
             condition.notify_one();
@@ -688,13 +690,29 @@ int RunImpl(int argc, char** argv) {
     }
     const auto deadline =
         std::chrono::steady_clock::now() + std::chrono::seconds(options.timeout_seconds);
+    bool preview_aborted = false;
     {
-      std::unique_lock<std::mutex> lock(mutex);
-      condition.wait_until(lock, deadline, [&] {
-        return capture_complete;
-      });
+      while (true) {
+        std::vector<AcceptedFrame> preview_candidates;
+        cv::Mat preview_image;
+        {
+          std::unique_lock<std::mutex> lock(mutex);
+          if (capture_complete || std::chrono::steady_clock::now() >= deadline) break;
+          condition.wait_for(lock, std::chrono::milliseconds(50));
+          preview_image = latest_image.clone();
+          preview_candidates = accepted;
+        }
+        if (ShowPreview(options, preview_image, preview_candidates)) {
+          preview_aborted = true;
+          break;
+        }
+      }
     }
     pipeline.Stop();
+    if (preview_aborted) {
+      std::cerr << "用户退出预览，采集已停止\n";
+      return 1;
+    }
     if (!capture_complete) {
       std::cerr << "采集超时：候选数=" << accepted.size() << "，下一步："
                 << GuidanceNext(options, accepted) << "\n";
