@@ -741,15 +741,9 @@ int RunImpl(int argc, char** argv) {
           std::lock_guard<std::mutex> lock(mutex);
           accepted.push_back(std::move(*analyzed));
           updated_candidates = accepted;
+          capture_complete = accepted.size() >= static_cast<std::size_t>(options.max_candidates);
         }
-        const std::string next = GuidanceNext(options, updated_candidates);
-        const bool complete = CaptureComplete(options, updated_candidates);
-        std::cout << "候选数=" << updated_candidates.size() << "，下一步：" << next << "\n";
-        {
-          std::lock_guard<std::mutex> lock(mutex);
-          capture_complete =
-              complete || accepted.size() >= static_cast<std::size_t>(options.max_candidates);
-        }
+        std::cout << "候选数=" << updated_candidates.size() << "\n";
       }
     });
     if (options.preview) {
@@ -786,6 +780,11 @@ int RunImpl(int argc, char** argv) {
           preview_image = latest_image.clone();
           preview_candidates = accepted;
           preview_sequence = latest_sequence;
+        }
+        if (preview_candidates.size() >= static_cast<std::size_t>(options.frames) &&
+            preview_next == "采集完成") {
+          std::lock_guard<std::mutex> lock(mutex);
+          capture_complete = true;
         }
         if (std::chrono::steady_clock::now() - last_status >= std::chrono::seconds(1)) {
           preview_next = GuidanceNext(options, preview_candidates);
