@@ -400,7 +400,7 @@ std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> cand
 }
 
 bool ShowPreview(const Options& options, const cv::Mat& image,
-                 const std::vector<AcceptedFrame>& candidates) {
+                 const std::vector<AcceptedFrame>& candidates, std::uint64_t sequence) {
   static bool preview_disabled = false;
   static bool warning_printed = false;
   if (!options.preview || preview_disabled) return false;
@@ -425,7 +425,8 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
     const std::string next = GuidanceNext(options, candidates);
     cv::putText(display,
                 image.empty() ? "Waiting for camera frame..."
-                              : "Candidates: " + std::to_string(candidates.size()) +
+                              : "Frame: " + std::to_string(sequence) +
+                                    "  Candidates: " + std::to_string(candidates.size()) +
                                     "  Spatial: " + std::to_string(coverage.spatial_cells) + "/5",
                 cv::Point(20, 30), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 255, 255), 2);
     const std::string preview_next = candidates.empty() ? "Show full checkerboard in camera view"
@@ -662,6 +663,7 @@ int RunImpl(int argc, char** argv) {
     std::condition_variable condition;
     bool capture_complete = false;
     cv::Mat latest_image;
+    std::uint64_t latest_sequence = 0;
     bool first_frame_logged = false;
     std::string error;
     const bool started = pipeline.Start(
@@ -674,7 +676,8 @@ int RunImpl(int argc, char** argv) {
           std::vector<AcceptedFrame> accepted_snapshot;
           {
             std::lock_guard<std::mutex> lock(mutex);
-            latest_image = image;
+            latest_image = image.clone();
+            latest_sequence = frame.sequence;
             accepted_snapshot = accepted;
             if (!first_frame_logged) {
               std::cerr << "camera frame callback: " << image.cols << 'x' << image.rows
@@ -724,19 +727,21 @@ int RunImpl(int argc, char** argv) {
       while (true) {
         std::vector<AcceptedFrame> preview_candidates;
         cv::Mat preview_image;
+        std::uint64_t preview_sequence = 0;
         {
           std::unique_lock<std::mutex> lock(mutex);
           if (capture_complete || std::chrono::steady_clock::now() >= deadline) break;
           condition.wait_for(lock, std::chrono::milliseconds(50));
           preview_image = latest_image.clone();
           preview_candidates = accepted;
+          preview_sequence = latest_sequence;
         }
         if (std::chrono::steady_clock::now() - last_status >= std::chrono::seconds(1)) {
           std::cout << "状态：候选数=" << preview_candidates.size() << "，下一步："
                     << GuidanceNext(options, preview_candidates) << "\n";
           last_status = std::chrono::steady_clock::now();
         }
-        if (ShowPreview(options, preview_image, preview_candidates)) {
+        if (ShowPreview(options, preview_image, preview_candidates, preview_sequence)) {
           preview_aborted = true;
           break;
         }
