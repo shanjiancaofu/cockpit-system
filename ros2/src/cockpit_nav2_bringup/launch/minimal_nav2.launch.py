@@ -5,6 +5,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
@@ -19,6 +20,7 @@ def generate_launch_description():
     map_file = LaunchConfiguration("map")
     params_file = LaunchConfiguration("params_file")
     scan_scenario = LaunchConfiguration("scan_scenario")
+    enable_fake_scan = LaunchConfiguration("enable_fake_scan")
 
     return LaunchDescription(
         [
@@ -27,6 +29,7 @@ def generate_launch_description():
                 "params_file", default_value=upstream_params
             ),
             DeclareLaunchArgument("scan_scenario", default_value="empty"),
+            DeclareLaunchArgument("enable_fake_scan", default_value="true"),
             Node(
                 package="cockpit_nav2_test_support",
                 executable="fake_odometry_node",
@@ -45,6 +48,7 @@ def generate_launch_description():
                 name="cockpit_fake_scan",
                 output="screen",
                 parameters=[{"scenario": scan_scenario}],
+                condition=IfCondition(enable_fake_scan),
             ),
             Node(
                 package="cockpit_chassis_safety",

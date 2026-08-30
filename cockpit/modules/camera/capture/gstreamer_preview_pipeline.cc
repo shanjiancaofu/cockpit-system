@@ -191,6 +191,9 @@ bool GstreamerPreviewPipeline::Start(const CameraPreviewConfig& config, FrameCal
     callback_ = std::move(callback);
     config_ = normalized;
     sequence_ = 0;
+    timestamp_mapping_initialized_ = false;
+    base_running_time_ns_ = 0;
+    base_receive_time_ns_ = 0;
   }
 
   const GstStateChangeReturn state_result = gst_element_set_state(pipeline_, GST_STATE_PLAYING);
@@ -296,9 +299,17 @@ int GstreamerPreviewPipeline::HandleNewSample(GstSample* sample) {
       const GstClockTime running_time =
           gst_segment_to_running_time(segment, GST_FORMAT_TIME, GST_BUFFER_PTS(buffer));
       if (GST_CLOCK_TIME_IS_VALID(running_time)) {
-        frame.source_timestamp_ns = static_cast<std::int64_t>(running_time);
+        const auto running_time_ns = static_cast<std::int64_t>(running_time);
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!timestamp_mapping_initialized_) {
+          timestamp_mapping_initialized_ = true;
+          base_running_time_ns_ = running_time_ns;
+          base_receive_time_ns_ = frame.received_at_ns;
+        }
+        frame.source_timestamp_ns =
+            base_receive_time_ns_ + (running_time_ns - base_running_time_ns_);
         frame.source_timestamp_valid = true;
-        frame.source_clock = CameraTimestampClock::kGstreamerRunningTime;
+        frame.source_clock = CameraTimestampClock::kRealtime;
       }
     }
   }

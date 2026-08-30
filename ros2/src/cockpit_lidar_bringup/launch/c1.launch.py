@@ -11,25 +11,31 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    config = os.path.join(get_package_share_directory("cockpit_lidar_bringup"), "config", "c1.yaml")
+    config = os.path.join(
+        get_package_share_directory("cockpit_lidar_bringup"),
+        "config",
+        "c1.yaml",
+    )
     use_fake = LaunchConfiguration("use_fake")
-    return LaunchDescription([
-        DeclareLaunchArgument("use_fake", default_value="false"),
-        Node(
-            package="rplidar_ros",
-            executable="rplidarNode",
-            name="rplidar_node",
-            output="screen",
-            parameters=[config],
-            remappings=[("scan", "/scan")],
-            condition=UnlessCondition(use_fake),
-        ),
-        Node(
-            package="cockpit_nav2_test_support",
-            executable="fake_scan_node",
-            name="cockpit_fake_scan",
-            output="screen",
-            parameters=[{"scenario": "empty"}],
-            condition=IfCondition(use_fake),
-        ),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument("use_fake", default_value="false"),
+            Node(
+                package="rplidar_ros",
+                executable="rplidar_node",
+                name="rplidar_node",
+                output="screen",
+                parameters=[config],
+                remappings=[("scan", "/scan")],
+                condition=UnlessCondition(use_fake),
+            ),
+            Node(
+                package="cockpit_nav2_test_support",
+                executable="fake_scan_node",
+                name="cockpit_fake_scan",
+                output="screen",
+                parameters=[{"scenario": "empty"}],
+                condition=IfCondition(use_fake),
+            ),
+        ]
+    )
