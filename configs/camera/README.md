@@ -41,9 +41,10 @@ scripts/tests/jetson-camera-calibration-gate.sh
 它不会自动修改配置、提交 YAML 或将结果标记为 `VERIFIED`；完成后需要人工检查样本分布、
 RMS、逐视角重投影误差和 undistort 对比。
 
-2026-08-30 首次 Jetson gate 已确认 Argus 以 1920×1080@30 启动，但因未检测到有效棋盘而以
-`candidates=0` 超时退出；该结果仅证明设备链路可启动，不证明标定失败或成功。重跑前先确认棋盘
-完整进入画面、对焦/曝光正常、照明均匀且没有被反光或裁切遮挡。
+2026-08-30 首次 Jetson gate 已确认 Argus 以 1920×1080@30 启动但未检测到有效棋盘
+（`candidates=0`）；第二次运行已检测到 5 个候选，但在 180 秒内未达到采集目标。该结果仅证明
+设备和部分棋盘检测链路可用，不证明标定失败或成功。继续采集时按终端 `NEXT` 提示改变棋盘位置、
+倾角和距离，并确认对焦/曝光正常、照明均匀且没有被反光或裁切遮挡。
 
 离线或真机运行都会输出 `calibration_result.yaml`、`calibration_report.json`、
 `per_view_errors.csv`、`original_preview.jpg` 和 `undistorted_preview.jpg`。报告会记录每个样本的
