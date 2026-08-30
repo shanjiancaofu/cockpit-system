@@ -37,6 +37,53 @@ bool ChassisSafetyPolicy::IsValid() const {
          command_timeout_ms > 0 && output_period_ms > 0 && output_period_ms <= command_timeout_ms;
 }
 
+bool ChassisStateFreshnessPolicy::IsValid() const {
+  return peer_timeout_ms > 0 && fault_state_timeout_ms > 0;
+}
+
+ChassisSafetyStateTracker::ChassisSafetyStateTracker(ChassisStateFreshnessPolicy policy)
+    : policy_(policy) {
+}
+
+bool ChassisSafetyStateTracker::UpdatePeerHeartbeat(std::int64_t steady_now_ms) {
+  if (!policy_.IsValid() || steady_now_ms < 0 ||
+      (last_peer_heartbeat_ms_ >= 0 && steady_now_ms < last_peer_heartbeat_ms_)) {
+    return false;
+  }
+  last_peer_heartbeat_ms_ = steady_now_ms;
+  return true;
+}
+
+bool ChassisSafetyStateTracker::UpdateChassisFault(bool faulted, std::int64_t steady_now_ms) {
+  if (!policy_.IsValid() || steady_now_ms < 0 ||
+      (last_fault_state_ms_ >= 0 && steady_now_ms < last_fault_state_ms_)) {
+    return false;
+  }
+  chassis_fault_ = faulted;
+  last_fault_state_ms_ = steady_now_ms;
+  return true;
+}
+
+ChassisSafetyState ChassisSafetyStateTracker::Evaluate(const ChassisSafetyState& controls,
+                                                       std::int64_t steady_now_ms) const {
+  ChassisSafetyState result = controls;
+  const bool peer_time_valid = last_peer_heartbeat_ms_ >= 0 &&
+                               steady_now_ms >= last_peer_heartbeat_ms_ &&
+                               steady_now_ms - last_peer_heartbeat_ms_ <= policy_.peer_timeout_ms;
+  result.peer_alive = policy_.IsValid() && peer_time_valid;
+  const bool fault_time_valid =
+      last_fault_state_ms_ >= 0 && steady_now_ms >= last_fault_state_ms_ &&
+      steady_now_ms - last_fault_state_ms_ <= policy_.fault_state_timeout_ms;
+  result.chassis_fault = result.peer_alive && (!fault_time_valid || chassis_fault_);
+  return result;
+}
+
+void ChassisSafetyStateTracker::Reset() {
+  last_peer_heartbeat_ms_ = -1;
+  last_fault_state_ms_ = -1;
+  chassis_fault_ = true;
+}
+
 ChassisSafetyAdapter::ChassisSafetyAdapter(ChassisSafetyPolicy policy) : policy_(policy) {
 }
 
@@ -70,6 +117,12 @@ bool ChassisSafetyAdapter::Submit(const ChassisVelocityRequest& request,
   last_request_ms_ = steady_now_ms;
   invalid_command_pending_ = false;
   return true;
+}
+
+void ChassisSafetyAdapter::RejectInvalidCommand(std::int64_t steady_now_ms) {
+  request_.reset();
+  last_request_ms_ = steady_now_ms;
+  invalid_command_pending_ = true;
 }
 
 SafeChassisCommand ChassisSafetyAdapter::Evaluate(const ChassisSafetyState& state,

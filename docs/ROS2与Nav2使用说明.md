@@ -118,6 +118,13 @@ fake odometry/TF/scan/chassis/fault-control 只能存在于 `cockpit_nav2_test_s
 不是 STM32/电机量产参数。任一 interlock 进入不安全状态都会清除缓存命令；恢复后必须收到新的有效
 `/cmd_vel`，不会恢复 e-stop 前的旧速度。
 
+差速底盘 Twist 合同固定为 `vx=linear.x + wz=angular.z`。六个分量必须全部 finite，且 `linear.y`、
+`linear.z`、`angular.x`、`angular.y` 必须严格为零；任何不支持的非零轴或 NaN/Inf 都触发
+`invalid_command + zero`。生产 peer 状态来自 `chassis_safety/peer_heartbeat` 脉冲并以 steady clock
+执行 300 ms freshness；fault sample 来自 `chassis_safety/chassis_fault_sample`，缺失或超过 300 ms 在
+peer 存活时按 fault 处理。`chassis_safety/test/*` Bool latch 只有显式
+`allow_test_state_override=true` 的测试 launch 才启用，不能作为真车状态源。
+
 ## 参考项目审计
 
 `/home/ffz/Documents/project_move/project_move/无人车` 仅作为只读资料。当前实现借鉴其 colcon workspace、

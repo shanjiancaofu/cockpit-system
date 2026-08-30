@@ -1,5 +1,6 @@
 #include <chrono>
 #include <exception>
+#include <geometry_msgs/msg/twist.hpp>
 #include <iostream>
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
@@ -51,10 +52,28 @@ bool AssertCmdVelZero(const rclcpp::Node::SharedPtr& node) {
   return received && !nonzero;
 }
 
+bool PublishInvalidCmdVel(const rclcpp::Node::SharedPtr& node) {
+  auto publisher = node->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+  const auto deadline = std::chrono::steady_clock::now() + 3s;
+  while (std::chrono::steady_clock::now() < deadline && publisher->get_subscription_count() == 0) {
+    rclcpp::spin_some(node);
+    std::this_thread::sleep_for(20ms);
+  }
+  if (publisher->get_subscription_count() == 0) return false;
+  geometry_msgs::msg::Twist invalid;
+  invalid.linear.y = 0.1;
+  for (int attempt = 0; attempt < 3; ++attempt) {
+    publisher->publish(invalid);
+    rclcpp::spin_some(node);
+    std::this_thread::sleep_for(20ms);
+  }
+  return true;
+}
+
 int Run(int argc, char** argv) {
   if (argc != 2) {
     std::cerr << "usage: nav2_fault_control "
-                 "odometry-enable|odometry-disable|assert-cmd-zero\n";
+                 "odometry-enable|odometry-disable|assert-cmd-zero|publish-invalid-cmd-vel\n";
     return 2;
   }
   rclcpp::init(argc, argv);
@@ -67,6 +86,8 @@ int Run(int argc, char** argv) {
     success = SetOdometry(node, false);
   } else if (command == "assert-cmd-zero") {
     success = AssertCmdVelZero(node);
+  } else if (command == "publish-invalid-cmd-vel") {
+    success = PublishInvalidCmdVel(node);
   } else {
     std::cerr << "unknown command: " << command << '\n';
     rclcpp::shutdown();

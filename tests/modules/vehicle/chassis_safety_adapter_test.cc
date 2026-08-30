@@ -12,6 +12,7 @@ namespace {
 using cockpit::vehicle::ChassisSafetyAdapter;
 using cockpit::vehicle::ChassisSafetyPolicy;
 using cockpit::vehicle::ChassisSafetyState;
+using cockpit::vehicle::ChassisSafetyStateTracker;
 using cockpit::vehicle::ChassisStopReason;
 using cockpit::vehicle::ChassisVelocityRequest;
 using cockpit::vehicle::SafeChassisCommand;
@@ -44,6 +45,28 @@ ChassisSafetyState Ready() {
 }  // namespace
 
 int main() {
+  cockpit::vehicle::ChassisStateFreshnessPolicy freshness_policy;
+  ChassisSafetyStateTracker state_tracker(freshness_policy);
+  auto tracked_state = state_tracker.Evaluate(Ready(), 1000);
+  Require(!tracked_state.peer_alive && !tracked_state.chassis_fault,
+          "missing peer heartbeat did not fail closed");
+  Require(state_tracker.UpdatePeerHeartbeat(1000), "valid peer heartbeat was rejected");
+  tracked_state = state_tracker.Evaluate(Ready(), 1000);
+  Require(tracked_state.peer_alive && tracked_state.chassis_fault,
+          "missing fault sample did not fail closed after peer recovery");
+  Require(state_tracker.UpdateChassisFault(false, 1000), "healthy fault sample was rejected");
+  tracked_state = state_tracker.Evaluate(Ready(), 1300);
+  Require(tracked_state.peer_alive && !tracked_state.chassis_fault,
+          "fresh peer/fault state was rejected");
+  tracked_state = state_tracker.Evaluate(Ready(), 1301);
+  Require(!tracked_state.peer_alive, "stale peer heartbeat remained alive");
+  Require(state_tracker.UpdatePeerHeartbeat(1400), "peer heartbeat refresh was rejected");
+  tracked_state = state_tracker.Evaluate(Ready(), 1400);
+  Require(tracked_state.peer_alive && tracked_state.chassis_fault,
+          "stale fault sample did not fail closed");
+  Require(!state_tracker.UpdatePeerHeartbeat(1399), "regressing heartbeat timestamp was accepted");
+  state_tracker.Reset();
+
   ChassisSafetyPolicy invalid_policy;
   invalid_policy.command_timeout_ms = 0;
   Require(!invalid_policy.IsValid(), "invalid safety policy was accepted");
@@ -120,6 +143,9 @@ int main() {
           "NaN command was accepted");
   Require(adapter.Evaluate(Ready(), 1700).stop_reason == ChassisStopReason::kInvalidCommand,
           "invalid command did not latch safe stop");
+  adapter.RejectInvalidCommand(1750);
+  Require(adapter.Evaluate(Ready(), 1750).stop_reason == ChassisStopReason::kInvalidCommand,
+          "explicit adapter-boundary rejection did not latch safe stop");
   Require(adapter.Submit(ChassisVelocityRequest{0.1, 0.0}, Ready(), 1800, &error),
           "valid command did not clear invalid latch");
   Require(adapter.Evaluate(Ready(), 1799).stop_reason == ChassisStopReason::kClockRegression,

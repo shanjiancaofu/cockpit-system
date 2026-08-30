@@ -38,6 +38,29 @@ struct ChassisSafetyState {
   bool chassis_fault = false;
 };
 
+struct ChassisStateFreshnessPolicy {
+  std::int64_t peer_timeout_ms = 300;
+  std::int64_t fault_state_timeout_ms = 300;
+
+  bool IsValid() const;
+};
+
+class ChassisSafetyStateTracker final {
+ public:
+  explicit ChassisSafetyStateTracker(ChassisStateFreshnessPolicy policy);
+
+  bool UpdatePeerHeartbeat(std::int64_t steady_now_ms);
+  bool UpdateChassisFault(bool faulted, std::int64_t steady_now_ms);
+  ChassisSafetyState Evaluate(const ChassisSafetyState& controls, std::int64_t steady_now_ms) const;
+  void Reset();
+
+ private:
+  ChassisStateFreshnessPolicy policy_;
+  std::int64_t last_peer_heartbeat_ms_ = -1;
+  std::int64_t last_fault_state_ms_ = -1;
+  bool chassis_fault_ = true;
+};
+
 struct ChassisVelocityRequest {
   double linear_velocity_m_s = 0.0;
   double angular_velocity_rad_s = 0.0;
@@ -58,6 +81,7 @@ class ChassisSafetyAdapter final {
 
   bool Submit(const ChassisVelocityRequest& request, const ChassisSafetyState& state,
               std::int64_t steady_now_ms, std::string* error = nullptr);
+  void RejectInvalidCommand(std::int64_t steady_now_ms);
   SafeChassisCommand Evaluate(const ChassisSafetyState& state, std::int64_t steady_now_ms);
   void Reset(std::int64_t steady_now_ms);
 

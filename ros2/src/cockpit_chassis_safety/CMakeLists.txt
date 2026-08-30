@@ -18,13 +18,27 @@ add_library(chassis_safety_core STATIC
 target_include_directories(chassis_safety_core PUBLIC ${COCKPIT_REPO_ROOT})
 target_compile_options(chassis_safety_core PRIVATE -Wall -Wextra -Wpedantic)
 
+add_library(twist_contract STATIC src/twist_contract.cc)
+target_include_directories(twist_contract PUBLIC include ${COCKPIT_REPO_ROOT})
+target_compile_options(twist_contract PRIVATE -Wall -Wextra -Wpedantic)
+ament_target_dependencies(twist_contract geometry_msgs)
+
 add_executable(chassis_safety_adapter src/chassis_safety_adapter_node.cc)
-target_link_libraries(chassis_safety_adapter chassis_safety_core)
-target_include_directories(chassis_safety_adapter PRIVATE ${COCKPIT_REPO_ROOT})
+target_link_libraries(chassis_safety_adapter chassis_safety_core twist_contract)
+target_include_directories(chassis_safety_adapter PRIVATE include ${COCKPIT_REPO_ROOT})
 target_compile_options(chassis_safety_adapter PRIVATE -Wall -Wextra -Wpedantic)
 ament_target_dependencies(chassis_safety_adapter geometry_msgs rclcpp std_msgs)
 
 install(TARGETS chassis_safety_adapter DESTINATION lib/${PROJECT_NAME})
 install(TARGETS chassis_safety_core ARCHIVE DESTINATION lib)
+install(TARGETS twist_contract ARCHIVE DESTINATION lib)
+install(DIRECTORY include/ DESTINATION include)
+
+if(BUILD_TESTING)
+  add_executable(twist_contract_test test/twist_contract_test.cc)
+  target_link_libraries(twist_contract_test twist_contract)
+  ament_target_dependencies(twist_contract_test geometry_msgs)
+  add_test(NAME twist_contract_test COMMAND twist_contract_test)
+endif()
 
 ament_package()

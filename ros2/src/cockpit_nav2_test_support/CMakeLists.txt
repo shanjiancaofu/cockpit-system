@@ -37,7 +37,7 @@ add_executable(nav2_readiness_probe src/nav2_readiness_probe.cc)
 ament_target_dependencies(nav2_readiness_probe lifecycle_msgs nav2_msgs rclcpp rclcpp_action)
 
 add_executable(nav2_fault_control src/nav2_fault_control.cc)
-ament_target_dependencies(nav2_fault_control rclcpp std_msgs std_srvs)
+ament_target_dependencies(nav2_fault_control geometry_msgs rclcpp std_msgs std_srvs)
 
 foreach(target fake_odometry_node fake_tf_node fake_scan_node fake_chassis_sink nav2_readiness_probe nav2_fault_control)
   target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
