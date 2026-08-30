@@ -173,6 +173,19 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         LABELS "socketcan"
         SKIP_RETURN_CODE 77
     )
+
+    add_executable(socketcan_chassis_sink_vcan_test
+        library/driver/vehicle/socketcan_chassis_sink_vcan_test.cc
+    )
+    target_link_libraries(socketcan_chassis_sink_vcan_test PRIVATE socketcan_chassis_sink)
+    add_test(NAME socketcan_chassis_sink_vcan_test COMMAND
+        bash ${PROJECT_SOURCE_DIR}/scripts/tests/chassis-vehicle-vcan.sh
+        $<TARGET_FILE:socketcan_chassis_sink_vcan_test>
+    )
+    set_tests_properties(socketcan_chassis_sink_vcan_test PROPERTIES
+        LABELS "socketcan"
+        SKIP_RETURN_CODE 77
+    )
 endif()
 if(TARGET can-simulator)
     add_test(NAME chassis_can_simulator_stdout_test COMMAND

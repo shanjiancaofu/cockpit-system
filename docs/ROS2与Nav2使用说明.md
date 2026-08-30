@@ -111,7 +111,7 @@ BUILD_DIR=_output/build/ros2 bash scripts/tests/ros2-nav2-bridge-smoke.sh
 - `nav2_fault_control`：只在测试域开关 fake odometry，并确认最新 cmd_vel 已归零。
 
 fake odometry/TF/scan/chassis/fault-control 只能存在于 `cockpit_nav2_test_support`，不得进入正式车辆 mode；
-`cockpit_chassis_safety` 是产品候选安全层，但当前只完成 VM/fake 验证，真实车辆参数和 SocketCAN sink 仍未验收。
+`cockpit_chassis_safety` 是产品候选安全层，但当前只完成 VM/fake 与隔离 vcan0 验证，真实车辆参数、真实 can0 和 SocketCAN 硬件发送仍未验收。
 
 当前 minimal launch 的 provisional policy 是线速度 ±400 mm/s、角速度 ±1200 mrad/s、线/角加速度
 400 mm/s² 与 1200 mrad/s²、命令 timeout 250 ms、输出周期 20 ms。它们只用于 VM/fake correctness，
