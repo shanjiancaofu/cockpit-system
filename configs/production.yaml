@@ -42,6 +42,8 @@ services:
     photo_jpeg_quality: 90
     photo_max_frame_age_ms: 2000
     calibration_file: /cockpit-system/configs/camera/imx219_1920x1080_2026-08-30.yaml
+    calibration_pipeline: argus_isp
+    calibration_device: nvargus://0
     grpc:
       listen_address: unix:/cockpit-system/run/camera.grpc.sock
   voice_interaction:

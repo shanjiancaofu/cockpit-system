@@ -39,6 +39,20 @@ CameraCapturePipeline ParseCameraCapturePipeline(const std::string& value) {
   throw std::invalid_argument("unsupported camera capture pipeline: " + value);
 }
 
+const char* CameraCapturePipelineName(CameraCapturePipeline pipeline) {
+  switch (pipeline) {
+    case CameraCapturePipeline::kArgusIsp:
+      return "argus_isp";
+    case CameraCapturePipeline::kUvc:
+      return "uvc";
+    case CameraCapturePipeline::kSoftwareIsp:
+      return "software_isp";
+    case CameraCapturePipeline::kSynthetic:
+      return "synthetic";
+  }
+  return "unknown";
+}
+
 CameraUvcInputFormat ParseCameraUvcInputFormat(const std::string& value) {
   if (value == "mjpeg") return CameraUvcInputFormat::kMjpeg;
   if (value == "yuyv") return CameraUvcInputFormat::kYuyv;
@@ -173,6 +187,14 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     AssignError(error, "camera preview resolution does not match verified calibration");
     SetError("calibration_resolution_mismatch",
              "camera preview resolution does not match verified calibration");
+    return false;
+  }
+  if (options_.calibration.has_value() &&
+      (options_.calibration_pipeline != CameraCapturePipelineName(options_.capture_pipeline) ||
+       request.device != options_.calibration_device)) {
+    AssignError(error, "camera preview device or pipeline does not match verified calibration");
+    SetError("calibration_binding_mismatch",
+             "camera preview device or pipeline does not match verified calibration");
     return false;
   }
   CameraPreviewState previous_state = CameraPreviewState::kStopped;

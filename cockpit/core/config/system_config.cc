@@ -193,7 +193,8 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       camera_service, "services.camera",
       {"grpc", "capture_pipeline", "uvc_input_format", "preview_stale_timeout_ms",
        "synthetic_fault", "synthetic_fault_after_frames", "shared_memory_name", "max_frame_bytes",
-       "photo_directory", "photo_jpeg_quality", "photo_max_frame_age_ms", "calibration_file"});
+       "photo_directory", "photo_jpeg_quality", "photo_max_frame_age_ms", "calibration_file",
+       "calibration_pipeline", "calibration_device"});
   const YAML::Node camera_grpc = ChildMap(camera_service, "grpc", "services.camera.grpc");
   ValidateKeys(camera_grpc, "services.camera.grpc", {"listen_address"});
   config.services_.camera.grpc.listen_address =
@@ -233,6 +234,12 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.camera.calibration_file =
       Read(camera_service, "calibration_file", config.services_.camera.calibration_file,
            "services.camera.calibration_file");
+  config.services_.camera.calibration_pipeline =
+      Read(camera_service, "calibration_pipeline", config.services_.camera.calibration_pipeline,
+           "services.camera.calibration_pipeline");
+  config.services_.camera.calibration_device =
+      Read(camera_service, "calibration_device", config.services_.camera.calibration_device,
+           "services.camera.calibration_device");
 
   const YAML::Node voice_interaction =
       ChildMap(services, "voice_interaction", "services.voice_interaction");
@@ -596,6 +603,18 @@ void SystemConfig::Validate() const {
   }
   if (services_.camera.uvc_input_format != "mjpeg" && services_.camera.uvc_input_format != "yuyv") {
     throw std::runtime_error("services.camera.uvc_input_format must be mjpeg or yuyv");
+  }
+  if (!services_.camera.calibration_file.empty()) {
+    if (services_.camera.calibration_pipeline != camera_pipeline ||
+        services_.camera.calibration_device.empty()) {
+      throw std::runtime_error(
+          "services.camera calibration binding must specify matching calibration_pipeline and "
+          "calibration_device");
+    }
+  } else if (!services_.camera.calibration_pipeline.empty() ||
+             !services_.camera.calibration_device.empty()) {
+    throw std::runtime_error(
+        "services.camera calibration_pipeline and calibration_device require calibration_file");
   }
   RequirePositive(services_.camera.preview_stale_timeout_ms,
                   "services.camera.preview_stale_timeout_ms");

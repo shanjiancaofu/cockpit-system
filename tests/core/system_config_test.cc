@@ -79,6 +79,9 @@ int main() {
       config.features().voice.speech_segment.max_segment_ms != 15000 ||
       config.services().camera.capture_pipeline != "argus_isp" ||
       config.services().camera.uvc_input_format != "mjpeg" ||
+      config.services().camera.calibration_file != "" ||
+      config.services().camera.calibration_pipeline != "" ||
+      config.services().camera.calibration_device != "" ||
       config.services().camera.preview_stale_timeout_ms != 2000 ||
       config.services().camera.synthetic_fault != "none" ||
       config.services().camera.synthetic_fault_after_frames != 30 ||

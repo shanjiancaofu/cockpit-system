@@ -250,6 +250,8 @@ int main() {
 
   cockpit::camera::CameraServiceOptions calibrated_options;
   calibrated_options.capture_pipeline = cockpit::camera::CameraCapturePipeline::kSynthetic;
+  calibrated_options.calibration_pipeline = "synthetic";
+  calibrated_options.calibration_device = "synthetic://0";
   cockpit::hawkeye::CameraCalibration verified_calibration;
   verified_calibration.image_width = 1920;
   verified_calibration.image_height = 1080;
@@ -270,6 +272,29 @@ int main() {
              "verified calibration accepted a mismatched preview resolution") ||
       !Check(calibration_error.find("does not match verified calibration") != std::string::npos,
              "calibration resolution mismatch did not report a deterministic error")) {
+    return 1;
+  }
+  mismatched_calibration_request.width = 1920;
+  mismatched_calibration_request.height = 1080;
+  mismatched_calibration_request.device = "synthetic://wrong";
+  if (!Check(!calibrated_service.StartPreview(mismatched_calibration_request, &calibration_error),
+             "verified calibration accepted a mismatched device") ||
+      !Check(calibration_error.find("device or pipeline") != std::string::npos,
+             "calibration device mismatch did not report a deterministic error")) {
+    return 1;
+  }
+  calibrated_options.calibration_pipeline = "argus_isp";
+  cockpit::camera::CameraService mismatched_pipeline_service(
+      [](std::string*) {
+        return std::vector<cockpit::camera::VideoDeviceInfo>{};
+      },
+      std::make_unique<FakePreviewSource>(), nullptr, nullptr, calibrated_options);
+  mismatched_calibration_request.device = "synthetic://0";
+  if (!Check(!mismatched_pipeline_service.StartPreview(mismatched_calibration_request,
+                                                       &calibration_error),
+             "verified calibration accepted a mismatched pipeline") ||
+      !Check(calibration_error.find("device or pipeline") != std::string::npos,
+             "calibration pipeline mismatch did not report a deterministic error")) {
     return 1;
   }
 

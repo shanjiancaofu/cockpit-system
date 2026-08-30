@@ -65,9 +65,12 @@ struct CameraServiceOptions {
   CameraCapturePipeline capture_pipeline = CameraCapturePipeline::kArgusIsp;
   CameraUvcInputFormat uvc_input_format = CameraUvcInputFormat::kMjpeg;
   std::optional<hawkeye::CameraCalibration> calibration;
+  std::string calibration_pipeline;
+  std::string calibration_device;
 };
 
 CameraCapturePipeline ParseCameraCapturePipeline(const std::string& value);
+const char* CameraCapturePipelineName(CameraCapturePipeline pipeline);
 CameraUvcInputFormat ParseCameraUvcInputFormat(const std::string& value);
 std::unique_ptr<CameraPreviewSource> CreateCameraPreviewSource(
     CameraCapturePipeline pipeline, CameraUvcInputFormat uvc_input_format);

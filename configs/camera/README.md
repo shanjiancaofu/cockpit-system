@@ -28,8 +28,7 @@ Farthest Point 关键帧选择、MAD 异常检测、最多 6 轮且最多删除 
 该 profile 对应 DAFAN VISION Q12-70-5：12×9 个棋盘格、11×8 个内角点、5.0 mm 方格，
 即 `square_size=0.005` m。profile 同时使用适配该小板的 `area_min=0.0005`、
 `near_distance=0.25 m`、`far_distance=0.55 m` 和 `tilt_threshold=12°`，避免 FAR 引导与面积
-门限互相阻塞。profile 只描述几何参数和采集门限，不代表已经完成 IMX219 真机标定；真实参数在
-实体板采集和误差验收前仍保持 `NOT VERIFIED`。
+门限互相阻塞。profile 只描述几何参数和采集门限；当前 IMX219 1920×1080 参数已经通过 Q12-70-5 视频与误差验收。production 还绑定 `argus_isp + nvargus://0 + 1920×1080`；其他 sensor、镜头和分辨率仍为 `UNVERIFIED`。
 
 采集阶段不再使用整幅图像的 duplicate hard gate；`duplicate-threshold` 仅为兼容旧命令保留，
 候选池会交给 geometry-aware keyframe selection 处理重复和多样性。NEAR/MID/FAR coverage
