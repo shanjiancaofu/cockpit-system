@@ -797,6 +797,11 @@ int RunImpl(int argc, char** argv) {
     }
     condition.notify_one();
     analysis_thread.join();
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      capture_complete = CaptureComplete(options, accepted) ||
+                         accepted.size() >= static_cast<std::size_t>(options.max_candidates);
+    }
     if (preview_aborted) {
       std::cerr << "用户退出预览，采集已停止\n";
       return 1;
