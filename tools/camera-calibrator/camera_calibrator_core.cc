@@ -384,6 +384,7 @@ bool safeToRemove(const Options& options, const std::vector<AcceptedFrame>& fram
 }
 
 std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> candidates) {
+  if (candidates.empty()) return "请将棋盘完整放入画面并保持清晰";
   if (candidates.size() < 10U) return "先采集基础样本";
   auto solution = SolveCalibration(options, &candidates);
   if (!std::isfinite(solution.rms)) return "采集更多不同角度和位置";
