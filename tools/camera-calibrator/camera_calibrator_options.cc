@@ -11,7 +11,7 @@ void Usage() {
   --device nvargus://0       Capture device (default: nvargus://0)
   --board-profile NAME       Board profile: q12-70-5 (12x9 squares, 11x8 corners, 5 mm)
   --input-dir DIR            Calibrate existing image files instead of capturing
-  --input-video FILE         Replay a video at 5 analysis frames/s; repeatable
+  --input-video FILE         Uniformly sample frames across each video; repeatable
   --output-dir DIR           Output directory
   --width N --height N       Capture dimensions (default: 1920x1080)
   --fps N                    Capture frame rate (default: 30)

@@ -61,6 +61,9 @@ struct AcceptedFrame {
   double area = 0.0;
   int grid = 0;
   std::uint64_t sequence = 0;
+  std::string source_video;
+  std::uint64_t source_frame_index = 0;
+  std::int64_t source_timestamp_ms = 0;
   double center_x_normalized = 0.0;
   double center_y_normalized = 0.0;
   bool pose_valid = false;

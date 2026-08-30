@@ -232,8 +232,14 @@ AnalyzeResult Analyze(const cv::Mat& image, std::uint64_t sequence, const Option
                                             return value + point.y;
                                           }) /
                           static_cast<double>(corners.size()) / static_cast<double>(image.rows);
-  AcceptedFrame accepted_frame{image.clone(), std::move(corners), result.blur, result.mean,
-                               result.area,   result.grid,        sequence};
+  AcceptedFrame accepted_frame;
+  accepted_frame.image = image.clone();
+  accepted_frame.corners = std::move(corners);
+  accepted_frame.blur = result.blur;
+  accepted_frame.mean = result.mean;
+  accepted_frame.area = result.area;
+  accepted_frame.grid = result.grid;
+  accepted_frame.sequence = sequence;
   accepted_frame.center_x_normalized = center_x;
   accepted_frame.center_y_normalized = center_y;
   result.frame = std::move(accepted_frame);
@@ -735,11 +741,14 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
       });
   const double min_area = area_range.first->area;
   const double max_area = area_range.second->area;
-  csv << "view,sequence,selected,outlier,blur,mean_gray,area,grid_coverage,center_x,center_y,"
+  csv << "view,sequence,source_video,source_frame_index,source_timestamp_ms,selected,outlier,blur,"
+         "mean_gray,area,grid_coverage,center_x,center_y,"
          "horizontal_tilt_deg,vertical_tilt_deg,in_plane_rotation_deg,distance_m,pose_bucket,"
          "scale_bucket,distance_bucket,reprojection_error_px\n";
   for (std::size_t index = 0; index < accepted.size(); ++index) {
-    csv << index << ',' << accepted[index].sequence << ',' << accepted[index].selected << ','
+    csv << index << ',' << accepted[index].sequence << ',' << '"' << accepted[index].source_video
+        << '"' << ',' << accepted[index].source_frame_index << ','
+        << accepted[index].source_timestamp_ms << ',' << accepted[index].selected << ','
         << accepted[index].outlier << ',' << accepted[index].blur << ',' << accepted[index].mean
         << ',' << accepted[index].area << ',' << accepted[index].grid << ','
         << accepted[index].center_x_normalized << ',' << accepted[index].center_y_normalized << ','
@@ -829,6 +838,12 @@ int RunImpl(int argc, char** argv) {
         auto analyzed = Analyze(image, ++sequence, options);
         ++stats.analyzed;
         if (analyzed.frame.has_value()) {
+          analyzed.frame->source_video = video_path.filename().string();
+          analyzed.frame->source_frame_index = source_frame;
+          analyzed.frame->source_timestamp_ms =
+              source_fps > 0.0 ? static_cast<std::int64_t>(std::llround(
+                                     static_cast<double>(source_frame - 1U) * 1000.0 / source_fps))
+                               : 0;
           video_candidates.push_back(std::move(*analyzed.frame));
         } else {
           ++stats.rejected[RejectReasonIndex(analyzed.reason)];
@@ -903,9 +918,12 @@ int RunImpl(int argc, char** argv) {
             static_cast<std::uint32_t>(options.height), static_cast<std::uint32_t>(options.fps),
             cockpit::camera::CameraPixelFormat::kBgrx},
         [&](cockpit::camera::CameraFrame frame) {
+          const bool need_preview = options.preview && frame.sequence % preview_period_frames == 0U;
+          const bool need_analysis = frame.sequence % analysis_period_frames == 0U;
+          if (!need_preview && !need_analysis) return;
           cv::Mat image = ToBgr(frame);
           cv::Mat preview_image;
-          if (options.preview && frame.sequence % preview_period_frames == 0U) {
+          if (need_preview) {
             cv::resize(image, preview_image, cv::Size(960, 540), 0.0, 0.0, cv::INTER_AREA);
           }
           {
@@ -914,7 +932,7 @@ int RunImpl(int argc, char** argv) {
               latest_image = preview_image;
               latest_sequence = frame.sequence;
             }
-            if (frame.sequence % analysis_period_frames == 0U) {
+            if (need_analysis) {
               analysis_image = image;
               analysis_sequence = frame.sequence;
               analysis_pending = true;
