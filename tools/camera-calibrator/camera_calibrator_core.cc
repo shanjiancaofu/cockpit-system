@@ -3,6 +3,7 @@
 #include <cmath>
 #include <condition_variable>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -400,25 +401,44 @@ std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> cand
 
 void ShowPreview(const Options& options, const cv::Mat& image,
                  const std::vector<AcceptedFrame>& candidates) {
-  if (!options.preview || image.empty()) return;
-  cv::Mat display = image.clone();
-  const CoverageState coverage = BuildCoverage(options, candidates);
-  for (const auto& frame : candidates) {
-    for (const auto& corner : frame.corners)
-      cv::circle(display, corner, 3, cv::Scalar(0, 255, 0), -1);
+  static bool preview_disabled = false;
+  static bool warning_printed = false;
+  if (!options.preview || image.empty() || preview_disabled) return;
+  if (std::getenv("DISPLAY") == nullptr && std::getenv("WAYLAND_DISPLAY") == nullptr) {
+    if (!warning_printed) {
+      std::cerr
+          << "preview unavailable: DISPLAY/WAYLAND_DISPLAY is not set; continuing in CLI mode\n";
+      warning_printed = true;
+    }
+    preview_disabled = true;
+    return;
   }
-  cv::rectangle(display, cv::Rect(0, 0, display.cols, 96), cv::Scalar(0, 0, 0), cv::FILLED);
-  const std::string next = GuidanceNext(options, candidates);
-  cv::putText(display,
-              "Candidates: " + std::to_string(candidates.size()) +
-                  "  Spatial: " + std::to_string(coverage.spatial_cells) + "/5",
-              cv::Point(20, 30), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 255, 255), 2);
-  cv::putText(display, "Next: " + std::to_string(next.size()) + " chars (see terminal)",
-              cv::Point(20, 68), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
-  cv::imshow("Camera Calibration - press q to quit", display);
-  const int key = cv::waitKey(1);
-  if (key == 'q' || key == 'Q' || key == 27) {
-    cv::destroyWindow("Camera Calibration - press q to quit");
+  try {
+    cv::Mat display = image.clone();
+    const CoverageState coverage = BuildCoverage(options, candidates);
+    for (const auto& frame : candidates) {
+      for (const auto& corner : frame.corners)
+        cv::circle(display, corner, 3, cv::Scalar(0, 255, 0), -1);
+    }
+    cv::rectangle(display, cv::Rect(0, 0, display.cols, 96), cv::Scalar(0, 0, 0), cv::FILLED);
+    const std::string next = GuidanceNext(options, candidates);
+    cv::putText(display,
+                "Candidates: " + std::to_string(candidates.size()) +
+                    "  Spatial: " + std::to_string(coverage.spatial_cells) + "/5",
+                cv::Point(20, 30), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 255, 255), 2);
+    cv::putText(display, "Next: " + std::to_string(next.size()) + " chars (see terminal)",
+                cv::Point(20, 68), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
+    cv::imshow("Camera Calibration - press q to quit", display);
+    const int key = cv::waitKey(1);
+    if (key == 'q' || key == 'Q' || key == 27) {
+      cv::destroyWindow("Camera Calibration - press q to quit");
+    }
+  } catch (const cv::Exception& error) {
+    if (!warning_printed) {
+      std::cerr << "preview unavailable: " << error.what() << "; continuing in CLI mode\n";
+      warning_printed = true;
+    }
+    preview_disabled = true;
   }
 }
 
