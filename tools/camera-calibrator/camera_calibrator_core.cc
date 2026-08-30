@@ -450,7 +450,7 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
     cv::putText(display, "Next: " + preview_instruction, cv::Point(20, 68),
                 cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
     cv::imshow("Camera Calibration - press q to quit", display);
-    const int key = cv::waitKey(1);
+    const int key = cv::waitKey(10);
     if (key == 'q' || key == 'Q' || key == 27) {
       cv::destroyWindow("Camera Calibration - press q to quit");
       return true;
@@ -734,12 +734,20 @@ int RunImpl(int argc, char** argv) {
         }
         auto analyzed = Analyze(image, sequence, options, accepted_snapshot);
         if (!analyzed.has_value()) continue;
-        std::lock_guard<std::mutex> lock(mutex);
-        accepted.push_back(std::move(*analyzed));
-        const std::string next = GuidanceNext(options, accepted);
-        std::cout << "候选数=" << accepted.size() << "，下一步：" << next << "\n";
-        capture_complete = CaptureComplete(options, accepted) ||
-                           accepted.size() >= static_cast<std::size_t>(options.max_candidates);
+        std::vector<AcceptedFrame> updated_candidates;
+        {
+          std::lock_guard<std::mutex> lock(mutex);
+          accepted.push_back(std::move(*analyzed));
+          updated_candidates = accepted;
+        }
+        const std::string next = GuidanceNext(options, updated_candidates);
+        const bool complete = CaptureComplete(options, updated_candidates);
+        std::cout << "候选数=" << updated_candidates.size() << "，下一步：" << next << "\n";
+        {
+          std::lock_guard<std::mutex> lock(mutex);
+          capture_complete =
+              complete || accepted.size() >= static_cast<std::size_t>(options.max_candidates);
+        }
       }
     });
     if (options.preview) {
