@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <iostream>
 
+#include "cockpit/modules/vehicle/chassis_can_safety_state_source.h"
+
 namespace {
 
 bool Expect(bool condition, const char* message) {
@@ -130,5 +132,32 @@ int main() {
   success &= Expect(!ChassisCanCodec::DecodeFault(
                         CanFrame(0x240U, fault_data, 16U, false, false, true, true), &fault),
                     "fault CRC corruption accepted");
+  std::array<std::uint8_t, CanFrame::kMaxDataLength> clear_fault_data{};
+  clear_fault_data[0] = 1U;
+  clear_fault_data[1] = 0U;
+  clear_fault_data[2] = 8U;
+  const auto clear_fault_crc = ChassisCanCodec::Crc16(0x240U, clear_fault_data.data(), 14U);
+  clear_fault_data[14] = static_cast<std::uint8_t>(clear_fault_crc & 0xFFU);
+  clear_fault_data[15] = static_cast<std::uint8_t>(clear_fault_crc >> 8U);
+  cockpit::vehicle::ChassisCanSafetyStateSource safety_source(0);
+  success &=
+      Expect(ChassisCanCodec::DecodeFault(
+                 CanFrame(0x240U, clear_fault_data, 16U, false, false, true, true), &fault) &&
+                 fault.severity == 0U && fault.active_faults == 0U && fault.latched_faults == 0U,
+             "healthy fault frame was malformed");
+  success &= Expect(safety_source.ProcessFrame(encoded_heartbeat, 1000) ==
+                        cockpit::vehicle::ChassisClientDecodeStatus::kUpdated,
+                    "CAN safety source rejected heartbeat");
+  auto safety_state = safety_source.Evaluate(cockpit::vehicle::ChassisSafetyState{}, 1100);
+  success &= Expect(safety_state.peer_alive && safety_state.chassis_fault,
+                    "CAN safety source did not fail closed before fault sample");
+  success &= Expect(
+      safety_source.ProcessFrame(CanFrame(0x240U, clear_fault_data, 16U, false, false, true, true),
+                                 1100) == cockpit::vehicle::ChassisClientDecodeStatus::kUpdated,
+      "CAN safety source rejected fault sample");
+  safety_state = safety_source.Evaluate(cockpit::vehicle::ChassisSafetyState{}, 1100);
+  success &= Expect(!safety_state.chassis_fault, "healthy CAN fault sample did not clear fault");
+  safety_state = safety_source.Evaluate(cockpit::vehicle::ChassisSafetyState{}, 1410);
+  success &= Expect(!safety_state.peer_alive, "stale CAN heartbeat remained alive");
   return success ? 0 : 1;
 }

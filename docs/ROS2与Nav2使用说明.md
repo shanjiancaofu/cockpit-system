@@ -146,6 +146,11 @@ fake odometry/TF/scan/chassis/fault-control 只能存在于 `cockpit_nav2_test_s
 peer 存活时按 fault 处理。`chassis_safety/test/*` Bool latch 只有显式
 `allow_test_state_override=true` 的测试 launch 才启用，不能作为真车状态源。
 
+真实接入时，peer/fault 状态不得由 Bool topic 维护：`ChassisClient` 从 SocketCAN 解码 0x200/0x240，
+`ChassisCanSafetyStateSource` 将 heartbeat/fault freshness 转为 Safety state；0x180 motion 和 0x181
+odometry 同时进入 `ChassisState`，保留各自 source timestamp/sequence。当前 VM 只用 vcan0，真实 can0
+必须等 STM32 合同、heartbeat、fault、bus-off 和急停语义联调后开放。
+
 ## 参考项目审计
 
 `/home/ffz/Documents/project_move/project_move/无人车` 仅作为只读资料。当前实现借鉴其 colcon workspace、

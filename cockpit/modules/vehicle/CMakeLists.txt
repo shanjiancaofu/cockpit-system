@@ -1,5 +1,6 @@
 add_library(vehicle STATIC
     chassis_safety_adapter.cc
+    chassis_can_safety_state_source.cc
     chassis_can_codec.cc
     chassis_client.cc
     chassis_state.cc
