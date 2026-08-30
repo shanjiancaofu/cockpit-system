@@ -103,7 +103,9 @@ BUILD_DIR=_output/build/ros2 bash scripts/tests/ros2-nav2-bridge-smoke.sh
 
 - `fake_odometry_node`：订阅 `/cmd_vel_safe`，只在内存中积分二维位置并发布 `/odom`、`odom→base_link`。
 - `fake_tf_node`：发布测试用 `map→odom` 和 `base_link→base_scan` 静态 TF。
-- `fake_scan_node`：发布无障碍物的 bounded LaserScan。
+- `fake_scan_node`：发布 bounded LaserScan，`scenario` 支持 `empty`、`front_wall`、`left_obstacle`、
+  `right_obstacle`、`narrow_passage`、`dropout`、`nan`、`inf`、`invalid_range` 和 `stale`；仅用于
+  costmap/Nav2 故障矩阵，不代表真实 C1。
 - `cockpit_chassis_safety/chassis_safety_adapter`：产品安全核心的 ROS2 adapter，执行 finite、限幅、slew、
   enable/authority/e-stop/peer/fault 和 250 ms watchdog，发布 `/cmd_vel_safe` 与明确 stop reason；节点本身不访问 SocketCAN。
 - `fake_chassis_sink`：消费 `/cmd_vel_safe`，记录命令数量、非零状态和 safety status，明确不存在硬件/CAN 输出。

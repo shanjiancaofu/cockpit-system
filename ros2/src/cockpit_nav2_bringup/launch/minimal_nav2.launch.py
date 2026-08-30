@@ -18,6 +18,7 @@ def generate_launch_description():
 
     map_file = LaunchConfiguration("map")
     params_file = LaunchConfiguration("params_file")
+    scan_scenario = LaunchConfiguration("scan_scenario")
 
     return LaunchDescription(
         [
@@ -25,6 +26,7 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 "params_file", default_value=upstream_params
             ),
+            DeclareLaunchArgument("scan_scenario", default_value="empty"),
             Node(
                 package="cockpit_nav2_test_support",
                 executable="fake_odometry_node",
@@ -42,6 +44,7 @@ def generate_launch_description():
                 executable="fake_scan_node",
                 name="cockpit_fake_scan",
                 output="screen",
+                parameters=[{"scenario": scan_scenario}],
             ),
             Node(
                 package="cockpit_chassis_safety",
