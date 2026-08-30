@@ -671,6 +671,8 @@ int RunImpl(int argc, char** argv) {
     std::uint64_t analysis_sequence = 0;
     bool analysis_pending = false;
     bool analysis_stop = false;
+    const std::uint64_t analysis_period_frames =
+        std::max<std::uint64_t>(1U, static_cast<std::uint64_t>(options.fps) / 5U);
     std::string error;
     const bool started = pipeline.Start(
         cockpit::camera::CameraPreviewConfig{
@@ -683,9 +685,11 @@ int RunImpl(int argc, char** argv) {
             std::lock_guard<std::mutex> lock(mutex);
             latest_image = image.clone();
             latest_sequence = frame.sequence;
-            analysis_image = image;
-            analysis_sequence = frame.sequence;
-            analysis_pending = true;
+            if (frame.sequence % analysis_period_frames == 0U) {
+              analysis_image = image;
+              analysis_sequence = frame.sequence;
+              analysis_pending = true;
+            }
             if (!first_frame_logged) {
               std::cerr << "camera frame callback: " << image.cols << 'x' << image.rows
                         << " type=" << image.type() << "\n";
