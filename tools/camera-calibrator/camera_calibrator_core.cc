@@ -403,7 +403,6 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
                  const std::vector<AcceptedFrame>& candidates) {
   static bool preview_disabled = false;
   static bool warning_printed = false;
-  static bool window_initialized = false;
   if (!options.preview || image.empty() || preview_disabled) return false;
   if (std::getenv("DISPLAY") == nullptr && std::getenv("WAYLAND_DISPLAY") == nullptr) {
     if (!warning_printed) {
@@ -429,11 +428,6 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
                 cv::Point(20, 30), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 255, 255), 2);
     cv::putText(display, "Next: " + std::to_string(next.size()) + " chars (see terminal)",
                 cv::Point(20, 68), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
-    if (!window_initialized) {
-      cv::namedWindow("Camera Calibration - press q to quit", cv::WINDOW_NORMAL);
-      cv::resizeWindow("Camera Calibration - press q to quit", 960, 540);
-      window_initialized = true;
-    }
     cv::imshow("Camera Calibration - press q to quit", display);
     const int key = cv::waitKey(1);
     if (key == 'q' || key == 'Q' || key == 27) {
@@ -664,6 +658,16 @@ int RunImpl(int argc, char** argv) {
     bool capture_complete = false;
     cv::Mat latest_image;
     std::string error;
+    if (options.preview) {
+      try {
+        cv::startWindowThread();
+        cv::namedWindow("Camera Calibration - press q to quit", cv::WINDOW_NORMAL);
+        cv::resizeWindow("Camera Calibration - press q to quit", 960, 540);
+        std::cout << "标定预览已打开：请按终端提示移动棋盘，按 q 或 Esc 退出\n";
+      } catch (const cv::Exception& preview_error) {
+        std::cerr << "预览窗口不可用：" << preview_error.what() << "；继续使用终端模式\n";
+      }
+    }
     const bool started = pipeline.Start(
         cockpit::camera::CameraPreviewConfig{
             options.device, static_cast<std::uint32_t>(options.width),
