@@ -101,6 +101,25 @@ BUILD_DIR=_output/build/ros2 bash scripts/tests/ros2-nav2-bridge-smoke.sh
 
 ## 测试支持节点
 
+## CameraInfo 与可选 Rectify
+
+ROS2 adapter 位于 `cockpit/library/bridge/ros2_camera_frame_adapter.*`。它接收统一
+`CameraFrame` 与已经通过 Hawkeye loader 的 `CameraInfo`，输出 `image_raw` 和 `camera_info`；
+可选 `image_rect` 在 adapter 第一次使用时初始化 `initUndistortRectifyMap()`，后续每帧只执行
+`remap()`。三个输出共享同一个 source/receive-derived stamp、sequence 对应的 sample，不在
+CameraInfo 发布时重新调用 `now()`。输入格式固定为 BGRx，尺寸必须匹配 verified calibration，
+错误布局、尺寸或 K/D 直接 fail closed。
+
+当前 adapter 仍是 ROS2 bridge 组件，不自动创建 publisher；后续 Camera runtime publisher
+应复用该 adapter，保持 `image_raw.header.stamp == camera_info.header.stamp`。
+
+## C1 LiDAR 软件边界
+
+`ros2/src/cockpit_lidar_bringup` 只保存官方 `rplidar_ros` 的 launch/config 合同：串口默认
+`/dev/ttyUSB0`、460800、topic `/scan`、frame `base_scan`。它不包含 Slamtec SDK、不复制或修改
+官方驱动；VM 中继续使用 `cockpit_nav2_test_support/fake_scan_node`，真实 C1 到位后仅替换 source，
+下游 Nav2、Safety 和 Fake/SocketCAN sink 不变。当前 C1 配置标记为 CONFIGURED / NOT HARDWARE VERIFIED。
+
 - `fake_odometry_node`：订阅 `/cmd_vel_safe`，只在内存中积分二维位置并发布 `/odom`、`odom→base_link`。
 - `fake_tf_node`：发布测试用 `map→odom` 和 `base_link→base_scan` 静态 TF。
 - `fake_scan_node`：发布 bounded LaserScan，`scenario` 支持 `empty`、`front_wall`、`left_obstacle`、

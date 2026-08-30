@@ -10,6 +10,7 @@
 
   <exec_depend>cockpit_nav2_test_support</exec_depend>
   <exec_depend>cockpit_chassis_safety</exec_depend>
+  <exec_depend>cockpit_lidar_bringup</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>
   <exec_depend>nav2_lifecycle_manager</exec_depend>
   <exec_depend>nav2_map_server</exec_depend>

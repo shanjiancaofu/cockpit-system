@@ -1,0 +1,7 @@
+# C1/RPLIDAR configuration contract. NOT HARDWARE VERIFIED in VM.
+serial_port: /dev/ttyUSB0
+serial_baudrate: 460800
+frame_id: base_scan
+inverted: false
+angle_compensate: true
+scan_mode: Standard

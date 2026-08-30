@@ -73,12 +73,19 @@ awk -v bridge_socket="${bridge_socket}" -v vehicle_socket="${vehicle_socket}" \
     sub(/nav2_server_timeout_ms:.*/, "nav2_server_timeout_ms: 1000")
   }
   in_bridge && /^    goal_timeout_ms:/ {
-    sub(/goal_timeout_ms:.*/, "goal_timeout_ms: 8000")
+    # Production safety slew is intentionally bounded; keep the integration
+    # goal budget large enough for the fake robot to reach its target.
+    sub(/goal_timeout_ms:.*/, "goal_timeout_ms: 30000")
   }
   in_bridge && /^      listen_address:/ {
     sub(/listen_address:.*/, "listen_address: unix:" bridge_socket)
     in_bridge = 0
   }
+  /^  camera:$/ { in_camera = 1 }
+  in_camera && /^    capture_pipeline:/ { sub(/capture_pipeline:.*/, "capture_pipeline: synthetic") }
+  in_camera && /^    calibration_file:/ { sub(/calibration_file:.*/, "calibration_file: \"\"") }
+  in_camera && /^    calibration_pipeline:/ { sub(/calibration_pipeline:.*/, "calibration_pipeline: \"\"") }
+  in_camera && /^    calibration_device:/ { sub(/calibration_device:.*/, "calibration_device: \"\"") }
   { print }
 ' "${source_config}" >"${config_path}"
 
@@ -153,7 +160,7 @@ wait_for_bridge_state() {
   local expected="$1"
   local require_pose="${2:-false}"
   local status=""
-  for _ in $(seq 1 300); do
+  for _ in $(seq 1 600); do
     status="$(bridge_status_json)"
     if [[ "${status}" == *"\"state\":\"${expected}\""* ]]; then
       if [[ "${require_pose}" != "true" || "${status}" == *'"current_pose_valid":true'* ]]; then
@@ -169,7 +176,7 @@ wait_for_bridge_state() {
 
 wait_for_bridge_failure() {
   local status=""
-  for _ in $(seq 1 300); do
+  for _ in $(seq 1 600); do
     status="$(bridge_status_json)"
     if [[ "${status}" == *'"state":"NAVIGATION_STATE_FAILED"'* ||
           "${status}" == *'"state":"NAVIGATION_STATE_TIMED_OUT"'* ]]; then

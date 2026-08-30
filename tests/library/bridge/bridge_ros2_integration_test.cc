@@ -13,6 +13,7 @@
 #include <thread>
 #include <vector>
 
+#include "cockpit/library/bridge/ros2_camera_frame_adapter.h"
 #include "cockpit/library/bridge/ros2_camera_info_adapter.h"
 #include "cockpit/library/bridge/ros2_nav2_provider.h"
 
@@ -278,6 +279,36 @@ int main() {
     rejected_short_camera_info = true;
   }
   Require(rejected_short_camera_info, "short CameraInfo arrays were accepted");
+
+  cockpit::hawkeye::CameraInfo runtime_info;
+  runtime_info.width = 2;
+  runtime_info.height = 2;
+  runtime_info.distortion_model = "plumb_bob";
+  runtime_info.d = {0, 0, 0, 0, 0};
+  runtime_info.k = {1, 0, 1, 0, 1, 1, 0, 0, 1};
+  runtime_info.r = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  runtime_info.p = {1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0};
+  cockpit::bridge::Ros2CameraFrameAdapter frame_adapter(runtime_info, "camera_optical", true);
+  cockpit::camera::CameraFrame frame;
+  frame.sequence = 7;
+  frame.width = 2;
+  frame.height = 2;
+  frame.stride_bytes = 8;
+  frame.format = cockpit::camera::CameraPixelFormat::kBgrx;
+  frame.source_timestamp_ns = 42000000007LL;
+  frame.source_clock = cockpit::camera::CameraTimestampClock::kRealtime;
+  frame.source_timestamp_valid = true;
+  frame.data.assign(16, 128);
+  cockpit::bridge::Ros2CameraFrameOutput frame_output;
+  Require(frame_adapter.Convert(frame, &frame_output, &error),
+          "CameraFrame ROS2 conversion failed: " + error);
+  Require(frame_output.has_rectified_image && frame_output.image_raw.width == 2 &&
+              frame_output.image_raw.height == 2 && frame_output.image_raw.header.stamp.sec == 42 &&
+              frame_output.image_raw.header.stamp.nanosec == 7 &&
+              frame_output.image_raw.header.stamp == frame_output.camera_info.header.stamp &&
+              frame_output.image_raw.header.stamp == frame_output.image_rect.header.stamp &&
+              frame_output.image_raw.data.size() == 12 && frame_output.image_rect.data.size() == 12,
+          "CameraFrame timestamp or rectify output contract failed");
 
   std::cout << "Bridge ROS2/Nav2 provider integration tests passed\n";
   return 0;
