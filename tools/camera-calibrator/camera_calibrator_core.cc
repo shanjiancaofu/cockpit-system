@@ -664,20 +664,6 @@ int RunImpl(int argc, char** argv) {
     cv::Mat latest_image;
     bool first_frame_logged = false;
     std::string error;
-    if (options.preview) {
-      try {
-        cv::namedWindow("Camera Calibration - press q to quit", cv::WINDOW_NORMAL);
-        cv::resizeWindow("Camera Calibration - press q to quit", 960, 540);
-        std::cout << "标定预览已打开：请按终端提示移动棋盘，按 q 或 Esc 退出\n";
-        cv::Mat waiting(540, 960, CV_8UC3, cv::Scalar(24, 24, 24));
-        cv::putText(waiting, "Waiting for camera frame...", cv::Point(20, 42),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.9, cv::Scalar(255, 255, 255), 2);
-        cv::imshow("Camera Calibration - press q to quit", waiting);
-        cv::waitKey(30);
-      } catch (const cv::Exception& preview_error) {
-        std::cerr << "预览窗口不可用：" << preview_error.what() << "；继续使用终端模式\n";
-      }
-    }
     const bool started = pipeline.Start(
         cockpit::camera::CameraPreviewConfig{
             options.device, static_cast<std::uint32_t>(options.width),
@@ -713,11 +699,27 @@ int RunImpl(int argc, char** argv) {
       std::cerr << "capture failed: " << (error.empty() ? "unknown error" : error) << '\n';
       return 1;
     }
+    if (options.preview) {
+      try {
+        setenv("GTK_MODULES", "", 1);
+        cv::namedWindow("Camera Calibration - press q to quit", cv::WINDOW_NORMAL);
+        cv::resizeWindow("Camera Calibration - press q to quit", 960, 540);
+        std::cout << "\n=== 相机标定预览已打开 ===\n"
+                     "请按终端提示移动棋盘，按 q 或 Esc 退出。\n";
+        cv::Mat waiting(540, 960, CV_8UC3, cv::Scalar(24, 24, 24));
+        cv::putText(waiting, "Waiting for camera frame...", cv::Point(20, 42),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.9, cv::Scalar(255, 255, 255), 2);
+        cv::imshow("Camera Calibration - press q to quit", waiting);
+        cv::waitKey(30);
+      } catch (const cv::Exception& preview_error) {
+        std::cerr << "预览窗口不可用：" << preview_error.what() << "；继续使用终端模式\n";
+      }
+    }
     const auto deadline =
         std::chrono::steady_clock::now() + std::chrono::seconds(options.timeout_seconds);
     bool preview_aborted = false;
     auto last_status = std::chrono::steady_clock::now() - std::chrono::seconds(1);
-    std::cout << "下一步：请将 Q12-70-5 棋盘完整放入画面，保持清晰并缓慢移动\n";
+    std::cout << "下一步：请将 Q12-70-5 棋盘完整放入画面，保持清晰并缓慢移动\n" << std::flush;
     {
       while (true) {
         std::vector<AcceptedFrame> preview_candidates;
