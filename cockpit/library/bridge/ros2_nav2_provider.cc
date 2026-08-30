@@ -300,6 +300,9 @@ class Ros2Nav2Provider final : public NavigationProvider {
   }
 
   void Shutdown() {
+    if (executor_ != nullptr && node_ != nullptr) {
+      executor_->remove_node(node_);
+    }
     if (executor_ != nullptr) {
       executor_->cancel();
     }
