@@ -41,6 +41,7 @@ services:
     photo_directory: photos
     photo_jpeg_quality: 90
     photo_max_frame_age_ms: 2000
+    calibration_file: ""
     grpc:
       listen_address: 127.0.0.1:50054
   voice_interaction:

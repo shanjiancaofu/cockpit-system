@@ -11,6 +11,7 @@ void Usage() {
   --device nvargus://0       Capture device (default: nvargus://0)
   --board-profile NAME       Board profile: q12-70-5 (12x9 squares, 11x8 corners, 5 mm)
   --input-dir DIR            Calibrate existing image files instead of capturing
+  --input-video FILE         Replay a video at 5 analysis frames/s; repeatable
   --output-dir DIR           Output directory
   --width N --height N       Capture dimensions (default: 1920x1080)
   --fps N                    Capture frame rate (default: 30)
@@ -90,6 +91,9 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
     } else if (arg == "--input-dir") {
       if (!require_value("--input-dir")) return ParseResult::kError;
       options->input_dir = value;
+    } else if (arg == "--input-video") {
+      if (!require_value("--input-video")) return ParseResult::kError;
+      options->input_videos.emplace_back(value);
     } else if (arg == "--output-dir") {
       if (!require_value("--output-dir")) return ParseResult::kError;
       options->output_dir = value;
@@ -186,6 +190,10 @@ ParseResult ParseOptions(int argc, char** argv, Options* options) {
     if (!options->near_distance_explicit) options->near_distance_m = 0.25;
     if (!options->far_distance_explicit) options->far_distance_m = 0.55;
     if (!options->tilt_threshold_explicit) options->tilt_threshold_deg = 12.0;
+  }
+  if (!options->input_dir.empty() && !options->input_videos.empty()) {
+    std::cerr << "--input-dir and --input-video cannot be combined\n";
+    return ParseResult::kError;
   }
   if (options->width <= 0 || options->height <= 0 || options->fps <= 0 || options->frames <= 0 ||
       options->max_candidates < options->frames || options->max_candidates > 100 ||

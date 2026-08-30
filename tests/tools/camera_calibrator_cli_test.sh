@@ -19,6 +19,7 @@ expect_status() {
 help_output="$($calibrator --help)"
 grep -Fq -- '--board-profile NAME' <<<"$help_output"
 grep -Fq -- 'q12-70-5' <<<"$help_output"
+grep -Fq -- '--input-video FILE' <<<"$help_output"
 grep -Fq -- '--near-distance N' <<<"$help_output"
 grep -Fq -- '--far-distance N' <<<"$help_output"
 grep -Fq -- '--tilt-threshold N' <<<"$help_output"
@@ -32,6 +33,8 @@ expect_status 2 --board-profile q12-70-5 --width invalid
 expect_status 2 --board-profile q12-70-5 --near-distance invalid
 expect_status 2 --board-profile q12-70-5 --far-distance invalid
 expect_status 2 --board-profile q12-70-5 --tilt-threshold invalid
+expect_status 2 --input-video /does/not/exist.mp4
+expect_status 2 --input-dir /tmp --input-video /tmp/test.mp4
 
 fixture_dir="$(mktemp -d)"
 trap 'rm -rf -- "$fixture_dir"' EXIT

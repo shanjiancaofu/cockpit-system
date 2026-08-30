@@ -54,7 +54,7 @@ add_library(camera_preview STATIC driver/camera/preview/camera_preview_module.cc
 target_link_libraries(camera_preview PUBLIC camera_capture runtime software_isp_camera_source)
 
 add_library(camera_control STATIC driver/camera/control/camera_service.cc)
-target_link_libraries(camera_control PUBLIC base camera_frames camera_preview event runtime v4l2_camera)
+target_link_libraries(camera_control PUBLIC base camera_frames camera_preview event hawkeye runtime v4l2_camera)
 target_link_libraries(camera_control PRIVATE gstreamer_camera json_util)
 
 add_library(camera_photo_service STATIC driver/camera/photo/camera_photo_service.cc)
@@ -82,6 +82,7 @@ target_link_libraries(camera_runtime PUBLIC
     camera_grpc
     camera_photo_service
     camera_recording_bridge
+    hawkeye
     camera_shm
     config
     logging

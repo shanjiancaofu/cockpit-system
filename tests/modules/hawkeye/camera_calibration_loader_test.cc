@@ -81,7 +81,7 @@ void ExpectRejected(const std::string& content, const std::string& expected_erro
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
   FixtureFile valid(kValidCalibration);
   cockpit::hawkeye::CameraCalibration calibration;
   std::string error;
@@ -142,6 +142,15 @@ int main() {
               "/tmp/cockpit-camera-calibration-does-not-exist.yaml", &missing, &error) &&
               error.find("failed to load camera calibration file") != std::string::npos,
           "missing camera calibration did not return a clear error");
+
+  if (argc == 2) {
+    cockpit::hawkeye::CameraCalibration production;
+    error.clear();
+    Require(cockpit::hawkeye::CameraCalibrationLoader::LoadFromFile(argv[1], &production, &error),
+            "production camera calibration was rejected: " + error);
+    Require(production.image_width == 1920 && production.image_height == 1080,
+            "production camera calibration resolution mismatch");
+  }
 
   std::cout << "camera calibration loader tests passed\n";
   return 0;

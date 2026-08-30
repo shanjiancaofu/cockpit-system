@@ -193,7 +193,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       camera_service, "services.camera",
       {"grpc", "capture_pipeline", "uvc_input_format", "preview_stale_timeout_ms",
        "synthetic_fault", "synthetic_fault_after_frames", "shared_memory_name", "max_frame_bytes",
-       "photo_directory", "photo_jpeg_quality", "photo_max_frame_age_ms"});
+       "photo_directory", "photo_jpeg_quality", "photo_max_frame_age_ms", "calibration_file"});
   const YAML::Node camera_grpc = ChildMap(camera_service, "grpc", "services.camera.grpc");
   ValidateKeys(camera_grpc, "services.camera.grpc", {"listen_address"});
   config.services_.camera.grpc.listen_address =
@@ -230,6 +230,9 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.camera.photo_max_frame_age_ms =
       Read(camera_service, "photo_max_frame_age_ms", config.services_.camera.photo_max_frame_age_ms,
            "services.camera.photo_max_frame_age_ms");
+  config.services_.camera.calibration_file =
+      Read(camera_service, "calibration_file", config.services_.camera.calibration_file,
+           "services.camera.calibration_file");
 
   const YAML::Node voice_interaction =
       ChildMap(services, "voice_interaction", "services.voice_interaction");

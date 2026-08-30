@@ -16,6 +16,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/videoio.hpp>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -37,7 +38,7 @@ cv::Mat ToBgr(const cockpit::camera::CameraFrame& frame) {
                const_cast<std::uint8_t*>(frame.data.data()), frame.stride_bytes);
   cv::Mat bgr;
   cv::cvtColor(bgrx, bgr, cv::COLOR_BGRA2BGR);
-  return bgr.clone();
+  return bgr;
 }
 
 double BlurScore(const cv::Mat& gray) {
@@ -160,13 +161,33 @@ AnalyzeResult Analyze(const cv::Mat& image, std::uint64_t sequence, const Option
   if (image.empty() || image.cols <= options.corners_x || image.rows <= options.corners_y) {
     return result;
   }
-  cv::Mat gray;
-  cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+  constexpr int kDetectionWidth = 960;
+  const double detection_scale =
+      image.cols > kDetectionWidth ? static_cast<double>(kDetectionWidth) / image.cols : 1.0;
+  cv::Mat detection_image;
+  if (detection_scale < 1.0) {
+    cv::resize(image, detection_image,
+               cv::Size(kDetectionWidth, static_cast<int>(image.rows * detection_scale)), 0.0, 0.0,
+               cv::INTER_AREA);
+  } else {
+    detection_image = image;
+  }
+  cv::Mat detection_gray;
+  cv::cvtColor(detection_image, detection_gray, cv::COLOR_BGR2GRAY);
   std::vector<cv::Point2f> corners;
   const cv::Size pattern(options.corners_x, options.corners_y);
-  const bool found = cv::findChessboardCorners(
-      gray, pattern, corners, cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
+  const bool found =
+      cv::findChessboardCorners(detection_gray, pattern, corners,
+                                cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
   if (!found) return result;
+  if (detection_scale < 1.0) {
+    for (auto& corner : corners) {
+      corner.x = static_cast<float>(corner.x / detection_scale);
+      corner.y = static_cast<float>(corner.y / detection_scale);
+    }
+  }
+  cv::Mat gray;
+  cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
   result.corners = corners;
   cv::cornerSubPix(gray, corners, cv::Size(11, 11), cv::Size(-1, -1),
                    cv::TermCriteria(cv::TermCriteria::EPS | cv::TermCriteria::COUNT, 30, 0.01));
@@ -237,7 +258,7 @@ std::vector<std::filesystem::path> ImageFiles(const std::filesystem::path& direc
 void WriteJson(const std::filesystem::path& path, const Options& options,
                const cv::Size& image_size, const std::vector<AcceptedFrame>& accepted, double rms,
                double mean_error, double median_error, double mad_error, double p95_error,
-               double max_error, int spatial_coverage, bool pose_coverage, bool distance_coverage,
+               double max_error, int spatial_coverage, bool pose_coverage, bool scale_coverage,
                std::size_t candidate_count, std::size_t removed_count,
                const std::string& failure_reason, bool pass) {
   std::ofstream output(path);
@@ -259,7 +280,7 @@ void WriteJson(const std::filesystem::path& path, const Options& options,
          << "  \"max_reprojection_error_px\": " << max_error << ",\n"
          << "  \"spatial_coverage\": " << spatial_coverage << ",\n"
          << "  \"pose_coverage\": " << (pose_coverage ? "true" : "false") << ",\n"
-         << "  \"distance_coverage\": " << (distance_coverage ? "true" : "false") << ",\n"
+         << "  \"scale_coverage\": " << (scale_coverage ? "true" : "false") << ",\n"
          << "  \"failure_reason\": \"" << failure_reason << "\",\n"
          << "  \"verification\": \"UNVERIFIED\",\n  \"observations\": [\n";
   for (std::size_t index = 0; index < accepted.size(); ++index) {
@@ -360,7 +381,8 @@ std::vector<AcceptedFrame> SelectKeyframes(const Options& options,
                                            std::size_t target) {
   if (candidates.size() <= target) return candidates;
   std::vector<std::size_t> selected;
-  const auto add_first_matching = [&selected, &candidates](const auto& predicate) {
+  const auto add_first_matching = [&selected, &candidates, target](const auto& predicate) {
+    if (selected.size() >= target) return;
     for (std::size_t index = 0; index < candidates.size(); ++index) {
       if (std::find(selected.begin(), selected.end(), index) == selected.end() &&
           predicate(candidates[index])) {
@@ -664,7 +686,7 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
     distance_buckets.push_back(DistanceBucket(frame, options));
   }
   const bool pose_coverage = coverage.pose_complete();
-  const bool distance_coverage = coverage.distance_complete();
+  const bool scale_coverage = coverage.distance_complete();
   const double outlier_limit = std::max(2.0, median_error + 3.0 * 1.4826 * mad_error);
   for (auto& frame : accepted) frame.outlier = frame.reprojection_error_px > outlier_limit;
   const bool parameter_sane =
@@ -707,9 +729,15 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
        << "max_reprojection_error_px" << max_error;
   yaml.release();
   std::ofstream csv(csv_path);
+  const auto area_range = std::minmax_element(
+      accepted.begin(), accepted.end(), [](const AcceptedFrame& left, const AcceptedFrame& right) {
+        return left.area < right.area;
+      });
+  const double min_area = area_range.first->area;
+  const double max_area = area_range.second->area;
   csv << "view,sequence,selected,outlier,blur,mean_gray,area,grid_coverage,center_x,center_y,"
          "horizontal_tilt_deg,vertical_tilt_deg,in_plane_rotation_deg,distance_m,pose_bucket,"
-         "distance_bucket,reprojection_error_px\n";
+         "scale_bucket,distance_bucket,reprojection_error_px\n";
   for (std::size_t index = 0; index < accepted.size(); ++index) {
     csv << index << ',' << accepted[index].sequence << ',' << accepted[index].selected << ','
         << accepted[index].outlier << ',' << accepted[index].blur << ',' << accepted[index].mean
@@ -717,15 +745,16 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
         << accepted[index].center_x_normalized << ',' << accepted[index].center_y_normalized << ','
         << accepted[index].horizontal_tilt_deg << ',' << accepted[index].vertical_tilt_deg << ','
         << accepted[index].in_plane_rotation_deg << ',' << accepted[index].distance_m << ','
-        << pose_buckets[index] << ',' << distance_buckets[index] << ',' << per_view[index] << '\n';
+        << pose_buckets[index] << ',' << ScaleBucket(accepted[index], min_area, max_area) << ','
+        << distance_buckets[index] << ',' << per_view[index] << '\n';
   }
   cv::Mat undistorted;
   cv::undistort(accepted.front().image, undistorted, camera_matrix, distortion);
   cv::imwrite(original_preview_path.string(), accepted.front().image);
   cv::imwrite(preview_path.string(), undistorted);
   WriteJson(json_path, options, image_size, accepted, rms, mean_error, median_error, mad_error,
-            p95_error, max_error, spatial_coverage, pose_coverage, distance_coverage,
-            candidate_count, removed_count, failure_reason, pass);
+            p95_error, max_error, spatial_coverage, pose_coverage, scale_coverage, candidate_count,
+            removed_count, failure_reason, pass);
   std::cout << std::fixed << std::setprecision(4) << "candidate_samples=" << candidate_count
             << " selected_samples=" << accepted.size() << " removed_outliers=" << removed_count
             << "\n"
@@ -741,7 +770,7 @@ bool Calibrate(const Options& options, std::vector<AcceptedFrame> accepted) {
             << " p95_reprojection_error_px=" << p95_error
             << " max_reprojection_error_px=" << max_error
             << " spatial_coverage=" << spatial_coverage << " pose_coverage=" << pose_coverage
-            << " distance_coverage=" << distance_coverage << "\n"
+            << " scale_coverage=" << scale_coverage << "\n"
             << "status=" << failure_reason << "\n"
             << "yaml=" << yaml_path << "\n"
             << "json=" << json_path << "\n"
@@ -759,7 +788,68 @@ int RunImpl(int argc, char** argv) {
   std::vector<AcceptedFrame> accepted;
   const std::size_t candidate_goal = static_cast<std::size_t>(
       std::min(options.max_candidates, std::max(options.frames + 10, options.frames)));
-  if (!options.input_dir.empty()) {
+  if (!options.input_videos.empty()) {
+    std::optional<cv::Size> expected_size;
+    std::uint64_t sequence = 0;
+    AnalysisStats stats;
+    const std::size_t per_video_limit = std::max<std::size_t>(
+        1U, static_cast<std::size_t>(options.max_candidates) / options.input_videos.size());
+    for (const auto& video_path : options.input_videos) {
+      if (!std::filesystem::is_regular_file(video_path)) {
+        std::cerr << "input video does not exist: " << video_path << '\n';
+        return 2;
+      }
+      cv::VideoCapture capture(video_path.string());
+      if (!capture.isOpened()) {
+        std::cerr << "failed to open input video: " << video_path << '\n';
+        return 2;
+      }
+      const double source_fps = capture.get(cv::CAP_PROP_FPS);
+      const double frame_count = capture.get(cv::CAP_PROP_FRAME_COUNT);
+      const std::size_t analysis_target = std::max<std::size_t>(per_video_limit * 3U, 20U);
+      const int sample_period =
+          frame_count > 0.0
+              ? std::max(1, static_cast<int>(frame_count / analysis_target))
+              : std::max(
+                    1, static_cast<int>(std::lround((source_fps > 0.0 ? source_fps : 30.0) / 5.0)));
+      cv::Mat image;
+      std::uint64_t source_frame = 0;
+      std::vector<AcceptedFrame> video_candidates;
+      while (capture.read(image)) {
+        ++source_frame;
+        if (source_frame % static_cast<std::uint64_t>(sample_period) != 0U) continue;
+        if (!expected_size.has_value()) {
+          expected_size = image.size();
+        } else if (image.size() != *expected_size) {
+          std::cerr << "input video resolution mismatch: " << video_path << " is " << image.cols
+                    << 'x' << image.rows << ", expected " << expected_size->width << 'x'
+                    << expected_size->height << '\n';
+          return 2;
+        }
+        auto analyzed = Analyze(image, ++sequence, options);
+        ++stats.analyzed;
+        if (analyzed.frame.has_value()) {
+          video_candidates.push_back(std::move(*analyzed.frame));
+        } else {
+          ++stats.rejected[RejectReasonIndex(analyzed.reason)];
+        }
+      }
+      auto selected = SelectKeyframes(options, std::move(video_candidates), per_video_limit);
+      stats.accepted += selected.size();
+      for (auto& frame : selected) accepted.push_back(std::move(frame));
+      std::cout << "video=" << video_path << " sampled=" << sequence
+                << " selected=" << selected.size() << " accepted_total=" << accepted.size() << '\n';
+    }
+    std::cout << "offline video analysis: analyzed=" << stats.analyzed
+              << " accepted=" << stats.accepted
+              << " rejected(no_board/blur/exposure/area_small/area_large/grid)="
+              << stats.rejected[RejectReasonIndex(RejectReason::kNoChessboard)] << '/'
+              << stats.rejected[RejectReasonIndex(RejectReason::kBlur)] << '/'
+              << stats.rejected[RejectReasonIndex(RejectReason::kExposure)] << '/'
+              << stats.rejected[RejectReasonIndex(RejectReason::kAreaTooSmall)] << '/'
+              << stats.rejected[RejectReasonIndex(RejectReason::kAreaTooLarge)] << '/'
+              << stats.rejected[RejectReasonIndex(RejectReason::kGrid)] << '\n';
+  } else if (!options.input_dir.empty()) {
     if (!std::filesystem::is_directory(options.input_dir)) {
       std::cerr << "input directory does not exist: " << options.input_dir << '\n';
       return 2;
@@ -799,6 +889,8 @@ int RunImpl(int argc, char** argv) {
     bool analysis_stop = false;
     const std::uint64_t analysis_period_frames =
         std::max<std::uint64_t>(1U, static_cast<std::uint64_t>(options.fps) / 5U);
+    const std::uint64_t preview_period_frames =
+        std::max<std::uint64_t>(1U, static_cast<std::uint64_t>(options.fps) / 15U);
     AnalyzeResult latest_analysis;
     AnalysisStats analysis_stats;
     CaptureEvaluation evaluation;
@@ -812,10 +904,16 @@ int RunImpl(int argc, char** argv) {
             cockpit::camera::CameraPixelFormat::kBgrx},
         [&](cockpit::camera::CameraFrame frame) {
           cv::Mat image = ToBgr(frame);
+          cv::Mat preview_image;
+          if (options.preview && frame.sequence % preview_period_frames == 0U) {
+            cv::resize(image, preview_image, cv::Size(960, 540), 0.0, 0.0, cv::INTER_AREA);
+          }
           {
             std::lock_guard<std::mutex> lock(mutex);
-            latest_image = image.clone();
-            latest_sequence = frame.sequence;
+            if (!preview_image.empty()) {
+              latest_image = preview_image;
+              latest_sequence = frame.sequence;
+            }
             if (frame.sequence % analysis_period_frames == 0U) {
               analysis_image = image;
               analysis_sequence = frame.sequence;
@@ -907,7 +1005,7 @@ int RunImpl(int argc, char** argv) {
           std::unique_lock<std::mutex> lock(mutex);
           if (capture_complete || std::chrono::steady_clock::now() >= deadline) break;
           condition.wait_for(lock, std::chrono::milliseconds(50));
-          preview_image = latest_image.clone();
+          preview_image = latest_image;
           preview_candidates = accepted;
           preview_sequence = latest_sequence;
           preview_analysis = latest_analysis;

@@ -76,6 +76,7 @@ struct CameraServiceConfig {
   std::string photo_directory = "photos";
   int photo_jpeg_quality = 90;
   int photo_max_frame_age_ms = 2000;
+  std::string calibration_file;
 };
 
 struct VoiceInteractionServiceConfig {

@@ -15,6 +15,7 @@ namespace cockpit::camera_calibrator {
 struct Options {
   std::string device = "nvargus://0";
   std::filesystem::path input_dir;
+  std::vector<std::filesystem::path> input_videos;
   std::filesystem::path output_dir = "_output/runtime/camera-calibration";
   std::string board_profile;
   int width = 1920;

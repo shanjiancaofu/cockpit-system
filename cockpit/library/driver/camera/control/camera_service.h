@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,7 @@
 #include "cockpit/library/driver/camera/preview/camera_preview_module.h"
 #include "cockpit/modules/camera/capture/camera_preview_source.h"
 #include "cockpit/modules/camera/frames/camera_frame_sink.h"
+#include "cockpit/modules/hawkeye/camera_calibration.h"
 
 namespace cockpit {
 namespace camera {
@@ -62,6 +64,7 @@ struct CameraServiceOptions {
   std::uint64_t preview_stale_timeout_ms = 2000;
   CameraCapturePipeline capture_pipeline = CameraCapturePipeline::kArgusIsp;
   CameraUvcInputFormat uvc_input_format = CameraUvcInputFormat::kMjpeg;
+  std::optional<hawkeye::CameraCalibration> calibration;
 };
 
 CameraCapturePipeline ParseCameraCapturePipeline(const std::string& value);

@@ -11,6 +11,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/videoio.hpp>
 #include <string>
 
 namespace {
@@ -136,6 +137,15 @@ int Run(const std::string& calibrator, const std::filesystem::path& input_dir,
   return std::system(command.c_str());
 }
 
+int RunVideo(const std::string& calibrator, const std::filesystem::path& video_path,
+             const std::filesystem::path& output_dir, const std::string& extra = {}) {
+  const std::string command = "\"" + calibrator + "\" --input-video \"" + video_path.string() +
+                              "\" --output-dir \"" + output_dir.string() +
+                              "\" --corners-x 11 --corners-y 8 --square-size 0.005 " + extra +
+                              " 2>&1";
+  return std::system(command.c_str());
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -162,6 +172,19 @@ int main(int argc, char** argv) {
   const bool selection_reported = report.find("\"candidate_samples\": ") != std::string::npos &&
                                   report.find("\"selected_samples\": 20") != std::string::npos &&
                                   report.find("\"failure_reason\": \"PASS\"") != std::string::npos;
+  const auto video_path = root / "offline-video.avi";
+  cv::VideoWriter video(video_path.string(), cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 10.0,
+                        cv::Size(kImageWidth, kImageHeight), false);
+  if (!video.isOpened()) return 1;
+  for (int index = 0; index < 24; ++index) {
+    cv::Mat frame = cv::imread((input_dir / ("frame-" + std::to_string(index) + ".png")).string(),
+                               cv::IMREAD_GRAYSCALE);
+    video.write(frame);
+  }
+  video.release();
+  const int video_result =
+      RunVideo(argv[1], video_path, root / "video-output",
+               "--frames 20 --max-candidates 24 --grid-required 1 --blur-min 0");
   const int insufficient = Run(argv[1], input_dir, root / "insufficient", "--frames 5");
   const int duplicate = Run(argv[1], input_dir, root / "duplicate",
                             "--frames 20 --max-candidates 30 --grid-required 1 --blur-min 0");
@@ -196,7 +219,7 @@ int main(int argc, char** argv) {
   const bool profile_passed =
       profile_report.find("\"failure_reason\": \"PASS\"") != std::string::npos &&
       profile_report.find("\"pose_coverage\": true") != std::string::npos &&
-      profile_report.find("\"distance_coverage\": true") != std::string::npos;
+      profile_report.find("\"scale_coverage\": true") != std::string::npos;
   const auto front_only_dir = root / "q12-front-only";
   std::filesystem::create_directories(front_only_dir);
   for (int index = 0; index < 30; ++index) {
@@ -232,9 +255,10 @@ int main(int argc, char** argv) {
           std::string::npos;
   const bool duplicate_accepted = WIFEXITED(duplicate) && WEXITSTATUS(duplicate) == 0;
   std::filesystem::remove_all(root);
-  return success == 0 && artifacts && recovered && selection_reported && insufficient != 0 &&
-                 duplicate_accepted && mixed_result != 0 && degenerate_result != 0 &&
-                 profile_result == 0 && profile_passed && front_only_failed && missing_far_failed
+  return success == 0 && video_result == 0 && artifacts && recovered && selection_reported &&
+                 insufficient != 0 && duplicate_accepted && mixed_result != 0 &&
+                 degenerate_result != 0 && profile_result == 0 && profile_passed &&
+                 front_only_failed && missing_far_failed
              ? 0
              : 1;
 }

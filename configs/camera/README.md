@@ -4,7 +4,9 @@
 ROS2 bridge 只能加载 `cockpit::hawkeye::CameraCalibration`，再转换为
 `sensor_msgs/CameraInfo`。
 
-当前仓库没有经过棋盘格流程验证的 IMX219 参数，因此本目录不提供任何看起来像真实结果的 YAML。
+当前仓库提供一份经过 Q12-70-5 视频回放、误差门禁和人工 undistort 对比验证的 IMX219
+1920×1080 参数：`imx219_1920x1080_2026-08-30.yaml`。证据见
+[IMX219 内参标定实测](../../docs/reference/IMX219内参标定实测-2026-08-30.md)。
 
 ## Guided Calibration V1 状态
 
@@ -12,8 +14,8 @@ ROS2 bridge 只能加载 `cockpit::hawkeye::CameraCalibration`，再转换为
 Farthest Point 关键帧选择、MAD 异常检测、最多 6 轮且最多删除 20% 样本的有限重标定，以及带明确
 失败原因的综合 validator。真实采集会输出单一 `NEXT` 操作提示，并在 coverage 满足或达到硬上限时结束。
 
-该状态只表示软件链路完成；实体 Q12-70-5 尚未完成 IMX219 真机验收，所有生成结果仍为
-`UNVERIFIED`，不能进入 production CameraInfo。
+采集前端仍保留 `REAL-HARDWARE-TUNING` 状态，但当前 IMX219 1920×1080 production YAML 已完成
+真实数据验收；其他分辨率、镜头和模组仍为 `UNVERIFIED`。
 
 ## 已支持的标定板 profile
 
@@ -74,6 +76,20 @@ RMS、逐视角重投影误差和 undistort 对比。
 `per_view_errors.csv`、`original_preview.jpg` 和 `undistorted_preview.jpg`。报告会记录每个样本的
 归一化中心、yaw/pitch/roll、距离、reprojection error、selected/outlier 标记，以及整体 median、
 MAD、P95 和空间/姿态/距离 coverage；所有离线结果的 verification 状态固定为 `UNVERIFIED`。
+
+五段视频可直接使用重复的 `--input-video` 回放；工具会跨每段全时域均匀抽帧，并为每段分配均衡
+候选配额：
+
+```bash
+_output/build/arm64-debug/bin/camera-calibrator \
+  --board-profile q12-70-5 --frames 30 --max-candidates 50 \
+  --input-video 01_spatial.mp4 --input-video 02_yaw.mp4 \
+  --input-video 03_pitch.mp4 --input-video 04_scale.mp4 \
+  --input-video 05_mixed.mp4 --output-dir _output/calibration-result
+```
+
+在线原始视频数据集使用 `scripts/run/capture-camera-calibration-dataset.sh` 录制；录像与标定分析分离，
+不会把编码重新塞进 Argus 标定回调。
 
 ## 文件命名
 

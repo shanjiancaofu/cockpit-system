@@ -20,6 +20,8 @@
 #include "cockpit/library/driver/camera/recording_bridge.h"
 #include "cockpit/modules/camera/capture/synthetic_preview_source.h"
 #include "cockpit/modules/camera/shared_memory/shared_frame_buffer.h"
+#include "cockpit/modules/hawkeye/camera_calibration_loader.h"
+#include "cockpit/modules/hawkeye/camera_info.h"
 #include "cockpit/modules/recording/client/recording_event_publisher.h"
 
 namespace cockpit {
@@ -73,6 +75,20 @@ bool CameraRuntime::Start(const std::string& config_path) {
         static_cast<std::uint64_t>(camera_config.preview_stale_timeout_ms);
     camera_options.capture_pipeline = ParseCameraCapturePipeline(camera_config.capture_pipeline);
     camera_options.uvc_input_format = ParseCameraUvcInputFormat(camera_config.uvc_input_format);
+    if (!camera_config.calibration_file.empty()) {
+      hawkeye::CameraCalibration calibration;
+      if (!hawkeye::CameraCalibrationLoader::LoadFromFile(camera_config.calibration_file,
+                                                          &calibration, &error)) {
+        LOG_ERROR(error);
+        return false;
+      }
+      hawkeye::CameraInfo camera_info;
+      if (!hawkeye::ToCameraInfo(calibration, &camera_info, &error)) {
+        LOG_ERROR(error);
+        return false;
+      }
+      camera_options.calibration = calibration;
+    }
     if (camera_options.capture_pipeline == CameraCapturePipeline::kSynthetic) {
       SyntheticCameraOptions synthetic_options;
       synthetic_options.fault = ParseSyntheticCameraFault(camera_config.synthetic_fault);

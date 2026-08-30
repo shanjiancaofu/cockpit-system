@@ -1,4 +1,4 @@
-find_package(OpenCV QUIET COMPONENTS calib3d highgui imgcodecs imgproc)
+find_package(OpenCV QUIET COMPONENTS calib3d highgui imgcodecs imgproc videoio)
 
 if(OpenCV_FOUND AND TARGET gstreamer_camera)
   add_executable(camera-calibrator

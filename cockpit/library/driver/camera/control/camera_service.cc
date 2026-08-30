@@ -168,6 +168,13 @@ std::vector<VideoDeviceInfo> CameraService::ListDevices(std::string* error) cons
 
 bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::string* error) {
   std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+  if (options_.calibration.has_value() && (request.width != options_.calibration->image_width ||
+                                           request.height != options_.calibration->image_height)) {
+    AssignError(error, "camera preview resolution does not match verified calibration");
+    SetError("calibration_resolution_mismatch",
+             "camera preview resolution does not match verified calibration");
+    return false;
+  }
   CameraPreviewState previous_state = CameraPreviewState::kStopped;
   {
     std::lock_guard<std::mutex> lock(mutex_);

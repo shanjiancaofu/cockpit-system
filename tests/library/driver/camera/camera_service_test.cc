@@ -248,6 +248,31 @@ int main() {
   }
   synthetic_service.StopPreview();
 
+  cockpit::camera::CameraServiceOptions calibrated_options;
+  calibrated_options.capture_pipeline = cockpit::camera::CameraCapturePipeline::kSynthetic;
+  cockpit::hawkeye::CameraCalibration verified_calibration;
+  verified_calibration.image_width = 1920;
+  verified_calibration.image_height = 1080;
+  verified_calibration.fx = 2500.0;
+  verified_calibration.fy = 2500.0;
+  calibrated_options.calibration = verified_calibration;
+  cockpit::camera::CameraService calibrated_service(
+      [](std::string*) {
+        return std::vector<cockpit::camera::VideoDeviceInfo>{};
+      },
+      std::make_unique<FakePreviewSource>(), nullptr, nullptr, calibrated_options);
+  cockpit::camera::CameraStartPreviewRequest mismatched_calibration_request;
+  mismatched_calibration_request.device = "synthetic://0";
+  mismatched_calibration_request.width = 1280;
+  mismatched_calibration_request.height = 720;
+  std::string calibration_error;
+  if (!Check(!calibrated_service.StartPreview(mismatched_calibration_request, &calibration_error),
+             "verified calibration accepted a mismatched preview resolution") ||
+      !Check(calibration_error.find("does not match verified calibration") != std::string::npos,
+             "calibration resolution mismatch did not report a deterministic error")) {
+    return 1;
+  }
+
   int list_calls = 0;
   auto preview_source = std::make_unique<FakePreviewSource>();
   auto* preview_source_ptr = preview_source.get();
