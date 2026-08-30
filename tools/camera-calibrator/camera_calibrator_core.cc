@@ -402,7 +402,8 @@ std::string GuidanceNext(const Options& options, std::vector<AcceptedFrame> cand
 }
 
 bool ShowPreview(const Options& options, const cv::Mat& image,
-                 const std::vector<AcceptedFrame>& candidates, std::uint64_t sequence) {
+                 const std::vector<AcceptedFrame>& candidates, std::uint64_t sequence,
+                 const std::string& next) {
   static bool preview_disabled = false;
   static bool warning_printed = false;
   if (!options.preview || preview_disabled) return false;
@@ -419,22 +420,19 @@ bool ShowPreview(const Options& options, const cv::Mat& image,
     cv::Mat display =
         image.empty() ? cv::Mat(540, 960, CV_8UC3, cv::Scalar(24, 24, 24)) : image.clone();
     const CoverageState coverage = BuildCoverage(options, candidates);
-    for (const auto& frame : candidates) {
-      for (const auto& corner : frame.corners)
+    if (!candidates.empty()) {
+      for (const auto& corner : candidates.back().corners) {
         cv::circle(display, corner, 3, cv::Scalar(0, 255, 0), -1);
+      }
     }
     cv::rectangle(display, cv::Rect(0, 0, display.cols, 96), cv::Scalar(0, 0, 0), cv::FILLED);
-    const std::string next = GuidanceNext(options, candidates);
     cv::putText(display,
                 image.empty() ? "Waiting for camera frame..."
                               : "Frame: " + std::to_string(sequence) +
                                     "  Candidates: " + std::to_string(candidates.size()) +
                                     "  Spatial: " + std::to_string(coverage.spatial_cells) + "/5",
                 cv::Point(20, 30), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 255, 255), 2);
-    const std::string preview_next = candidates.empty() ? "Show full checkerboard in camera view"
-                                     : candidates.size() < 10U ? "Collect more different views"
-                                                               : "Follow terminal instruction";
-    cv::putText(display, "Next: " + preview_next, cv::Point(20, 68), cv::FONT_HERSHEY_SIMPLEX, 0.7,
+    cv::putText(display, "Next: " + next, cv::Point(20, 68), cv::FONT_HERSHEY_SIMPLEX, 0.7,
                 cv::Scalar(255, 255, 255), 2);
     cv::imshow("Camera Calibration - press q to quit", display);
     const int key = cv::waitKey(1);
@@ -749,6 +747,7 @@ int RunImpl(int argc, char** argv) {
         std::chrono::steady_clock::now() + std::chrono::seconds(options.timeout_seconds);
     bool preview_aborted = false;
     auto last_status = std::chrono::steady_clock::now() - std::chrono::seconds(1);
+    std::string preview_next = "Show full checkerboard in camera view";
     std::cout << "下一步：请将 Q12-70-5 棋盘完整放入画面，保持清晰并缓慢移动\n" << std::flush;
     {
       while (true) {
@@ -764,11 +763,13 @@ int RunImpl(int argc, char** argv) {
           preview_sequence = latest_sequence;
         }
         if (std::chrono::steady_clock::now() - last_status >= std::chrono::seconds(1)) {
-          std::cout << "状态：候选数=" << preview_candidates.size() << "，下一步："
-                    << GuidanceNext(options, preview_candidates) << "\n";
+          preview_next = GuidanceNext(options, preview_candidates);
+          std::cout << "状态：候选数=" << preview_candidates.size() << "，下一步：" << preview_next
+                    << "\n";
           last_status = std::chrono::steady_clock::now();
         }
-        if (ShowPreview(options, preview_image, preview_candidates, preview_sequence)) {
+        if (ShowPreview(options, preview_image, preview_candidates, preview_sequence,
+                        preview_next)) {
           preview_aborted = true;
           break;
         }
