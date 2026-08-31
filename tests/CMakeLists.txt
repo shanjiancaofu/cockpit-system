@@ -186,6 +186,19 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         LABELS "socketcan"
         SKIP_RETURN_CODE 77
     )
+
+    add_executable(vcan_chassis_safety_loop_test
+        library/driver/vehicle/vcan_chassis_safety_loop_test.cc
+    )
+    target_link_libraries(vcan_chassis_safety_loop_test PRIVATE vcan_chassis_safety_loop)
+    add_test(NAME vcan_chassis_safety_loop_test COMMAND
+        bash ${PROJECT_SOURCE_DIR}/scripts/tests/chassis-vehicle-vcan.sh
+        $<TARGET_FILE:vcan_chassis_safety_loop_test>
+    )
+    set_tests_properties(vcan_chassis_safety_loop_test PROPERTIES
+        LABELS "socketcan"
+        SKIP_RETURN_CODE 77
+    )
 endif()
 if(TARGET can-simulator)
     add_test(NAME chassis_can_simulator_stdout_test COMMAND
@@ -246,9 +259,10 @@ if(COCKPIT_ENABLE_ROS2)
     add_executable(bridge_ros2_integration_test
         library/bridge/bridge_ros2_integration_test.cc
     )
-    target_link_libraries(bridge_ros2_integration_test bridge_ros2 Threads::Threads)
+    target_link_libraries(bridge_ros2_integration_test
+        bridge_ros2 synthetic_camera Threads::Threads)
     ament_target_dependencies(bridge_ros2_integration_test
-        builtin_interfaces geometry_msgs nav2_msgs rclcpp rclcpp_action sensor_msgs
+        builtin_interfaces geometry_msgs nav2_msgs nav_msgs rclcpp rclcpp_action sensor_msgs
     )
     add_test(NAME bridge_ros2_integration_test COMMAND bridge_ros2_integration_test)
     set_tests_properties(bridge_ros2_integration_test PROPERTIES

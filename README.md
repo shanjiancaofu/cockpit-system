@@ -218,6 +218,10 @@ V4L2 保留驱动 buffer 时间及 clock flag；GStreamer 使用 pipeline clock/
 即时建立映射，把 sample running-time PTS 转换为 realtime source timestamp，不使用首帧 callback arrival
 作为 anchor。跨 Camera/LiDAR 同步仍必须核对各 source clock、漂移和真机采样语义，不能只比较 receive time。
 
+ROS2 可选构建提供 `Ros2CameraPublisher` 和 `ToRosChassisOdometry()`：前者只消费现有 CameraFrame，
+后者要求调用方提供已映射到 ROS 时间域的 0x181 sample stamp。两者都不重新打开硬件，也不把设备
+uptime 或 receive time 默认为真实传感器采样时间。
+
 底层 RAW 和 CPU/CUDA 对比入口：
 
 ```bash

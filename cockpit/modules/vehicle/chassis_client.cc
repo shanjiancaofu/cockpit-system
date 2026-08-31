@@ -43,6 +43,8 @@ ChassisClientDecodeStatus ChassisClient::ProcessFrame(const can::CanFrame& frame
     state_.x_mm = odometry.x_mm;
     state_.y_mm = odometry.y_mm;
     state_.heading_mrad = odometry.heading_mrad;
+    state_.odometry_linear_velocity_mm_s = odometry.linear_velocity_mm_s;
+    state_.odometry_angular_velocity_mrad_s = odometry.angular_velocity_mrad_s;
   } else if (frame.id() == ChassisCanCodec::kHeartbeatId) {
     if (!heartbeat_monitor_.Process(frame, now_ms)) {
       ChassisHeartbeat decoded;

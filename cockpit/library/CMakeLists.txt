@@ -20,6 +20,12 @@ add_library(socketcan_chassis_sink STATIC
 target_include_directories(socketcan_chassis_sink PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(socketcan_chassis_sink PUBLIC socketcan vehicle)
 
+add_library(vcan_chassis_safety_loop STATIC
+    driver/vehicle/vcan_chassis_safety_loop.cc
+)
+target_include_directories(vcan_chassis_safety_loop PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(vcan_chassis_safety_loop PUBLIC socketcan_chassis_sink vehicle)
+
 add_library(audio_capture_module STATIC driver/audio/capture/audio_capture_module.cc)
 target_link_libraries(audio_capture_module PUBLIC audio_capture runtime)
 
@@ -117,13 +123,15 @@ if(COCKPIT_ENABLE_ROS2)
     add_library(bridge_ros2 STATIC
         bridge/ros2_camera_info_adapter.cc
         bridge/ros2_camera_frame_adapter.cc
+        bridge/ros2_camera_publisher.cc
+        bridge/ros2_chassis_odometry_adapter.cc
         bridge/ros2_nav2_provider.cc
     )
     find_package(OpenCV REQUIRED COMPONENTS calib3d imgproc)
     target_include_directories(bridge_ros2 PUBLIC ${PROJECT_SOURCE_DIR})
     target_link_libraries(bridge_ros2 bridge hawkeye ${OpenCV_LIBS})
     ament_target_dependencies(bridge_ros2
-        builtin_interfaces geometry_msgs nav2_msgs rclcpp rclcpp_action sensor_msgs
+        builtin_interfaces geometry_msgs nav2_msgs nav_msgs rclcpp rclcpp_action sensor_msgs
     )
     target_link_libraries(bridge_runtime PRIVATE bridge_ros2)
 endif()

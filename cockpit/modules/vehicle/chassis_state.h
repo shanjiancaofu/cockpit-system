@@ -26,6 +26,8 @@ struct ChassisState {
   std::int32_t x_mm = 0;
   std::int32_t y_mm = 0;
   std::int32_t heading_mrad = 0;
+  std::int16_t odometry_linear_velocity_mm_s = 0;
+  std::int16_t odometry_angular_velocity_mrad_s = 0;
 
   ChassisHeartbeatStatus heartbeat_status = ChassisHeartbeatStatus::kUnknown;
   std::int64_t heartbeat_age_ms = 0;

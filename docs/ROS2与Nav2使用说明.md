@@ -114,6 +114,10 @@ CameraInfo 发布时重新调用 `now()`。输入格式固定为 BGRx，尺寸�
 当前 adapter 仍是 ROS2 bridge 组件，不自动创建 publisher；后续 Camera runtime publisher
 应复用该 adapter，保持 `image_raw.header.stamp == camera_info.header.stamp`。
 
+`Ros2CameraPublisher` 已封装三个 publisher，并用 `SyntheticPreviewSource` 验证真实 ROS topic 收发；它只
+接收统一 `CameraFrame`，不打开 V4L2/Argus。当前尚未把该对象装入 Jetson Navigator Camera runtime，
+因此 VM 结果只代表 publisher 软件合同，不代表真机图像链路验收。
+
 ## C1 LiDAR 软件边界
 
 `ros2/src/cockpit_lidar_bringup` 只保存官方 `rplidar_ros` 的 launch/config 合同：串口默认
@@ -158,6 +162,14 @@ peer 存活时按 fault 处理。`chassis_safety/test/*` Bool latch 只有显式
 `ChassisCanSafetyStateSource` 将 heartbeat/fault freshness 转为 Safety state；0x180 motion 和 0x181
 odometry 同时进入 `ChassisState`，保留各自 source timestamp/sequence。当前 VM 只用 vcan0，真实 can0
 必须等 STM32 合同、heartbeat、fault、bus-off 和急停语义联调后开放。
+
+VM 增加 `VcanChassisSafetyLoop`，且构造阶段硬拒绝 `can0`。它将同一隔离 vcan 总线上的
+0x200/0x240/0x181 输入送入现有状态源和 Safety，再经现有 `SocketCanChassisSink` 输出 0x101；用于
+验证 fault、heartbeat stale、command stale 和恢复行为，不是生产 SocketCAN runtime。
+
+`ToRosChassisOdometry()` 使用 0x181 的 x/y/heading 和该帧自带的 linear/angular velocity 生成
+`nav_msgs/Odometry`。STM32 `odometry_timestamp_ms` 是设备时钟，adapter 不会把它伪装成 Unix/ROS epoch；
+调用方必须先完成设备时间到 ROS sample time 的显式映射，再传入 header stamp。
 
 ## 参考项目审计
 

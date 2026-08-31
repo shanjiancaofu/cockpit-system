@@ -75,10 +75,13 @@ int main() {
   PutU32(&data, 8, 1000U);
   PutU32(&data, 12, static_cast<std::uint32_t>(-1000));
   PutU32(&data, 16, 1571U);
+  PutU16(&data, 20, 250U);
+  PutU16(&data, 22, static_cast<std::uint16_t>(-125));
   if (client.ProcessFrame(Frame(0x181U, data, 24U), 2010, &state) !=
           ChassisClientDecodeStatus::kUpdated ||
       !state.odometry_valid || state.x_mm != 1000 || state.y_mm != -1000 ||
-      state.heading_mrad != 1571) {
+      state.heading_mrad != 1571 || state.odometry_linear_velocity_mm_s != 250 ||
+      state.odometry_angular_velocity_mrad_s != -125) {
     std::cerr << "odometry state aggregation failed\n";
     return 1;
   }

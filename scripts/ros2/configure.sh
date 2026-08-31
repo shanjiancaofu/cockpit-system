@@ -22,7 +22,10 @@ fi
 ln -sfn "${compile_database}" "${root_dir}/compile_commands.json"
 
 for source in \
+  cockpit/library/bridge/ros2_camera_frame_adapter.cc \
   cockpit/library/bridge/ros2_camera_info_adapter.cc \
+  cockpit/library/bridge/ros2_camera_publisher.cc \
+  cockpit/library/bridge/ros2_chassis_odometry_adapter.cc \
   cockpit/library/bridge/ros2_nav2_provider.cc; do
   if ! grep -Fq "${root_dir}/${source}" "${compile_database}"; then
     echo "compile database is missing ${source}" >&2

@@ -15,7 +15,10 @@
 
 #include "cockpit/library/bridge/ros2_camera_frame_adapter.h"
 #include "cockpit/library/bridge/ros2_camera_info_adapter.h"
+#include "cockpit/library/bridge/ros2_camera_publisher.h"
+#include "cockpit/library/bridge/ros2_chassis_odometry_adapter.h"
 #include "cockpit/library/bridge/ros2_nav2_provider.h"
+#include "cockpit/modules/camera/capture/synthetic_preview_source.h"
 
 namespace {
 
@@ -309,6 +312,107 @@ int main() {
               frame_output.image_raw.header.stamp == frame_output.image_rect.header.stamp &&
               frame_output.image_raw.data.size() == 12 && frame_output.image_rect.data.size() == 12,
           "CameraFrame timestamp or rectify output contract failed");
+
+  cockpit::vehicle::ChassisState odometry_state;
+  odometry_state.odometry_valid = true;
+  odometry_state.x_mm = 1250;
+  odometry_state.y_mm = -500;
+  odometry_state.heading_mrad = 1571;
+  odometry_state.odometry_linear_velocity_mm_s = 300;
+  odometry_state.odometry_angular_velocity_mrad_s = -250;
+  builtin_interfaces::msg::Time odometry_stamp;
+  odometry_stamp.sec = 84;
+  odometry_stamp.nanosec = 900;
+  const auto ros_odometry =
+      cockpit::bridge::ToRosChassisOdometry(odometry_state, "odom", "base_link", odometry_stamp);
+  Require(ros_odometry.header.stamp == odometry_stamp && ros_odometry.header.frame_id == "odom" &&
+              ros_odometry.child_frame_id == "base_link" &&
+              std::abs(ros_odometry.pose.pose.position.x - 1.25) < 1e-9 &&
+              std::abs(ros_odometry.pose.pose.position.y + 0.5) < 1e-9 &&
+              std::abs(ros_odometry.twist.twist.linear.x - 0.3) < 1e-9 &&
+              std::abs(ros_odometry.twist.twist.angular.z + 0.25) < 1e-9,
+          "0x181 ChassisState to ROS Odometry conversion failed");
+  odometry_state.odometry_valid = false;
+  bool rejected_invalid_odometry = false;
+  try {
+    static_cast<void>(
+        cockpit::bridge::ToRosChassisOdometry(odometry_state, "odom", "base_link", odometry_stamp));
+  } catch (const std::invalid_argument&) {
+    rejected_invalid_odometry = true;
+  }
+  Require(rejected_invalid_odometry, "invalid 0x181 odometry state was published");
+
+  rclcpp::NodeOptions camera_node_options;
+  camera_node_options.context(context);
+  auto camera_publisher_node =
+      std::make_shared<rclcpp::Node>("cockpit_camera_publisher_test", camera_node_options);
+  auto camera_subscriber_node =
+      std::make_shared<rclcpp::Node>("cockpit_camera_subscriber_test", camera_node_options);
+  cockpit::bridge::Ros2CameraTopics camera_topics;
+  camera_topics.image_raw = "/cockpit_test/camera/image_raw";
+  camera_topics.camera_info = "/cockpit_test/camera/camera_info";
+  camera_topics.image_rect = "/cockpit_test/camera/image_rect";
+  cockpit::bridge::Ros2CameraPublisher camera_publisher(camera_publisher_node.get(), runtime_info,
+                                                        "camera_optical", true, camera_topics);
+  std::uint32_t raw_count = 0;
+  std::uint32_t info_count = 0;
+  std::uint32_t rect_count = 0;
+  builtin_interfaces::msg::Time raw_stamp;
+  builtin_interfaces::msg::Time info_stamp;
+  builtin_interfaces::msg::Time rect_stamp;
+  auto raw_subscription = camera_subscriber_node->create_subscription<sensor_msgs::msg::Image>(
+      camera_topics.image_raw, rclcpp::SensorDataQoS(),
+      [&](const sensor_msgs::msg::Image::ConstSharedPtr& message) {
+        ++raw_count;
+        raw_stamp = message->header.stamp;
+      });
+  auto info_subscription =
+      camera_subscriber_node->create_subscription<sensor_msgs::msg::CameraInfo>(
+          camera_topics.camera_info, rclcpp::SensorDataQoS(),
+          [&](const sensor_msgs::msg::CameraInfo::ConstSharedPtr& message) {
+            ++info_count;
+            info_stamp = message->header.stamp;
+          });
+  auto rect_subscription = camera_subscriber_node->create_subscription<sensor_msgs::msg::Image>(
+      camera_topics.image_rect, rclcpp::SensorDataQoS(),
+      [&](const sensor_msgs::msg::Image::ConstSharedPtr& message) {
+        ++rect_count;
+        rect_stamp = message->header.stamp;
+      });
+  static_cast<void>(raw_subscription);
+  static_cast<void>(info_subscription);
+  static_cast<void>(rect_subscription);
+  rclcpp::ExecutorOptions camera_executor_options;
+  camera_executor_options.context = context;
+  rclcpp::executors::SingleThreadedExecutor camera_executor(camera_executor_options);
+  camera_executor.add_node(camera_subscriber_node);
+  cockpit::camera::SyntheticPreviewSource synthetic_source;
+  cockpit::camera::CameraPreviewConfig synthetic_config;
+  synthetic_config.device = "synthetic://camera-publisher-test";
+  synthetic_config.width = 2;
+  synthetic_config.height = 2;
+  synthetic_config.fps = 30;
+  synthetic_config.output_format = cockpit::camera::CameraPixelFormat::kBgrx;
+  std::atomic_bool camera_publish_failed{false};
+  Require(synthetic_source.Start(
+              synthetic_config,
+              [&](cockpit::camera::CameraFrame synthetic_frame) {
+                if (!camera_publisher.Publish(synthetic_frame, nullptr)) {
+                  camera_publish_failed.store(true);
+                }
+              },
+              &error),
+          "synthetic camera source did not start: " + error);
+  for (int attempt = 0; attempt < 100 && (raw_count == 0 || info_count == 0 || rect_count == 0);
+       ++attempt) {
+    camera_executor.spin_some();
+    std::this_thread::sleep_for(10ms);
+  }
+  synthetic_source.Stop();
+  camera_executor.remove_node(camera_subscriber_node);
+  Require(!camera_publish_failed.load() && raw_count > 0 && info_count > 0 && rect_count > 0 &&
+              raw_stamp == info_stamp && raw_stamp == rect_stamp && raw_stamp.sec > 0,
+          "live ROS Camera topics did not preserve a common sample timestamp");
 
   std::cout << "Bridge ROS2/Nav2 provider integration tests passed\n";
   return 0;

@@ -37,6 +37,8 @@ std::string ChassisState::ToJson() const {
       << "\"odometry_valid\":" << (odometry_valid ? "true" : "false") << ','
       << "\"odometry_timestamp_ms\":" << odometry_timestamp_ms << ',' << "\"x_mm\":" << x_mm << ','
       << "\"y_mm\":" << y_mm << ',' << "\"heading_mrad\":" << heading_mrad << ','
+      << "\"odometry_linear_velocity_mm_s\":" << odometry_linear_velocity_mm_s << ','
+      << "\"odometry_angular_velocity_mrad_s\":" << odometry_angular_velocity_mrad_s << ','
       << "\"heartbeat_status\":\"" << HeartbeatStatusText(heartbeat_status) << "\","
       << "\"heartbeat_age_ms\":" << heartbeat_age_ms << ','
       << "\"node_state\":" << static_cast<unsigned int>(node_state) << ','
