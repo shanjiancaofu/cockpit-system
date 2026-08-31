@@ -27,3 +27,5 @@ Vehicle driver 持有单一 SocketCAN 生命周期：发送 Jetson heartbeat，�
 SocketCAN poll timeout 周期仍会推进 `ChassisClient`，因此 peer 完全静默时也会主动发布 heartbeat
 `ALIVE→TIMEOUT`，不等待下一帧触发。
 不另建平行 CAN service，也不在 driver 中重复协议字段定义。
+命令 sink 保留两个显式工厂：`OpenVcanOnly("vcan0")` 仅供 VM，`OpenHardware("can0")` 仅供真实
+硬件装配；当前 wheels-up 前不得由 Nav2/runtime 自动调用 hardware 工厂。

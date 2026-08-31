@@ -12,6 +12,8 @@ class SocketCanChassisSink final : public ChassisCommandSink {
  public:
   static std::unique_ptr<SocketCanChassisSink> OpenVcanOnly(const std::string& interface_name,
                                                             std::string* error = nullptr);
+  static std::unique_ptr<SocketCanChassisSink> OpenHardware(const std::string& interface_name,
+                                                            std::string* error = nullptr);
 
   bool Send(const SafeChassisCommand& command, std::string* error) override;
   const std::string& interface_name() const {

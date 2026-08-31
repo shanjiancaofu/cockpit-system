@@ -55,6 +55,8 @@ int main(int argc, char** argv) {
   std::string error;
   Require(cockpit::vehicle::SocketCanChassisSink::OpenVcanOnly("can0", &error) == nullptr,
           "hardware can0 was accepted by VM-only sink");
+  Require(cockpit::vehicle::SocketCanChassisSink::OpenHardware(interface_name, &error) == nullptr,
+          "hardware sink accepted the VM vcan interface");
 
   cockpit::can::SocketCan receiver;
   Require(receiver.Open(interface_name, &error), "open vcan receiver failed");

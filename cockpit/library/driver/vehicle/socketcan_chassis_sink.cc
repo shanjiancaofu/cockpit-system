@@ -21,6 +21,19 @@ std::unique_ptr<SocketCanChassisSink> SocketCanChassisSink::OpenVcanOnly(
       new SocketCanChassisSink(interface_name, std::move(socket)));
 }
 
+std::unique_ptr<SocketCanChassisSink> SocketCanChassisSink::OpenHardware(
+    const std::string& interface_name, std::string* error) {
+  if (interface_name != "can0") {
+    if (error != nullptr)
+      *error = "hardware safety baseline only permits the explicit can0 interface";
+    return nullptr;
+  }
+  can::SocketCan socket;
+  if (!socket.Open(interface_name, error)) return nullptr;
+  return std::unique_ptr<SocketCanChassisSink>(
+      new SocketCanChassisSink(interface_name, std::move(socket)));
+}
+
 SocketCanChassisSink::SocketCanChassisSink(std::string interface_name, can::SocketCan socket)
     : interface_name_(std::move(interface_name)), socket_(std::move(socket)) {
 }
