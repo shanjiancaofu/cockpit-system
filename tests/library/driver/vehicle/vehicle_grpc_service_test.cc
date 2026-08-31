@@ -59,6 +59,7 @@ int main() {
   chassis_state.odometry_valid = true;
   chassis_state.x_mm = 1000;
   chassis_state.heartbeat_status = cockpit::vehicle::ChassisHeartbeatStatus::kAlive;
+  chassis_state.peer_reboot_count = 2U;
   chassis_state.active_faults = 0x20U;
   service.PublishChassisState(chassis_state);
   chassis_state_reader.join();
@@ -68,6 +69,7 @@ int main() {
       !received_chassis_state.odometry_valid() || received_chassis_state.x_mm() != 1000 ||
       received_chassis_state.heartbeat_state() !=
           cockpit::proto::vehicle::CHASSIS_HEARTBEAT_STATE_ALIVE ||
+      received_chassis_state.peer_reboot_count() != 2U ||
       received_chassis_state.active_faults() != 0x20U) {
     std::cerr << "typed chassis state stream is invalid\n";
     return 1;

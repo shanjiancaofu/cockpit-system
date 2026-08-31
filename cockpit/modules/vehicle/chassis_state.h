@@ -33,6 +33,7 @@ struct ChassisState {
   std::int64_t heartbeat_age_ms = 0;
   std::uint8_t node_state = 0;
   std::uint32_t uptime_ms = 0;
+  std::uint64_t peer_reboot_count = 0;
   std::uint16_t fault_summary = 0;
 
   std::uint8_t fault_severity = 0;

@@ -19,6 +19,7 @@ ChassisClientDecodeStatus ChassisClient::ProcessFrame(const can::CanFrame& frame
   if (now_ms < 0 || state == nullptr) {
     return ChassisClientDecodeStatus::kInvalid;
   }
+  UpdateHeartbeatTimeout(now_ms);
   ChassisMotionStatus motion;
   if (frame.id() == ChassisCanCodec::kMotionStatusId) {
     if (!ChassisCanCodec::DecodeMotion(frame, &motion)) {
@@ -46,6 +47,7 @@ ChassisClientDecodeStatus ChassisClient::ProcessFrame(const can::CanFrame& frame
     state_.odometry_linear_velocity_mm_s = odometry.linear_velocity_mm_s;
     state_.odometry_angular_velocity_mrad_s = odometry.angular_velocity_mrad_s;
   } else if (frame.id() == ChassisCanCodec::kHeartbeatId) {
+    const auto previous_reboot_count = state_.peer_reboot_count;
     if (!heartbeat_monitor_.Process(frame, now_ms)) {
       ChassisHeartbeat decoded;
       return ChassisCanCodec::DecodeHeartbeat(frame, &decoded)
@@ -53,12 +55,18 @@ ChassisClientDecodeStatus ChassisClient::ProcessFrame(const can::CanFrame& frame
                  : ChassisClientDecodeStatus::kInvalid;
     }
     RefreshHeartbeat(now_ms);
-    reported_heartbeat_status_ = state_.heartbeat_status;
+    if (state_.peer_reboot_count != previous_reboot_count) ResetFaultSequenceBaseline();
   } else if (frame.id() == ChassisCanCodec::kFaultStatusId) {
     ChassisFaultStatus fault;
     if (!ChassisCanCodec::DecodeFault(frame, &fault)) {
       return ChassisClientDecodeStatus::kInvalid;
     }
+    const auto delta = static_cast<std::uint8_t>(fault.sequence - last_fault_sequence_);
+    if (fault_sequence_valid_ && (delta == 0U || delta >= 128U)) {
+      return ChassisClientDecodeStatus::kIgnored;
+    }
+    fault_sequence_valid_ = true;
+    last_fault_sequence_ = fault.sequence;
     state_.fault_severity = fault.severity;
     state_.active_faults = fault.active_faults;
     state_.latched_faults = fault.latched_faults;
@@ -67,6 +75,7 @@ ChassisClientDecodeStatus ChassisClient::ProcessFrame(const can::CanFrame& frame
     return ChassisClientDecodeStatus::kIgnored;
   }
   state_.timestamp_ms = time::WallTime::Now().ToMilliseconds();
+  reported_heartbeat_status_ = state_.heartbeat_status;
   *state = state_;
   return ChassisClientDecodeStatus::kUpdated;
 }
@@ -75,8 +84,7 @@ bool ChassisClient::Update(std::int64_t now_ms, ChassisState* state) {
   if (now_ms < 0 || state == nullptr) {
     return false;
   }
-  heartbeat_monitor_.Update(now_ms);
-  RefreshHeartbeat(now_ms);
+  UpdateHeartbeatTimeout(now_ms);
   if (state_.heartbeat_status == reported_heartbeat_status_) {
     return false;
   }
@@ -114,13 +122,29 @@ ChassisState ChassisClient::GetState(std::int64_t now_ms) const {
   return result;
 }
 
+void ChassisClient::UpdateHeartbeatTimeout(std::int64_t now_ms) {
+  const auto previous_status = state_.heartbeat_status;
+  heartbeat_monitor_.Update(now_ms);
+  RefreshHeartbeat(now_ms);
+  if (previous_status != ChassisHeartbeatStatus::kTimeout &&
+      state_.heartbeat_status == ChassisHeartbeatStatus::kTimeout) {
+    ResetFaultSequenceBaseline();
+  }
+}
+
 void ChassisClient::RefreshHeartbeat(std::int64_t now_ms) {
   const auto heartbeat = heartbeat_monitor_.GetSnapshot(now_ms);
   state_.heartbeat_status = heartbeat.status;
   state_.heartbeat_age_ms = heartbeat.age_ms;
   state_.node_state = heartbeat.heartbeat.node_state;
   state_.uptime_ms = heartbeat.heartbeat.uptime_ms;
+  state_.peer_reboot_count = heartbeat.peer_reboot_count;
   state_.fault_summary = heartbeat.heartbeat.fault_summary;
+}
+
+void ChassisClient::ResetFaultSequenceBaseline() {
+  fault_sequence_valid_ = false;
+  last_fault_sequence_ = 0U;
 }
 
 }  // namespace cockpit::vehicle

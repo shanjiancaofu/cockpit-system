@@ -29,7 +29,9 @@ class ChassisClient {
   ChassisState GetState(std::int64_t now_ms) const;
 
  private:
+  void UpdateHeartbeatTimeout(std::int64_t now_ms);
   void RefreshHeartbeat(std::int64_t now_ms);
+  void ResetFaultSequenceBaseline();
 
   ChassisState state_;
   ChassisHeartbeatMonitor heartbeat_monitor_;
@@ -37,6 +39,8 @@ class ChassisClient {
   std::int64_t started_ms_ = 0;
   std::int64_t heartbeat_due_ms_ = 0;
   std::uint8_t heartbeat_sequence_ = 0;
+  bool fault_sequence_valid_ = false;
+  std::uint8_t last_fault_sequence_ = 0;
 };
 
 }  // namespace cockpit::vehicle

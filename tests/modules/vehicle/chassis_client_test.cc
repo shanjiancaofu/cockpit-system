@@ -29,6 +29,30 @@ void PutU32(std::array<std::uint8_t, 64>* data, std::size_t offset, std::uint32_
   (*data)[offset + 3] = static_cast<std::uint8_t>(value >> 24U);
 }
 
+CanFrame HeartbeatFrame(std::uint8_t sequence, std::uint32_t uptime_ms) {
+  std::array<std::uint8_t, 64> data{};
+  data[0] = 1U;
+  data[1] = 2U;
+  data[2] = sequence;
+  data[3] = 1U;
+  PutU32(&data, 4, uptime_ms);
+  PutU16(&data, 10, Crc(ChassisCanCodec::kHeartbeatId, data, 10U));
+  return Frame(ChassisCanCodec::kHeartbeatId, data, 12U);
+}
+
+CanFrame FaultFrame(std::uint8_t sequence, std::uint8_t severity, std::uint32_t active_faults) {
+  std::array<std::uint8_t, 64> data{};
+  data[0] = 1U;
+  data[1] = severity;
+  data[2] = sequence;
+  data[3] = active_faults == 0U ? 0U : 1U;
+  PutU32(&data, 4, active_faults);
+  PutU32(&data, 8, active_faults);
+  PutU16(&data, 12, active_faults == 0U ? 0U : 1U);
+  PutU16(&data, 14, Crc(ChassisCanCodec::kFaultStatusId, data, 14U));
+  return Frame(ChassisCanCodec::kFaultStatusId, data, 16U);
+}
+
 }  // namespace
 
 int main() {
@@ -133,6 +157,55 @@ int main() {
       state.active_faults != 0x20U || state.latched_faults != 0x30U || state.fault_sequence != 5U ||
       state.ToJson().find("heartbeat_status") == std::string::npos) {
     std::cerr << "fault state aggregation failed\n";
+    return 1;
+  }
+
+  ChassisClient ordering_client(0);
+  if (ordering_client.ProcessFrame(HeartbeatFrame(1U, 1000U), 100, &state) !=
+          ChassisClientDecodeStatus::kUpdated ||
+      ordering_client.ProcessFrame(FaultFrame(100U, 2U, 0x20U), 110, &state) !=
+          ChassisClientDecodeStatus::kUpdated ||
+      ordering_client.ProcessFrame(FaultFrame(100U, 0U, 0U), 120, &state) !=
+          ChassisClientDecodeStatus::kIgnored ||
+      ordering_client.ProcessFrame(FaultFrame(99U, 0U, 0U), 130, &state) !=
+          ChassisClientDecodeStatus::kIgnored ||
+      state.active_faults != 0x20U) {
+    std::cerr << "duplicate or old fault frame replaced the current fault state\n";
+    return 1;
+  }
+  if (!ordering_client.Update(400, &state) ||
+      state.heartbeat_status != ChassisHeartbeatStatus::kTimeout ||
+      ordering_client.ProcessFrame(FaultFrame(5U, 0U, 0U), 410, &state) !=
+          ChassisClientDecodeStatus::kUpdated ||
+      state.active_faults != 0U) {
+    std::cerr << "peer timeout did not rebuild the fault sequence baseline\n";
+    return 1;
+  }
+
+  ChassisClient frame_driven_timeout_client(0);
+  if (frame_driven_timeout_client.ProcessFrame(HeartbeatFrame(1U, 1000U), 100, &state) !=
+          ChassisClientDecodeStatus::kUpdated ||
+      frame_driven_timeout_client.ProcessFrame(FaultFrame(120U, 2U, 0x20U), 110, &state) !=
+          ChassisClientDecodeStatus::kUpdated ||
+      frame_driven_timeout_client.ProcessFrame(FaultFrame(1U, 0U, 0U), 400, &state) !=
+          ChassisClientDecodeStatus::kUpdated ||
+      state.heartbeat_status != ChassisHeartbeatStatus::kTimeout || state.active_faults != 0U) {
+    std::cerr << "frame processing depended on a prior timeout update call\n";
+    return 1;
+  }
+
+  ChassisClient reboot_client(0);
+  if (reboot_client.ProcessFrame(HeartbeatFrame(20U, 82345U), 100, &state) !=
+          ChassisClientDecodeStatus::kUpdated ||
+      reboot_client.ProcessFrame(FaultFrame(120U, 2U, 0x20U), 110, &state) !=
+          ChassisClientDecodeStatus::kUpdated ||
+      reboot_client.ProcessFrame(HeartbeatFrame(21U, 30U), 200, &state) !=
+          ChassisClientDecodeStatus::kUpdated ||
+      state.peer_reboot_count != 1U ||
+      reboot_client.ProcessFrame(FaultFrame(1U, 0U, 0U), 210, &state) !=
+          ChassisClientDecodeStatus::kUpdated ||
+      state.active_faults != 0U) {
+    std::cerr << "confirmed STM32 reboot did not reset the fault sequence baseline\n";
     return 1;
   }
   std::cout << "chassis client tests passed\n";

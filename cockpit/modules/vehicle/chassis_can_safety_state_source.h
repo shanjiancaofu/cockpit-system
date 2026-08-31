@@ -24,6 +24,7 @@ class ChassisCanSafetyStateSource final {
   ChassisStateFreshnessPolicy freshness_policy_;
   ChassisSafetyStateTracker tracker_;
   bool fault_seen_ = false;
+  std::uint64_t observed_peer_reboot_count_ = 0;
 };
 
 }  // namespace cockpit::vehicle

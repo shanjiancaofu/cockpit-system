@@ -58,6 +58,20 @@ int main() {
               1.0, 0.0, 1000000000LL, 1000000000LL, 20000000LL, extrinsic, calibration, &pixel) ==
               LidarCameraProjectionStatus::kInvalidInput,
           "invalid extrinsic was accepted");
+  extrinsic = {};
+  extrinsic.translation_m[2] = 2.0;
+  extrinsic.rotation[0] = 2.0;
+  Require(cockpit::hawkeye::ProjectLidarPointToRectifiedImage(
+              1.0, 0.0, 1000000000LL, 1000000000LL, 20000000LL, extrinsic, calibration, &pixel) ==
+              LidarCameraProjectionStatus::kInvalidInput,
+          "non-orthonormal extrinsic rotation was accepted");
+  extrinsic = {};
+  extrinsic.translation_m[2] = 2.0;
+  extrinsic.rotation[0] = -1.0;
+  Require(cockpit::hawkeye::ProjectLidarPointToRectifiedImage(
+              1.0, 0.0, 1000000000LL, 1000000000LL, 20000000LL, extrinsic, calibration, &pixel) ==
+              LidarCameraProjectionStatus::kInvalidInput,
+          "reflection extrinsic rotation was accepted");
 
   std::cout << "LiDAR to rectified Camera projection tests passed\n";
   return 0;

@@ -170,11 +170,54 @@ VM 增加 `VcanChassisSafetyLoop`，且构造阶段硬拒绝 `can0`。它将同�
 `ToRosChassisOdometry()` 使用 0x181 的 x/y/heading 和该帧自带的 linear/angular velocity 生成
 `nav_msgs/Odometry`。STM32 `odometry_timestamp_ms` 是设备时钟，adapter 不会把它伪装成 Unix/ROS epoch；
 `ChassisOdometryTimeMapper` 显式处理 uint32 wrap/reset 并建立 host realtime anchor，随后
-`Ros2ChassisOdometryPublisher` 发布 `/odom`。该 anchor 是 host-estimated sample time，真机仍需测量
-offset/drift；不能写成硬件同步已验证。
+`Ros2ChassisOdometryPublisher` 发布 `/odom`。`ChassisClient` 从 0x200 uptime 的非回绕倒退产生
+`peer_reboot_count`，publisher 观察到计数变化时自动 reset/re-anchor；普通 0x181 倒退仍 fail closed。
+该 anchor 是 host-estimated sample time，真机仍需测量 offset/drift；不能写成硬件同步已验证。
 
 Camera+LiDAR 的统一时间语义见 [时间戳合同](时间戳合同.md)。Hawkeye 最小投影只接受 rectified image K、
-显式 `T_camera_lidar` 和时间差预算，不拥有 LaserScan subscriber、同步队列或 SLAM/VIO。
+显式 `T_camera_lidar` 和时间差预算，并要求 rotation 满足 `RᵀR≈I`、`det(R)≈+1`；它不拥有
+LaserScan subscriber、同步队列或 SLAM/VIO。
+
+## 真机 Gate 顺序
+
+三个 Gate 独立留证，不能用 VM 结果替代，也不能因为前一个通过而自动宣称后一个通过。
+
+### Gate 1：C1 `/scan`
+
+```bash
+ls -l /dev/ttyUSB*
+dmesg | tail -n 50
+groups
+
+bash scripts/setup/ros2/prepare-rplidar-ros.sh
+bash scripts/ros2/build.sh
+source /opt/ros/humble/setup.bash
+source _output/ros2/install/setup.bash
+ros2 launch cockpit_lidar_bringup c1.launch.py
+```
+
+另一个终端记录 `ros2 topic info /scan --verbose`、`ros2 topic echo /scan --once`、
+`ros2 topic hz /scan`，并录制 `ros2 bag record -o _output/measurements/c1-scan /scan` 2--5 分钟。
+验收至少包含 publisher count、frame_id、Hz、angle/range、scan_time、time_increment、ranges 和
+intensities/quality；证据齐全后才把 C1 标为 HARDWARE VERIFIED。
+
+### Gate 2：IMX219 ROS Camera runtime
+
+保持已验收的 1920×1080 production K/D 不变，验证 Argus startup、device/pipeline/resolution binding、
+30 FPS、raw/info/rect 同 sample timestamp、rectified 图像、CPU/RSS 和 process restart。当前代码已有
+publisher/adapter VM 基线，但尚未把真实 Camera runtime assembly 写成 HARDWARE VERIFIED。
+
+### Gate 3：Jetson↔STM32 CAN FD bench
+
+先不接 Nav2、不驱动车轮，只联调 `can0 ↔ STM32G474`：nominal 500 kbit/s、data 2 Mbit/s、FD/BRS ON。
+逐 ID 验证 0x101、0x180、0x181、0x200、0x240，并保存 `candump`、
+`ip -details -statistics link show can0`、STM32 UART、TX/RX error、TEC/REC、bus-off/restart 证据。
+故障注入必须覆盖 CRC、sequence duplicate/old、200 ms command timeout、300 ms peer timeout、STM32
+reboot 和 bus-off recovery。
+
+CAN bench PASS 后才新增独立 `OpenHardware("can0")` 路径并做 Safety→can0 wheels-up；现有
+`OpenVcanOnly("vcan0")` 不得改成接受任意 interface。wheels-up 矩阵至少覆盖 normal、e-stop、authority
+lost、cmd stale、heartbeat stale、fault、STM32 reset、CAN unplug 和 process kill，任何异常最终速度为零。
 
 ## 参考项目审计
 

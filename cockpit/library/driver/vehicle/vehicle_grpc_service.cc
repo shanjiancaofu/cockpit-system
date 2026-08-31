@@ -60,6 +60,7 @@ proto::vehicle::ChassisState ToProto(const ChassisState& state) {
   message.set_active_faults(state.active_faults);
   message.set_latched_faults(state.latched_faults);
   message.set_fault_sequence(state.fault_sequence);
+  message.set_peer_reboot_count(state.peer_reboot_count);
   return message;
 }
 

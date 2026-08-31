@@ -40,6 +40,13 @@ bool Ros2ChassisOdometryPublisher::Publish(const vehicle::ChassisState& state,
     AssignError(error, "cannot publish invalid chassis odometry");
     return false;
   }
+  if (!peer_reboot_count_valid_) {
+    peer_reboot_count_valid_ = true;
+    last_peer_reboot_count_ = state.peer_reboot_count;
+  } else if (state.peer_reboot_count != last_peer_reboot_count_) {
+    time_mapper_.Reset();
+    last_peer_reboot_count_ = state.peer_reboot_count;
+  }
   std::int64_t sample_realtime_ns = 0;
   const auto map_status =
       time_mapper_.Map(state.odometry_timestamp_ms, received_realtime_ns, &sample_realtime_ns);

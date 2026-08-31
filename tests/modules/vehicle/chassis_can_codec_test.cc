@@ -108,8 +108,18 @@ int main() {
       ChassisCanCodec::EncodeHeartbeat(ChassisHeartbeat{2U, 0U, 1U, 0U, 0U}, &encoded_heartbeat) &&
           monitor.Process(encoded_heartbeat, 1500) &&
           monitor.GetSnapshot(1500).status == ChassisHeartbeatStatus::kAlive &&
-          monitor.GetSnapshot(1500).heartbeat.sequence == 0U,
+          monitor.GetSnapshot(1500).heartbeat.sequence == 0U &&
+          monitor.GetSnapshot(1500).peer_reboot_count == 1U,
       "restarted peer heartbeat did not recover monitor");
+  ChassisHeartbeatMonitor wrap_monitor;
+  success &= Expect(ChassisCanCodec::EncodeHeartbeat(ChassisHeartbeat{2U, 40U, 1U, 0xFFFFFFF0U, 0U},
+                                                     &encoded_heartbeat) &&
+                        wrap_monitor.Process(encoded_heartbeat, 2000) &&
+                        ChassisCanCodec::EncodeHeartbeat(ChassisHeartbeat{2U, 41U, 1U, 0x10U, 0U},
+                                                         &encoded_heartbeat) &&
+                        wrap_monitor.Process(encoded_heartbeat, 2100) &&
+                        wrap_monitor.GetSnapshot(2100).peer_reboot_count == 0U,
+                    "uint32 heartbeat uptime wrap was misclassified as a reboot");
 
   std::array<std::uint8_t, CanFrame::kMaxDataLength> fault_data{};
   fault_data[0] = 1U;
@@ -157,7 +167,35 @@ int main() {
       "CAN safety source rejected fault sample");
   safety_state = safety_source.Evaluate(cockpit::vehicle::ChassisSafetyState{}, 1100);
   success &= Expect(!safety_state.chassis_fault, "healthy CAN fault sample did not clear fault");
-  safety_state = safety_source.Evaluate(cockpit::vehicle::ChassisSafetyState{}, 1410);
+  success &= Expect(
+      ChassisCanCodec::EncodeHeartbeat(ChassisHeartbeat{2U, 42U, 1U, 0U, 0U}, &encoded_heartbeat) &&
+          safety_source.ProcessFrame(encoded_heartbeat, 1200) ==
+              cockpit::vehicle::ChassisClientDecodeStatus::kUpdated,
+      "CAN safety source rejected reboot heartbeat evidence");
+  safety_state = safety_source.Evaluate(cockpit::vehicle::ChassisSafetyState{}, 1200);
+  success &= Expect(safety_state.peer_alive && safety_state.chassis_fault,
+                    "STM32 reboot did not invalidate the previous fault sample");
+  clear_fault_data[2] = 1U;
+  const auto post_reboot_fault_crc = ChassisCanCodec::Crc16(0x240U, clear_fault_data.data(), 14U);
+  clear_fault_data[14] = static_cast<std::uint8_t>(post_reboot_fault_crc & 0xFFU);
+  clear_fault_data[15] = static_cast<std::uint8_t>(post_reboot_fault_crc >> 8U);
+  success &= Expect(
+      safety_source.ProcessFrame(CanFrame(0x240U, clear_fault_data, 16U, false, false, true, true),
+                                 1210) == cockpit::vehicle::ChassisClientDecodeStatus::kUpdated,
+      "post-reboot fault sequence baseline was not rebuilt");
+  safety_state = safety_source.Evaluate(cockpit::vehicle::ChassisSafetyState{}, 1210);
+  success &= Expect(!safety_state.chassis_fault, "fresh post-reboot healthy fault was ignored");
+  safety_state = safety_source.Evaluate(cockpit::vehicle::ChassisSafetyState{}, 1500);
+  success &= Expect(safety_state.peer_alive, "CAN heartbeat became stale before 300 ms");
+  safety_state = safety_source.Evaluate(cockpit::vehicle::ChassisSafetyState{}, 1510);
   success &= Expect(!safety_state.peer_alive, "stale CAN heartbeat remained alive");
+  success &= Expect(ChassisCanCodec::EncodeHeartbeat(ChassisHeartbeat{2U, 43U, 1U, 100U, 0U},
+                                                     &encoded_heartbeat) &&
+                        safety_source.ProcessFrame(encoded_heartbeat, 1600) ==
+                            cockpit::vehicle::ChassisClientDecodeStatus::kUpdated,
+                    "CAN safety source did not recover after peer timeout");
+  safety_state = safety_source.Evaluate(cockpit::vehicle::ChassisSafetyState{}, 1600);
+  success &= Expect(safety_state.peer_alive && safety_state.chassis_fault,
+                    "peer timeout did not invalidate the previous fault sample on recovery");
   return success ? 0 : 1;
 }

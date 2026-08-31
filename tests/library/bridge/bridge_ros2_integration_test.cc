@@ -425,6 +425,14 @@ int main() {
     camera_executor.spin_some();
     std::this_thread::sleep_for(10ms);
   }
+  odometry_state.peer_reboot_count = 1U;
+  odometry_state.odometry_timestamp_ms = 5U;
+  Require(odometry_publisher.Publish(odometry_state, 100200000000LL, &error) &&
+              odometry_publisher.clock_reset_count() == 1U,
+          "STM32 reboot evidence did not reset the live odometry clock mapper: " + error);
+  odometry_state.odometry_timestamp_ms = 4U;
+  Require(!odometry_publisher.Publish(odometry_state, 100201000000LL, &error),
+          "unconfirmed odometry clock regression was accepted after the reboot baseline");
   synthetic_source.Stop();
   camera_executor.remove_node(camera_subscriber_node);
   Require(!camera_publish_failed.load() && raw_count > 0 && info_count > 0 && rect_count > 0 &&

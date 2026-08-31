@@ -5,20 +5,37 @@
 namespace cockpit::hawkeye {
 namespace {
 
+constexpr double kRotationTolerance = 1e-5;
+
 bool CalibrationIsValid(const CameraCalibration& calibration) {
   return calibration.image_width > 0 && calibration.image_height > 0 &&
          std::isfinite(calibration.fx) && calibration.fx > 0.0 && std::isfinite(calibration.fy) &&
          calibration.fy > 0.0 && std::isfinite(calibration.cx) && std::isfinite(calibration.cy);
 }
 
-bool ExtrinsicIsFinite(const LidarToCameraExtrinsic& extrinsic) {
+bool ExtrinsicIsValid(const LidarToCameraExtrinsic& extrinsic) {
   for (double value : extrinsic.rotation) {
     if (!std::isfinite(value)) return false;
   }
   for (double value : extrinsic.translation_m) {
     if (!std::isfinite(value)) return false;
   }
-  return true;
+  for (std::size_t first_row = 0; first_row < 3; ++first_row) {
+    for (std::size_t second_row = 0; second_row < 3; ++second_row) {
+      double dot_product = 0.0;
+      for (std::size_t column = 0; column < 3; ++column) {
+        dot_product += extrinsic.rotation[first_row * 3 + column] *
+                       extrinsic.rotation[second_row * 3 + column];
+      }
+      const double expected = first_row == second_row ? 1.0 : 0.0;
+      if (std::abs(dot_product - expected) > kRotationTolerance) return false;
+    }
+  }
+  const auto& rotation = extrinsic.rotation;
+  const double determinant = rotation[0] * (rotation[4] * rotation[8] - rotation[5] * rotation[7]) -
+                             rotation[1] * (rotation[3] * rotation[8] - rotation[5] * rotation[6]) +
+                             rotation[2] * (rotation[3] * rotation[7] - rotation[4] * rotation[6]);
+  return std::abs(determinant - 1.0) <= kRotationTolerance;
 }
 
 std::uint64_t TimestampDelta(std::int64_t first, std::int64_t second) {
@@ -35,7 +52,7 @@ LidarCameraProjectionStatus ProjectLidarPointToRectifiedImage(
     ProjectedLidarPixel* output) {
   if (output == nullptr || !std::isfinite(range_m) || range_m <= 0.0 || !std::isfinite(angle_rad) ||
       lidar_sample_timestamp_ns <= 0 || camera_sample_timestamp_ns <= 0 ||
-      max_timestamp_delta_ns < 0 || !ExtrinsicIsFinite(lidar_to_camera) ||
+      max_timestamp_delta_ns < 0 || !ExtrinsicIsValid(lidar_to_camera) ||
       !CalibrationIsValid(camera_calibration)) {
     return LidarCameraProjectionStatus::kInvalidInput;
   }

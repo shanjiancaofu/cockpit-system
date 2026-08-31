@@ -220,7 +220,8 @@ V4L2 保留驱动 buffer 时间及 clock flag；GStreamer 使用 pipeline clock/
 
 ROS2 可选构建提供 `Ros2CameraPublisher`、`ChassisOdometryTimeMapper` 和
 `Ros2ChassisOdometryPublisher`：相机 publisher 只消费现有 CameraFrame；odometry 路径显式处理 STM32
-uint32 毫秒 wrap/reset 并发布 `/odom`。host anchor 只是 sample time 估算，不代表硬件同步。
+uint32 毫秒 wrap，并在 `ChassisState.peer_reboot_count` 变化时自动 reset/re-anchor 后发布 `/odom`；无
+heartbeat reboot 证据的时间倒退继续 fail closed。host anchor 只是 sample time 估算，不代表硬件同步。
 Hawkeye 同时提供 rectified Camera+2D LiDAR 最小投影，要求显式外参和时间差预算。
 
 底层 RAW 和 CPU/CUDA 对比入口：

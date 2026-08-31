@@ -56,6 +56,7 @@ struct ChassisHeartbeatSnapshot {
   ChassisHeartbeat heartbeat;
   std::int64_t received_ms = 0;
   std::int64_t age_ms = 0;
+  std::uint64_t peer_reboot_count = 0;
 };
 
 struct ChassisFaultStatus {

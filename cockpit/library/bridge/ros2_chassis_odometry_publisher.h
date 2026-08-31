@@ -31,6 +31,8 @@ class Ros2ChassisOdometryPublisher final {
   vehicle::ChassisOdometryTimeMapper time_mapper_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr publisher_;
   std::uint64_t clock_reset_count_ = 0;
+  bool peer_reboot_count_valid_ = false;
+  std::uint64_t last_peer_reboot_count_ = 0;
 };
 
 }  // namespace cockpit::bridge

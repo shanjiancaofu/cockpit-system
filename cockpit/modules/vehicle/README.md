@@ -16,4 +16,6 @@ Cockpit 侧的精确 repository revision、文件和 SHA-256 固定在
 
 `ChassisClient` 在 codec 之上聚合 Motion、Odometry、Heartbeat 和 Fault，维护 STM32 peer
 `UNKNOWN/ALIVE/TIMEOUT`，并生成 Jetson 100 ms heartbeat。它输出平台无关的 `ChassisState`，
-不持有 SocketCAN、gRPC 或 Navigator 生命周期，也暂不开放运动控制 RPC。
+不持有 SocketCAN、gRPC 或 Navigator 生命周期，也暂不开放运动控制 RPC。0x240 frame sequence 只接受
+uint8 delta 1..127；重复/旧帧不覆盖 fault，只有 peer timeout 或 heartbeat uptime 确认 reboot 才重建
+baseline。reboot 通过单调 `peer_reboot_count` 传播，供 odometry 时间映射与 Safety fail-closed 使用。

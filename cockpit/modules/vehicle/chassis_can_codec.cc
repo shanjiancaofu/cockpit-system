@@ -7,6 +7,7 @@ namespace cockpit::vehicle {
 namespace {
 
 constexpr std::uint8_t kSchemaVersion = 1U;
+constexpr std::uint32_t kSerialHalfRangeU32 = std::uint32_t{1} << 31U;
 
 std::uint16_t GetU16(const std::uint8_t* data) {
   return static_cast<std::uint16_t>(data[0]) | (static_cast<std::uint16_t>(data[1]) << 8U);
@@ -192,6 +193,11 @@ bool ChassisHeartbeatMonitor::Process(const can::CanFrame& frame, std::int64_t n
   if (sequence_valid_ &&
       (delta == 0U || (snapshot_.status != ChassisHeartbeatStatus::kTimeout && delta >= 128U))) {
     return false;
+  }
+  if (sequence_valid_ && heartbeat.uptime_ms < snapshot_.heartbeat.uptime_ms) {
+    const auto uptime_delta =
+        static_cast<std::uint32_t>(heartbeat.uptime_ms - snapshot_.heartbeat.uptime_ms);
+    if (uptime_delta >= kSerialHalfRangeU32) ++snapshot_.peer_reboot_count;
   }
   sequence_valid_ = true;
   last_sequence_ = heartbeat.sequence;

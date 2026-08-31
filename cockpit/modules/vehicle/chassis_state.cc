@@ -42,7 +42,8 @@ std::string ChassisState::ToJson() const {
       << "\"heartbeat_status\":\"" << HeartbeatStatusText(heartbeat_status) << "\","
       << "\"heartbeat_age_ms\":" << heartbeat_age_ms << ','
       << "\"node_state\":" << static_cast<unsigned int>(node_state) << ','
-      << "\"uptime_ms\":" << uptime_ms << ',' << "\"fault_summary\":" << fault_summary << ','
+      << "\"uptime_ms\":" << uptime_ms << ',' << "\"peer_reboot_count\":" << peer_reboot_count
+      << ',' << "\"fault_summary\":" << fault_summary << ','
       << "\"fault_severity\":" << static_cast<unsigned int>(fault_severity) << ','
       << "\"active_faults\":" << active_faults << ',' << "\"latched_faults\":" << latched_faults
       << ',' << "\"fault_sequence\":" << fault_sequence << '}';

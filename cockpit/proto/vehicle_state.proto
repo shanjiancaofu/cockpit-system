@@ -46,6 +46,7 @@ message ChassisState {
   uint32 active_faults = 23;
   uint32 latched_faults = 24;
   uint32 fault_sequence = 25;
+  uint64 peer_reboot_count = 26;
 }
 
 message SensorState {
