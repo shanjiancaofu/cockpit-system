@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <string>
 
 #include "cockpit/modules/can/socket_can_adapter.h"
@@ -164,6 +165,49 @@ int main(int argc, char** argv) {
               command.stop_reason == cockpit::vehicle::ChassisStopReason::kCommandStale &&
               !CommandEnabled(ReceiveCommand(&fake_stm32)),
           "stale velocity command did not force zero with fresh chassis state");
+
+  cockpit::vehicle::ChassisSafetyState authority_lost = controls;
+  authority_lost.authority_granted = false;
+  SendHealthyState(&fake_stm32, 5U, 6U);
+  Require(loop->Step(authority_lost, 2400, 100, &command, &error), error.c_str());
+  Require(!command.enabled &&
+              command.stop_reason == cockpit::vehicle::ChassisStopReason::kAuthorityLost &&
+              !CommandEnabled(ReceiveCommand(&fake_stm32)),
+          "authority loss did not force zero");
+
+  cockpit::vehicle::ChassisSafetyState emergency_stop = controls;
+  emergency_stop.emergency_stop = true;
+  SendHealthyState(&fake_stm32, 6U, 7U);
+  Require(loop->Step(emergency_stop, 2500, 100, &command, &error), error.c_str());
+  Require(!command.enabled &&
+              command.stop_reason == cockpit::vehicle::ChassisStopReason::kEmergencyStop &&
+              !CommandEnabled(ReceiveCommand(&fake_stm32)),
+          "emergency stop did not force zero");
+
+  SendHealthyState(&fake_stm32, 7U, 8U);
+  Require(loop->Step(controls, 2600, 100, &command, &error), error.c_str());
+  static_cast<void>(ReceiveCommand(&fake_stm32));
+  request.linear_velocity_m_s = std::numeric_limits<double>::quiet_NaN();
+  Require(!loop->Submit(request, controls, 2610, &error), "NaN velocity command was accepted");
+  Require(loop->Step(controls, 2620, 0, &command, &error), error.c_str());
+  Require(!command.enabled &&
+              command.stop_reason == cockpit::vehicle::ChassisStopReason::kInvalidCommand &&
+              !CommandEnabled(ReceiveCommand(&fake_stm32)),
+          "invalid velocity command did not force zero");
+
+  cockpit::vehicle::ChassisHeartbeat heartbeat{2U, 8U, 1U, 1000U, 0U};
+  CanFrame heartbeat_frame;
+  Require(ChassisCanCodec::EncodeHeartbeat(heartbeat, &heartbeat_frame), "encode heartbeat failed");
+  Send(&fake_stm32, heartbeat_frame);
+  Require(loop->Step(controls, 2921, 100, &command, &error), error.c_str());
+  Require(!command.enabled &&
+              command.stop_reason == cockpit::vehicle::ChassisStopReason::kChassisFault &&
+              !CommandEnabled(ReceiveCommand(&fake_stm32)),
+          "stale fault sample did not force zero while heartbeat remained fresh");
+
+  Require(loop->Stop(2930, &command, &error), error.c_str());
+  Require(!command.enabled && !CommandEnabled(ReceiveCommand(&fake_stm32)),
+          "explicit process stop did not send a final zero command");
 
   std::cout << "vcan RX to Safety to 0x101 TX tests passed\n";
   return 0;

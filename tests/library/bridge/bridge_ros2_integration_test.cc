@@ -17,6 +17,7 @@
 #include "cockpit/library/bridge/ros2_camera_info_adapter.h"
 #include "cockpit/library/bridge/ros2_camera_publisher.h"
 #include "cockpit/library/bridge/ros2_chassis_odometry_adapter.h"
+#include "cockpit/library/bridge/ros2_chassis_odometry_publisher.h"
 #include "cockpit/library/bridge/ros2_nav2_provider.h"
 #include "cockpit/modules/camera/capture/synthetic_preview_source.h"
 
@@ -379,9 +380,19 @@ int main() {
         ++rect_count;
         rect_stamp = message->header.stamp;
       });
+  cockpit::bridge::Ros2ChassisOdometryPublisher odometry_publisher(camera_publisher_node.get(),
+                                                                   "/cockpit_test/odom");
+  std::uint32_t odometry_count = 0;
+  nav_msgs::msg::Odometry received_odometry;
+  auto odometry_subscription = camera_subscriber_node->create_subscription<nav_msgs::msg::Odometry>(
+      "/cockpit_test/odom", 10, [&](const nav_msgs::msg::Odometry::ConstSharedPtr& message) {
+        ++odometry_count;
+        received_odometry = *message;
+      });
   static_cast<void>(raw_subscription);
   static_cast<void>(info_subscription);
   static_cast<void>(rect_subscription);
+  static_cast<void>(odometry_subscription);
   rclcpp::ExecutorOptions camera_executor_options;
   camera_executor_options.context = context;
   rclcpp::executors::SingleThreadedExecutor camera_executor(camera_executor_options);
@@ -403,8 +414,14 @@ int main() {
               },
               &error),
           "synthetic camera source did not start: " + error);
-  for (int attempt = 0; attempt < 100 && (raw_count == 0 || info_count == 0 || rect_count == 0);
+  odometry_state.odometry_valid = true;
+  for (int attempt = 0; attempt < 100 && (raw_count == 0 || info_count == 0 || rect_count == 0 ||
+                                          odometry_count == 0);
        ++attempt) {
+    odometry_state.odometry_timestamp_ms = static_cast<std::uint32_t>(1000 + attempt);
+    Require(
+        odometry_publisher.Publish(odometry_state, 100000000000LL + attempt * 1000000LL, &error),
+        "live ROS Odometry publisher rejected 0x181 state: " + error);
     camera_executor.spin_some();
     std::this_thread::sleep_for(10ms);
   }
@@ -413,6 +430,11 @@ int main() {
   Require(!camera_publish_failed.load() && raw_count > 0 && info_count > 0 && rect_count > 0 &&
               raw_stamp == info_stamp && raw_stamp == rect_stamp && raw_stamp.sec > 0,
           "live ROS Camera topics did not preserve a common sample timestamp");
+  Require(odometry_count > 0 && received_odometry.header.frame_id == "odom" &&
+              received_odometry.child_frame_id == "base_link" &&
+              received_odometry.header.stamp.sec == 100 &&
+              std::abs(received_odometry.pose.pose.position.x - 1.25) < 1e-9,
+          "live 0x181 to /odom publisher contract failed");
 
   std::cout << "Bridge ROS2/Nav2 provider integration tests passed\n";
   return 0;

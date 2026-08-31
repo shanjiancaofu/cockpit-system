@@ -169,7 +169,12 @@ VM 增加 `VcanChassisSafetyLoop`，且构造阶段硬拒绝 `can0`。它将同�
 
 `ToRosChassisOdometry()` 使用 0x181 的 x/y/heading 和该帧自带的 linear/angular velocity 生成
 `nav_msgs/Odometry`。STM32 `odometry_timestamp_ms` 是设备时钟，adapter 不会把它伪装成 Unix/ROS epoch；
-调用方必须先完成设备时间到 ROS sample time 的显式映射，再传入 header stamp。
+`ChassisOdometryTimeMapper` 显式处理 uint32 wrap/reset 并建立 host realtime anchor，随后
+`Ros2ChassisOdometryPublisher` 发布 `/odom`。该 anchor 是 host-estimated sample time，真机仍需测量
+offset/drift；不能写成硬件同步已验证。
+
+Camera+LiDAR 的统一时间语义见 [时间戳合同](时间戳合同.md)。Hawkeye 最小投影只接受 rectified image K、
+显式 `T_camera_lidar` 和时间差预算，不拥有 LaserScan subscriber、同步队列或 SLAM/VIO。
 
 ## 参考项目审计
 

@@ -125,11 +125,12 @@ if(COCKPIT_ENABLE_ROS2)
         bridge/ros2_camera_frame_adapter.cc
         bridge/ros2_camera_publisher.cc
         bridge/ros2_chassis_odometry_adapter.cc
+        bridge/ros2_chassis_odometry_publisher.cc
         bridge/ros2_nav2_provider.cc
     )
     find_package(OpenCV REQUIRED COMPONENTS calib3d imgproc)
     target_include_directories(bridge_ros2 PUBLIC ${PROJECT_SOURCE_DIR})
-    target_link_libraries(bridge_ros2 bridge hawkeye ${OpenCV_LIBS})
+    target_link_libraries(bridge_ros2 bridge hawkeye vehicle ${OpenCV_LIBS})
     ament_target_dependencies(bridge_ros2
         builtin_interfaces geometry_msgs nav2_msgs nav_msgs rclcpp rclcpp_action sensor_msgs
     )

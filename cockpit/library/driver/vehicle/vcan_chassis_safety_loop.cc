@@ -68,4 +68,18 @@ bool VcanChassisSafetyLoop::Step(const ChassisSafetyState& controls, std::int64_
   return command_sink_->Send(*command, error);
 }
 
+bool VcanChassisSafetyLoop::Stop(std::int64_t steady_now_ms, SafeChassisCommand* command,
+                                 std::string* error) {
+  if (command == nullptr || steady_now_ms < 0) {
+    if (error != nullptr) *error = "invalid vcan chassis safety stop arguments";
+    return false;
+  }
+  safety_adapter_.Reset(steady_now_ms);
+  ChassisSafetyState stopped_state;
+  stopped_state.authority_granted = true;
+  stopped_state.peer_alive = true;
+  *command = safety_adapter_.Evaluate(stopped_state, steady_now_ms);
+  return command_sink_->Send(*command, error);
+}
+
 }  // namespace cockpit::vehicle

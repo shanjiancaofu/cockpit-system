@@ -218,9 +218,10 @@ V4L2 保留驱动 buffer 时间及 clock flag；GStreamer 使用 pipeline clock/
 即时建立映射，把 sample running-time PTS 转换为 realtime source timestamp，不使用首帧 callback arrival
 作为 anchor。跨 Camera/LiDAR 同步仍必须核对各 source clock、漂移和真机采样语义，不能只比较 receive time。
 
-ROS2 可选构建提供 `Ros2CameraPublisher` 和 `ToRosChassisOdometry()`：前者只消费现有 CameraFrame，
-后者要求调用方提供已映射到 ROS 时间域的 0x181 sample stamp。两者都不重新打开硬件，也不把设备
-uptime 或 receive time 默认为真实传感器采样时间。
+ROS2 可选构建提供 `Ros2CameraPublisher`、`ChassisOdometryTimeMapper` 和
+`Ros2ChassisOdometryPublisher`：相机 publisher 只消费现有 CameraFrame；odometry 路径显式处理 STM32
+uint32 毫秒 wrap/reset 并发布 `/odom`。host anchor 只是 sample time 估算，不代表硬件同步。
+Hawkeye 同时提供 rectified Camera+2D LiDAR 最小投影，要求显式外参和时间差预算。
 
 底层 RAW 和 CPU/CUDA 对比入口：
 

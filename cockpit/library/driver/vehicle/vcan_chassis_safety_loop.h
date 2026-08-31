@@ -24,6 +24,7 @@ class VcanChassisSafetyLoop final {
               std::int64_t steady_now_ms, std::string* error = nullptr);
   bool Step(const ChassisSafetyState& controls, std::int64_t steady_now_ms, int receive_timeout_ms,
             SafeChassisCommand* command, std::string* error = nullptr);
+  bool Stop(std::int64_t steady_now_ms, SafeChassisCommand* command, std::string* error = nullptr);
   const ChassisState& chassis_state() const {
     return state_source_.chassis_state();
   }

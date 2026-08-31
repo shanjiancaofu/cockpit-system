@@ -156,6 +156,11 @@ add_executable(chassis_client_test modules/vehicle/chassis_client_test.cc)
 target_link_libraries(chassis_client_test PRIVATE vehicle)
 add_test(NAME chassis_client_test COMMAND chassis_client_test)
 
+add_executable(chassis_odometry_time_mapper_test
+    modules/vehicle/chassis_odometry_time_mapper_test.cc)
+target_link_libraries(chassis_odometry_time_mapper_test PRIVATE vehicle)
+add_test(NAME chassis_odometry_time_mapper_test COMMAND chassis_odometry_time_mapper_test)
+
 add_executable(chassis_safety_adapter_test modules/vehicle/chassis_safety_adapter_test.cc)
 target_link_libraries(chassis_safety_adapter_test PRIVATE vehicle)
 add_test(NAME chassis_safety_adapter_test COMMAND chassis_safety_adapter_test)
@@ -326,6 +331,11 @@ add_executable(camera_calibration_loader_test
 )
 target_link_libraries(camera_calibration_loader_test PRIVATE hawkeye)
 add_test(NAME camera_calibration_loader_test COMMAND camera_calibration_loader_test)
+
+add_executable(lidar_camera_projection_test
+    modules/hawkeye/lidar_camera_projection_test.cc)
+target_link_libraries(lidar_camera_projection_test PRIVATE hawkeye)
+add_test(NAME lidar_camera_projection_test COMMAND lidar_camera_projection_test)
 
 if(TARGET camera-calibrator)
 add_test(NAME camera_calibrator_cli_test COMMAND bash

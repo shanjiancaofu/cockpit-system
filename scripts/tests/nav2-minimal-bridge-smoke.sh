@@ -258,7 +258,7 @@ wait_for_bridge_failure >/dev/null
 assert_cmd_vel_zero
 ros2 run cockpit_nav2_test_support nav2_fault_control odometry-enable
 
-"${bin_dir}/bridge-ctl" --submit --goal-id nav2-minimal-odom-recovered --x 1.0 --y 0 --yaw 0 \
+"${bin_dir}/bridge-ctl" --submit --goal-id nav2-minimal-odom-recovered --x 0.6 --y 0 --yaw 0 \
   --config "${config_path}" >/dev/null
 wait_for_bridge_state NAVIGATION_STATE_SUCCEEDED true >/dev/null
 assert_cmd_vel_zero
