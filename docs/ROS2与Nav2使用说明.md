@@ -167,6 +167,8 @@ SocketCAN receive 使用 `SO_TIMESTAMPNS + recvmsg()` 获取 kernel RX timestamp
 0x200/0x240 不得用 consumer 恢复后 drain frame 的当前时间刷新 freshness。vcan backlog 测试已覆盖
 consumer stall 350 ms 后旧 heartbeat 仍为 stale；真机 CAN Gate 必须重复暂停 consumer 超过 300 ms
 再恢复的故障注入，并确认 Safety 不短暂恢复 authority。
+STM32 完全静默时，VehicleDataService 不等待下一帧，在 SocketCAN poll timeout 周期主动推进并发布
+heartbeat `ALIVE→TIMEOUT`；真机 Gate 还必须通过 STM32 直接掉电验证该 transition。
 
 VM 增加 `VcanChassisSafetyLoop`，且构造阶段硬拒绝 `can0`。它将同一隔离 vcan 总线上的
 0x200/0x240/0x181 输入送入现有状态源和 Safety，再经现有 `SocketCanChassisSink` 输出 0x101；用于
@@ -219,6 +221,12 @@ publisher/adapter VM 基线，但尚未把真实 Camera runtime assembly 写成 
 `ip -details -statistics link show can0`、STM32 UART、TX/RX error、TEC/REC、bus-off/restart 证据。
 故障注入必须覆盖 CRC、sequence duplicate/old、200 ms command timeout、300 ms peer timeout、STM32
 reboot、consumer stall/backlog 和 bus-off recovery。
+
+2026-08-31 首次硬件 preflight：UART 已确认 STM32 `1.0.1 build1`、STOPPED/fault=0/零 PWM；Jetson
+can0 的 500k/2M FD 配置通过，但被动监听无 0x200/0x240，一次 0x720 PING 无 ACK 并真实触发
+ERROR-PASSIVE、bus-off=1、restart=1。自动恢复后 TEC/REC=0 且错误计数稳定，但物理双向链路仍为
+NOT VERIFIED；该事件不得写成 bus-off recovery PASS。修复收发器/接线/终端前不发送 0x101，后续
+首次诊断使用 `one-shot on`。
 
 CAN bench PASS 后才新增独立 `OpenHardware("can0")` 路径并做 Safety→can0 wheels-up；现有
 `OpenVcanOnly("vcan0")` 不得改成接受任意 interface。wheels-up 矩阵至少覆盖 normal、e-stop、authority

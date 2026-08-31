@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <iostream>
 #include <string>
@@ -41,16 +43,11 @@ bool Send(cockpit::can::SocketCan* socket, const CanFrame& frame) {
   return true;
 }
 
-bool FakeStm32(const std::string& interface_name) {
-  cockpit::can::SocketCan socket;
+bool WaitForJetsonHeartbeat(cockpit::can::SocketCan* socket) {
   std::string error;
-  if (!socket.Open(interface_name, &error)) {
-    std::cerr << error << '\n';
-    return false;
-  }
   while (true) {
     cockpit::can::SocketCanFrame received;
-    if (socket.Receive(&received, 2000, &error) != cockpit::can::CanIoStatus::kOk) {
+    if (socket->Receive(&received, 2000, &error) != cockpit::can::CanIoStatus::kOk) {
       std::cerr << (error.empty() ? "Jetson heartbeat timed out" : error) << '\n';
       return false;
     }
@@ -59,8 +56,18 @@ bool FakeStm32(const std::string& interface_name) {
     cockpit::vehicle::ChassisHeartbeat heartbeat;
     if (!ChassisCanCodec::DecodeHeartbeat(frame, &heartbeat)) continue;
     if (heartbeat.flags != 1U) return false;
-    break;
+    return true;
   }
+}
+
+bool FakeStm32(const std::string& interface_name) {
+  cockpit::can::SocketCan socket;
+  std::string error;
+  if (!socket.Open(interface_name, &error)) {
+    std::cerr << error << '\n';
+    return false;
+  }
+  if (!WaitForJetsonHeartbeat(&socket)) return false;
 
   std::array<std::uint8_t, 64> data{};
   data[0] = 1U;
@@ -102,6 +109,20 @@ bool FakeStm32(const std::string& interface_name) {
   PutU16(&data, 12, 5U);
   PutU16(&data, 14, ChassisCanCodec::Crc16(0x240U, data.data(), 14U));
   return Send(&socket, Frame(0x240U, data, 16U));
+}
+
+bool FakeStm32HeartbeatThenSilence(const std::string& interface_name) {
+  cockpit::can::SocketCan socket;
+  std::string error;
+  if (!socket.Open(interface_name, &error)) {
+    std::cerr << error << '\n';
+    return false;
+  }
+  if (!WaitForJetsonHeartbeat(&socket)) return false;
+  CanFrame heartbeat;
+  return ChassisCanCodec::EncodeHeartbeat(
+             cockpit::vehicle::ChassisHeartbeat{2U, 77U, 1U, 5000U, 0U}, &heartbeat) &&
+         Send(&socket, heartbeat);
 }
 
 }  // namespace
@@ -151,6 +172,44 @@ int main(int argc, char** argv) {
       state.heartbeat_status != cockpit::vehicle::ChassisHeartbeatStatus::kAlive ||
       state.active_faults != 0x20U || state.latched_faults != 0x30U || state.fault_sequence != 5U) {
     std::cerr << "aggregated chassis product state is invalid\n";
+    return 1;
+  }
+
+  std::atomic_bool silent_running{true};
+  std::atomic_bool silent_fake_result{false};
+  std::vector<cockpit::vehicle::ChassisHeartbeatStatus> heartbeat_transitions;
+  std::thread silent_fake([&] {
+    silent_fake_result.store(FakeStm32HeartbeatThenSilence(interface_name));
+  });
+  cockpit::vehicle::VehicleDataOptions silent_options = options;
+  silent_options.forever = true;
+  silent_options.can.receive_timeout_ms = 50;
+  silent_options.can.max_idle_timeouts = 2;
+  const auto silent_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+  cockpit::vehicle::VehicleDataService silent_service(
+      silent_options, nullptr,
+      [&] {
+        return silent_running.load() && std::chrono::steady_clock::now() < silent_deadline;
+      },
+      nullptr,
+      [&](const cockpit::vehicle::ChassisState& silent_state) {
+        heartbeat_transitions.push_back(silent_state.heartbeat_status);
+        if (silent_state.heartbeat_status == cockpit::vehicle::ChassisHeartbeatStatus::kTimeout) {
+          silent_running.store(false);
+        }
+      });
+  const int silent_result = silent_service.Run();
+  silent_running.store(false);
+  silent_fake.join();
+  const auto alive = std::find(heartbeat_transitions.begin(), heartbeat_transitions.end(),
+                               cockpit::vehicle::ChassisHeartbeatStatus::kAlive);
+  const auto timeout = std::find(heartbeat_transitions.begin(), heartbeat_transitions.end(),
+                                 cockpit::vehicle::ChassisHeartbeatStatus::kTimeout);
+  if (silent_result != 0 || !silent_fake_result.load() || alive == heartbeat_transitions.end() ||
+      timeout == heartbeat_transitions.end() || timeout <= alive ||
+      std::count(heartbeat_transitions.begin(), heartbeat_transitions.end(),
+                 cockpit::vehicle::ChassisHeartbeatStatus::kTimeout) != 1) {
+    std::cerr << "silent STM32 did not publish heartbeat ALIVE to TIMEOUT transition\n";
     return 1;
   }
   std::cout << "vehicle chassis vcan runtime test passed\n";

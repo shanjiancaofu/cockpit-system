@@ -77,6 +77,12 @@ int VehicleDataService::RunSocketCan() {
       link_status_sink_(link_status);
     }
   };
+  const auto publish_heartbeat_transition = [this, &chassis_client](std::int64_t steady_now_ms) {
+    ChassisState heartbeat_state;
+    if (chassis_client.Update(steady_now_ms, &heartbeat_state)) {
+      PublishChassis(heartbeat_state);
+    }
+  };
   std::string error;
   if (!socket.Open(interface_name, &error)) {
     LOG_ERROR(error);
@@ -90,10 +96,7 @@ int VehicleDataService::RunSocketCan() {
   int idle_elapsed_ms = 0;
   while (should_continue_() && (options_.forever || published < options_.samples)) {
     const std::int64_t now_ms = time::SteadyTime::Now().ToMilliseconds();
-    ChassisState heartbeat_state;
-    if (chassis_client.Update(now_ms, &heartbeat_state)) {
-      PublishChassis(heartbeat_state);
-    }
+    publish_heartbeat_transition(now_ms);
     if (chassis_client.HeartbeatDue(now_ms)) {
       can::CanFrame heartbeat;
       if (!chassis_client.BuildHeartbeat(now_ms, &heartbeat) ||
@@ -109,6 +112,7 @@ int VehicleDataService::RunSocketCan() {
     error.clear();
     const can::CanIoStatus io_status = socket.Receive(&socket_frame, poll_timeout_ms, &error);
     if (io_status == can::CanIoStatus::kTimeout) {
+      publish_heartbeat_transition(time::SteadyTime::Now().ToMilliseconds());
       idle_elapsed_ms += poll_timeout_ms;
       if (idle_elapsed_ms >= timeout_ms) {
         idle_elapsed_ms = 0;

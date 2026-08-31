@@ -24,4 +24,6 @@
 Vehicle driver 持有单一 SocketCAN 生命周期：发送 Jetson heartbeat，使用
 `SO_TIMESTAMPNS/recvmsg` 保留 kernel RX time 并映射到 steady freshness，再把 CAN FD 帧交给
 `modules/vehicle/ChassisClient`，并通过现有 Vehicle gRPC service 发布强类型 `ChassisState`。
+SocketCAN poll timeout 周期仍会推进 `ChassisClient`，因此 peer 完全静默时也会主动发布 heartbeat
+`ALIVE→TIMEOUT`，不等待下一帧触发。
 不另建平行 CAN service，也不在 driver 中重复协议字段定义。
