@@ -214,8 +214,9 @@ Jetson 实测 Direct V4L2 + NEON Software ISP 在 1920×1080 下约 30 fps，ISP
 
 `CameraFrame.timestamp_ms` 保留为主机接收时刻的 Unix epoch 毫秒兼容字段；源时间使用
 `source_timestamp_ns + source_clock + source_timestamp_valid`，主机接收时间使用 `received_at_ns`。
-V4L2 保留驱动 buffer 时间及 clock flag，GStreamer 使用 pipeline running-time PTS，跨 Camera/LiDAR
-同步前必须按 clock domain 转换，不能直接混用。
+V4L2 保留驱动 buffer 时间及 clock flag；GStreamer 使用 pipeline clock/base-time 与主机 realtime
+即时建立映射，把 sample running-time PTS 转换为 realtime source timestamp，不使用首帧 callback arrival
+作为 anchor。跨 Camera/LiDAR 同步仍必须核对各 source clock、漂移和真机采样语义，不能只比较 receive time。
 
 底层 RAW 和 CPU/CUDA 对比入口：
 

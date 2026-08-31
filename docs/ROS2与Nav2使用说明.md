@@ -64,7 +64,8 @@ source _output/ros2/install/setup.bash
 ```
 
 `scripts/ros2/configure.sh` 负责主项目 ROS adapter 和 clangd compile database；
-`scripts/ros2/build.sh` 负责三个 ament 包，并把全部 colcon 输出放入 `_output/ros2`。
+`scripts/ros2/build.sh` 负责四个 cockpit ament 包，并在显式准备后构建固定 revision 的外部
+`rplidar_ros`；全部 colcon 和外部 checkout 输出放入 `_output/ros2`。
 安装脚本只使用 sudo 写入 apt key、ROS deb 和首次 `rosdep init` 的系统目录；源码、构建和运行过程不以
 root 执行。
 GitHub CI 使用 `COCKPIT_SKIP_ROSDEP_SETUP=1`，因为所有构建依赖已经由 pinned apt 清单显式安装，
@@ -117,8 +118,15 @@ CameraInfo 发布时重新调用 `now()`。输入格式固定为 BGRx，尺寸�
 
 `ros2/src/cockpit_lidar_bringup` 只保存官方 `rplidar_ros` 的 launch/config 合同：串口默认
 `/dev/ttyUSB0`、460800、topic `/scan`、frame `base_scan`。它不包含 Slamtec SDK、不复制或修改
-官方驱动；VM 中继续使用 `cockpit_nav2_test_support/fake_scan_node`，真实 C1 到位后仅替换 source，
-下游 Nav2、Safety 和 Fake/SocketCAN sink 不变。当前 C1 配置标记为 CONFIGURED / NOT HARDWARE VERIFIED。
+官方驱动。`scripts/setup/ros2/prepare-rplidar-ros.sh` 将官方 ROS2 branch 的精确 revision
+`24cc9b6dea97e045bda1408eaa867ce730fd3fc3` 准备到 `_output/ros2/external-src`，随后由 colcon 一起构建；
+该目录不提交。VM 中继续使用 `cockpit_nav2_test_support/fake_scan_node`，真实 C1 到位后仅替换 source，
+下游 Nav2、Safety 和 Fake/SocketCAN sink 不变。当前 C1 标记为 VM SOFTWARE VERIFIED /
+NOT HARDWARE VERIFIED。
+
+`c1.launch.py` 只启动真实驱动，不拥有 FakeScan。`lidar_nav2.launch.py use_fake:=true` 只启用
+Nav2 baseline 的单个 FakeScan；`use_fake:=false` 只启用 C1 并关闭 baseline FakeScan。可用
+`scripts/tests/lidar-nav2-source-smoke.sh` 验证 fake 模式只有一个 `/scan` publisher。
 
 - `fake_odometry_node`：订阅 `/cmd_vel_safe`，只在内存中积分二维位置并发布 `/odom`、`odom→base_link`。
 - `fake_tf_node`：发布测试用 `map→odom` 和 `base_link→base_scan` 静态 TF。

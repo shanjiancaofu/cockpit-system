@@ -150,6 +150,8 @@ jobs:
         run: bash scripts/setup/ros2/install.sh
       - name: Verify pinned ROS2 packages
         run: bash scripts/setup/ros2/verify.sh
+      - name: Prepare pinned rplidar_ros source
+        run: bash scripts/setup/ros2/prepare-rplidar-ros.sh
       - name: Configure and build cockpit ROS2 adapter
         env:
           BUILD_DIR: _output/build/ci-ros2

@@ -29,7 +29,10 @@ target_include_directories(software_isp_camera_source PUBLIC ${PROJECT_SOURCE_DI
 add_library(synthetic_camera STATIC capture/synthetic_preview_source.cc)
 target_link_libraries(synthetic_camera PUBLIC camera_capture time_util Threads::Threads)
 
-add_library(gstreamer_camera STATIC capture/gstreamer_preview_pipeline.cc)
+add_library(gstreamer_camera STATIC
+    capture/gstreamer_preview_pipeline.cc
+    capture/gstreamer_timestamp_mapper.cc
+)
 target_include_directories(gstreamer_camera PUBLIC ${GSTREAMER_INCLUDE_DIRS})
 target_link_directories(gstreamer_camera PUBLIC ${GSTREAMER_LIBRARY_DIRS})
 target_link_libraries(gstreamer_camera PUBLIC camera_capture time_util ${GSTREAMER_LIBRARIES})

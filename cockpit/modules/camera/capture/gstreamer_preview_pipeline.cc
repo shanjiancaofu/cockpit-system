@@ -9,14 +9,24 @@
 #include <charconv>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <utility>
 
 #include "cockpit/core/time/time.h"
+#include "cockpit/modules/camera/capture/gstreamer_timestamp_mapper.h"
 
 namespace cockpit {
 namespace camera {
 namespace {
+
+struct GstElementUnref {
+  void operator()(GstElement* element) const {
+    if (element != nullptr) {
+      gst_object_unref(element);
+    }
+  }
+};
 
 void SetError(std::string* error, const std::string& message) {
   if (error != nullptr) {
@@ -191,9 +201,6 @@ bool GstreamerPreviewPipeline::Start(const CameraPreviewConfig& config, FrameCal
     callback_ = std::move(callback);
     config_ = normalized;
     sequence_ = 0;
-    timestamp_mapping_initialized_ = false;
-    base_running_time_ns_ = 0;
-    base_receive_time_ns_ = 0;
   }
 
   const GstStateChangeReturn state_result = gst_element_set_state(pipeline_, GST_STATE_PLAYING);
@@ -267,11 +274,16 @@ int GstreamerPreviewPipeline::HandleNewSample(GstSample* sample) {
   FrameCallback callback;
   CameraPreviewConfig config;
   std::uint64_t sequence = 0;
+  std::unique_ptr<GstElement, GstElementUnref> pipeline;
   {
     std::lock_guard<std::mutex> lock(mutex_);
     callback = callback_;
     config = config_;
     sequence = ++sequence_;
+    if (pipeline_ != nullptr) {
+      gst_object_ref(pipeline_);
+      pipeline.reset(pipeline_);
+    }
   }
   if (!callback) {
     return GST_FLOW_OK;
@@ -299,17 +311,36 @@ int GstreamerPreviewPipeline::HandleNewSample(GstSample* sample) {
       const GstClockTime running_time =
           gst_segment_to_running_time(segment, GST_FORMAT_TIME, GST_BUFFER_PTS(buffer));
       if (GST_CLOCK_TIME_IS_VALID(running_time)) {
-        const auto running_time_ns = static_cast<std::int64_t>(running_time);
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (!timestamp_mapping_initialized_) {
-          timestamp_mapping_initialized_ = true;
-          base_running_time_ns_ = running_time_ns;
-          base_receive_time_ns_ = frame.received_at_ns;
+        GstClock* clock = pipeline == nullptr ? nullptr : gst_element_get_clock(pipeline.get());
+        const GstClockTime base_time =
+            pipeline == nullptr ? GST_CLOCK_TIME_NONE : gst_element_get_base_time(pipeline.get());
+        if (clock != nullptr && GST_CLOCK_TIME_IS_VALID(base_time)) {
+          const std::int64_t realtime_before_ns = cockpit::time::WallTime::Now().ToNanoseconds();
+          const GstClockTime clock_time = gst_clock_get_time(clock);
+          const std::int64_t realtime_after_ns = cockpit::time::WallTime::Now().ToNanoseconds();
+          const GstClockTime current_running_time =
+              GST_CLOCK_TIME_IS_VALID(clock_time) && clock_time >= base_time
+                  ? clock_time - base_time
+                  : GST_CLOCK_TIME_NONE;
+          constexpr auto kMaxSignedNanoseconds =
+              static_cast<GstClockTime>(std::numeric_limits<std::int64_t>::max());
+          if (GST_CLOCK_TIME_IS_VALID(current_running_time) &&
+              current_running_time <= kMaxSignedNanoseconds &&
+              running_time <= kMaxSignedNanoseconds) {
+            std::int64_t source_timestamp_ns = 0;
+            if (MapGstreamerRunningTimeToRealtime(static_cast<std::int64_t>(running_time),
+                                                  static_cast<std::int64_t>(current_running_time),
+                                                  realtime_before_ns, realtime_after_ns,
+                                                  &source_timestamp_ns)) {
+              frame.source_timestamp_ns = source_timestamp_ns;
+              frame.source_timestamp_valid = true;
+              frame.source_clock = CameraTimestampClock::kRealtime;
+            }
+          }
         }
-        frame.source_timestamp_ns =
-            base_receive_time_ns_ + (running_time_ns - base_running_time_ns_);
-        frame.source_timestamp_valid = true;
-        frame.source_clock = CameraTimestampClock::kRealtime;
+        if (clock != nullptr) {
+          gst_object_unref(clock);
+        }
       }
     }
   }

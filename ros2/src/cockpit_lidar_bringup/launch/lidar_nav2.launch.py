@@ -5,6 +5,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 
@@ -19,9 +20,7 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     os.path.join(share, "launch", "c1.launch.py")
                 ),
-                launch_arguments={
-                    "use_fake": LaunchConfiguration("use_fake")
-                }.items(),
+                condition=UnlessCondition(LaunchConfiguration("use_fake")),
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(

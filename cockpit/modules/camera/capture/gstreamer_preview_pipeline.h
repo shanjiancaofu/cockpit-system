@@ -54,9 +54,6 @@ class GstreamerPreviewPipeline : public CameraPreviewSource {
   const CameraUvcInputFormat uvc_input_format_;
   std::atomic_bool running_{false};
   std::uint64_t sequence_ = 0;
-  bool timestamp_mapping_initialized_ = false;
-  std::int64_t base_running_time_ns_ = 0;
-  std::int64_t base_receive_time_ns_ = 0;
 };
 
 }  // namespace camera

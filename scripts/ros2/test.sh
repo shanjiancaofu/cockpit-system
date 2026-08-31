@@ -30,5 +30,7 @@ BUILD_DIR="${main_build_dir}" ROS2_INSTALL_DIR="${output_dir}/install" \
   bash "${root_dir}/scripts/tests/nav2-minimal-bridge-smoke.sh"
 BUILD_DIR="${main_build_dir}" \
   bash "${root_dir}/scripts/tests/ros2-nav2-bridge-smoke.sh"
+ROS2_INSTALL_DIR="${output_dir}/install" \
+  bash "${root_dir}/scripts/tests/lidar-nav2-source-smoke.sh"
 
 echo "cockpit ROS2 workspace tests passed"
