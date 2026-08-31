@@ -53,6 +53,11 @@ bool VcanChassisSafetyLoop::Step(const ChassisSafetyState& controls, std::int64_
         receive_socket_.Receive(&socket_frame, index == 0 ? receive_timeout_ms : 0, error);
     if (io_status == can::CanIoStatus::kTimeout) break;
     if (io_status != can::CanIoStatus::kOk) return false;
+    std::int64_t frame_received_steady_ms = 0;
+    if (!socket_frame.MapToLogicalSteadyMilliseconds(steady_now_ms, &frame_received_steady_ms)) {
+      if (error != nullptr) *error = "invalid SocketCAN kernel RX timestamp";
+      return false;
+    }
     can::CanFrame frame;
     std::string decode_error;
     if (!can::FromSocketCanFrame(socket_frame, &frame, &decode_error)) {
@@ -60,7 +65,12 @@ bool VcanChassisSafetyLoop::Step(const ChassisSafetyState& controls, std::int64_
       return false;
     }
     if (frame.id() == ChassisCanCodec::kVelocityCommandId) continue;
-    static_cast<void>(state_source_.ProcessFrame(frame, steady_now_ms));
+    if ((frame.id() == ChassisCanCodec::kHeartbeatId ||
+         frame.id() == ChassisCanCodec::kFaultStatusId) &&
+        steady_now_ms - frame_received_steady_ms >= ChassisHeartbeatMonitor::kTimeoutMs) {
+      continue;
+    }
+    static_cast<void>(state_source_.ProcessFrame(frame, frame_received_steady_ms));
   }
 
   *command =

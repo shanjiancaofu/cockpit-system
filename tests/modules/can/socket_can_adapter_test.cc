@@ -62,5 +62,29 @@ int main() {
   success &= Expect(!cockpit::can::FromSocketCanFrame(error_frame, &ignored, &error) &&
                         error.find("error frame") != std::string::npos,
                     "SocketCAN error frame was treated as data");
+
+  std::int64_t mapped_steady_ns = 0;
+  success &= Expect(cockpit::can::MapKernelRealtimeToSteady(9000000000LL, 10000000000LL,
+                                                            5000000000LL, &mapped_steady_ns) &&
+                        mapped_steady_ns == 4000000000LL,
+                    "kernel realtime timestamp did not map to steady time");
+  success &= Expect(!cockpit::can::MapKernelRealtimeToSteady(11000000000LL, 10000000000LL,
+                                                             5000000000LL, &mapped_steady_ns),
+                    "future kernel timestamp was accepted");
+  success &= Expect(!cockpit::can::MapKernelRealtimeToSteady(1000000000LL, 10000000000LL,
+                                                             5000000000LL, &mapped_steady_ns),
+                    "kernel timestamp older than steady clock uptime was accepted");
+
+  cockpit::can::SocketCanFrame timestamped_frame;
+  timestamped_frame.kernel_timestamp_valid = true;
+  timestamped_frame.received_steady_ns = 4500000000LL;
+  timestamped_frame.dequeued_steady_ns = 5000000000LL;
+  std::int64_t logical_received_ms = 0;
+  success &= Expect(timestamped_frame.MapToLogicalSteadyMilliseconds(1000, &logical_received_ms) &&
+                        logical_received_ms == 500,
+                    "SocketCAN queue age did not map into the caller steady clock domain");
+  timestamped_frame.kernel_timestamp_valid = false;
+  success &= Expect(!timestamped_frame.MapToLogicalSteadyMilliseconds(1000, &logical_received_ms),
+                    "missing kernel timestamp was accepted");
   return success ? 0 : 1;
 }

@@ -163,6 +163,11 @@ peer 存活时按 fault 处理。`chassis_safety/test/*` Bool latch 只有显式
 odometry 同时进入 `ChassisState`，保留各自 source timestamp/sequence。当前 VM 只用 vcan0，真实 can0
 必须等 STM32 合同、heartbeat、fault、bus-off 和急停语义联调后开放。
 
+SocketCAN receive 使用 `SO_TIMESTAMPNS + recvmsg()` 获取 kernel RX timestamp，再映射到 steady clock；
+0x200/0x240 不得用 consumer 恢复后 drain frame 的当前时间刷新 freshness。vcan backlog 测试已覆盖
+consumer stall 350 ms 后旧 heartbeat 仍为 stale；真机 CAN Gate 必须重复暂停 consumer 超过 300 ms
+再恢复的故障注入，并确认 Safety 不短暂恢复 authority。
+
 VM 增加 `VcanChassisSafetyLoop`，且构造阶段硬拒绝 `can0`。它将同一隔离 vcan 总线上的
 0x200/0x240/0x181 输入送入现有状态源和 Safety，再经现有 `SocketCanChassisSink` 输出 0x101；用于
 验证 fault、heartbeat stale、command stale 和恢复行为，不是生产 SocketCAN runtime。
@@ -213,7 +218,7 @@ publisher/adapter VM 基线，但尚未把真实 Camera runtime assembly 写成 
 逐 ID 验证 0x101、0x180、0x181、0x200、0x240，并保存 `candump`、
 `ip -details -statistics link show can0`、STM32 UART、TX/RX error、TEC/REC、bus-off/restart 证据。
 故障注入必须覆盖 CRC、sequence duplicate/old、200 ms command timeout、300 ms peer timeout、STM32
-reboot 和 bus-off recovery。
+reboot、consumer stall/backlog 和 bus-off recovery。
 
 CAN bench PASS 后才新增独立 `OpenHardware("can0")` 路径并做 Safety→can0 wheels-up；现有
 `OpenVcanOnly("vcan0")` 不得改成接受任意 interface。wheels-up 矩阵至少覆盖 normal、e-stop、authority

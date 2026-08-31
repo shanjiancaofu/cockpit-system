@@ -137,7 +137,7 @@ int VehicleDataService::RunSocketCan() {
     ++link_status.rx_frames;
     idle_elapsed_ms = 0;
     link_status.last_rx_timestamp_ms =
-        static_cast<std::uint64_t>(time::WallTime::Now().ToMilliseconds());
+        static_cast<std::uint64_t>(socket_frame.kernel_realtime_ns / 1000000LL);
 
     if (socket_frame.error) {
       ++link_status.error_frames;
@@ -164,9 +164,20 @@ int VehicleDataService::RunSocketCan() {
     }
 
     ChassisState chassis_state;
-    const ChassisClientDecodeStatus chassis_status = chassis_client.ProcessFrame(
-        frame, time::SteadyTime::Now().ToMilliseconds(), &chassis_state);
+    const std::int64_t received_steady_ms = socket_frame.received_steady_ns / 1000000LL;
+    const std::int64_t processing_steady_ms = time::SteadyTime::Now().ToMilliseconds();
+    if ((frame.id() == ChassisCanCodec::kHeartbeatId ||
+         frame.id() == ChassisCanCodec::kFaultStatusId) &&
+        processing_steady_ms - received_steady_ms >= ChassisHeartbeatMonitor::kTimeoutMs) {
+      LOG_WARN("ignore stale chassis safety frame from SocketCAN backlog " + frame.ToString());
+      continue;
+    }
+    const ChassisClientDecodeStatus chassis_status =
+        chassis_client.ProcessFrame(frame, received_steady_ms, &chassis_state);
     if (chassis_status == ChassisClientDecodeStatus::kUpdated) {
+      ChassisState heartbeat_transition;
+      static_cast<void>(chassis_client.Update(processing_steady_ms, &heartbeat_transition));
+      chassis_state = chassis_client.GetState(processing_steady_ms);
       idle_timeouts = 0;
       link_status.state = can::CanCommunicationState::kOnline;
       link_status.last_error.clear();

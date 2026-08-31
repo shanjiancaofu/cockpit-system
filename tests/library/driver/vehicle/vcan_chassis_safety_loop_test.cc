@@ -1,11 +1,13 @@
 #include "cockpit/library/driver/vehicle/vcan_chassis_safety_loop.h"
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <string>
+#include <thread>
 
 #include "cockpit/modules/can/socket_can_adapter.h"
 #include "cockpit/modules/vehicle/chassis_can_codec.h"
@@ -208,6 +210,27 @@ int main(int argc, char** argv) {
   Require(loop->Stop(2930, &command, &error), error.c_str());
   Require(!command.enabled && !CommandEnabled(ReceiveCommand(&fake_stm32)),
           "explicit process stop did not send a final zero command");
+
+  auto backlog_loop =
+      cockpit::vehicle::VcanChassisSafetyLoop::OpenVcanOnly(interface_name, policy, 0, &error);
+  Require(backlog_loop != nullptr, error.c_str());
+  SendHealthyState(&fake_stm32, 20U, 20U);
+  std::this_thread::sleep_for(std::chrono::milliseconds(350));
+  Require(backlog_loop->Step(controls, 4000, 100, &command, &error), error.c_str());
+  Require(!command.enabled &&
+              command.stop_reason == cockpit::vehicle::ChassisStopReason::kPeerUnavailable &&
+              !CommandEnabled(ReceiveCommand(&fake_stm32)),
+          "queued stale heartbeat incorrectly refreshed peer freshness after a consumer stall");
+  SendHealthyState(&fake_stm32, 21U, 200U);
+  Require(backlog_loop->Step(controls, 4010, 100, &command, &error), error.c_str());
+  static_cast<void>(ReceiveCommand(&fake_stm32));
+  Require(backlog_loop->chassis_state().fault_sequence == 200U,
+          "stale queued fault frame incorrectly established the ordering baseline");
+  request.linear_velocity_m_s = 0.1;
+  Require(backlog_loop->Submit(request, controls, 4020, &error), error.c_str());
+  Require(backlog_loop->Step(controls, 4040, 0, &command, &error) && command.enabled &&
+              CommandEnabled(ReceiveCommand(&fake_stm32)),
+          "fresh safety state did not recover after stale backlog was discarded");
 
   std::cout << "vcan RX to Safety to 0x101 TX tests passed\n";
   return 0;

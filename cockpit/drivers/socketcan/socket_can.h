@@ -33,9 +33,20 @@ struct SocketCanFrame {
   bool error_warning = false;
   bool ack_error = false;
   bool protocol_error = false;
+  // SO_TIMESTAMPNS supplies kernel_realtime_ns. The driver maps it at dequeue
+  // into CLOCK_MONOTONIC so safety freshness does not use processing time.
+  bool kernel_timestamp_valid = false;
+  std::int64_t kernel_realtime_ns = 0;
+  std::int64_t received_steady_ns = 0;
+  std::int64_t dequeued_steady_ns = 0;
 
   bool IsValidForSend() const;
+  bool MapToLogicalSteadyMilliseconds(std::int64_t logical_dequeue_ms,
+                                      std::int64_t* received_steady_ms) const;
 };
+
+bool MapKernelRealtimeToSteady(std::int64_t kernel_realtime_ns, std::int64_t sampled_realtime_ns,
+                               std::int64_t sampled_steady_ns, std::int64_t* received_steady_ns);
 
 class SocketCan {
  public:

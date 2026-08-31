@@ -7,11 +7,14 @@
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <cstring>
+#include <limits>
 #include <utility>
 
 namespace cockpit {
@@ -22,7 +25,32 @@ std::string SystemError(const std::string& action) {
   return action + ": " + std::strerror(errno);
 }
 
+bool TimespecNanoseconds(const struct timespec& timestamp, std::int64_t* nanoseconds) {
+  constexpr std::int64_t kNanosecondsPerSecond = 1000000000LL;
+  if (nanoseconds == nullptr || timestamp.tv_sec < 0 || timestamp.tv_nsec < 0 ||
+      timestamp.tv_nsec >= kNanosecondsPerSecond ||
+      timestamp.tv_sec > std::numeric_limits<std::int64_t>::max() / kNanosecondsPerSecond) {
+    return false;
+  }
+  const auto seconds_ns = static_cast<std::int64_t>(timestamp.tv_sec) * kNanosecondsPerSecond;
+  if (timestamp.tv_nsec > std::numeric_limits<std::int64_t>::max() - seconds_ns) return false;
+  *nanoseconds = seconds_ns + timestamp.tv_nsec;
+  return true;
+}
+
 }  // namespace
+
+bool MapKernelRealtimeToSteady(std::int64_t kernel_realtime_ns, std::int64_t sampled_realtime_ns,
+                               std::int64_t sampled_steady_ns, std::int64_t* received_steady_ns) {
+  if (received_steady_ns == nullptr || kernel_realtime_ns <= 0 || sampled_realtime_ns <= 0 ||
+      sampled_steady_ns <= 0 || kernel_realtime_ns > sampled_realtime_ns) {
+    return false;
+  }
+  const std::int64_t age_ns = sampled_realtime_ns - kernel_realtime_ns;
+  if (age_ns > sampled_steady_ns) return false;
+  *received_steady_ns = sampled_steady_ns - age_ns;
+  return true;
+}
 
 bool SocketCanFrame::IsValidForSend() const {
   const std::uint32_t id_mask = extended ? CAN_EFF_MASK : CAN_SFF_MASK;
@@ -33,6 +61,21 @@ bool SocketCanFrame::IsValidForSend() const {
     return !remote;
   }
   return length <= CAN_MAX_DLEN && !brs && !esi;
+}
+
+bool SocketCanFrame::MapToLogicalSteadyMilliseconds(std::int64_t logical_dequeue_ms,
+                                                    std::int64_t* received_steady_ms) const {
+  constexpr std::int64_t kNanosecondsPerMillisecond = 1000000LL;
+  if (!kernel_timestamp_valid || received_steady_ms == nullptr || logical_dequeue_ms < 0 ||
+      received_steady_ns <= 0 || dequeued_steady_ns < received_steady_ns) {
+    return false;
+  }
+  const std::int64_t age_ns = dequeued_steady_ns - received_steady_ns;
+  const std::int64_t age_ms =
+      age_ns / kNanosecondsPerMillisecond + (age_ns % kNanosecondsPerMillisecond != 0 ? 1 : 0);
+  if (age_ms > logical_dequeue_ms) return false;
+  *received_steady_ms = logical_dequeue_ms - age_ms;
+  return true;
 }
 
 SocketCan::~SocketCan() {
@@ -73,6 +116,13 @@ bool SocketCan::Open(const std::string& interface_name, std::string* error) {
   if (::setsockopt(socket_fd, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &error_filter,
                    sizeof(error_filter)) < 0) {
     SetError(error, SystemError("enable CAN error frames failed"));
+    ::close(socket_fd);
+    return false;
+  }
+  const int enable_timestamp = 1;
+  if (::setsockopt(socket_fd, SOL_SOCKET, SO_TIMESTAMPNS, &enable_timestamp,
+                   sizeof(enable_timestamp)) < 0) {
+    SetError(error, SystemError("enable SocketCAN kernel RX timestamps failed"));
     ::close(socket_fd);
     return false;
   }
@@ -178,16 +228,65 @@ CanIoStatus SocketCan::Receive(SocketCanFrame* frame, int timeout_ms, std::strin
   }
 
   struct canfd_frame native_frame {};
+  struct iovec io_vector {};
+  io_vector.iov_base = &native_frame;
+  io_vector.iov_len = sizeof(native_frame);
+  alignas(struct cmsghdr) std::array<std::uint8_t, CMSG_SPACE(sizeof(struct timespec))> control{};
+  struct msghdr message {};
+  message.msg_iov = &io_vector;
+  message.msg_iovlen = 1;
+  message.msg_control = control.data();
+  message.msg_controllen = control.size();
   ssize_t received = -1;
   do {
-    received = ::read(fd_, &native_frame, sizeof(native_frame));
+    message.msg_controllen = control.size();
+    message.msg_flags = 0;
+    received = ::recvmsg(fd_, &message, 0);
   } while (received < 0 && errno == EINTR);
 
   if (received != CAN_MTU && received != CANFD_MTU) {
     SetError(error, SystemError("receive CAN frame failed"));
     return CanIoStatus::kError;
   }
+  if ((message.msg_flags & MSG_CTRUNC) != 0) {
+    SetError(error, "SocketCAN kernel RX timestamp was truncated");
+    return CanIoStatus::kError;
+  }
 
+  struct timespec kernel_timestamp {};
+  bool kernel_timestamp_found = false;
+  for (struct cmsghdr* control_message = CMSG_FIRSTHDR(&message); control_message != nullptr;
+       control_message = CMSG_NXTHDR(&message, control_message)) {
+    if (control_message->cmsg_level == SOL_SOCKET &&
+        control_message->cmsg_type == SCM_TIMESTAMPNS &&
+        control_message->cmsg_len >= CMSG_LEN(sizeof(struct timespec))) {
+      std::memcpy(&kernel_timestamp, CMSG_DATA(control_message), sizeof(kernel_timestamp));
+      kernel_timestamp_found = true;
+      break;
+    }
+  }
+  struct timespec sampled_realtime {};
+  struct timespec sampled_steady {};
+  std::int64_t kernel_realtime_ns = 0;
+  std::int64_t sampled_realtime_ns = 0;
+  std::int64_t sampled_steady_ns = 0;
+  std::int64_t received_steady_ns = 0;
+  if (!kernel_timestamp_found || ::clock_gettime(CLOCK_REALTIME, &sampled_realtime) != 0 ||
+      ::clock_gettime(CLOCK_MONOTONIC, &sampled_steady) != 0 ||
+      !TimespecNanoseconds(kernel_timestamp, &kernel_realtime_ns) ||
+      !TimespecNanoseconds(sampled_realtime, &sampled_realtime_ns) ||
+      !TimespecNanoseconds(sampled_steady, &sampled_steady_ns) ||
+      !MapKernelRealtimeToSteady(kernel_realtime_ns, sampled_realtime_ns, sampled_steady_ns,
+                                 &received_steady_ns)) {
+    SetError(error, "SocketCAN kernel RX timestamp is missing or cannot map to steady time");
+    return CanIoStatus::kError;
+  }
+
+  *frame = SocketCanFrame{};
+  frame->kernel_timestamp_valid = true;
+  frame->kernel_realtime_ns = kernel_realtime_ns;
+  frame->received_steady_ns = received_steady_ns;
+  frame->dequeued_steady_ns = sampled_steady_ns;
   const bool extended = (native_frame.can_id & CAN_EFF_FLAG) != 0;
   frame->extended = extended;
   frame->remote = (native_frame.can_id & CAN_RTR_FLAG) != 0;

@@ -21,6 +21,7 @@
 - ALSA、V4L2、SocketCAN 等底层平台适配放在 `cockpit/drivers`。
 - 只有需要被 Navigator 独立装载、管理生命周期或暴露 IPC 的组合代码放在这里。
 
-Vehicle driver 持有单一 SocketCAN 生命周期：发送 Jetson heartbeat，把 CAN FD 帧交给
+Vehicle driver 持有单一 SocketCAN 生命周期：发送 Jetson heartbeat，使用
+`SO_TIMESTAMPNS/recvmsg` 保留 kernel RX time 并映射到 steady freshness，再把 CAN FD 帧交给
 `modules/vehicle/ChassisClient`，并通过现有 Vehicle gRPC service 发布强类型 `ChassisState`。
 不另建平行 CAN service，也不在 driver 中重复协议字段定义。
