@@ -9,5 +9,6 @@ int main() {
   assert(!source.Start(cockpit::camera::CameraPreviewConfig{}, {}, &error));
   const auto stats = source.stats();
   assert(stats.fatal_capture_errors == 0);
+  assert(stats.last_error.empty());
   return 0;
 }

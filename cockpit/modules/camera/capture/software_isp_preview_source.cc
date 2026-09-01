@@ -78,8 +78,13 @@ void SoftwareIspPreviewSource::CaptureLoop() {
     if (!capture->WaitFrame(&raw, 1000, &error)) {
       if (stop_requested_.load()) break;
       if (!capture->running()) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        ++stats_.fatal_capture_errors;
+        {
+          std::lock_guard<std::mutex> lock(mutex_);
+          ++stats_.fatal_capture_errors;
+          stats_.last_error = error;
+        }
+        stop_requested_.store(true);
+        queue_condition_.notify_all();
         break;
       }
       continue;
