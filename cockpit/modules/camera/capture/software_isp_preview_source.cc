@@ -33,6 +33,17 @@ class V4l2CaptureAdapter final : public SoftwareIspCapture {
   V4l2MmapCapture capture_;
 };
 
+class SoftwareIspAdapter final : public SoftwareIspProcessor {
+ public:
+  bool Process(const RawBayerFrame& raw, CameraFrame* output, std::string* error,
+               SoftwareIspTimingMs* timing) override {
+    return isp_.Process(raw, output, error, timing);
+  }
+
+ private:
+  SoftwareIsp isp_;
+};
+
 constexpr std::array<std::uint32_t, 7> kReconnectBackoffMs = {100U,  200U,  400U, 800U,
                                                               1600U, 3200U, 5000U};
 constexpr auto kFirstOutputTimeout = std::chrono::seconds(2);
@@ -42,11 +53,17 @@ constexpr auto kFirstOutputTimeout = std::chrono::seconds(2);
 SoftwareIspPreviewSource::SoftwareIspPreviewSource()
     : capture_factory_([] {
         return std::make_unique<V4l2CaptureAdapter>();
-      }) {
+      }),
+      isp_(std::make_unique<SoftwareIspAdapter>()) {
 }
 
 SoftwareIspPreviewSource::SoftwareIspPreviewSource(CaptureFactory capture_factory)
-    : capture_factory_(std::move(capture_factory)) {
+    : SoftwareIspPreviewSource(std::move(capture_factory), std::make_unique<SoftwareIspAdapter>()) {
+}
+
+SoftwareIspPreviewSource::SoftwareIspPreviewSource(CaptureFactory capture_factory,
+                                                   std::unique_ptr<SoftwareIspProcessor> isp)
+    : capture_factory_(std::move(capture_factory)), isp_(std::move(isp)) {
 }
 
 SoftwareIspPreviewSource::~SoftwareIspPreviewSource() {
@@ -61,7 +78,7 @@ bool SoftwareIspPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
     if (error != nullptr) *error = "invalid V4L2 preview configuration";
     return false;
   }
-  if (!capture_factory_) {
+  if (!capture_factory_ || !isp_) {
     if (error != nullptr) *error = "V4L2 capture factory is unavailable";
     return false;
   }
@@ -87,6 +104,7 @@ bool SoftwareIspPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
   running_.store(true);
   recovering_.store(false);
   recovery_output_timeout_.store(false);
+  consecutive_failures_.store(0);
   recovery_deadline_ = {};
   capture_worker_ = std::thread(&SoftwareIspPreviewSource::CaptureLoop, this);
   isp_worker_ = std::thread(&SoftwareIspPreviewSource::IspLoop, this);
@@ -105,6 +123,7 @@ void SoftwareIspPreviewSource::Stop() {
   running_.store(false);
   recovering_.store(false);
   recovery_output_timeout_.store(false);
+  consecutive_failures_.store(0);
   recovery_deadline_ = {};
 }
 
@@ -117,7 +136,6 @@ void SoftwareIspPreviewSource::ResetStats() {
 void SoftwareIspPreviewSource::CaptureLoop() {
   std::uint32_t previous_sequence = 0;
   bool have_sequence = false;
-  std::uint32_t consecutive_failures = 0;
   while (!stop_requested_.load()) {
     V4l2RawFrame raw;
     std::string error;
@@ -136,10 +154,11 @@ void SoftwareIspPreviewSource::CaptureLoop() {
     }
     if (capture == nullptr) {
       recovering_.store(true);
-      ++consecutive_failures;
+      const std::uint32_t consecutive_failures = consecutive_failures_.fetch_add(1) + 1U;
       const auto backoff_ms = kReconnectBackoffMs[std::min<std::size_t>(
           consecutive_failures - 1U, kReconnectBackoffMs.size() - 1U)];
       std::unique_lock<std::mutex> lock(mutex_);
+      stats_.last_reconnect_backoff_ms = backoff_ms;
       if (queue_condition_.wait_for(lock, std::chrono::milliseconds(backoff_ms), [this] {
             return stop_requested_.load();
           })) {
@@ -168,6 +187,7 @@ void SoftwareIspPreviewSource::CaptureLoop() {
         std::lock_guard<std::mutex> reopen_lock(mutex_);
         capture_ = std::move(replacement);
         stats_.consecutive_failures = consecutive_failures;
+        ++capture_generation_;
         recovery_deadline_ = std::chrono::steady_clock::now() + kFirstOutputTimeout;
       }
       recovering_.store(true);
@@ -183,7 +203,7 @@ void SoftwareIspPreviewSource::CaptureLoop() {
         }
         {
           std::lock_guard<std::mutex> lock(mutex_);
-          stats_.consecutive_failures = consecutive_failures;
+          stats_.consecutive_failures = consecutive_failures_.load();
           capture_.reset();
           recovery_deadline_ = {};
         }
@@ -216,6 +236,7 @@ void SoftwareIspPreviewSource::CaptureLoop() {
       ++stats_.dropped_queue_frames;
     }
     PendingFrame pending;
+    pending.generation = capture_generation_;
     pending.frame.width = raw.width;
     pending.frame.height = raw.height;
     pending.frame.bytes_per_line = raw.bytes_per_line;
@@ -255,7 +276,7 @@ void SoftwareIspPreviewSource::IspLoop() {
     RawBayerFrame raw = std::move(pending.frame);
     SoftwareIspTimingMs timing;
     std::string error;
-    if (!isp_.Process(raw, &frame, &error, &timing)) {
+    if (!isp_->Process(raw, &frame, &error, &timing)) {
       if (recovering_.load()) {
         std::lock_guard<std::mutex> deadline_lock(mutex_);
         if (recovery_deadline_ != std::chrono::steady_clock::time_point{} &&
@@ -269,13 +290,25 @@ void SoftwareIspPreviewSource::IspLoop() {
     const double latency = std::chrono::duration<double, std::milli>(
                                std::chrono::steady_clock::now() - pending.enqueued_at)
                                .count();
+    bool deliver_frame = true;
     {
       std::lock_guard<std::mutex> lock(mutex_);
       ++stats_.processed_frames;
-      if (recovering_.exchange(false)) {
-        ++stats_.reconnect_successes;
-        stats_.consecutive_failures = 0;
-        recovery_deadline_ = {};
+      if (recovering_.load()) {
+        deliver_frame = false;
+        if (pending.generation == capture_generation_ &&
+            recovery_deadline_ != std::chrono::steady_clock::time_point{} &&
+            std::chrono::steady_clock::now() >= recovery_deadline_) {
+          recovery_output_timeout_.store(true);
+        } else if (pending.generation == capture_generation_ &&
+                   recovery_deadline_ != std::chrono::steady_clock::time_point{}) {
+          recovering_.store(false);
+          ++stats_.reconnect_successes;
+          consecutive_failures_.store(0);
+          stats_.consecutive_failures = 0;
+          recovery_deadline_ = {};
+          deliver_frame = true;
+        }
       }
       latency_samples_ms_.push_back(latency);
       constexpr std::size_t kLatencyWindow = 2048U;
@@ -296,7 +329,8 @@ void SoftwareIspPreviewSource::IspLoop() {
       stats_.isp_mean_ms.output = add_mean(stats_.isp_mean_ms.output, timing.output, count);
       stats_.isp_mean_ms.total = add_mean(stats_.isp_mean_ms.total, timing.total, count);
     }
-    callback(std::move(frame));
+    if (recovery_output_timeout_.load()) queue_condition_.notify_all();
+    if (deliver_frame) callback(std::move(frame));
   }
   running_.store(false);
 }

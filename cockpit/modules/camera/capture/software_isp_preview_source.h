@@ -25,6 +25,13 @@ class SoftwareIspCapture {
   virtual bool running() const = 0;
 };
 
+class SoftwareIspProcessor {
+ public:
+  virtual ~SoftwareIspProcessor() = default;
+  virtual bool Process(const RawBayerFrame& raw, CameraFrame* output, std::string* error,
+                       SoftwareIspTimingMs* timing) = 0;
+};
+
 struct SoftwareIspPreviewStats {
   std::uint64_t captured_frames = 0;
   std::uint64_t processed_frames = 0;
@@ -34,6 +41,7 @@ struct SoftwareIspPreviewStats {
   std::uint64_t reconnect_attempts = 0;
   std::uint64_t reconnect_successes = 0;
   std::uint32_t consecutive_failures = 0;
+  std::uint32_t last_reconnect_backoff_ms = 0;
   std::string last_error;
   double queue_to_output_mean_ms = 0.0;
   double queue_to_output_p50_ms = 0.0;
@@ -48,6 +56,8 @@ class SoftwareIspPreviewSource final : public CameraPreviewSource {
 
   SoftwareIspPreviewSource();
   explicit SoftwareIspPreviewSource(CaptureFactory capture_factory);
+  SoftwareIspPreviewSource(CaptureFactory capture_factory,
+                           std::unique_ptr<SoftwareIspProcessor> isp);
   ~SoftwareIspPreviewSource() override;
 
   bool Start(const CameraPreviewConfig& config, FrameCallback callback,
@@ -64,6 +74,7 @@ class SoftwareIspPreviewSource final : public CameraPreviewSource {
  private:
   struct PendingFrame {
     RawBayerFrame frame;
+    std::uint64_t generation = 0;
     std::chrono::steady_clock::time_point enqueued_at;
   };
 
@@ -73,7 +84,7 @@ class SoftwareIspPreviewSource final : public CameraPreviewSource {
 
   CaptureFactory capture_factory_;
   std::unique_ptr<SoftwareIspCapture> capture_;
-  SoftwareIsp isp_;
+  std::unique_ptr<SoftwareIspProcessor> isp_;
   CameraPreviewConfig config_;
   FrameCallback callback_;
   mutable std::mutex mutex_;
@@ -85,6 +96,8 @@ class SoftwareIspPreviewSource final : public CameraPreviewSource {
   std::atomic_bool running_{false};
   std::atomic_bool recovering_{false};
   std::atomic_bool recovery_output_timeout_{false};
+  std::atomic_uint32_t consecutive_failures_{0};
+  std::uint64_t capture_generation_ = 0;
   std::chrono::steady_clock::time_point recovery_deadline_{};
   std::thread capture_worker_;
   std::thread isp_worker_;
