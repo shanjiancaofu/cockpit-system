@@ -6,6 +6,13 @@
 
 namespace cockpit::camera {
 
+namespace detail {
+struct V4l2MappedBuffer {
+  void* start = nullptr;
+  std::size_t length = 0;
+};
+}  // namespace detail
+
 struct V4l2MmapConfig {
   std::string device = "/dev/video0";
   std::uint32_t width = 1920;
@@ -60,14 +67,9 @@ class V4l2MmapCapture final {
   }
 
  private:
-  struct Buffer {
-    void* start = nullptr;
-    std::size_t length = 0;
-  };
-
   int fd_ = -1;
   V4l2MmapConfig config_;
-  std::vector<Buffer> buffers_;
+  std::vector<detail::V4l2MappedBuffer> buffers_;
   std::string driver_;
   std::string card_;
   std::uint32_t width_ = 0;

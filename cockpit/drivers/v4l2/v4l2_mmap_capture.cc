@@ -9,8 +9,11 @@
 
 #include <cerrno>
 #include <cstring>
+#include <new>
 #include <string>
 #include <utility>
+
+#include "cockpit/drivers/v4l2/v4l2_mmap_capture_internal.h"
 
 namespace cockpit::camera {
 namespace {
@@ -35,6 +38,59 @@ int Xioctl(int fd, unsigned long request, void* arg) {
 }
 
 }  // namespace
+
+namespace detail {
+
+DequeuedBufferResult CopyAndRequeueDequeuedBuffer(const std::vector<V4l2MappedBuffer>& buffers,
+                                                  std::uint32_t width, std::uint32_t height,
+                                                  std::uint32_t bytes_per_line, v4l2_buffer* buffer,
+                                                  V4l2RawFrame* frame, const RequeueBuffer& requeue,
+                                                  std::string* error) {
+  DequeuedBufferResult result = DequeuedBufferResult::kSuccess;
+  V4l2RawFrame next_frame;
+
+  if (buffer == nullptr || frame == nullptr || !requeue) {
+    SetError(error, "invalid dequeued V4L2 buffer request");
+    return DequeuedBufferResult::kInvalidFrame;
+  }
+  if (buffer->index >= buffers.size()) {
+    SetError(error, "V4L2 returned an invalid buffer index or bytesused");
+    return DequeuedBufferResult::kInvalidIndex;
+  }
+  if (buffer->bytesused > buffers[buffer->index].length) {
+    SetError(error, "V4L2 returned an invalid buffer index or bytesused");
+    result = DequeuedBufferResult::kInvalidFrame;
+  } else {
+    next_frame.width = width;
+    next_frame.height = height;
+    next_frame.bytes_per_line = bytes_per_line;
+    next_frame.bytes_used = buffer->bytesused;
+    next_frame.sequence = buffer->sequence;
+    next_frame.timestamp_ns = static_cast<std::int64_t>(buffer->timestamp.tv_sec) * 1000000000LL +
+                              static_cast<std::int64_t>(buffer->timestamp.tv_usec) * 1000LL;
+    next_frame.timestamp_flags =
+        buffer->flags & (V4L2_BUF_FLAG_TIMESTAMP_MASK | V4L2_BUF_FLAG_TSTAMP_SRC_MASK);
+    try {
+      const auto* begin = static_cast<const std::uint8_t*>(buffers[buffer->index].start);
+      next_frame.data.assign(begin, begin + buffer->bytesused);
+    } catch (const std::bad_alloc&) {
+      SetError(error, "failed to copy dequeued V4L2 frame");
+      result = DequeuedBufferResult::kCopyFailed;
+    }
+  }
+
+  if (requeue(buffer) < 0) {
+    const int requeue_errno = errno;
+    SetError(error, "VIDIOC_QBUF after frame: " + std::string(std::strerror(requeue_errno)));
+    return DequeuedBufferResult::kRequeueFailed;
+  }
+  if (result == DequeuedBufferResult::kSuccess) {
+    *frame = std::move(next_frame);
+  }
+  return result;
+}
+
+}  // namespace detail
 
 V4l2MmapCapture::~V4l2MmapCapture() {
   Stop();
@@ -193,27 +249,17 @@ bool V4l2MmapCapture::WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string
     }
     return false;
   }
-  if (buffer.index >= buffers_.size() || buffer.bytesused > buffers_[buffer.index].length) {
-    SetError(error, "V4L2 returned an invalid buffer index or bytesused");
-    return false;
+  const detail::DequeuedBufferResult result = detail::CopyAndRequeueDequeuedBuffer(
+      buffers_, width_, height_, bytes_per_line_, &buffer, frame,
+      [this](v4l2_buffer* dequeued) {
+        return Xioctl(fd_, VIDIOC_QBUF, dequeued);
+      },
+      error);
+  if (result == detail::DequeuedBufferResult::kInvalidIndex ||
+      result == detail::DequeuedBufferResult::kRequeueFailed) {
+    Stop();
   }
-  frame->width = width_;
-  frame->height = height_;
-  frame->bytes_per_line = bytes_per_line_;
-  frame->bytes_used = buffer.bytesused;
-  frame->sequence = buffer.sequence;
-  frame->timestamp_ns = static_cast<std::int64_t>(buffer.timestamp.tv_sec) * 1000000000LL +
-                        static_cast<std::int64_t>(buffer.timestamp.tv_usec) * 1000LL;
-  frame->timestamp_flags =
-      buffer.flags & (V4L2_BUF_FLAG_TIMESTAMP_MASK | V4L2_BUF_FLAG_TSTAMP_SRC_MASK);
-  frame->data.assign(
-      static_cast<const std::uint8_t*>(buffers_[buffer.index].start),
-      static_cast<const std::uint8_t*>(buffers_[buffer.index].start) + buffer.bytesused);
-  if (Xioctl(fd_, VIDIOC_QBUF, &buffer) < 0) {
-    SetError(error, ErrorMessage("VIDIOC_QBUF after frame"));
-    return false;
-  }
-  return true;
+  return result == detail::DequeuedBufferResult::kSuccess;
 }
 
 void V4l2MmapCapture::Stop() {

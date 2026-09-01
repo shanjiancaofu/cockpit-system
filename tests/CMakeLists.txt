@@ -317,6 +317,12 @@ add_executable(camera_frame_test modules/camera/camera_frame_test.cc)
 target_link_libraries(camera_frame_test PRIVATE camera)
 add_test(NAME camera_frame_test COMMAND camera_frame_test)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_executable(v4l2_mmap_capture_test modules/camera/v4l2_mmap_capture_test.cc)
+    target_link_libraries(v4l2_mmap_capture_test PRIVATE v4l2_camera)
+    add_test(NAME v4l2_mmap_capture_test COMMAND v4l2_mmap_capture_test)
+endif()
+
 add_executable(gstreamer_timestamp_mapper_test
     modules/camera/gstreamer_timestamp_mapper_test.cc)
 target_link_libraries(gstreamer_timestamp_mapper_test PRIVATE gstreamer_camera)
