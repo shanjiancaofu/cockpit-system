@@ -6,12 +6,14 @@ namespace cockpit {
 namespace camera {
 
 bool LatestFrameBuffer::Publish(CameraFrame frame) {
-  if (!frame.IsValid()) {
-    return false;
-  }
+  return PublishHandle(std::make_shared<const CameraFrame>(std::move(frame)));
+}
+
+bool LatestFrameBuffer::PublishHandle(CameraFrameHandle frame) {
+  if (!frame || !frame->IsValid()) return false;
 
   std::lock_guard<std::mutex> lock(mutex_);
-  if (latest_frame_.has_value()) {
+  if (latest_frame_) {
     ++frames_replaced_;
   }
   latest_frame_ = std::move(frame);
@@ -20,13 +22,19 @@ bool LatestFrameBuffer::Publish(CameraFrame frame) {
   return true;
 }
 
+CameraFrameHandle LatestFrameBuffer::LatestHandle(std::uint64_t* generation) const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (generation != nullptr) *generation = generation_;
+  return latest_frame_;
+}
+
 bool LatestFrameBuffer::ReadLatest(CameraFrame* frame, std::uint64_t* generation) const {
   if (frame == nullptr) {
     return false;
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
-  if (!latest_frame_.has_value()) {
+  if (!latest_frame_) {
     return false;
   }
   *frame = *latest_frame_;
@@ -42,7 +50,7 @@ LatestFrameBufferStatus LatestFrameBuffer::status() const {
   result.frames_published = frames_published_;
   result.frames_replaced = frames_replaced_;
   result.generation = generation_;
-  result.has_frame = latest_frame_.has_value();
+  result.has_frame = static_cast<bool>(latest_frame_);
   return result;
 }
 

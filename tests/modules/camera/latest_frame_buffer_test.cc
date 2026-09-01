@@ -59,6 +59,14 @@ int main() {
     return 1;
   }
 
+  std::uint64_t handle_generation = 0;
+  const auto handle = buffer.LatestHandle(&handle_generation);
+  if (!Check(handle != nullptr, "latest frame handle missing") ||
+      !Check(handle->sequence == 2, "latest frame handle sequence mismatch") ||
+      !Check(handle_generation == generation, "latest frame handle generation mismatch")) {
+    return 1;
+  }
+
   buffer.Clear();
   return Check(!buffer.status().has_frame, "latest frame buffer clear failed") ? 0 : 1;
 }

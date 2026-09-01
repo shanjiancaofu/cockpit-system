@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -47,6 +48,8 @@ struct CameraFrame {
   bool HasValidPayloadSize(std::size_t payload_size) const;
   bool IsValid() const;
 };
+
+using CameraFrameHandle = std::shared_ptr<const CameraFrame>;
 
 std::string ToString(CameraPixelFormat format);
 std::string ToString(CameraTimestampClock clock);

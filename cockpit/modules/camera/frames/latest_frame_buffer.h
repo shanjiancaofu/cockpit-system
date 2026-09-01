@@ -24,13 +24,15 @@ class LatestFrameBuffer final : public CameraFrameSink {
   COCKPIT_DISALLOW_COPY_AND_ASSIGN(LatestFrameBuffer);
 
   bool Publish(CameraFrame frame) override;
+  bool PublishHandle(CameraFrameHandle frame);
+  CameraFrameHandle LatestHandle(std::uint64_t* generation = nullptr) const;
   bool ReadLatest(CameraFrame* frame, std::uint64_t* generation = nullptr) const;
   LatestFrameBufferStatus status() const;
   void Clear();
 
  private:
   mutable std::mutex mutex_;
-  std::optional<CameraFrame> latest_frame_;
+  CameraFrameHandle latest_frame_;
   std::uint64_t frames_published_ = 0;
   std::uint64_t frames_replaced_ = 0;
   std::uint64_t generation_ = 0;
