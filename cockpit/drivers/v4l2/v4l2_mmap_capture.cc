@@ -236,6 +236,12 @@ bool V4l2MmapCapture::WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string
   }
   if (poll_result < 0) {
     SetError(error, ErrorMessage("poll V4L2 frame"));
+    Stop();
+    return false;
+  }
+  if ((descriptor.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
+    SetError(error, "V4L2 device disconnected during poll");
+    Stop();
     return false;
   }
   v4l2_buffer buffer{};
@@ -246,6 +252,7 @@ bool V4l2MmapCapture::WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string
       SetError(error, "V4L2 frame was not ready after poll");
     } else {
       SetError(error, ErrorMessage("VIDIOC_DQBUF"));
+      Stop();
     }
     return false;
   }

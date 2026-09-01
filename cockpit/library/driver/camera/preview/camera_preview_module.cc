@@ -19,6 +19,10 @@ bool CameraPreviewModule::is_running() const {
   return preview_source_ != nullptr && preview_source_->IsRunning();
 }
 
+bool CameraPreviewModule::is_recovering() const {
+  return preview_source_ != nullptr && preview_source_->IsRecovering();
+}
+
 const std::string& CameraPreviewModule::last_error() const {
   return last_error_;
 }

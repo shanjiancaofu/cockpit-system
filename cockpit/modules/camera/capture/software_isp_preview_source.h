@@ -4,6 +4,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -14,6 +15,15 @@
 #include "cockpit/modules/camera/isp/software_isp.h"
 
 namespace cockpit::camera {
+
+class SoftwareIspCapture {
+ public:
+  virtual ~SoftwareIspCapture() = default;
+  virtual bool Start(const V4l2MmapConfig& config, std::string* error) = 0;
+  virtual bool WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string* error) = 0;
+  virtual void Stop() = 0;
+  virtual bool running() const = 0;
+};
 
 struct SoftwareIspPreviewStats {
   std::uint64_t captured_frames = 0;
@@ -34,7 +44,10 @@ struct SoftwareIspPreviewStats {
 
 class SoftwareIspPreviewSource final : public CameraPreviewSource {
  public:
-  SoftwareIspPreviewSource() = default;
+  using CaptureFactory = std::function<std::unique_ptr<SoftwareIspCapture>()>;
+
+  SoftwareIspPreviewSource();
+  explicit SoftwareIspPreviewSource(CaptureFactory capture_factory);
   ~SoftwareIspPreviewSource() override;
 
   bool Start(const CameraPreviewConfig& config, FrameCallback callback,
@@ -42,6 +55,9 @@ class SoftwareIspPreviewSource final : public CameraPreviewSource {
   void Stop() override;
   bool IsRunning() const override {
     return running_.load();
+  }
+  bool IsRecovering() const override {
+    return recovering_.load();
   }
   SoftwareIspPreviewStats stats() const;
 
@@ -55,7 +71,8 @@ class SoftwareIspPreviewSource final : public CameraPreviewSource {
   void IspLoop();
   void ResetStats();
 
-  std::unique_ptr<V4l2MmapCapture> capture_;
+  CaptureFactory capture_factory_;
+  std::unique_ptr<SoftwareIspCapture> capture_;
   SoftwareIsp isp_;
   CameraPreviewConfig config_;
   FrameCallback callback_;
@@ -66,6 +83,7 @@ class SoftwareIspPreviewSource final : public CameraPreviewSource {
   SoftwareIspPreviewStats stats_;
   std::atomic_bool stop_requested_{false};
   std::atomic_bool running_{false};
+  std::atomic_bool recovering_{false};
   std::thread capture_worker_;
   std::thread isp_worker_;
 };

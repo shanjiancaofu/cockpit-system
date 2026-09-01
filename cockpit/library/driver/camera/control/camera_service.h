@@ -123,6 +123,7 @@ class CameraService {
   CameraServiceStatus status_;
   std::chrono::steady_clock::time_point preview_started_steady_;
   std::chrono::steady_clock::time_point last_frame_received_steady_;
+  bool awaiting_recovery_frame_ = false;
 };
 
 }  // namespace camera

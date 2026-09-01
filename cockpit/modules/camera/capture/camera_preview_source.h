@@ -38,6 +38,9 @@ class CameraPreviewSource {
                      std::string* error) = 0;
   virtual void Stop() = 0;
   virtual bool IsRunning() const = 0;
+  virtual bool IsRecovering() const {
+    return false;
+  }
 };
 
 }  // namespace camera

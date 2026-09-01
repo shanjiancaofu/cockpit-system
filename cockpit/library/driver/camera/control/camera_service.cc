@@ -260,6 +260,7 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
     status_.max_consecutive_source_gaps = 0;
     preview_started_steady_ = {};
     last_frame_received_steady_ = {};
+    awaiting_recovery_frame_ = previous_state == CameraPreviewState::kFaulted;
   }
 
   preview_module_->Configure(config, [this](CameraFrame frame) {
@@ -277,16 +278,18 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
 
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    status_.state = CameraPreviewState::kRunning;
     status_.preview_started_at_ms =
         static_cast<std::uint64_t>(time::WallTime::Now().ToMilliseconds());
     preview_started_steady_ = std::chrono::steady_clock::now();
     if (previous_state == CameraPreviewState::kFaulted) {
-      ++status_.recover_count;
-      status_.last_recover_at_ms = status_.preview_started_at_ms;
+      if (status_.frames_received == 0) {
+        status_.state = CameraPreviewState::kRecovering;
+      }
+    } else {
+      status_.state = CameraPreviewState::kRunning;
+      status_.last_error.clear();
+      status_.last_error_kind.clear();
     }
-    status_.last_error.clear();
-    status_.last_error_kind.clear();
     PublishStatusEvent(status_);
   }
   return true;
@@ -297,6 +300,7 @@ void CameraService::StopPreview() {
   module_manager_.StopAll();
   std::lock_guard<std::mutex> lock(mutex_);
   status_.state = CameraPreviewState::kStopped;
+  awaiting_recovery_frame_ = false;
   PublishStatusEvent(status_);
 }
 
@@ -306,7 +310,14 @@ void CameraService::CheckPreviewHealth() {
   std::string error_message;
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (status_.state != CameraPreviewState::kRunning) {
+    if (status_.state != CameraPreviewState::kRunning &&
+        status_.state != CameraPreviewState::kRecovering) {
+      return;
+    }
+    if (preview_module_ != nullptr && preview_module_->is_recovering()) {
+      status_.state = CameraPreviewState::kRecovering;
+      awaiting_recovery_frame_ = true;
+      PublishStatusEvent(status_);
       return;
     }
     if (preview_module_ == nullptr || !preview_module_->is_running()) {
@@ -418,6 +429,16 @@ void CameraService::HandleFrame(CameraFrame frame) {
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
+  if (status_.state == CameraPreviewState::kRecovering) {
+    status_.state = CameraPreviewState::kRunning;
+    if (awaiting_recovery_frame_) {
+      ++status_.recover_count;
+      status_.last_recover_at_ms = received_at_ms;
+    }
+    awaiting_recovery_frame_ = false;
+    status_.last_error.clear();
+    status_.last_error_kind.clear();
+  }
   if (status_.frames_received > 0 && sequence > status_.last_frame_sequence + 1U) {
     status_.source_frames_skipped += sequence - status_.last_frame_sequence - 1U;
     ++status_.consecutive_source_gaps;

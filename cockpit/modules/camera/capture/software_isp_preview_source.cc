@@ -12,6 +12,42 @@
 
 namespace cockpit::camera {
 
+namespace {
+
+class V4l2CaptureAdapter final : public SoftwareIspCapture {
+ public:
+  bool Start(const V4l2MmapConfig& config, std::string* error) override {
+    return capture_.Start(config, error);
+  }
+  bool WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string* error) override {
+    return capture_.WaitFrame(frame, timeout_ms, error);
+  }
+  void Stop() override {
+    capture_.Stop();
+  }
+  bool running() const override {
+    return capture_.running();
+  }
+
+ private:
+  V4l2MmapCapture capture_;
+};
+
+constexpr std::array<std::uint32_t, 7> kReconnectBackoffMs = {100U,  200U,  400U, 800U,
+                                                              1600U, 3200U, 5000U};
+
+}  // namespace
+
+SoftwareIspPreviewSource::SoftwareIspPreviewSource()
+    : capture_factory_([] {
+        return std::make_unique<V4l2CaptureAdapter>();
+      }) {
+}
+
+SoftwareIspPreviewSource::SoftwareIspPreviewSource(CaptureFactory capture_factory)
+    : capture_factory_(std::move(capture_factory)) {
+}
+
 SoftwareIspPreviewSource::~SoftwareIspPreviewSource() {
   Stop();
 }
@@ -24,7 +60,15 @@ bool SoftwareIspPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
     if (error != nullptr) *error = "invalid V4L2 preview configuration";
     return false;
   }
-  auto capture = std::make_unique<V4l2MmapCapture>();
+  if (!capture_factory_) {
+    if (error != nullptr) *error = "V4L2 capture factory is unavailable";
+    return false;
+  }
+  auto capture = capture_factory_();
+  if (!capture) {
+    if (error != nullptr) *error = "V4L2 capture factory returned no backend";
+    return false;
+  }
   V4l2MmapConfig capture_config;
   capture_config.device = config.device;
   capture_config.width = config.width;
@@ -40,6 +84,7 @@ bool SoftwareIspPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
   }
   stop_requested_.store(false);
   running_.store(true);
+  recovering_.store(false);
   capture_worker_ = std::thread(&SoftwareIspPreviewSource::CaptureLoop, this);
   isp_worker_ = std::thread(&SoftwareIspPreviewSource::IspLoop, this);
   return true;
@@ -55,6 +100,7 @@ void SoftwareIspPreviewSource::Stop() {
   capture_.reset();
   callback_ = nullptr;
   running_.store(false);
+  recovering_.store(false);
 }
 
 void SoftwareIspPreviewSource::ResetStats() {
@@ -70,12 +116,49 @@ void SoftwareIspPreviewSource::CaptureLoop() {
   while (!stop_requested_.load()) {
     V4l2RawFrame raw;
     std::string error;
-    V4l2MmapCapture* capture = nullptr;
+    SoftwareIspCapture* capture = nullptr;
     {
       std::lock_guard<std::mutex> lock(mutex_);
       capture = capture_.get();
     }
-    if (capture == nullptr) break;
+    if (capture == nullptr) {
+      recovering_.store(true);
+      ++consecutive_failures;
+      const auto backoff_ms = kReconnectBackoffMs[std::min<std::size_t>(
+          consecutive_failures - 1U, kReconnectBackoffMs.size() - 1U)];
+      std::unique_lock<std::mutex> lock(mutex_);
+      if (queue_condition_.wait_for(lock, std::chrono::milliseconds(backoff_ms), [this] {
+            return stop_requested_.load();
+          })) {
+        break;
+      }
+      lock.unlock();
+      auto replacement = capture_factory_();
+      V4l2MmapConfig capture_config;
+      {
+        std::lock_guard<std::mutex> config_lock(mutex_);
+        capture_config.device = config_.device;
+        capture_config.width = config_.width;
+        capture_config.height = config_.height;
+        capture_config.fps = config_.fps;
+        ++stats_.reconnect_attempts;
+      }
+      std::string reopen_error;
+      if (!replacement || !replacement->Start(capture_config, &reopen_error)) {
+        std::lock_guard<std::mutex> reopen_lock(mutex_);
+        stats_.last_error =
+            reopen_error.empty() ? "capture factory returned no backend" : reopen_error;
+        stats_.consecutive_failures = consecutive_failures;
+        continue;
+      }
+      {
+        std::lock_guard<std::mutex> reopen_lock(mutex_);
+        capture_ = std::move(replacement);
+        stats_.consecutive_failures = consecutive_failures;
+      }
+      recovering_.store(true);
+      continue;
+    }
     if (!capture->WaitFrame(&raw, 1000, &error)) {
       if (stop_requested_.load()) break;
       if (!capture->running()) {
@@ -83,46 +166,13 @@ void SoftwareIspPreviewSource::CaptureLoop() {
           std::lock_guard<std::mutex> lock(mutex_);
           ++stats_.fatal_capture_errors;
           stats_.last_error = error;
-          ++stats_.reconnect_attempts;
         }
-        ++consecutive_failures;
         {
           std::lock_guard<std::mutex> lock(mutex_);
           stats_.consecutive_failures = consecutive_failures;
           capture_.reset();
         }
-        const auto backoff_ms = std::min<std::uint32_t>(
-            5000U, 100U << std::min<std::uint32_t>(consecutive_failures - 1U, 5U));
-        std::unique_lock<std::mutex> lock(mutex_);
-        if (queue_condition_.wait_for(lock, std::chrono::milliseconds(backoff_ms), [this] {
-              return stop_requested_.load();
-            })) {
-          break;
-        }
-        lock.unlock();
-        auto replacement = std::make_unique<V4l2MmapCapture>();
-        V4l2MmapConfig capture_config;
-        {
-          std::lock_guard<std::mutex> config_lock(mutex_);
-          capture_config.device = config_.device;
-          capture_config.width = config_.width;
-          capture_config.height = config_.height;
-          capture_config.fps = config_.fps;
-        }
-        std::string reopen_error;
-        if (!replacement->Start(capture_config, &reopen_error)) {
-          std::lock_guard<std::mutex> reopen_lock(mutex_);
-          stats_.last_error = reopen_error;
-          ++stats_.reconnect_attempts;
-          continue;
-        }
-        {
-          std::lock_guard<std::mutex> reopen_lock(mutex_);
-          capture_ = std::move(replacement);
-          ++stats_.reconnect_successes;
-          stats_.consecutive_failures = 0;
-        }
-        consecutive_failures = 0;
+        recovering_.store(true);
         continue;
       }
       continue;
@@ -131,6 +181,11 @@ void SoftwareIspPreviewSource::CaptureLoop() {
     const auto received_at_ns = time::WallTime::Now().ToNanoseconds();
     std::lock_guard<std::mutex> lock(mutex_);
     ++stats_.captured_frames;
+    if (recovering_.exchange(false)) {
+      ++stats_.reconnect_successes;
+      consecutive_failures = 0;
+      stats_.consecutive_failures = 0;
+    }
     if (have_sequence && raw.sequence > previous_sequence + 1U) {
       stats_.source_sequence_gaps += raw.sequence - previous_sequence - 1U;
     }

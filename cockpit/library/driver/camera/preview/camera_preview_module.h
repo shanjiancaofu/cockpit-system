@@ -23,6 +23,7 @@ class CameraPreviewModule : public runtime::BasicModule {
 
   bool available() const;
   bool is_running() const;
+  bool is_recovering() const;
   const std::string& last_error() const;
 
   void Configure(CameraPreviewConfig config, FrameCallback callback);
