@@ -77,6 +77,11 @@ void SoftwareIspPreviewSource::CaptureLoop() {
     if (capture == nullptr) break;
     if (!capture->WaitFrame(&raw, 1000, &error)) {
       if (stop_requested_.load()) break;
+      if (!capture->running()) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        ++stats_.fatal_capture_errors;
+        break;
+      }
       continue;
     }
     const auto enqueued_at = std::chrono::steady_clock::now();

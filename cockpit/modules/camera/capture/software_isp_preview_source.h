@@ -20,6 +20,7 @@ struct SoftwareIspPreviewStats {
   std::uint64_t processed_frames = 0;
   std::uint64_t dropped_queue_frames = 0;
   std::uint64_t source_sequence_gaps = 0;
+  std::uint64_t fatal_capture_errors = 0;
   double queue_to_output_mean_ms = 0.0;
   double queue_to_output_p50_ms = 0.0;
   double queue_to_output_p95_ms = 0.0;

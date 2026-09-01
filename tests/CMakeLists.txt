@@ -321,6 +321,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_executable(v4l2_mmap_capture_test modules/camera/v4l2_mmap_capture_test.cc)
     target_link_libraries(v4l2_mmap_capture_test PRIVATE v4l2_camera)
     add_test(NAME v4l2_mmap_capture_test COMMAND v4l2_mmap_capture_test)
+    add_executable(software_isp_preview_source_test modules/camera/software_isp_preview_source_test.cc)
+    target_link_libraries(software_isp_preview_source_test PRIVATE software_isp_camera_source)
+    add_test(NAME software_isp_preview_source_test COMMAND software_isp_preview_source_test)
 endif()
 
 add_executable(gstreamer_timestamp_mapper_test
