@@ -35,6 +35,7 @@ class V4l2CaptureAdapter final : public SoftwareIspCapture {
 
 constexpr std::array<std::uint32_t, 7> kReconnectBackoffMs = {100U,  200U,  400U, 800U,
                                                               1600U, 3200U, 5000U};
+constexpr auto kFirstOutputTimeout = std::chrono::seconds(2);
 
 }  // namespace
 
@@ -85,6 +86,8 @@ bool SoftwareIspPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
   stop_requested_.store(false);
   running_.store(true);
   recovering_.store(false);
+  recovery_output_timeout_.store(false);
+  recovery_deadline_ = {};
   capture_worker_ = std::thread(&SoftwareIspPreviewSource::CaptureLoop, this);
   isp_worker_ = std::thread(&SoftwareIspPreviewSource::IspLoop, this);
   return true;
@@ -101,6 +104,8 @@ void SoftwareIspPreviewSource::Stop() {
   callback_ = nullptr;
   running_.store(false);
   recovering_.store(false);
+  recovery_output_timeout_.store(false);
+  recovery_deadline_ = {};
 }
 
 void SoftwareIspPreviewSource::ResetStats() {
@@ -117,6 +122,14 @@ void SoftwareIspPreviewSource::CaptureLoop() {
     V4l2RawFrame raw;
     std::string error;
     SoftwareIspCapture* capture = nullptr;
+    if (recovery_output_timeout_.exchange(false)) {
+      std::lock_guard<std::mutex> timeout_lock(mutex_);
+      ++stats_.fatal_capture_errors;
+      stats_.last_error = "camera recovery produced no valid output within 2s";
+      capture_.reset();
+      recovery_deadline_ = {};
+      continue;
+    }
     {
       std::lock_guard<std::mutex> lock(mutex_);
       capture = capture_.get();
@@ -155,6 +168,7 @@ void SoftwareIspPreviewSource::CaptureLoop() {
         std::lock_guard<std::mutex> reopen_lock(mutex_);
         capture_ = std::move(replacement);
         stats_.consecutive_failures = consecutive_failures;
+        recovery_deadline_ = std::chrono::steady_clock::now() + kFirstOutputTimeout;
       }
       recovering_.store(true);
       continue;
@@ -171,9 +185,20 @@ void SoftwareIspPreviewSource::CaptureLoop() {
           std::lock_guard<std::mutex> lock(mutex_);
           stats_.consecutive_failures = consecutive_failures;
           capture_.reset();
+          recovery_deadline_ = {};
         }
         recovering_.store(true);
         continue;
+      }
+      if (recovering_.load()) {
+        std::lock_guard<std::mutex> deadline_lock(mutex_);
+        if (recovery_deadline_ != std::chrono::steady_clock::time_point{} &&
+            std::chrono::steady_clock::now() >= recovery_deadline_) {
+          ++stats_.fatal_capture_errors;
+          stats_.last_error = "camera recovery produced no valid output within 2s";
+          capture_.reset();
+          recovery_deadline_ = {};
+        }
       }
       continue;
     }
@@ -181,11 +206,6 @@ void SoftwareIspPreviewSource::CaptureLoop() {
     const auto received_at_ns = time::WallTime::Now().ToNanoseconds();
     std::lock_guard<std::mutex> lock(mutex_);
     ++stats_.captured_frames;
-    if (recovering_.exchange(false)) {
-      ++stats_.reconnect_successes;
-      consecutive_failures = 0;
-      stats_.consecutive_failures = 0;
-    }
     if (have_sequence && raw.sequence > previous_sequence + 1U) {
       stats_.source_sequence_gaps += raw.sequence - previous_sequence - 1U;
     }
@@ -235,13 +255,28 @@ void SoftwareIspPreviewSource::IspLoop() {
     RawBayerFrame raw = std::move(pending.frame);
     SoftwareIspTimingMs timing;
     std::string error;
-    if (!isp_.Process(raw, &frame, &error, &timing)) continue;
+    if (!isp_.Process(raw, &frame, &error, &timing)) {
+      if (recovering_.load()) {
+        std::lock_guard<std::mutex> deadline_lock(mutex_);
+        if (recovery_deadline_ != std::chrono::steady_clock::time_point{} &&
+            std::chrono::steady_clock::now() >= recovery_deadline_) {
+          recovery_output_timeout_.store(true);
+          queue_condition_.notify_all();
+        }
+      }
+      continue;
+    }
     const double latency = std::chrono::duration<double, std::milli>(
                                std::chrono::steady_clock::now() - pending.enqueued_at)
                                .count();
     {
       std::lock_guard<std::mutex> lock(mutex_);
       ++stats_.processed_frames;
+      if (recovering_.exchange(false)) {
+        ++stats_.reconnect_successes;
+        stats_.consecutive_failures = 0;
+        recovery_deadline_ = {};
+      }
       latency_samples_ms_.push_back(latency);
       constexpr std::size_t kLatencyWindow = 2048U;
       if (latency_samples_ms_.size() > kLatencyWindow) {

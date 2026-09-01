@@ -84,6 +84,8 @@ class SoftwareIspPreviewSource final : public CameraPreviewSource {
   std::atomic_bool stop_requested_{false};
   std::atomic_bool running_{false};
   std::atomic_bool recovering_{false};
+  std::atomic_bool recovery_output_timeout_{false};
+  std::chrono::steady_clock::time_point recovery_deadline_{};
   std::thread capture_worker_;
   std::thread isp_worker_;
 };
