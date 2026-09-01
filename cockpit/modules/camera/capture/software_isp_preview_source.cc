@@ -66,6 +66,7 @@ void SoftwareIspPreviewSource::ResetStats() {
 void SoftwareIspPreviewSource::CaptureLoop() {
   std::uint32_t previous_sequence = 0;
   bool have_sequence = false;
+  std::uint32_t consecutive_failures = 0;
   while (!stop_requested_.load()) {
     V4l2RawFrame raw;
     std::string error;
@@ -82,10 +83,47 @@ void SoftwareIspPreviewSource::CaptureLoop() {
           std::lock_guard<std::mutex> lock(mutex_);
           ++stats_.fatal_capture_errors;
           stats_.last_error = error;
+          ++stats_.reconnect_attempts;
         }
-        stop_requested_.store(true);
-        queue_condition_.notify_all();
-        break;
+        ++consecutive_failures;
+        {
+          std::lock_guard<std::mutex> lock(mutex_);
+          stats_.consecutive_failures = consecutive_failures;
+          capture_.reset();
+        }
+        const auto backoff_ms = std::min<std::uint32_t>(
+            5000U, 100U << std::min<std::uint32_t>(consecutive_failures - 1U, 5U));
+        std::unique_lock<std::mutex> lock(mutex_);
+        if (queue_condition_.wait_for(lock, std::chrono::milliseconds(backoff_ms), [this] {
+              return stop_requested_.load();
+            })) {
+          break;
+        }
+        lock.unlock();
+        auto replacement = std::make_unique<V4l2MmapCapture>();
+        V4l2MmapConfig capture_config;
+        {
+          std::lock_guard<std::mutex> config_lock(mutex_);
+          capture_config.device = config_.device;
+          capture_config.width = config_.width;
+          capture_config.height = config_.height;
+          capture_config.fps = config_.fps;
+        }
+        std::string reopen_error;
+        if (!replacement->Start(capture_config, &reopen_error)) {
+          std::lock_guard<std::mutex> reopen_lock(mutex_);
+          stats_.last_error = reopen_error;
+          ++stats_.reconnect_attempts;
+          continue;
+        }
+        {
+          std::lock_guard<std::mutex> reopen_lock(mutex_);
+          capture_ = std::move(replacement);
+          ++stats_.reconnect_successes;
+          stats_.consecutive_failures = 0;
+        }
+        consecutive_failures = 0;
+        continue;
       }
       continue;
     }
