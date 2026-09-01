@@ -1,6 +1,7 @@
 [Unit]
 Description=cockpit-system Navigator
-After=network.target sound.target
+Wants=cockpit-can0.service
+After=network.target sound.target cockpit-can0.service
 
 [Service]
 Type=simple

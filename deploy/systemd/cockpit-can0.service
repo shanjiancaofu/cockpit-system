@@ -1,0 +1,13 @@
+[Unit]
+Description=cockpit-system CAN FD interface setup
+After=systemd-modules-load.service
+Before=cockpit-navigator.service
+
+[Service]
+Type=oneshot
+ExecStart=/cockpit-system/deploy/configure-can0.sh
+ExecStop=/usr/sbin/ip link set can0 down
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

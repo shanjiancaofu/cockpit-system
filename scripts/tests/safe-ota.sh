@@ -74,6 +74,8 @@ make_package() {
   printf '%s\n' "${version}" >"${package_root}/manifest/VERSION"
   install -m 0755 "${source_root}/deploy/install.sh" \
     "${package_root}/deploy/install.sh"
+  install -m 0755 "${source_root}/deploy/configure-can0.sh" \
+    "${package_root}/deploy/configure-can0.sh"
   (
     cd "${package_root}"
     find release config deploy manifest -type f ! -name SHA256SUMS -print0 \
@@ -105,6 +107,13 @@ set -e
 wait "${lock_pid}"
 [[ "${lock_result}" -eq 1 ]]
 ! grep -Fq 'ExecStartPre=' "${source_root}/deploy/systemd/cockpit-navigator.service"
+grep -Fxq 'Wants=cockpit-can0.service' \
+  "${source_root}/deploy/systemd/cockpit-navigator.service"
+grep -Fxq 'Before=cockpit-navigator.service' \
+  "${source_root}/deploy/systemd/cockpit-can0.service"
+grep -Fxq 'ExecStart=/cockpit-system/deploy/configure-can0.sh' \
+  "${source_root}/deploy/systemd/cockpit-can0.service"
+grep -Fq 'one-shot on' "${source_root}/deploy/configure-can0.sh"
 grep -Fxq 'ReadWritePaths=/cockpit-system/data /cockpit-system/logs /cockpit-system/run' \
   "${source_root}/deploy/systemd/cockpit-navigator.service"
 grep -Fq -- '--mode normal' \

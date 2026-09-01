@@ -65,11 +65,13 @@ fi
 
 install -d "${install_root}" "${install_root}/releases" "${release_dir}" \
   "${install_root}/config" "${install_root}/data" "${install_root}/logs" "${install_root}/run" \
-  "${install_root}/media" \
+  "${install_root}/media" "${install_root}/deploy" \
   "${install_root}/ai" "${install_root}/ai/runtime" "${install_root}/ai/models" \
   "${install_root}/ai/config"
 install -d -m 0700 "${install_root}/data/ota/incoming"
 cp -a "${package_root}/release/." "${release_dir}/"
+install -m 0755 "${package_root}/deploy/configure-can0.sh" \
+  "${install_root}/deploy/configure-can0.sh"
 install -d "${release_dir}/manifest"
 cp -a "${package_root}/manifest/." "${release_dir}/manifest/"
 
@@ -144,7 +146,10 @@ if [[ "${install_systemd}" == "true" ]]; then
   rm -f /etc/systemd/system/cockpit-navigator@.service
   install -m 0644 "${package_root}/systemd/cockpit-navigator.service" \
     /etc/systemd/system/cockpit-navigator.service
+  install -m 0644 "${package_root}/systemd/cockpit-can0.service" \
+    /etc/systemd/system/cockpit-can0.service
   systemctl daemon-reload
+  systemctl enable --now cockpit-can0.service
   if [[ "${legacy_enabled}" == "true" ]]; then
     systemctl enable cockpit-navigator.service
   fi
