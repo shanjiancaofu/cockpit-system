@@ -1,4 +1,4 @@
-source_baseline: 10edc1e98b534a7590f1c0d3c50a38181bba1045
+source_baseline: 3146f548a58e0a311e897443e96c0e47e0ca768c
 date: 2026-09-02
 target: Jetson Orin Nano 8GB
 result: BLOCKED_NOT_V1_FREEZE
@@ -7,6 +7,8 @@ build:
   type: arm64 Release
   ros2: enabled
   sherpa_agent: enabled
+  sherpa_runtime: v1.13.4 ARM64 CPU shared
+  sherpa_runtime_sha256: 36c5a3c942358ed635471488f50a28a96181331c935b0dce75a02b7f49913dc2
   llm: Qwen3.5-2B Q4_K_M, CUDA full offload
 
 passed:
