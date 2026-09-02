@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# flake8: noqa: E501
 """Monitor an already-running Cockpit UI stack during a bounded soak test."""
 
 from __future__ import annotations
@@ -7,7 +8,6 @@ import argparse
 import json
 import os
 import pathlib
-import re
 import signal
 import subprocess
 import time

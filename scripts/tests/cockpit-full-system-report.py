@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# flake8: noqa: E501
 """Summarize Cockpit full-system soak JSON into a compact text report."""
 
 from __future__ import annotations
