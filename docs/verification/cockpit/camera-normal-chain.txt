@@ -1,0 +1,18 @@
+source_commit: 7244e674eeab2dab4b4b0929cdb84e1b347fe768
+date: 2026-09-02
+device: /dev/video0 tegra-video IMX219
+physical_hotplug: NOT_PERFORMED_OUT_OF_V1_SCOPE
+argus_frames: 300
+argus_output: 1280x720 BGRx
+argus_fps: 32.6277
+argus_cpu_percent: 23.0747
+argus_max_rss_kib: 214652
+direct_v4l2_frames: 300
+direct_v4l2_format: RG10 3280x2464
+direct_v4l2_sequence: 0..299 continuous
+software_isp_frames: 300
+software_isp_actual_input: RG10 3280x2464
+software_isp_fps: 30.008
+software_isp_queue_drops: 0
+software_isp_sequence_gaps: 0
+result: PASS

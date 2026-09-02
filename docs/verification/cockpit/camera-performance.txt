@@ -1,0 +1,18 @@
+source_commit: 7244e674eeab2dab4b4b0929cdb84e1b347fe768
+date: 2026-09-02
+software_isp_actual_input: RG10 3280x2464
+queue_to_output_mean_ms: 27.8618
+queue_to_output_p50_ms: 27.2447
+queue_to_output_p95_ms: 30.1487
+queue_to_output_max_ms: 60.5435
+isp_raw_unpack_mean_ms: 1.93611
+isp_normalize_mean_ms: 7.81195
+isp_demosaic_mean_ms: 2.70548
+isp_gain_gamma_mean_ms: 11.4632
+isp_output_mean_ms: 3.61572
+isp_total_mean_ms: 27.5326
+process_cpu_percent: 245.959
+max_rss_kib: 197200
+note: Requested 1280x720, but direct V4L2 negotiated native 3280x2464 RAW10; these are full-resolution metrics.
+stability_duration: 300 frames / approximately 10 seconds
+long_stability: PENDING
