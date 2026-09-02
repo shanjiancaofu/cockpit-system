@@ -16,3 +16,29 @@ max_rss_kib: 197200
 note: Requested 1280x720, but direct V4L2 negotiated native 3280x2464 RAW10; these are full-resolution metrics.
 stability_duration: 300 frames / approximately 10 seconds
 long_stability: PENDING
+
+720p_software_isp:
+  input: RG10 1280x720
+  fps: 30.0141
+  queue_mean_ms: 4.94968
+  queue_p50_ms: 5.14223
+  queue_p95_ms: 5.60794
+  queue_max_ms: 18.519
+  isp_total_mean_ms: 4.9073
+  cpu_percent: 46.0335
+  max_rss_kib: 104492
+  drops: 0
+  sequence_gaps: 0
+
+1080p_software_isp:
+  input: RG10 1920x1080
+  fps: 30.0141
+  queue_mean_ms: 10.2145
+  queue_p50_ms: 10.0809
+  queue_p95_ms: 11.2176
+  queue_max_ms: 31.7297
+  isp_total_mean_ms: 10.1776
+  cpu_percent: 90.6912
+  max_rss_kib: 104468
+  drops: 0
+  sequence_gaps: 0

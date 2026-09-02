@@ -16,3 +16,9 @@ software_isp_fps: 30.008
 software_isp_queue_drops: 0
 software_isp_sequence_gaps: 0
 result: PASS
+v4l2_720p: RG10 1280x720, 300 frames, sequence 0..299 continuous
+software_isp_720p: 300 processed, 30.0141 FPS, 0 drops, 0 gaps
+v4l2_1080p: RG10 1920x1080, 300 frames, sequence 0..299 continuous
+software_isp_1080p: 300 processed, 30.0141 FPS, 0 drops, 0 gaps
+sensor_mode_720p: 4
+sensor_mode_1080p: 2
