@@ -155,7 +155,7 @@ int main() {
                    "      enabled: true\n      provider: sherpa") ||
       !ReplaceOnce(&enabled_sherpa_missing_model,
                    "model_dir: /cockpit-system/ai/models/kws/"
-                   "sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20",
+                   "sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile",
                    "model_dir: \"\"") ||
       !ExpectRejectedConfig(enabled_sherpa_missing_model,
                             "features.voice.kws.model_dir is required for sherpa KWS")) {

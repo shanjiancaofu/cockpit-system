@@ -5,7 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd "${script_dir}/../.." && pwd)"
 ai_root="${COCKPIT_AI_ROOT:-${project_root}/_output/ai}"
 
-kws_dir="${ai_root}/models/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20"
+kws_dir="${ai_root}/models/kws/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile"
 vad_dir="${ai_root}/models/vad/silero-vad"
 asr_dir="${ai_root}/models/asr/sensevoice-small-int8"
 config_dir="${ai_root}/config"
@@ -99,20 +99,18 @@ prepare_model() {
 mkdir -p "${config_dir}"
 default_keywords_raw='你好小山 @你好小山'
 default_keywords_tokenized='n ǐ h ǎo x iǎo sh ān @你好小山'
-if [[ ! -f "${config_dir}/kws-keywords-raw.txt" ]] ||
-  [[ "$(<"${config_dir}/kws-keywords-raw.txt")" != "${default_keywords_raw}" ]] ||
-  [[ ! -f "${config_dir}/kws-keywords.txt" ]] ||
-  [[ "$(<"${config_dir}/kws-keywords.txt")" != "${default_keywords_tokenized}" ]]; then
+if [[ ! -f "${config_dir}/kws-keywords-raw.txt" ]]; then
   printf '%s\n' "${default_keywords_raw}" >"${config_dir}/kws-keywords-raw.txt"
+fi
+if [[ ! -f "${config_dir}/kws-keywords.txt" ]]; then
   printf '%s\n' "${default_keywords_tokenized}" >"${config_dir}/kws-keywords.txt"
 fi
 
 prepare_model "kws" "${kws_dir}" COCKPIT_KWS_MODEL_ARCHIVE COCKPIT_KWS_MODEL_URL \
-  encoder-epoch-13-avg-2-chunk-8-left-64.int8.onnx \
-  decoder-epoch-13-avg-2-chunk-8-left-64.onnx \
-  joiner-epoch-13-avg-2-chunk-8-left-64.int8.onnx \
-  tokens.txt \
-  en.phone
+  encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx \
+  decoder-epoch-12-avg-2-chunk-16-left-64.onnx \
+  joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx \
+  tokens.txt
 
 prepare_model "vad" "${vad_dir}" COCKPIT_VAD_MODEL_ARCHIVE COCKPIT_VAD_MODEL_URL \
   silero_vad.onnx
@@ -122,34 +120,16 @@ prepare_model "asr" "${asr_dir}" COCKPIT_ASR_MODEL_ARCHIVE COCKPIT_ASR_MODEL_URL
   tokens.txt
 
 if [[ ! -f "${config_dir}/kws-keywords.txt" ]]; then
-  if command -v sherpa-onnx-cli >/dev/null 2>&1; then
-    sherpa-onnx-cli text2token \
-      --tokens "${kws_dir}/tokens.txt" \
-      --tokens-type phone+ppinyin \
-      --lexicon "${kws_dir}/en.phone" \
-      "${config_dir}/kws-keywords-raw.txt" \
-      "${config_dir}/kws-keywords.txt"
-  fi
-fi
-
-if [[ ! -f "${config_dir}/kws-keywords.txt" ]]; then
   cat >&2 <<EOF
 Tokenized KWS keywords file is missing:
   ${config_dir}/kws-keywords.txt
 
-Create it from:
-  ${config_dir}/kws-keywords-raw.txt
+Provide a tokenized keyword file compatible with:
+  ${kws_dir}/tokens.txt
 
-Install or expose sherpa-onnx-cli, then run:
-
-  sherpa-onnx-cli text2token \\
-    --tokens ${kws_dir}/tokens.txt \\
-    --tokens-type phone+ppinyin \\
-    --lexicon ${kws_dir}/en.phone \\
-    ${config_dir}/kws-keywords-raw.txt \\
-    ${config_dir}/kws-keywords.txt
-
-Do not pass raw Chinese wake words directly to the C++ runtime.
+The pinned WenetSpeech mobile model does not include en.phone, so this script
+cannot safely generate arbitrary custom keyword tokenization. Do not pass raw
+Chinese wake words directly to the C++ runtime.
 EOF
   exit 1
 fi

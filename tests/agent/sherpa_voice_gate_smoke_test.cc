@@ -74,7 +74,9 @@ bool RunGateCase(const std::filesystem::path& wav, bool expect_wake, bool expect
   kws.provider = "sherpa";
   kws.cooldown_ms = 0;
   kws.wake_word.clear();
-  kws.model_dir = (ai_root / "models/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20").string();
+  kws.model_dir =
+      (ai_root / "models/kws/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile")
+          .string();
   kws.keywords_file = (ai_root / "config/kws-keywords.txt").string();
 
   cockpit::config::AudioConfig audio;

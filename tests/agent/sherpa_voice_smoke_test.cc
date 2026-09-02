@@ -104,7 +104,8 @@ bool RunWakeWordCheck(const std::filesystem::path& wav_path) {
   config.enabled = true;
   config.provider = "sherpa";
   config.model_dir =
-      (ai_root / "models" / "kws" / "sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20").string();
+      (ai_root / "models" / "kws" / "sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile")
+          .string();
   config.keywords_file = (ai_root / "config" / "kws-keywords.txt").string();
   config.wake_word.clear();
   auto detector = cockpit::agent::CreateSherpaWakeWordDetector(config);
@@ -282,7 +283,7 @@ int main(int argc, char** argv) {
   const std::filesystem::path ai_root = AiRoot();
   const std::filesystem::path fixture_root = ai_root / "fixtures";
   const std::filesystem::path kws_model =
-      ai_root / "models" / "kws" / "sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20";
+      ai_root / "models" / "kws" / "sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile";
   const std::filesystem::path keywords_file = ai_root / "config" / "kws-keywords.txt";
 
   cockpit::config::KwsConfig kws_config;

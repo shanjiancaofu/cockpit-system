@@ -8,6 +8,7 @@ import argparse
 import json
 import os
 import pathlib
+import shutil
 import signal
 import subprocess
 import time
@@ -102,6 +103,11 @@ def main() -> int:
     parser.add_argument("--config", type=pathlib.Path, required=True)
     parser.add_argument("--build-dir", type=pathlib.Path, required=True)
     parser.add_argument("--duration-seconds", type=int, default=3600)
+    parser.add_argument("--interaction-interval-seconds", type=int, default=300)
+    parser.add_argument("--ui-click-interval-seconds", type=int, default=120)
+    parser.add_argument("--llm-fault-at-seconds", type=int, default=2400)
+    parser.add_argument("--camera-fault-at-seconds", type=int, default=2700)
+    parser.add_argument("--kws-status", default="ENABLED")
     parser.add_argument("--output", type=pathlib.Path, required=True)
     args = parser.parse_args()
 
@@ -111,9 +117,9 @@ def main() -> int:
     samples: list[dict[str, object]] = []
     events: list[dict[str, object]] = []
     next_detail = 0.0
-    next_interaction = 300.0
+    next_interaction = float(args.interaction_interval_seconds)
     next_progress = 0.0
-    next_ui_click = 120.0
+    next_ui_click = float(args.ui_click_interval_seconds)
     ui_pages = [(0, 280, 607), (1, 448, 607), (4, 726, 607), (5, 935, 607)]
     ui_page_index = 0
     llama_fault_done = False
@@ -195,34 +201,43 @@ def main() -> int:
                 }
             )
             prompt_index += 1
-            next_interaction += 300.0
+            next_interaction += float(args.interaction_interval_seconds)
 
         if elapsed >= next_ui_click:
             display = os.environ.get("DISPLAY", ":0")
             xauthority = os.environ.get("XAUTHORITY", "")
             xdotool = os.environ.get("XDO_TOOL", "xdotool")
             page, x, y = ui_pages[ui_page_index % len(ui_pages)]
-            search = run([xdotool, "search", "--name", "Smart Cockpit System"], timeout=5.0)
-            window_ids = [line for line in search.stdout.splitlines() if line.strip()]
-            if window_ids:
-                env = os.environ.copy()
-                env["DISPLAY"] = display
-                if xauthority:
-                    env["XAUTHORITY"] = xauthority
-                run([xdotool, "mousemove", "--sync", str(x), str(y)], timeout=5.0)
-                run([xdotool, "click", "1"], timeout=5.0)
-                events.append({"elapsed_s": round(elapsed, 1), "event": "ui_page_click", "page": page})
+            if shutil.which(xdotool) is None:
+                events.append(
+                    {
+                        "elapsed_s": round(elapsed, 1),
+                        "event": "ui_page_click_skipped",
+                        "reason": f"{xdotool} not installed",
+                    }
+                )
+            else:
+                search = run([xdotool, "search", "--name", "Smart Cockpit System"], timeout=5.0)
+                window_ids = [line for line in search.stdout.splitlines() if line.strip()]
+                if window_ids:
+                    env = os.environ.copy()
+                    env["DISPLAY"] = display
+                    if xauthority:
+                        env["XAUTHORITY"] = xauthority
+                    run([xdotool, "mousemove", "--sync", str(x), str(y)], timeout=5.0)
+                    run([xdotool, "click", "1"], timeout=5.0)
+                    events.append({"elapsed_s": round(elapsed, 1), "event": "ui_page_click", "page": page})
             ui_page_index += 1
-            next_ui_click += 120.0
+            next_ui_click += float(args.ui_click_interval_seconds)
 
-        if elapsed >= 2400.0 and not llama_fault_done:
+        if args.llm_fault_at_seconds >= 0 and elapsed >= args.llm_fault_at_seconds and not llama_fault_done:
             llama = next((row for row in process_rows if row["comm"] == "llama-server"), None)
             if llama is not None:
                 os.kill(int(llama["pid"]), signal.SIGKILL)
                 events.append({"elapsed_s": round(elapsed, 1), "event": "kill_llama", "pid": llama["pid"]})
                 llama_fault_done = True
 
-        if elapsed >= 2700.0 and not camera_fault_done:
+        if args.camera_fault_at_seconds >= 0 and elapsed >= args.camera_fault_at_seconds and not camera_fault_done:
             _, modules = runtime_status(bin_dir, args.navigator_socket)
             camera = modules.get("camera_driver", {})
             if camera.get("pid", "0").isdigit() and int(camera["pid"]) > 0:
@@ -246,7 +261,7 @@ def main() -> int:
                 "duration_requested_s": args.duration_seconds,
                 "duration_observed_s": round(time.monotonic() - started, 1),
                 "interrupted": stop_requested,
-                "kws_status": "BLOCKED_ARM64_C_API_NO_DETECTION",
+                "kws_status": args.kws_status,
                 "samples": samples,
                 "events": events,
             },

@@ -102,7 +102,7 @@ sed \
   "${source_config}" | \
   sed \
     -e "s|PLACEHOLDER_KEYWORDS|${ai_root}/config/kws-keywords.txt|" \
-    -e "s|PLACEHOLDER_KWS_MODEL|${ai_root}/models/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20|" \
+    -e "s|PLACEHOLDER_KWS_MODEL|${ai_root}/models/kws/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile|" \
     >"${config_path}"
 
 if [[ "${media_focus_smoke}" == "true" ]]; then

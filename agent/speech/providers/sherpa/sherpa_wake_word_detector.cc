@@ -38,9 +38,9 @@ class SherpaWakeWordDetector final : public WakeWordDetector {
     }
     SherpaOnnxKeywordSpotterConfig sherpa_config;
     std::memset(&sherpa_config, 0, sizeof(sherpa_config));
-    encoder_ = JoinPath(config_.model_dir, "encoder-epoch-13-avg-2-chunk-8-left-64.int8.onnx");
-    decoder_ = JoinPath(config_.model_dir, "decoder-epoch-13-avg-2-chunk-8-left-64.onnx");
-    joiner_ = JoinPath(config_.model_dir, "joiner-epoch-13-avg-2-chunk-8-left-64.int8.onnx");
+    encoder_ = JoinPath(config_.model_dir, "encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx");
+    decoder_ = JoinPath(config_.model_dir, "decoder-epoch-12-avg-2-chunk-16-left-64.onnx");
+    joiner_ = JoinPath(config_.model_dir, "joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx");
     tokens_ = JoinPath(config_.model_dir, "tokens.txt");
     RequireFile(encoder_, "encoder model");
     RequireFile(decoder_, "decoder model");
