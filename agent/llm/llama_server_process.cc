@@ -201,6 +201,10 @@ bool LlamaServerProcess::SpawnAndWaitUntilReady(std::string* error) {
 
 bool LlamaServerProcess::Spawn(pid_t* pid, std::string* error) const {
   std::vector<std::string> arguments{
+      "/usr/bin/setpriv",
+      "--pdeathsig",
+      "SIGTERM",
+      "--",
       config_.executable,
       "--host",
       config_.host,
@@ -238,7 +242,7 @@ bool LlamaServerProcess::Spawn(pid_t* pid, std::string* error) const {
   }
   const int spawn_result =
       configuration_result == 0
-          ? posix_spawn(pid, config_.executable.c_str(), nullptr, &attributes, argv.data(), environ)
+          ? posix_spawn(pid, arguments.front().c_str(), nullptr, &attributes, argv.data(), environ)
           : configuration_result;
   if (attributes_result == 0) {
     posix_spawnattr_destroy(&attributes);

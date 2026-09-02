@@ -31,7 +31,7 @@ struct ModuleConfig {
 struct RunConfig {
   RunMode initial_mode{RunMode::kNormal};
   std::string socket_path;
-  int startup_timeout_ms{3000};
+  int startup_timeout_ms{10000};
   int stop_timeout_ms{3000};
   int restart_window_seconds{30};
   std::vector<ModuleConfig> modules;

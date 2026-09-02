@@ -36,6 +36,8 @@ int main() {
                         static_cast<std::uint8_t>(RunMode::kUpgrade) == 5,
                     "stable run mode ids changed");
   success &= Expect(config.initial_mode == RunMode::kNormal, "default mode mismatch");
+  success &= Expect(config.startup_timeout_ms == 10000,
+                    "default startup timeout does not cover Jetson model loading");
   success &=
       Expect(config.FindModule(ModuleId::kTransfer) != nullptr, "transfer module is missing");
   success &=
