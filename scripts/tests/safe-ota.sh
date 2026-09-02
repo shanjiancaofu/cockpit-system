@@ -11,6 +11,28 @@ work_dir="$(mktemp -d /tmp/cockpit-safe-ota-test-XXXXXX)"
 navigator_pid=""
 ota_private_key="${work_dir}/ota-private.pem"
 ota_public_key="${work_dir}/ota-public.pem"
+command_timeout_seconds="${SAFE_OTA_TEST_COMMAND_TIMEOUT_SECONDS:-30}"
+
+run_safe_ota() {
+  timeout --signal=TERM --kill-after=5s "${command_timeout_seconds}" \
+    "${safe_ota}" "$@"
+}
+
+stop_navigator() {
+  [[ -n "${navigator_pid}" ]] || return 0
+  kill "${navigator_pid}" 2>/dev/null || true
+  for _ in $(seq 1 50); do
+    if ! kill -0 "${navigator_pid}" 2>/dev/null; then
+      wait "${navigator_pid}" 2>/dev/null || true
+      navigator_pid=""
+      return 0
+    fi
+    sleep 0.1
+  done
+  kill -KILL "${navigator_pid}" 2>/dev/null || true
+  wait "${navigator_pid}" 2>/dev/null || true
+  navigator_pid=""
+}
 
 cleanup() {
   local status=$?
@@ -43,10 +65,7 @@ cleanup() {
       "${navigator}" --command status --socket "${socket_path}" >&2 || true
     fi
   fi
-  if [[ -n "${navigator_pid}" ]]; then
-    kill "${navigator_pid}" 2>/dev/null || true
-    wait "${navigator_pid}" 2>/dev/null || true
-  fi
+  stop_navigator
   if [[ "${status}" -ne 0 && -f "${work_dir}/navigator.log" ]]; then
     cat "${work_dir}/navigator.log" >&2
   fi
@@ -101,7 +120,7 @@ while [[ ! -e "${lock_ready}" ]]; do
   sleep 0.01
 done
 set +e
-"${safe_ota}" --recover --root "${install_root}"
+run_safe_ota --recover --root "${install_root}"
 lock_result=$?
 set -e
 wait "${lock_pid}"
@@ -126,14 +145,14 @@ grep -Fxq 'Group=cockpit' \
 package_two="${work_dir}/package-2"
 make_package "${package_two}" 2.0.0
 set +e
-"${safe_ota}" --package "${package_two}" --confirm 2.0.1 --root "${install_root}" \
+run_safe_ota --package "${package_two}" --confirm 2.0.1 --root "${install_root}" \
   --public-key "${ota_public_key}" --health-command /bin/true --standalone
 confirmation_result=$?
 set -e
 [[ "${confirmation_result}" -eq 2 ]]
 [[ "$(readlink "${install_root}/current")" == "releases/1.0.0" ]]
 
-"${safe_ota}" --package "${package_two}" --confirm 2.0.0 --root "${install_root}" \
+run_safe_ota --package "${package_two}" --confirm 2.0.0 --root "${install_root}" \
   --public-key "${ota_public_key}" --health-command /bin/true --standalone
 [[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
 [[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
@@ -142,7 +161,7 @@ set -e
 package_downgrade="${work_dir}/package-downgrade"
 make_package "${package_downgrade}" 1.5.0
 set +e
-"${safe_ota}" --package "${package_downgrade}" --confirm 1.5.0 --root "${install_root}" \
+run_safe_ota --package "${package_downgrade}" --confirm 1.5.0 --root "${install_root}" \
   --public-key "${ota_public_key}" --health-command /bin/true --standalone
 downgrade_result=$?
 set -e
@@ -153,7 +172,7 @@ set -e
 package_prerelease="${work_dir}/package-prerelease"
 make_package "${package_prerelease}" 2.1.0-rc.1
 set +e
-"${safe_ota}" --package "${package_prerelease}" --confirm 2.1.0-rc.1 --root "${install_root}" \
+run_safe_ota --package "${package_prerelease}" --confirm 2.1.0-rc.1 --root "${install_root}" \
   --public-key "${ota_public_key}" --health-command /bin/true --standalone
 prerelease_result=$?
 set -e
@@ -164,7 +183,7 @@ set -e
 mkdir -p "${install_root}/releases/2.1.0"
 printf 'state: prepared\nversion: 2.1.0\nprevious_release: releases/2.0.0\n' \
   >"${install_root}/run/upgrade-transaction.yaml"
-"${safe_ota}" --recover --root "${install_root}"
+run_safe_ota --recover --root "${install_root}"
 [[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
 [[ ! -e "${install_root}/releases/2.1.0" ]]
 [[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
@@ -174,7 +193,7 @@ ln -sfn releases/2.2.0 "${install_root}/current.new"
 mv -Tf "${install_root}/current.new" "${install_root}/current"
 printf 'state: prepared\nversion: 2.2.0\nprevious_release: releases/2.0.0\n' \
   >"${install_root}/run/upgrade-transaction.yaml"
-"${safe_ota}" --recover --root "${install_root}"
+run_safe_ota --recover --root "${install_root}"
 [[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
 [[ ! -e "${install_root}/releases/2.2.0" ]]
 [[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
@@ -184,7 +203,7 @@ ln -sfn releases/2.3.0 "${install_root}/current.new"
 mv -Tf "${install_root}/current.new" "${install_root}/current"
 printf 'state: activated\nversion: 2.3.0\nprevious_release: releases/2.0.0\n' \
   >"${install_root}/run/upgrade-transaction.yaml"
-"${safe_ota}" --recover --root "${install_root}"
+run_safe_ota --recover --root "${install_root}"
 [[ "$(readlink "${install_root}/current")" == "releases/2.0.0" ]]
 [[ ! -e "${install_root}/releases/2.3.0" ]]
 [[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
@@ -194,7 +213,7 @@ ln -sfn releases/2.4.0 "${install_root}/current.new"
 mv -Tf "${install_root}/current.new" "${install_root}/current"
 printf 'state: confirmed\nversion: 2.4.0\nprevious_release: releases/2.0.0\n' \
   >"${install_root}/run/upgrade-transaction.yaml"
-"${safe_ota}" --recover --root "${install_root}"
+run_safe_ota --recover --root "${install_root}"
 [[ "$(readlink "${install_root}/current")" == "releases/2.4.0" ]]
 [[ -d "${install_root}/releases/2.4.0" ]]
 [[ ! -e "${install_root}/run/upgrade-transaction.yaml" ]]
@@ -202,7 +221,7 @@ printf 'state: confirmed\nversion: 2.4.0\nprevious_release: releases/2.0.0\n' \
 package_three="${work_dir}/package-3"
 make_package "${package_three}" 3.0.0
 set +e
-"${safe_ota}" --package "${package_three}" --confirm 3.0.0 --root "${install_root}" \
+run_safe_ota --package "${package_three}" --confirm 3.0.0 --root "${install_root}" \
   --public-key "${ota_public_key}" --health-command /bin/false --timeout 1 --standalone
 health_result=$?
 set -e
@@ -213,7 +232,7 @@ set -e
 
 printf 'tampered\n' >>"${package_three}/release/bin/probe"
 set +e
-"${safe_ota}" --package "${package_three}" --confirm 3.0.0 --root "${install_root}" \
+run_safe_ota --package "${package_three}" --confirm 3.0.0 --root "${install_root}" \
   --public-key "${ota_public_key}" --health-command /bin/true --standalone
 checksum_result=$?
 set -e
@@ -224,7 +243,7 @@ package_unsigned="${work_dir}/package-unsigned"
 make_package "${package_unsigned}" 3.1.0
 printf 'invalid signature\n' >"${package_unsigned}/manifest/SHA256SUMS.sig"
 set +e
-"${safe_ota}" --package "${package_unsigned}" --confirm 3.1.0 --root "${install_root}" \
+run_safe_ota --package "${package_unsigned}" --confirm 3.1.0 --root "${install_root}" \
   --public-key "${ota_public_key}" --health-command /bin/true --standalone
 signature_result=$?
 set -e
@@ -241,7 +260,7 @@ printf '#!/usr/bin/env bash\nsleep 60 &\necho "$!" >"%s"\nwait\n' \
 chmod 0755 "${hanging_health}"
 started_at="$(date +%s)"
 set +e
-"${safe_ota}" --package "${package_hanging}" --confirm 3.2.0 --root "${install_root}" \
+run_safe_ota --package "${package_hanging}" --confirm 3.2.0 --root "${install_root}" \
   --public-key "${ota_public_key}" --health-command "${hanging_health}" \
   --timeout 1 --standalone
 hanging_health_result=$?
@@ -272,7 +291,7 @@ for _ in $(seq 1 50); do
   sleep 0.1
 done
 "${navigator}" --command mode --socket "${socket_path}" >/dev/null
-"${safe_ota}" --package "${package_four}" --confirm 4.0.0 --root "${install_root}" \
+run_safe_ota --package "${package_four}" --confirm 4.0.0 --root "${install_root}" \
   --public-key "${ota_public_key}" --socket "${socket_path}" \
   --health-command /bin/true --timeout 10
 [[ "$(readlink "${install_root}/current")" == "releases/4.0.0" ]]
@@ -281,7 +300,7 @@ done
 package_five="${install_root}/data/ota/incoming/package-5"
 make_package "${package_five}" 5.0.0
 set +e
-"${safe_ota}" --package "${package_five}" --confirm 5.0.0 --root "${install_root}" \
+run_safe_ota --package "${package_five}" --confirm 5.0.0 --root "${install_root}" \
   --public-key "${ota_public_key}" --socket "${socket_path}" \
   --health-command /bin/false --timeout 3
 runtime_health_result=$?
@@ -308,7 +327,7 @@ chmod 0755 "${package_never_ready}/release/bin/cockpit-navigator"
     -in manifest/SHA256SUMS -out manifest/SHA256SUMS.sig
 )
 set +e
-"${safe_ota}" --package "${package_never_ready}" --confirm 6.0.0 --root "${install_root}" \
+run_safe_ota --package "${package_never_ready}" --confirm 6.0.0 --root "${install_root}" \
   --public-key "${ota_public_key}" --socket "${socket_path}" \
   --health-command /bin/true --timeout 1 &
 runtime_budget_pid=$!
@@ -324,6 +343,4 @@ elapsed="$(( $(date +%s) - started_at ))"
 [[ "$(readlink "${install_root}/current")" == "releases/4.0.0" ]]
 [[ ! -e "${install_root}/releases/6.0.0" ]]
 
-kill "${navigator_pid}" 2>/dev/null || true
-wait "${navigator_pid}" 2>/dev/null || true
-navigator_pid=""
+stop_navigator

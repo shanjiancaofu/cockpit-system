@@ -49,7 +49,7 @@ add_test(NAME safe_ota_test COMMAND bash
     ${CMAKE_BINARY_DIR}/lib/cockpit/modules
     ${PROJECT_SOURCE_DIR}
 )
-set_tests_properties(safe_ota_test PROPERTIES LABELS "system-grpc")
+set_tests_properties(safe_ota_test PROPERTIES LABELS "system-grpc" TIMEOUT 90)
 
 add_test(NAME navigator_stability_test COMMAND bash
     ${PROJECT_SOURCE_DIR}/scripts/tests/navigator-stability.sh
