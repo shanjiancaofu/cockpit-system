@@ -1,0 +1,70 @@
+source_commit: e4bb119499e91a010fb11d62eb4d53b177865ac4
+date: 2026-09-02
+target: Jetson Orin Nano 8GB
+result: CONDITIONAL_PASS_NOT_V1_FREEZE
+
+scope:
+  duration: 1200 seconds
+  ui: visible Xorg window, 1280x656
+  camera: V4L2 MMAP + Software ISP, 1280x720 at 30fps
+  voice: Sherpa KWS + VAD + SenseVoice ASR + Agent + Kokoro TTS
+  llm: Qwen3.5-2B Q4_K_M, llama.cpp, CUDA full offload
+  ros2: ros2_nav2 provider loaded; fake chassis/no physical CAN output
+  physical_unplug: OUT_OF_V1_SCOPE
+
+kws:
+  runtime: sherpa-onnx v1.13.4 ARM64 public C API
+  model: sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile
+  model_variant: epoch-12 chunk-16, int8 encoder/joiner
+  status: ENABLED
+  request_storm: NOT_OBSERVED
+
+twenty_minute_result:
+  duration_observed_s: 1201.6
+  samples: 114
+  automated_requests: 6/6 succeeded
+  unexpected_final_module_states: none
+  process_tree_rss_kib: start=2394644 end=3206076 max=3359732
+  process_tree_last_quarter_mean_kib: 3159518
+  system_mem_available_min_kib: 1386812
+  system_swap_used_max_kib: 1170944
+  temperature_max_c: 55.1
+  camera_frames_after_last_process_restart: 3311
+  camera_frames_dropped: 0
+  llm_kill_recovery: PASS, Agent and UI remained alive; replacement server started
+  camera_process_kill_recovery: PASS, Navigator restart_count=1
+  camera_preview_after_process_restart: explicit camera-ctl start required
+  clean_shutdown: PASS
+
+unexpected_audio_failure:
+  timestamp: 2026-09-02 22:18:28 Asia/Shanghai
+  module: audio_driver
+  termination: SIGSEGV, exit code 139, core_dumped=true
+  navigator_recovery: PASS, replacement process started
+  observed_effect: one uncertain playback terminal state, one TTS timeout
+  exact_native_backtrace: unavailable on target because apport retained no core artifact
+  status: NOT_CLAIMED_FIXED
+
+targeted_follow_up:
+  duration_observed_s: 307.1
+  fault_injection: disabled
+  interaction_interval_s: 60
+  automated_requests: 4/4 succeeded
+  audio_driver_restarts: 0
+  voice_processing_errors: 0
+  tts_timeouts: 0
+  camera_frames: 7290
+  camera_drops: 0
+  unexpected_module_states: none
+  temperature_max_c: 55.4
+  conclusion: audio crash was not reproduced, but one clean rerun does not erase the original failure
+
+ui_note:
+  UI remained visibly present throughout the Gate. Automatic page clicking was skipped because
+  xdotool is not installed on the target. The separate manual UI acceptance record remains valid.
+
+conclusion:
+  KWS production gating and the 20-minute resource/capacity objective passed.
+  LLM and camera process supervision recovered as designed.
+  Full-System V1 Freeze remains pending because the unexpected audio_driver SIGSEGV must either be
+  reproduced and fixed or retired through repeated clean targeted regression with an explicit risk record.

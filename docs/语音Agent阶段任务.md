@@ -525,7 +525,7 @@ features:
 #### 模型
 
 ```text
-sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
+sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile
 ```
 
 #### 任务

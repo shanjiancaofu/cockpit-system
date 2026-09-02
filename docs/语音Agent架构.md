@@ -217,7 +217,7 @@ version script 和 `--exclude-libs,ALL` 限制第三方符号。只有出现外�
 目标候选：
 
 ```text
-sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
+sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile
 ```
 
 第一阶段只配置一个唤醒词，但唤醒词内容可以自定义：
@@ -231,7 +231,7 @@ features:
       cooldown_ms: 1500
       wake_word: ""
       keywords_file: /cockpit-system/ai/config/kws-keywords.txt
-      model_dir: /cockpit-system/ai/models/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
+      model_dir: /cockpit-system/ai/models/kws/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile
 ```
 
 `wake_word` 只供 mock provider 使用；Sherpa provider 必须使用 tokenized `keywords_file`。普通 CI
