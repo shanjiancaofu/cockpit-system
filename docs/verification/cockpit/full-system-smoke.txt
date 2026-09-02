@@ -1,0 +1,51 @@
+source_baseline: 10edc1e98b534a7590f1c0d3c50a38181bba1045
+date: 2026-09-02
+target: Jetson Orin Nano 8GB
+result: BLOCKED_NOT_V1_FREEZE
+
+build:
+  type: arm64 Release
+  ros2: enabled
+  sherpa_agent: enabled
+  llm: Qwen3.5-2B Q4_K_M, CUDA full offload
+
+passed:
+  navigator_ui_mode_startup: PASS after increasing module startup window to 10s
+  ui_home_camera_ai_settings_diagnostics: PASS, manually viewed and clicked
+  camera_720p_live_ui: PASS, real image, 0 frame drops during observation
+  sensevoice_direct_asr: PASS, transcript "打开相机"
+  kokoro_tts: PASS, valid 24kHz PCM and playback receipt
+  whitelist_open_camera: PASS, action succeeded and UI changed to Camera
+  llm_open_question: PASS, answer displayed in UI
+  unsafe_shell_can_request: PASS, intent unknown, action none
+  llama_kill_recovery: PASS, Agent stayed alive, new server healthy after 5.2s
+  camera_driver_kill_recovery: PASS, Navigator restart=1, HMI stayed alive
+  ros2_nav2_test_stack: PASS, 16 nodes active, fake chassis/no CAN output
+  clean_shutdown: PASS, no Cockpit/LLM/ROS2 child remained
+
+blockers:
+  sherpa_kws_arm64_c_api: FAIL
+  detail: official v1.13.4 CLI detects the same fixture; project C API provider returns no wake detection
+  full_system_60min: EARLY_FAIL_AT_17_MIN
+  reason: KWS disabled/direct listening allowed ambient speech to create uncontrolled ASR/LLM/TTS sessions
+
+resource_observation:
+  navigator_tree_rss_start_kib: 2855724
+  navigator_tree_rss_17min_kib: 3869208
+  system_mem_available_start_kib: 1450852
+  system_mem_available_17min_kib: 561488
+  swap_used_observed_kib: 1374208
+  max_temperature_c: 58.3
+  llama_rss_observed_kib: 2515220
+  agent_rss_observed_kib: 1174656
+  ui_rss_observed_kib: 60972
+  camera_rss_observed_kib: 55416
+  camera_frames_observed: 43737
+  camera_frames_dropped: 0
+  voice_requests_observed: 12
+  voice_processing_errors: 0
+  tts_timeouts: 1
+
+conclusion:
+  Full-system 60min PASS is not claimed. Production KWS gating must work before rerunning the final soak.
+  The early stop prevented OOM and is a valid capacity/safety failure result, not a partial PASS.

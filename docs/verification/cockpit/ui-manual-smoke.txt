@@ -1,0 +1,14 @@
+date: 2026-09-02
+target: Jetson Xorg, 1280x720 display
+render_capture: Qt Quick software renderer used only for inspectable screenshots; backend services remained real
+startup: PASS
+home_page: PASS, vehicle state updated live
+camera_page: PASS, 1280x720 LIVE real image and frame counter
+camera_photo: PASS, photo saved path displayed
+ai_page: PASS, service online and LLM response displayed
+settings_page: PASS, Gateway connected and backend states visible
+diagnostics_page: PASS, Gateway/Audio/Voice/Camera OK, Media DISABLED as configured
+whitelist_ui_transition: PASS, "打开相机" moved UI to Camera page
+backend_restart_visibility: PASS, Camera health transitions recorded; UI process remained alive
+unexpected_ui_exit: 0
+result: PASS
