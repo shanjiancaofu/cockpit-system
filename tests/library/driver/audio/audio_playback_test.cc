@@ -174,6 +174,45 @@ int main() {
     return 1;
   }
 
+  cockpit::audio::PcmBuffer cancellation_stress_buffer;
+  cancellation_stress_buffer.format.sample_rate_hz = 16000;
+  cancellation_stress_buffer.format.channels = 1;
+  cancellation_stress_buffer.format.frame_ms = 20;
+  cancellation_stress_buffer.samples.assign(320, 0);
+  for (std::uint64_t iteration = 1U; iteration <= 128U; ++iteration) {
+    auto stress_player = std::make_unique<BlockingAudioPlayer>();
+    auto* stress_observer = stress_player.get();
+    cockpit::audio::AudioPlayback stress_output("test-output", std::move(stress_player));
+    if (!stress_output.Start(&error)) {
+      std::cerr << "playback cancellation stress failed to start\n";
+      return 1;
+    }
+    const auto stress_id = stress_output.Submit(cancellation_stress_buffer, 1000U + iteration);
+    if (!stress_id.has_value() || !stress_observer->WaitUntilEntered()) {
+      std::cerr << "playback cancellation stress did not enter the player\n";
+      return 1;
+    }
+    cockpit::audio::AudioPlaybackResult stress_result;
+    std::thread waiter([&] {
+      if (stress_output.WaitForResult(*stress_id, std::chrono::seconds(1), &stress_result) !=
+          cockpit::audio::AudioPlaybackWaitStatus::kReady) {
+        stress_result.status = cockpit::audio::AudioPlaybackStatus::kFailed;
+      }
+    });
+    if (!stress_output.Cancel(*stress_id)) {
+      waiter.join();
+      std::cerr << "playback cancellation stress rejected cancellation\n";
+      return 1;
+    }
+    waiter.join();
+    stress_output.Stop();
+    if (stress_result.status != cockpit::audio::AudioPlaybackStatus::kCancelled ||
+        stress_output.metrics().dropped != 1U) {
+      std::cerr << "playback cancellation stress lost its terminal result\n";
+      return 1;
+    }
+  }
+
   auto queue_player = std::make_unique<BlockingAudioPlayer>();
   auto* queue_player_observer = queue_player.get();
   cockpit::audio::AudioPlayback bounded_queue("test-output", std::move(queue_player));

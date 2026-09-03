@@ -131,6 +131,21 @@ fi
 
 "${build_dir}/bin/camera-ctl" --start --device /dev/video0 --width 1280 --height 720 --fps 30 \
   --config "${config_path}" >/dev/null
+camera_live=false
+for _ in $(seq 1 100); do
+  camera_status="$("${build_dir}/bin/camera-ctl" --status --output json \
+    --config "${config_path}" 2>/dev/null || true)"
+  if [[ "${camera_status}" == *'"state":"CAMERA_PREVIEW_STATE_RUNNING"'* &&
+        "${camera_status}" != *'"frames_received":"0"'* ]]; then
+    camera_live=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "${camera_live}" != true ]]; then
+  echo "Software ISP preview did not deliver a live frame; log: ${navigator_log}" >&2
+  exit 1
+fi
 
 llm_fault_at="${llm_fault_at_override:-$((duration_seconds * 60 / 100))}"
 camera_fault_at="${camera_fault_at_override:-$((duration_seconds * 75 / 100))}"

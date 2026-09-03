@@ -186,21 +186,34 @@ def main() -> int:
 
         if elapsed >= next_interaction:
             prompt = prompts[prompt_index % len(prompts)]
-            completed = run(
-                [str(bin_dir / "voice-ctl"), "--process", prompt, "--output", "json", "--config", str(args.config)],
-                timeout=60.0,
+            voice_status = json_command(
+                [str(bin_dir / "voice-ctl"), "--status", "--output", "json", "--config", str(args.config)]
             )
-            events.append(
-                {
-                    "elapsed_s": round(elapsed, 1),
-                    "event": "voice_request",
-                    "prompt": prompt,
-                    "returncode": completed.returncode,
-                    "stdout": completed.stdout.strip(),
-                    "stderr": completed.stderr.strip(),
-                }
-            )
-            prompt_index += 1
+            if voice_status.get("state") != "INTERACTION_STATE_IDLE":
+                events.append(
+                    {
+                        "elapsed_s": round(elapsed, 1),
+                        "event": "voice_request_skipped_busy",
+                        "prompt": prompt,
+                        "state": voice_status.get("state", "unavailable"),
+                    }
+                )
+            else:
+                completed = run(
+                    [str(bin_dir / "voice-ctl"), "--process", prompt, "--output", "json", "--config", str(args.config)],
+                    timeout=60.0,
+                )
+                events.append(
+                    {
+                        "elapsed_s": round(elapsed, 1),
+                        "event": "voice_request",
+                        "prompt": prompt,
+                        "returncode": completed.returncode,
+                        "stdout": completed.stdout.strip(),
+                        "stderr": completed.stderr.strip(),
+                    }
+                )
+                prompt_index += 1
             next_interaction += float(args.interaction_interval_seconds)
 
         if elapsed >= next_ui_click:
