@@ -66,5 +66,23 @@ ui_note:
 conclusion:
   KWS production gating and the 20-minute resource/capacity objective passed.
   LLM and camera process supervision recovered as designed.
-  Full-System V1 Freeze remains pending because the unexpected audio_driver SIGSEGV must either be
-  reproduced and fixed or retired through repeated clean targeted regression with an explicit risk record.
+  The original audio_driver SIGSEGV was not reproduced in a later 5-minute run with 4 successful
+  playbacks or a 10-minute high-frequency run with 10 accepted playback completions. The playback
+  cancel/wait/stop lifecycle additionally passed 1280 Release iterations and 128 ASan/UBSan iterations.
+  Exact native root cause remains unknown because the original target retained no core and ptrace is
+  restricted. V1 freezes this item as an explicitly accepted residual target risk, not as a claimed fix.
+
+follow_up_2026_09_03:
+  full_system_duration_s: 602.3
+  accepted_voice_sessions: 10
+  accepted_playback_completion_receipts: 10
+  audio_driver_restarts: 0
+  audio_driver_sigsegv: NOT_REPRODUCED
+  processing_errors: 0
+  tts_synthesis_timeouts: 1, bounded fallback playback completed
+  rejected_attempts: 9, expected active-session rejection from fixed 30-second request pacing
+  lifecycle_release_stress: 1280 active cancel/wait/stop iterations PASS
+  lifecycle_asan_ubsan_stress: 128 active cancel/wait/stop iterations PASS
+  grpc_release_regression: 10/10 PASS
+  camera_note: initial Software ISP process exited before live frames; this run is audio stress evidence,
+    not a replacement for the earlier camera-inclusive Gate
