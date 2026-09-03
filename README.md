@@ -5,6 +5,43 @@
 当前重点是单机车端链路：车辆状态、音频、语音、摄像头、Qt/QML UI、诊断工具和部署。云端
 平台、Web 前端和量产级安全能力暂不属于当前阶段。
 
+## V1 Portfolio Snapshot
+
+```mermaid
+flowchart LR
+    HW[CSI Camera / USB Audio / CAN] --> D[V4L2 / ALSA / SocketCAN]
+    D --> M[Camera / Audio / Vehicle modules]
+    M --> IPC[gRPC + shared memory + local sockets]
+    IPC --> N[Navigator supervision]
+    IPC --> A[KWS → VAD → ASR → Agent]
+    A -->|whitelist| ACT[HMI / safe local actions]
+    A -->|open question| LLM[Qwen3.5-2B llama.cpp]
+    LLM --> TTS[Kokoro TTS → Audio Driver]
+    IPC --> UI[Qt 6 / QML UI]
+    IPC --> ROS[ROS2 / Nav2 bridge]
+```
+
+| 能力 | Jetson Orin Nano 8GB 实测 |
+|---|---|
+| Software ISP 720p30 RAW10 | 30.01 FPS，P95 5.61ms，CPU 46%，0 drop/gap |
+| Software ISP 1080p30 RAW10 | 30.01 FPS，P95 11.22ms，CPU 90.7%，0 drop/gap |
+| KWS / Voice Gate | WenetSpeech 2024 mobile；正样本检出，近音/静音/command-only拒绝 |
+| Local AI | SenseVoice + Qwen3.5-2B + Kokoro；LLM first content 319ms基线 |
+| Process recovery | llama-server kill后Agent存活并约5.2s恢复；Camera module由Navigator重启 |
+| Full-system runtime | UI、Camera、Audio、Voice、LLM、ROS2并发20分钟资源Gate |
+| Quality gates | Debug/Release、ASan/UBSan、TSan、ROS2/Nav2、bounded OTA CI |
+
+V1 明确保留一项残余风险：曾发生一次`audio_driver` SIGSEGV，Navigator成功恢复；后续14次真实
+playback completion、1280次Release和128次ASan生命周期压力未复现。项目不声称未知根因已修复，
+而是将其作为可解释、可追踪的accepted risk冻结。物理Camera/CAN拔线、CUDA zero-copy和真实Nav2
+运动不属于V1结论。
+
+求职展示入口：
+
+- [V1验证总览](docs/V1验证总览.md)
+- [V1架构与面试](docs/V1架构与面试.md)
+- [V1求职材料包](docs/V1求职材料.md)
+
 ## 当前能力
 
 - SocketCAN/mock 车辆数据和 VehicleState gRPC streaming。
