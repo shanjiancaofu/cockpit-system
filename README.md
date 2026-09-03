@@ -31,6 +31,28 @@ flowchart LR
 | Full-system runtime | UI、Camera、Audio、Voice、LLM、ROS2并发20分钟资源Gate |
 | Quality gates | Debug/Release、ASan/UBSan、TSan、ROS2/Nav2、bounded OTA CI |
 
+### Argus Hardware ISP 与 Software ISP 性能对比
+
+以下数据来自同一台 Jetson Orin Nano 8GB 和 IMX219。短测中 Argus 的应用层统计约为32FPS，
+sensor mode目标仍为30FPS，因此表中统一记作“30-class”，不把短时计时误写成稳定超频能力。
+
+| Pipeline | Mode | FPS | Process CPU | Max RSS | ISP / queue P95 | Drop / Gap | V1定位 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Argus + Jetson HW ISP | 1280×720 | 30-class | 23.1% | 209.6MiB | N/A | N/A | 低CPU预览 |
+| Argus + Jetson HW ISP | 1920×1080 | 30-class | 28.3% | 226.6MiB | N/A | N/A | Production默认链路 |
+| V4L2 MMAP + Software ISP | 1280×720 RAW10 | 30.01 | 46.0% | 102.0MiB | 5.61ms | 0 / 0 | Software ISP基线 |
+| V4L2 MMAP + Software ISP | 1920×1080 RAW10 | 30.01 | 90.7% | 102.0MiB | 11.22ms | 0 / 0 | 质量/调试模式 |
+| V4L2 MMAP + Software ISP | 3280×2464 RAW10 | 30.01 | 246.0% | 192.6MiB | 30.15ms | 0 / 0 | RAW诊断，不作默认实时模式 |
+
+结论：Argus将Bayer处理交给Jetson专用ISP，1080p30应用CPU约28%，适合与ASR、TTS、LLM、UI和
+ROS2长期并发；Software ISP的优势是RAW可见、算法可改、各阶段可profiling，其中720p30 P95约
+5.6ms且CPU约46%，适合作为正式自研ISP基线。1080p30 Software ISP可以实时，但约占一个CPU core；
+原生8MP约占2.46个core且P95接近33.33ms帧周期，只用于RAW抓取、标定和算法实验。
+
+Argus路径当前未使用与Software ISP相同的source→output时间戳，因此不能根据现有数据宣称其端到端
+ISP latency具体低多少；`GR3D_FREQ`也不代表独立Jetson ISP硬件单元利用率。Argus RSS包含
+GStreamer、Argus runtime和内部buffer pool，不能解释为ISP算法本身的内存占用。
+
 V1 明确保留一项残余风险：曾发生一次`audio_driver` SIGSEGV，Navigator成功恢复；后续14次真实
 playback completion、1280次Release和128次ASan生命周期压力未复现。项目不声称未知根因已修复，
 而是将其作为可解释、可追踪的accepted risk冻结。物理Camera/CAN拔线、CUDA zero-copy和真实Nav2
