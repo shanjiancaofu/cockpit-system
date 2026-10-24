@@ -1,4 +1,4 @@
-#include "cockpit/modules/media/media_manifest.h"
+#include "cockpit/hmi/media/media_manifest.h"
 
 #include <unistd.h>
 

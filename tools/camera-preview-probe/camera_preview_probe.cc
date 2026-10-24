@@ -10,11 +10,11 @@
 #include <mutex>
 #include <string>
 
-#include "cockpit/core/runtime/process_runtime.h"
-#include "cockpit/modules/camera/capture/argus_isp_preview_source.h"
-#include "cockpit/modules/camera/capture/uvc_preview_source.h"
+#include "cockpit/driver/camera/capture/argus_isp_preview_source.h"
+#include "cockpit/driver/camera/capture/uvc_preview_source.h"
+#include "cockpit/exchange/foundation/runtime/process_runtime.h"
 #if defined(COCKPIT_CAMERA_HAS_SOFTWARE_ISP)
-#include "cockpit/modules/camera/capture/software_isp_preview_source.h"
+#include "cockpit/driver/camera/capture/software_isp_preview_source.h"
 #endif
 
 namespace {

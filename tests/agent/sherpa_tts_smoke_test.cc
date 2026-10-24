@@ -3,9 +3,9 @@
 #include <iostream>
 #include <string>
 
-#include "agent/speech/providers/sherpa/sherpa_kokoro_speech_synthesizer.h"
-#include "cockpit/core/config/system_config.h"
-#include "cockpit/modules/audio/wav/wav_file.h"
+#include "cockpit/driver/audio/wav/wav_file.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
+#include "cockpit/voice/speech/providers/sherpa/sherpa_kokoro_speech_synthesizer.h"
 
 int main(int argc, char** argv) {
   if (argc > 3) {

@@ -22,12 +22,12 @@ fi
 ln -sfn "${compile_database}" "${root_dir}/compile_commands.json"
 
 for source in \
-  cockpit/library/bridge/ros2_camera_frame_adapter.cc \
-  cockpit/library/bridge/ros2_camera_info_adapter.cc \
-  cockpit/library/bridge/ros2_camera_publisher.cc \
-  cockpit/library/bridge/ros2_chassis_odometry_adapter.cc \
-  cockpit/library/bridge/ros2_chassis_odometry_publisher.cc \
-  cockpit/library/bridge/ros2_nav2_provider.cc; do
+  cockpit/ros/bridge/runtime/ros2_camera_frame_adapter.cc \
+  cockpit/ros/bridge/runtime/ros2_camera_info_adapter.cc \
+  cockpit/ros/bridge/runtime/ros2_camera_publisher.cc \
+  cockpit/ros/bridge/runtime/ros2_chassis_odometry_adapter.cc \
+  cockpit/ros/bridge/runtime/ros2_chassis_odometry_publisher.cc \
+  cockpit/ros/bridge/runtime/ros2_nav2_provider.cc; do
   if ! grep -Fq "${root_dir}/${source}" "${compile_database}"; then
     echo "compile database is missing ${source}" >&2
     exit 1
@@ -37,4 +37,4 @@ done
 echo "ROS2 development compile database ready"
 echo "build_dir=${build_dir}"
 echo "compile_commands=${compile_database}"
-echo "Run scripts/ros2/build.sh to configure ros2/src files for clangd."
+echo "Run scripts/ros2/build.sh to configure cockpit/ros/src files for clangd."

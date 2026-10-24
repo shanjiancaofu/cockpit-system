@@ -1,0 +1,13 @@
+2026-10-24 19:30:10_247 [INFO] gateway gRPC server listening address=unix:/home/fff/code/github/cockpit-system/_output/runtime/nav2-minimal-smoke-79642/gateway.grpc.sock (/home/fff/code/github/cockpit-system/cockpit/transfer/runtime/gateway_grpc_service.cc:35)
+2026-10-24 19:30:10_247 [INFO] transfer runtime started grpc_address=unix:/home/fff/code/github/cockpit-system/_output/runtime/nav2-minimal-smoke-79642/gateway.grpc.sock (/home/fff/code/github/cockpit-system/cockpit/transfer/runtime/transfer_runtime.cc:37)
+2026-10-24 19:30:10_247 [INFO] started module transfer pid=79902 (/home/fff/code/github/cockpit-system/cockpit/navigator/process/process_manager.cc:419)
+2026-10-24 19:30:10_282 [INFO] vehicle gRPC server listening address=unix:/home/fff/code/github/cockpit-system/_output/runtime/nav2-minimal-smoke-79642/vehicle.grpc.sock (/home/fff/code/github/cockpit-system/cockpit/driver/vehicle/runtime/vehicle_grpc_service.cc:109)
+2026-10-24 19:30:10_282 [INFO] started module vehicle_driver pid=79909 (/home/fff/code/github/cockpit-system/cockpit/navigator/process/process_manager.cc:419)
+2026-10-24 19:30:10_282 [INFO] publish VehicleState {"timestamp_ms":1792841410282,"speed_kph":12.0,"gear":0,"soc_percent":88,"cloud_enabled":true,"source":"mock"} (/home/fff/code/github/cockpit-system/cockpit/driver/vehicle/runtime/vehicle_data_service.cc:229)
+{"timestamp_ms":1792841410282,"speed_kph":12.0,"gear":0,"soc_percent":88,"cloud_enabled":true,"source":"mock"}
+2026-10-24 19:30:10_291 [WARN] carupload transport is not implemented; cloud mode validates module lifecycle only (/home/fff/code/github/cockpit-system/cockpit/carcloud/carupload/carupload_runtime.cc:22)
+2026-10-24 19:30:10_291 [INFO] started module carupload pid=79916 (/home/fff/code/github/cockpit-system/cockpit/navigator/process/process_manager.cc:419)
+2026-10-24 19:30:10_291 [INFO] navigator started in mode cloud (/home/fff/code/github/cockpit-system/cockpit/navigator/navigator.cc:58)
+2026-10-24 19:30:13_687 [INFO] bridge gRPC server listening address=unix:/home/fff/code/github/cockpit-system/_output/runtime/nav2-minimal-smoke-79642/bridge.grpc.sock (/home/fff/code/github/cockpit-system/cockpit/ros/bridge/runtime/bridge_grpc_service.cc:60)
+2026-10-24 19:30:13_687 [INFO] started module bridge pid=79934 (/home/fff/code/github/cockpit-system/cockpit/navigator/process/process_manager.cc:419)
+2026-10-24 19:32:07_215 [INFO] navigator stopped (/home/fff/code/github/cockpit-system/cockpit/navigator/navigator.cc:77)

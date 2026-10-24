@@ -1,4 +1,4 @@
-#include "cockpit/core/config/system_config.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
 
 #include <cstdlib>
 #include <fstream>

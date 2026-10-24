@@ -4,7 +4,7 @@
 
 ## 当前结论
 
-cockpit-system 保持单 Git 仓库，ROS 2 自有代码放在 `ros2/src`，不复制或 fork Nav2 官方源码。
+cockpit-system 保持单 Git 仓库，ROS 2 自有代码放在 `cockpit/ros/src`，不复制或 fork Nav2 官方源码。
 Ubuntu 22.04 x86_64 已完成以下功能基线：
 
 ```text
@@ -33,18 +33,19 @@ Goal acknowledgement timeout 进入内部 uncertain/pending 保护：迟到的 N
 
 ```text
 cockpit-system/
-├── cockpit/modules/bridge/             平台无关 NavigationGoal/Pose/Status
-├── cockpit/library/bridge/             Navigator 生命周期、gRPC 和 ROS adapter
-├── ros2/src/
+├── cockpit/ros/bridge/                 平台无关 NavigationGoal/Pose/Status
+├── cockpit/ros/bridge/runtime/         Navigator 生命周期、gRPC 和 ROS adapter
+├── cockpit/ros/src/
 │   ├── cockpit_nav2_bringup/           launch、测试地图、参数所有权
 │   ├── cockpit_chassis_safety/          production safety core ROS2 adapter
+│   ├── cockpit_lidar_bringup/           LiDAR launch/config
 │   └── cockpit_nav2_test_support/       fake odom/TF/scan/chassis/readiness
 └── _output/
     ├── build/ros2/                      主项目可选 ROS2 CMake 构建
     └── ros2/{build,install,log}/        colcon 输出
 ```
 
-主项目继续使用普通 CMake；`ros2/src` 使用 colcon/ament。默认 CI 和默认产品构建保持
+主项目继续使用普通 CMake；`cockpit/ros/src` 使用 colcon/ament。默认 CI 和默认产品构建保持
 `COCKPIT_ENABLE_ROS2=OFF`。官方 ROS 2/Nav2 deb 安装在 `/opt/ros/humble`，版本由
 `scripts/setup/ros2/versions.sh` 按架构选择。
 
@@ -56,6 +57,7 @@ cd /home/ffz/code/github/cockpit-system
 bash scripts/setup/ros2/install.sh
 bash scripts/setup/ros2/verify.sh
 bash scripts/ros2/configure.sh
+# 从旧 ros2/ 目录迁移后首次构建，加 --cmake-clean-cache 刷新缓存
 bash scripts/ros2/build.sh
 bash scripts/ros2/test.sh
 
@@ -120,7 +122,7 @@ CameraInfo 发布时重新调用 `now()`。输入格式固定为 BGRx，尺寸�
 
 ## C1 LiDAR 软件边界
 
-`ros2/src/cockpit_lidar_bringup` 只保存官方 `rplidar_ros` 的 launch/config 合同：串口默认
+`cockpit/ros/src/cockpit_lidar_bringup` 只保存官方 `rplidar_ros` 的 launch/config 合同：串口默认
 `/dev/ttyUSB0`、460800、topic `/scan`、frame `base_scan`。它不包含 Slamtec SDK、不复制或修改
 官方驱动。`scripts/setup/ros2/prepare-rplidar-ros.sh` 将官方 ROS2 branch 的精确 revision
 `24cc9b6dea97e045bda1408eaa867ce730fd3fc3` 准备到 `_output/ros2/external-src`，随后由 colcon 一起构建；

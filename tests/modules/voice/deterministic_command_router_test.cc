@@ -1,9 +1,9 @@
-#include "cockpit/modules/voice/assistant/deterministic_command_router.h"
+#include "cockpit/voice/domain/assistant/deterministic_command_router.h"
 
 #include <iostream>
 #include <string>
 
-#include "cockpit/modules/voice/assistant/transcript_normalizer.h"
+#include "cockpit/voice/domain/assistant/transcript_normalizer.h"
 
 namespace {
 

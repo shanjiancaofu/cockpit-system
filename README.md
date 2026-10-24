@@ -101,35 +101,23 @@ playback completion、1280次Release和128次ASan生命周期压力未复现。�
 
 ## 架构
 
-```text
-systemd → cockpit/navigator → module child → cockpit/library / agent
-
-Linux / Hardware → drivers → modules → library / agent / apps / tools
-drivers 之上的项目层共用 core；跨进程契约位于 proto
-```
-
-- `cockpit/core`：配置、日志、Runtime、事件和 IPC。
-- `cockpit/drivers`：ALSA、SocketCAN、V4L2。
-- `cockpit/modules`：audio、camera、vehicle、voice 等领域能力。
-- `cockpit/navigator`：统一入口、模式、模块进程和状态管理。
-- `cockpit/library`：进程级动态业务模块和资源所有权。
-- `agent`：语音、会话、动作和本地 AI 应用层。
-- `cockpit/apps`：Qt/QML UI。
-- `tools`：模拟器和诊断工具。
+`cockpit/` 固定为 17 个一级业务模块，统一保存在本仓库：
 
 ```text
-cockpit-system/
-├── _output/   WSL 构建、打包和运行输出（不入库）
-├── cockpit/   产品源码
-├── tools/     诊断与模拟器
-├── tests/     C++ 测试源码与测试夹具
-├── configs/   开发与生产运行配置
-├── cmake/     构建模块
-├── deploy/    安装、回滚、systemd 和发布声明
-├── scripts/   构建、打包、环境准备、本地运行和测试脚本
-├── ros2/      cockpit 自有 ament packages；官方 ROS2/Nav2 仍位于 /opt/ros/humble
-└── docs/      文档
+cockpit/
+  navigator/  driver/    voice/     agent/
+  eunomia/    hawkeye/   exchange/  transfer/
+  carcloud/   debugger/  spider/    geois/
+  hmi/        shield/    upgrader/  vanguard/
+  ros/
 ```
+
+公共基础能力位于 `exchange/foundation/`；模块接口头文件与实现在对应功能目录组织，日志实现归 debugger。
+Navigator 管进程，Agent 管模型任务；17 个源码模块不要求启动 17 个进程。
+原有 Recording → spider，Sentinel → vanguard，Bridge → ros，Media → hmi。
+旧语音 Agent 源码归 voice；已有 LLM 推理后端归 agent。ABI、gRPC 协议和现有进程组合保持兼容。
+
+当前目录边界见 [模块化边界](docs/模块化边界.md)，完整迁移与验证见 [V2 架构重组](docs/V2架构重组.md)。
 
 详细说明见：
 

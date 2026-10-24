@@ -10,8 +10,8 @@
 #include "topic_store.h"
 #include "topic_text.h"
 
-#include "cockpit/core/json/json.h"
-#include "cockpit/core/time/time.h"
+#include "cockpit/exchange/foundation/json/json.h"
+#include "cockpit/exchange/foundation/time/time.h"
 
 namespace cockpit {
 namespace topic {

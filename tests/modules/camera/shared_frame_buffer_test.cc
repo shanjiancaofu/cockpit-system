@@ -1,4 +1,4 @@
-#include "cockpit/modules/camera/shared_memory/shared_frame_buffer.h"
+#include "cockpit/driver/camera/shared_memory/shared_frame_buffer.h"
 
 #include <sys/wait.h>
 #include <unistd.h>

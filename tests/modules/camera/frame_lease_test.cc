@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "cockpit/modules/camera/capture/native_argus_capture.h"
+#include "cockpit/driver/camera/capture/native_argus_capture.h"
 
 int main() {
   using namespace cockpit::camera;

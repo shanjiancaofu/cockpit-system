@@ -1,4 +1,4 @@
-#include "cockpit/modules/camera/frames/frame_broker.h"
+#include "cockpit/driver/camera/frames/frame_broker.h"
 
 #include <atomic>
 #include <cassert>

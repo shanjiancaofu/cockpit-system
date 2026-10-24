@@ -1,4 +1,4 @@
-#include "cockpit/core/ipc/shared_memory_region.h"
+#include "cockpit/exchange/foundation/ipc/shared_memory_region.h"
 
 #include <unistd.h>
 

@@ -1,0 +1,73 @@
+#include "cockpit/hmi/media/runtime/media_runtime.h"
+
+#include <exception>
+#include <memory>
+#include <string>
+
+#include "cockpit/exchange/foundation/config/system_config.h"
+#include "cockpit/exchange/foundation/logging/logger.h"
+#include "cockpit/hmi/media/media_player.h"
+#include "cockpit/hmi/media/runtime/media_grpc_service.h"
+#include "cockpit/hmi/media/runtime/media_service.h"
+
+namespace cockpit {
+namespace media {
+
+MediaRuntime::MediaRuntime() = default;
+
+MediaRuntime::~MediaRuntime() {
+  Stop();
+}
+
+bool MediaRuntime::Start(const std::string& config_path) {
+  if (service_ != nullptr || grpc_ != nullptr) {
+    return false;
+  }
+  try {
+    const auto config = config::SystemConfig::LoadFromFile(config_path);
+    logging::InitLogger("media", config.paths().log_dir,
+                        logging::ParseLevel(config.logging().level), config.logging().mirror_stderr,
+                        config.logging().dump_time_secs, config.logging().cut_off_time_mins,
+                        config.logging().max_files);
+    std::unique_ptr<MediaPlayer> player;
+    if (config.services().media.provider == "mock") {
+      player = CreateMockMediaPlayer();
+    } else if (config.services().media.provider == "gstreamer-fakesink" ||
+               config.services().media.provider == "gstreamer") {
+      player = CreateGstreamerMediaPlayer(config.services().media.manifest,
+                                          config.services().media.sink);
+      if (player == nullptr) {
+        LOG_ERROR("failed to load configured media manifest or initialize GStreamer backend");
+        return false;
+      }
+    } else {
+      player = CreateDisabledMediaPlayer();
+    }
+    service_ = std::make_unique<MediaService>(std::move(player));
+    grpc_ = std::make_unique<MediaGrpcService>(*service_);
+    if (!grpc_->Start(config.services().media.grpc.listen_address)) {
+      Stop();
+      return false;
+    }
+    return true;
+  } catch (const std::exception& error) {
+    LOG_ERROR("failed to configure media service: " + std::string(error.what()));
+    Stop();
+    return false;
+  }
+}
+
+void MediaRuntime::Stop() {
+  if (grpc_ != nullptr) {
+    grpc_->Shutdown();
+  }
+  grpc_.reset();
+  service_.reset();
+}
+
+int MediaRuntime::Poll() const {
+  return service_ != nullptr && grpc_ != nullptr ? 0 : 1;
+}
+
+}  // namespace media
+}  // namespace cockpit

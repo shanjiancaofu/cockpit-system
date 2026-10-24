@@ -1,4 +1,4 @@
-#include "cockpit/navigator/common/module_api.h"
+#include "cockpit/exchange/abi/module_api.h"
 
 namespace {
 

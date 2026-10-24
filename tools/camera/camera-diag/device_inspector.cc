@@ -8,7 +8,7 @@
 
 #include "diagnostics.h"
 
-#include "cockpit/drivers/v4l2/v4l2_camera.h"
+#include "cockpit/driver/platform/v4l2/v4l2_camera.h"
 
 namespace cockpit::camera_diag {
 Json InspectEnvironment() {

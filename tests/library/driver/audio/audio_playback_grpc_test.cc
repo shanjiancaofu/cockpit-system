@@ -13,12 +13,12 @@
 #include <thread>
 
 #include "audio.grpc.pb.h"
-#include "cockpit/core/config/system_config.h"
-#include "cockpit/library/driver/audio/capture/audio_capture_controller.h"
-#include "cockpit/library/driver/audio/grpc/audio_grpc_server.h"
-#include "cockpit/library/driver/audio/playback/audio_playback.h"
-#include "cockpit/library/driver/audio/transport/audio_stream_publisher.h"
-#include "cockpit/modules/audio/playback/audio_player.h"
+#include "cockpit/driver/audio/playback/audio_player.h"
+#include "cockpit/driver/audio/runtime/capture/audio_capture_controller.h"
+#include "cockpit/driver/audio/runtime/grpc/audio_grpc_server.h"
+#include "cockpit/driver/audio/runtime/playback/audio_playback.h"
+#include "cockpit/driver/audio/runtime/transport/audio_stream_publisher.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
 
 namespace {
 

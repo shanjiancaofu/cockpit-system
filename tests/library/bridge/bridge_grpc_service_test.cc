@@ -1,4 +1,4 @@
-#include "cockpit/library/bridge/bridge_grpc_service.h"
+#include "cockpit/ros/bridge/runtime/bridge_grpc_service.h"
 
 #include <grpcpp/grpcpp.h>
 #include <unistd.h>
@@ -9,7 +9,7 @@
 #include <string>
 
 #include "bridge.grpc.pb.h"
-#include "cockpit/modules/bridge/fake_bridge_provider.h"
+#include "cockpit/ros/bridge/fake_bridge_provider.h"
 #include "common.pb.h"
 
 int main() {

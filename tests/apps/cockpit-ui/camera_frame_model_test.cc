@@ -1,10 +1,10 @@
-#include "cockpit/apps/cockpit-ui/camera/camera_frame_model.h"
+#include "cockpit/hmi/app/camera/camera_frame_model.h"
 
 #include <QImage>
 #include <QSignalSpy>
 #include <QtTest>
 
-#include "cockpit/apps/cockpit-ui/camera/camera_image_provider.h"
+#include "cockpit/hmi/app/camera/camera_image_provider.h"
 
 class CameraFrameModelTest final : public QObject {
   Q_OBJECT

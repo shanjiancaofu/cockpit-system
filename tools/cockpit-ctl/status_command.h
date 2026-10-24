@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "cockpit/core/config/system_config.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
 #include "tools/diagnostics/cli_output.h"
 
 namespace cockpit {

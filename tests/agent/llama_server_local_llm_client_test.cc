@@ -1,4 +1,4 @@
-#include "agent/llm/llama_server_local_llm_client.h"
+#include "cockpit/agent/llm/llama_server_local_llm_client.h"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>

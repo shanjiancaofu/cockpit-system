@@ -1,0 +1,5 @@
+2026-10-24 19:33:41_356 [INFO] bridge-ctl started config=/home/fff/code/github/cockpit-system/_output/runtime/ros2-nav2-smoke-87167/config.yaml (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:42)
+2026-10-24 19:33:41_400 [INFO] bridge-ctl stopped (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:60)
+2026-10-24 19:33:41_625 [INFO] bridge-ctl started config=/home/fff/code/github/cockpit-system/_output/runtime/ros2-nav2-smoke-87167/config.yaml (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:42)
+2026-10-24 19:33:41_629 [INFO] bridge-ctl stopped (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:60)
+ROS2 Nav2 Bridge full-process smoke passed

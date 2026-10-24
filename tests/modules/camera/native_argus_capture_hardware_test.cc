@@ -7,7 +7,7 @@
 #include <thread>
 #include <vector>
 
-#include "cockpit/modules/camera/capture/native_argus_capture.h"
+#include "cockpit/driver/camera/capture/native_argus_capture.h"
 #include "tools/camera/camera-diag/diagnostics.h"
 
 namespace camera = cockpit::camera;

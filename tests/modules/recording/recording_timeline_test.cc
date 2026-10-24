@@ -1,4 +1,4 @@
-#include "cockpit/modules/recording/recording_timeline.h"
+#include "cockpit/spider/recording/recording_timeline.h"
 
 #include <unistd.h>
 

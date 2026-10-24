@@ -10,7 +10,7 @@
 #include <thread>
 #include <utility>
 
-#include "cockpit/core/json/json.h"
+#include "cockpit/exchange/foundation/json/json.h"
 #include "gateway.grpc.pb.h"
 
 namespace cockpit {

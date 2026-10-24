@@ -2,7 +2,7 @@
 #include <iostream>
 #include <string>
 
-#include "cockpit/core/runtime/args.h"
+#include "cockpit/exchange/foundation/runtime/args.h"
 #include "tools/diagnostics/cli_output.h"
 #include "tools/safe-ota/action/safe_ota.h"
 #include "tools/safe-ota/common/safe_ota_options.h"

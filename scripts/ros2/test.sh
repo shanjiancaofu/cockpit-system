@@ -17,7 +17,7 @@ source "${output_dir}/install/setup.bash"
 set -u
 
 colcon --log-base "${output_dir}/log" test \
-  --base-paths "${root_dir}/ros2/src" \
+  --base-paths "${root_dir}/cockpit/ros/src" \
   --build-base "${output_dir}/build" \
   --install-base "${output_dir}/install" \
   --merge-install \

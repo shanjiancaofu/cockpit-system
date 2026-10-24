@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-workspace_dir="${root_dir}/ros2"
+workspace_dir="${root_dir}/cockpit/ros"
 output_dir="$(realpath -m "${ROS2_OUTPUT_DIR:-${root_dir}/_output/ros2}")"
 external_source_dir="$(realpath -m "${ROS2_EXTERNAL_SOURCE_DIR:-${output_dir}/external-src}")"
 # shellcheck source=/dev/null
@@ -39,6 +39,7 @@ colcon --log-base "${log_dir}" build \
   --install-base "${install_dir}" \
   --merge-install \
   --symlink-install \
+  "$@" \
   --cmake-args \
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON

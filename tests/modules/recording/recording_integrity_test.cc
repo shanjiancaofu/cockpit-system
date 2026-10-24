@@ -1,4 +1,4 @@
-#include "cockpit/modules/recording/recording_integrity.h"
+#include "cockpit/spider/recording/recording_integrity.h"
 
 #include <unistd.h>
 

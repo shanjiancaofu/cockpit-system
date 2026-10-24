@@ -15,8 +15,8 @@
 #include <utility>
 #include <vector>
 
-#include "cockpit/core/build/build_info.h"
-#include "cockpit/core/json/json.h"
+#include "cockpit/exchange/foundation/build/build_info.h"
+#include "cockpit/exchange/foundation/json/json.h"
 #include "cockpit/navigator/connection/ipc_connector.h"
 #include "tools/cockpit-ctl/status_command.h"
 #include "tools/diagnostics/cli_output.h"

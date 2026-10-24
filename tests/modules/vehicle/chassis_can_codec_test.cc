@@ -1,10 +1,10 @@
-#include "cockpit/modules/vehicle/chassis_can_codec.h"
+#include "cockpit/driver/vehicle/chassis_can_codec.h"
 
 #include <array>
 #include <cstdint>
 #include <iostream>
 
-#include "cockpit/modules/vehicle/chassis_can_safety_state_source.h"
+#include "cockpit/driver/vehicle/chassis_can_safety_state_source.h"
 
 namespace {
 

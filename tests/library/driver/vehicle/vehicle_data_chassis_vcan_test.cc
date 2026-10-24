@@ -8,10 +8,10 @@
 #include <thread>
 #include <vector>
 
-#include "cockpit/drivers/socketcan/socket_can.h"
-#include "cockpit/library/driver/vehicle/vehicle_data_service.h"
-#include "cockpit/modules/can/socket_can_adapter.h"
-#include "cockpit/modules/vehicle/chassis_can_codec.h"
+#include "cockpit/driver/can/socket_can_adapter.h"
+#include "cockpit/driver/platform/socketcan/socket_can.h"
+#include "cockpit/driver/vehicle/chassis_can_codec.h"
+#include "cockpit/driver/vehicle/runtime/vehicle_data_service.h"
 
 namespace {
 

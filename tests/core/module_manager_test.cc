@@ -1,11 +1,11 @@
-#include "cockpit/core/runtime/module_manager.h"
+#include "cockpit/exchange/foundation/runtime/module_manager.h"
 
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "cockpit/core/runtime/module.h"
+#include "cockpit/exchange/foundation/runtime/module.h"
 
 namespace {
 

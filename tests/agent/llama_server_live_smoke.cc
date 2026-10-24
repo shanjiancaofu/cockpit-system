@@ -5,7 +5,7 @@
 #include <string>
 #include <utility>
 
-#include "agent/llm/llama_server_local_llm_client.h"
+#include "cockpit/agent/llm/llama_server_local_llm_client.h"
 
 int main(int argc, char** argv) {
   if (argc != 4 && argc != 5) {

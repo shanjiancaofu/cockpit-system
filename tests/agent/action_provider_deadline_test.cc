@@ -10,8 +10,8 @@
 #include <string>
 #include <thread>
 
-#include "agent/hmi/local_hmi_command_provider.h"
-#include "agent/vehicle/gateway_vehicle_status_client.h"
+#include "cockpit/voice/hmi/local_hmi_command_provider.h"
+#include "cockpit/voice/vehicle/gateway_vehicle_status_client.h"
 #include "gateway.grpc.pb.h"
 #include "hmi.grpc.pb.h"
 

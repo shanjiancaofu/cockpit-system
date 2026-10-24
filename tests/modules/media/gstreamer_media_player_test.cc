@@ -13,7 +13,7 @@
 #include <thread>
 #include <vector>
 
-#include "cockpit/modules/media/media_player.h"
+#include "cockpit/hmi/media/media_player.h"
 
 namespace {
 

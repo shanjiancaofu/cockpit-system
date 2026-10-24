@@ -1,4 +1,4 @@
-#include "cockpit/modules/audio/capture/audio_capture_stream.h"
+#include "cockpit/driver/audio/capture/audio_capture_stream.h"
 
 #include <atomic>
 #include <chrono>

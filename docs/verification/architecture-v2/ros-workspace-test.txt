@@ -1,0 +1,65 @@
+Starting >>> cockpit_chassis_safety
+Starting >>> cockpit_nav2_test_support
+Finished <<< cockpit_nav2_test_support [0.05s]
+UpdateCTestConfiguration  from :/home/fff/code/github/cockpit-system/_output/ros2/build/cockpit_chassis_safety/CTestConfiguration.ini
+Parse Config file:/home/fff/code/github/cockpit-system/_output/ros2/build/cockpit_chassis_safety/CTestConfiguration.ini
+   Site: nvidia
+   Build name: (empty)
+ Add coverage exclude regular expressions.
+Create new tag: 20261024-1130 - Experimental
+UpdateCTestConfiguration  from :/home/fff/code/github/cockpit-system/_output/ros2/build/cockpit_chassis_safety/CTestConfiguration.ini
+Parse Config file:/home/fff/code/github/cockpit-system/_output/ros2/build/cockpit_chassis_safety/CTestConfiguration.ini
+Test project /home/fff/code/github/cockpit-system/_output/ros2/build/cockpit_chassis_safety
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: twist_contract_test
+
+1: Test command: /home/fff/code/github/cockpit-system/_output/ros2/build/cockpit_chassis_safety/twist_contract_test
+1: Test timeout computed to be: 10000000
+1: differential Twist contract tests passed
+1/1 Test #1: twist_contract_test ..............   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.01 sec
+Finished <<< cockpit_chassis_safety [0.10s]
+Starting >>> cockpit_nav2_bringup
+Finished <<< cockpit_nav2_bringup [0.04s]
+Starting >>> cockpit_lidar_bringup
+Finished <<< cockpit_lidar_bringup [0.04s]
+
+Summary: 4 packages finished [0.98s]
+Summary: 2 tests, 0 errors, 0 failures, 0 skipped
+Nav2 lifecycle and NavigateToPose action are ready
+2026-10-24 19:30:13_777 [INFO] bridge-ctl started config=/home/fff/code/github/cockpit-system/_output/runtime/nav2-minimal-smoke-79642/config.yaml (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:42)
+2026-10-24 19:30:13_898 [INFO] bridge-ctl stopped (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:60)
+fault-control command passed: assert-cmd-zero
+fault-control command passed: assert-cmd-zero
+fault-control command passed: assert-cmd-zero
+fault-control command passed: assert-cmd-zero
+2026-10-24 19:30:39_805 [INFO] bridge-ctl started config=/home/fff/code/github/cockpit-system/_output/runtime/nav2-minimal-smoke-79642/config.yaml (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:42)
+2026-10-24 19:30:39_810 [INFO] bridge-ctl stopped (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:60)
+2026-10-24 19:30:39_869 [INFO] bridge-ctl started config=/home/fff/code/github/cockpit-system/_output/runtime/nav2-minimal-smoke-79642/config.yaml (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:42)
+2026-10-24 19:30:39_902 [INFO] bridge-ctl stopped (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:60)
+fault-control command passed: assert-cmd-zero
+2026-10-24 19:30:41_036 [INFO] bridge-ctl started config=/home/fff/code/github/cockpit-system/_output/runtime/nav2-minimal-smoke-79642/config.yaml (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:42)
+2026-10-24 19:30:41_041 [INFO] bridge-ctl stopped (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:60)
+fault-control command passed: assert-cmd-zero
+fault-control command passed: odometry-disable
+2026-10-24 19:31:08_235 [INFO] bridge-ctl started config=/home/fff/code/github/cockpit-system/_output/runtime/nav2-minimal-smoke-79642/config.yaml (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:42)
+2026-10-24 19:31:08_240 [INFO] bridge-ctl stopped (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:60)
+fault-control command passed: assert-cmd-zero
+fault-control command passed: odometry-enable
+2026-10-24 19:31:41_712 [INFO] bridge-ctl started config=/home/fff/code/github/cockpit-system/_output/runtime/nav2-minimal-smoke-79642/config.yaml (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:42)
+2026-10-24 19:31:41_717 [INFO] bridge-ctl stopped (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:60)
+fault-control command passed: assert-cmd-zero
+Nav2 lifecycle and NavigateToPose action are ready
+2026-10-24 19:32:00_985 [INFO] bridge-ctl started config=/home/fff/code/github/cockpit-system/_output/runtime/nav2-minimal-smoke-79642/config.yaml (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:42)
+2026-10-24 19:32:00_991 [INFO] bridge-ctl stopped (/home/fff/code/github/cockpit-system/cockpit/exchange/foundation/runtime/process_runtime.cc:60)
+fault-control command failed: assert-cmd-zero
+[ros2run]: Process exited with failure 1

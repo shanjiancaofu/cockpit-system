@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "cockpit/modules/camera/isp/software_isp.h"
+#include "cockpit/driver/camera/isp/software_isp.h"
 
 namespace {
 double CpuMs(const rusage& usage) {

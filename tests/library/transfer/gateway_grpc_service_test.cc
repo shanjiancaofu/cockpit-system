@@ -1,4 +1,4 @@
-#include "cockpit/library/transfer/gateway_grpc_service.h"
+#include "cockpit/transfer/runtime/gateway_grpc_service.h"
 
 #include <grpcpp/grpcpp.h>
 #include <unistd.h>

@@ -42,7 +42,7 @@
 - `cockpit/navigator/process/process_manager.cc:66-73`
 - `cockpit/navigator/process/process_manager.cc:251-274`
 - `cockpit/navigator/process/process_manager.cc:354-360`
-- `cockpit/library/hmi/hmi_runtime.cc:39-49`
+- `cockpit/hmi/runtime/hmi_runtime.cc:39-49`
 - `deploy/install.sh:46-50`
 - `tools/safe-ota/action/safe_ota.cc:110-175`
 - `deploy/healthcheck.sh:8-38`
@@ -79,9 +79,9 @@ Navigator 启动时通过 `/proc/self/exe` 保存了当前真实可执行文件�
 
 **位置：**
 
-- `cockpit/library/upgrader/upgrade_transaction.cc:122-154`
-- `cockpit/library/upgrader/upgrade_transaction.cc:347-350`
-- `cockpit/library/upgrader/upgrade_transaction.cc:533-548`
+- `cockpit/upgrader/runtime/upgrade_transaction.cc:122-154`
+- `cockpit/upgrader/runtime/upgrade_transaction.cc:347-350`
+- `cockpit/upgrader/runtime/upgrade_transaction.cc:533-548`
 - `tools/safe-ota/action/safe_ota.cc:115-123`
 - `cockpit/navigator/process/process_manager.cc:151-186`
 - `cockpit/navigator/process/run_config.h:18-21`
@@ -129,11 +129,11 @@ Navigator 启动时通过 `/proc/self/exe` 保存了当前真实可执行文件�
 
 **位置：**
 
-- `cockpit/core/logging/logger.cc:55-74`
+- `cockpit/debugger/logging/logger.cc:55-74`
 - `cockpit/navigator/main.cc:73-79`
 - `cockpit/navigator/process/process_manager.cc:251-274`
-- `cockpit/library/upgrader/upgrader_runtime.cc:18-64`
-- `cockpit/library/upgrader/upgrade_transaction.cc:122-145`
+- `cockpit/upgrader/runtime/upgrader_runtime.cc:18-64`
+- `cockpit/upgrader/runtime/upgrade_transaction.cc:122-145`
 
 **问题：**
 
@@ -199,11 +199,11 @@ IPC server 创建前无条件 unlink 已存在的 socket 文件，没有先探�
 **位置：**
 
 - `configs/development.yaml:60-69`
-- `cockpit/library/recording/recording_service.cc:18-34`
-- `cockpit/library/recording/recording_service.cc:175-217`
-- `cockpit/modules/recording/recording_catalog.cc:98-124`
-- `cockpit/modules/recording/recording_session.cc:150-179`
-- `cockpit/modules/recording/recording_session.cc:269-317`
+- `cockpit/spider/recording/runtime/recording_service.cc:18-34`
+- `cockpit/spider/recording/runtime/recording_service.cc:175-217`
+- `cockpit/spider/recording/recording_catalog.cc:98-124`
+- `cockpit/spider/recording/recording_session.cc:150-179`
+- `cockpit/spider/recording/recording_session.cc:269-317`
 
 **问题：**
 
@@ -237,11 +237,11 @@ Catalog 清理只会删除已完成会话，无法限制一个持续增长的活
 
 **位置：**
 
-- `cockpit/library/driver/camera/control/camera_service.cc:106-249`
-- `cockpit/library/driver/camera/grpc/camera_grpc_service.cc:126-154`
-- `cockpit/core/runtime/module_manager.cc:27-70`
-- `cockpit/core/runtime/module.cc:34-67`
-- `cockpit/core/runtime/module.h:44-45`
+- `cockpit/driver/camera/runtime/control/camera_service.cc:106-249`
+- `cockpit/driver/camera/runtime/grpc/camera_grpc_service.cc:126-154`
+- `cockpit/exchange/foundation/runtime/module_manager.cc:27-70`
+- `cockpit/exchange/foundation/runtime/module.cc:34-67`
+- `cockpit/exchange/public/foundation/runtime/module.h:44-45`
 
 **问题：**
 
@@ -273,8 +273,8 @@ Camera Start/Stop/健康检查在 `lifecycle_mutex_` 保护下修改 `ModuleMana
 
 - `deploy/systemd/cockpit-navigator@.service:6-13`
 - `configs/development.yaml:17-69`
-- `cockpit/library/recording/recording_grpc_service.cc:90-100`
-- `cockpit/library/driver/camera/grpc/camera_grpc_service.cc:93-103`
+- `cockpit/spider/recording/runtime/recording_grpc_service.cc:90-100`
+- `cockpit/driver/camera/runtime/grpc/camera_grpc_service.cc:93-103`
 - `cockpit/library/driver/audio/grpc/audio_grpc_service.cc:84-94`
 - Vehicle、Transfer、Voice 等其他 gRPC server 同样使用 `grpc::InsecureServerCredentials()`
 
@@ -284,10 +284,10 @@ Camera Start/Stop/健康检查在 `lifecycle_mutex_` 保护下修改 `ModuleMana
 
 录制 API 允许调用方传入服务器本地路径：
 
-- `cockpit/proto/recording.proto:24-32`
-- `cockpit/library/recording/recording_grpc_service.cc:149-166`
-- `cockpit/modules/recording/recording_data_file.cc:10-12`
-- `cockpit/modules/recording/recording_session.cc:269-317`
+- `cockpit/exchange/proto/recording.proto:24-32`
+- `cockpit/spider/recording/runtime/recording_grpc_service.cc:149-166`
+- `cockpit/spider/recording/recording_data_file.cc:10-12`
+- `cockpit/spider/recording/recording_session.cc:269-317`
 
 当前校验基本只要求路径非空，root 进程随后复制该本地普通文件。这构成 confused-deputy 风险：低权限本地进程可诱导 root 服务读取并复制其本来无权读取的文件。
 
@@ -306,9 +306,9 @@ Camera Start/Stop/健康检查在 `lifecycle_mutex_` 保护下修改 `ModuleMana
 
 **位置：**
 
-- `cockpit/library/upgrader/upgrade_transaction.cc:88-119`
-- `cockpit/library/upgrader/upgrade_transaction.cc:312-316`
-- `cockpit/library/upgrader/upgrade_transaction.cc:347-350`
+- `cockpit/upgrader/runtime/upgrade_transaction.cc:88-119`
+- `cockpit/upgrader/runtime/upgrade_transaction.cc:312-316`
+- `cockpit/upgrader/runtime/upgrade_transaction.cc:347-350`
 
 **问题：**
 
@@ -334,7 +334,7 @@ Camera Start/Stop/健康检查在 `lifecycle_mutex_` 保护下修改 `ModuleMana
 
 ### P2-1 录制 flush 计数是全局的，与“每个流每 10 条 flush”语义不一致
 
-**位置：** `cockpit/modules/recording/recording_session.cc:20,100-179`
+**位置：** `cockpit/spider/recording/recording_session.cc:20,100-179`
 
 Vehicle、event 和 data-index 共用 `messages_written`。当不同流交错写入时，计数达到 10 的那一次只 flush 当前流，其他流可能远超过预期条数仍未 flush。进程崩溃时，数据丢失窗口大于设计值。
 
@@ -342,7 +342,7 @@ Vehicle、event 和 data-index 共用 `messages_written`。当不同流交错写
 
 ### P2-2 录制完成状态缺少断电持久性保证
 
-**位置：** `cockpit/modules/recording/recording_session.cc:182-226,320-412`
+**位置：** `cockpit/spider/recording/recording_session.cc:182-226,320-412`
 
 当前主要依赖 iostream flush/close、写 marker 和 rename，没有对文件和父目录执行 fsync。掉电后可能出现：完成标记存在但数据未落盘、rename 丢失或目录项状态不一致。
 
@@ -352,8 +352,8 @@ Vehicle、event 和 data-index 共用 `messages_written`。当不同流交错写
 
 **位置：**
 
-- `cockpit/library/driver/camera/photo/camera_photo_service.cc:33-80`
-- `cockpit/modules/camera/photo/jpeg_encoder.cc:69-162`
+- `cockpit/driver/camera/runtime/photo/camera_photo_service.cc:33-80`
+- `cockpit/driver/camera/photo/jpeg_encoder.cc:69-162`
 
 默认文件名只精确到毫秒；并发请求或调用方指定相同文件名时可能覆盖。编码器直接写最终路径，失败时可能残留不完整 JPEG。
 
@@ -379,8 +379,8 @@ Unix stream 不保证一条命令一次 read 完整返回。当前单次读取�
 
 **位置：**
 
-- `cockpit/library/driver/camera/control/camera_service.cc:210-243`
-- `cockpit/library/driver/camera/camera_runtime.cc:155-160`
+- `cockpit/driver/camera/runtime/control/camera_service.cc:210-243`
+- `cockpit/driver/camera/runtime/camera_runtime.cc:155-160`
 - `cockpit/navigator/navigator.cc:149-155`
 
 Camera 健康检查失败后停止 preview 并标记 faulted，但 `CameraRuntime::Poll()` 始终返回 0。Navigator 只在 Poll 非 0 时重启模块，因此 Camera 可以长期停留在 faulted 状态，需人工恢复。
@@ -389,7 +389,7 @@ Camera 健康检查失败后停止 preview 并标记 faulted，但 `CameraRuntim
 
 ### P2-7 共享内存陈旧 PID 可能因 PID 复用误判为仍有活跃拥有者
 
-**位置：** `cockpit/modules/camera/shared_memory/shared_frame_buffer.cc:166-253`
+**位置：** `cockpit/driver/camera/shared_memory/shared_frame_buffer.cc:166-253`
 
 代码以 `kill(pid, 0)` 判断存储的 owner PID 是否存活。若旧共享内存残留且 PID 已被无关进程复用，即使当前进程已经拿到独占 flock，仍会拒绝恢复。
 
@@ -414,7 +414,7 @@ Camera 健康检查失败后停止 preview 并标记 faulted，但 `CameraRuntim
 
 ## 6. P3：工程改进项
 
-1. `SystemConfig::Validate()` 对 `paths.run_dir`、POSIX shm 名称格式等约束不完整，而底层共享内存实现要求更严格，建议把失败前移到配置加载阶段。相关位置：`cockpit/core/config/system_config.cc:377-480`、`cockpit/core/ipc/shared_memory_region.cc:27-29`。
+1. `SystemConfig::Validate()` 对 `paths.run_dir`、POSIX shm 名称格式等约束不完整，而底层共享内存实现要求更严格，建议把失败前移到配置加载阶段。相关位置：`cockpit/exchange/foundation/config/system_config.cc:377-480`、`cockpit/exchange/foundation/ipc/shared_memory_region.cc:27-29`。
 2. 日志输出文件打开失败时应显式报错或降级到 stderr，避免静默丢日志。
 3. 对进程、共享内存、文件和 socket 的所有权建议形成统一 RAII/状态机约束，减少清理路径分散。
 4. 为服务暴露统一 build ID、配置摘要和依赖版本，便于 OTA 健康检查和现场诊断。

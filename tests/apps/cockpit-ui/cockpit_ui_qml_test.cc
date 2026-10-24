@@ -13,16 +13,16 @@
 #include <utility>
 #include <vector>
 
-#include "cockpit/apps/cockpit-ui/apps/app_launcher_model.h"
-#include "cockpit/apps/cockpit-ui/camera/camera_control_model.h"
-#include "cockpit/apps/cockpit-ui/camera/camera_frame_model.h"
-#include "cockpit/apps/cockpit-ui/camera/camera_image_provider.h"
-#include "cockpit/apps/cockpit-ui/health/service_health_model.h"
-#include "cockpit/apps/cockpit-ui/hmi_control.h"
-#include "cockpit/apps/cockpit-ui/media/media_control_model.h"
-#include "cockpit/apps/cockpit-ui/sentinel/sentinel_status_model.h"
-#include "cockpit/apps/cockpit-ui/vehicle/vehicle_state_model.h"
-#include "cockpit/apps/cockpit-ui/voice/voice_status_model.h"
+#include "cockpit/hmi/app/apps/app_launcher_model.h"
+#include "cockpit/hmi/app/camera/camera_control_model.h"
+#include "cockpit/hmi/app/camera/camera_frame_model.h"
+#include "cockpit/hmi/app/camera/camera_image_provider.h"
+#include "cockpit/hmi/app/health/service_health_model.h"
+#include "cockpit/hmi/app/hmi_control.h"
+#include "cockpit/hmi/app/media/media_control_model.h"
+#include "cockpit/hmi/app/sentinel/sentinel_status_model.h"
+#include "cockpit/hmi/app/vehicle/vehicle_state_model.h"
+#include "cockpit/hmi/app/voice/voice_status_model.h"
 
 int main(int argc, char** argv) {
   QGuiApplication app(argc, argv);

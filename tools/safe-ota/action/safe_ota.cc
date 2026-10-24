@@ -18,8 +18,8 @@
 #include <string>
 #include <thread>
 
-#include "cockpit/library/upgrader/upgrade_transaction.h"
 #include "cockpit/navigator/connection/ipc_connector.h"
+#include "cockpit/upgrader/runtime/upgrade_transaction.h"
 
 namespace cockpit {
 namespace safe_ota {

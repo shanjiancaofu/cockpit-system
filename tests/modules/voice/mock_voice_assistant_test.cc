@@ -1,11 +1,11 @@
-#include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
+#include "cockpit/voice/domain/assistant/mock_voice_assistant.h"
 
 #include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
 
-#include "cockpit/modules/voice/actions/mock_action_dispatcher.h"
+#include "cockpit/voice/domain/actions/mock_action_dispatcher.h"
 
 namespace {
 

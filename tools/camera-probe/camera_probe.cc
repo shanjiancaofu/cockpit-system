@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include "cockpit/core/runtime/process_runtime.h"
-#include "cockpit/drivers/v4l2/v4l2_camera.h"
+#include "cockpit/driver/platform/v4l2/v4l2_camera.h"
+#include "cockpit/exchange/foundation/runtime/process_runtime.h"
 
 namespace {
 

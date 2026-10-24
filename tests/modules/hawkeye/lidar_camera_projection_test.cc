@@ -1,4 +1,4 @@
-#include "cockpit/modules/hawkeye/lidar_camera_projection.h"
+#include "cockpit/hawkeye/lidar_camera_projection.h"
 
 #include <cmath>
 #include <cstdlib>

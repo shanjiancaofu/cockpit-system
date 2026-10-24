@@ -7,9 +7,9 @@
 #include <iostream>
 #include <thread>
 
-#include "cockpit/modules/camera/capture/native_argus_capture.h"
-#include "cockpit/modules/camera/frames/latest_frame_buffer.h"
-#include "cockpit/modules/camera/transform/vic_transform.h"
+#include "cockpit/driver/camera/capture/native_argus_capture.h"
+#include "cockpit/driver/camera/frames/latest_frame_buffer.h"
+#include "cockpit/driver/camera/transform/vic_transform.h"
 #include "tools/camera/camera-diag/diagnostics.h"
 
 namespace camera = cockpit::camera;

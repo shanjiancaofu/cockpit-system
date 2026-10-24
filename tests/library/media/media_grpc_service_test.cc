@@ -1,4 +1,4 @@
-#include "cockpit/library/media/media_grpc_service.h"
+#include "cockpit/hmi/media/runtime/media_grpc_service.h"
 
 #include <unistd.h>
 

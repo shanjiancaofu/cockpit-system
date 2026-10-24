@@ -4,11 +4,11 @@
 #include <filesystem>
 #include <string>
 
-#include "cockpit/apps/cockpit-ui/media/grpc_media_player_backend.h"
-#include "cockpit/apps/cockpit-ui/media/media_control_model.h"
-#include "cockpit/library/media/media_grpc_service.h"
-#include "cockpit/library/media/media_service.h"
-#include "cockpit/modules/media/media_player.h"
+#include "cockpit/hmi/app/media/grpc_media_player_backend.h"
+#include "cockpit/hmi/app/media/media_control_model.h"
+#include "cockpit/hmi/media/media_player.h"
+#include "cockpit/hmi/media/runtime/media_grpc_service.h"
+#include "cockpit/hmi/media/runtime/media_service.h"
 
 namespace cockpit::ui {
 

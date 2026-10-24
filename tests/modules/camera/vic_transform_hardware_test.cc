@@ -6,10 +6,10 @@
 #include <fstream>
 #include <iostream>
 
-#include "cockpit/modules/camera/frames/latest_frame_buffer.h"
-#include "cockpit/modules/camera/photo/jpeg_encoder.h"
-#include "cockpit/modules/camera/shared_memory/shared_frame_buffer.h"
-#include "cockpit/modules/camera/transform/vic_transform.h"
+#include "cockpit/driver/camera/frames/latest_frame_buffer.h"
+#include "cockpit/driver/camera/photo/jpeg_encoder.h"
+#include "cockpit/driver/camera/shared_memory/shared_frame_buffer.h"
+#include "cockpit/driver/camera/transform/vic_transform.h"
 #include "tools/camera/camera-diag/diagnostics.h"
 #ifdef COCKPIT_CAMERA_HAS_VIC
 #include <nvbufsurface.h>

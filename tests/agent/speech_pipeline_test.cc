@@ -1,4 +1,4 @@
-#include "agent/speech/pipeline/speech_pipeline.h"
+#include "cockpit/voice/speech/pipeline/speech_pipeline.h"
 
 #include <atomic>
 #include <chrono>
@@ -10,8 +10,8 @@
 #include <optional>
 #include <thread>
 
-#include "agent/speech/asr/mock_speech_recognizer.h"
-#include "agent/speech/vad/mock_voice_activity_detector.h"
+#include "cockpit/voice/speech/asr/mock_speech_recognizer.h"
+#include "cockpit/voice/speech/vad/mock_voice_activity_detector.h"
 
 namespace {
 

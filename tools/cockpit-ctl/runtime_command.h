@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cockpit/core/runtime/args.h"
+#include "cockpit/exchange/foundation/runtime/args.h"
 
 namespace cockpit {
 namespace ctl {

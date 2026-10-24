@@ -1,4 +1,4 @@
-#include "cockpit/modules/sentinel/sentinel_service.h"
+#include "cockpit/vanguard/sentinel/sentinel_service.h"
 
 #include <atomic>
 #include <chrono>
@@ -9,7 +9,7 @@
 #include <string>
 #include <thread>
 
-#include "cockpit/core/time/time.h"
+#include "cockpit/exchange/foundation/time/time.h"
 
 namespace {
 

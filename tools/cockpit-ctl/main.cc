@@ -1,8 +1,8 @@
 #include <iostream>
 #include <string>
 
-#include "cockpit/core/config/system_config.h"
-#include "cockpit/core/runtime/args.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
+#include "cockpit/exchange/foundation/runtime/args.h"
 #include "tools/cockpit-ctl/health_command.h"
 #include "tools/cockpit-ctl/runtime_command.h"
 #include "tools/cockpit-ctl/snapshot_command.h"

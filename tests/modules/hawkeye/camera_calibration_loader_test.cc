@@ -1,4 +1,4 @@
-#include "cockpit/modules/hawkeye/camera_calibration_loader.h"
+#include "cockpit/exchange/contracts/camera/camera_calibration_loader.h"
 
 #include <unistd.h>
 
@@ -9,7 +9,7 @@
 #include <limits>
 #include <string>
 
-#include "cockpit/modules/hawkeye/camera_info.h"
+#include "cockpit/exchange/contracts/camera/camera_info.h"
 
 namespace {
 

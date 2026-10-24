@@ -1,4 +1,4 @@
-#include "agent/audio/audio_playback_client.h"
+#include "cockpit/voice/audio/audio_playback_client.h"
 
 #include <atomic>
 #include <chrono>
@@ -9,7 +9,7 @@
 #include <thread>
 #include <utility>
 
-#include "agent/speech/tts/mock_speech_synthesizer.h"
+#include "cockpit/voice/speech/tts/mock_speech_synthesizer.h"
 
 namespace {
 

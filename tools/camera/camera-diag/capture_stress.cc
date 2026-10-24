@@ -4,7 +4,7 @@
 
 #include "diagnostics.h"
 
-#include "cockpit/drivers/v4l2/v4l2_mmap_capture.h"
+#include "cockpit/driver/platform/v4l2/v4l2_mmap_capture.h"
 
 namespace cockpit::camera_diag {
 Json CaptureStress(const Options& options, bool* passed, std::vector<std::string>* errors) {

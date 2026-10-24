@@ -1,4 +1,4 @@
-#include "cockpit/modules/recording/recording_catalog.h"
+#include "cockpit/spider/recording/recording_catalog.h"
 
 #include <unistd.h>
 
@@ -6,7 +6,7 @@
 #include <iostream>
 #include <string>
 
-#include "cockpit/modules/recording/recording_session.h"
+#include "cockpit/spider/recording/recording_session.h"
 
 namespace {
 

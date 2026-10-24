@@ -16,12 +16,13 @@ parallel_level="${CMAKE_BUILD_PARALLEL_LEVEL:-4}"
 repo_dir="${root_dir}"
 source_filter="^${repo_dir}/(cockpit|tests|tools)/.*"
 header_filter="^${repo_dir}/(cockpit|tests|tools)/.*"
-driver_source_dir="${COCKPIT_DRIVER_SOURCE_DIR:-${root_dir}/cockpit/drivers}"
+driver_source_dir="${COCKPIT_DRIVER_SOURCE_DIR:-${root_dir}/cockpit/driver/platform}"
 
 driver_dependency_errors=""
 if driver_dependency_errors="$(
-  rg -n '#include[[:space:]]+"(cockpit/(core|modules|library|navigator)/|agent/)' \
-    "${driver_source_dir}" --glob '*.{cc,h}'
+  rg -n '#include[[:space:]]+"(cockpit/|agent/)' \
+    "${driver_source_dir}" --glob '*.{cc,h}' | \
+    rg -v '#include[[:space:]]+"cockpit/driver/platform/'
 )"; then
   :
 else
@@ -60,6 +61,8 @@ if [[ "${1:-}" == "--driver-boundaries-only" ]]; then
   echo "driver dependency boundaries passed"
   exit 0
 fi
+
+python3 "${root_dir}/scripts/dev/module_boundaries.py"
 
 if [[ ! "${parallel_level}" =~ ^[1-9][0-9]*$ ]]; then
   echo "CMAKE_BUILD_PARALLEL_LEVEL must be a positive integer; found '${parallel_level}'" >&2

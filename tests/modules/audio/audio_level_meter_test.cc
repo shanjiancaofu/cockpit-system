@@ -1,4 +1,4 @@
-#include "cockpit/modules/audio/analysis/audio_level_meter.h"
+#include "cockpit/driver/audio/analysis/audio_level_meter.h"
 
 #include <cmath>
 #include <cstdint>

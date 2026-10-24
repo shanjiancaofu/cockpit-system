@@ -1,4 +1,4 @@
-#include "agent/audio/audio_focus_controller.h"
+#include "cockpit/voice/audio/audio_focus_controller.h"
 
 #include <unistd.h>
 
@@ -9,9 +9,9 @@
 #include <string>
 #include <vector>
 
-#include "cockpit/library/media/media_grpc_service.h"
-#include "cockpit/library/media/media_service.h"
-#include "cockpit/modules/media/media_player.h"
+#include "cockpit/hmi/media/media_player.h"
+#include "cockpit/hmi/media/runtime/media_grpc_service.h"
+#include "cockpit/hmi/media/runtime/media_service.h"
 
 namespace {
 

@@ -15,7 +15,7 @@
 #include <string>
 #include <thread>
 
-#include "cockpit/core/json/json.h"
+#include "cockpit/exchange/foundation/json/json.h"
 #include "cockpit/navigator/connection/ipc_connector.h"
 #include "cockpit/navigator/process/process_manager.h"
 #include "cockpit/navigator/run_config/run_config.h"

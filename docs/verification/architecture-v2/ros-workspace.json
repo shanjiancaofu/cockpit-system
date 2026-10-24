@@ -1,0 +1,62 @@
+{
+  "recorded_at": "2026-10-24T11:34:48.452953+00:00",
+  "workspace": "cockpit/ros",
+  "source": "cockpit/ros/src",
+  "root_ros2_directory_removed": true,
+  "packages": [
+    {
+      "package": "cockpit_chassis_safety",
+      "package_xml_sha256": "b6422adfb13608841fa219bd41552aa2a6ee55e9882dc49c6ca52782c67f7f68"
+    },
+    {
+      "package": "cockpit_lidar_bringup",
+      "package_xml_sha256": "a9571dcc4cb98dd1e5508e3fd67cc6e04e5ff1261680bff46b66f73cf01e2e0c"
+    },
+    {
+      "package": "cockpit_nav2_bringup",
+      "package_xml_sha256": "53dca81063babc42b929ceb5cbd29c56f3d5376a853992d7e1ccb629e805d57f"
+    },
+    {
+      "package": "cockpit_nav2_test_support",
+      "package_xml_sha256": "f1a34b85ca897072178c725d4aed8038a85e3ffe71e1b1b7a89dbeb2f1063f9d"
+    }
+  ],
+  "compile_database": "cockpit/ros/compile_commands.json",
+  "compile_database_and_cmake_sources_verified": true,
+  "colcon_build": {
+    "command": "bash scripts/ros2/build.sh --cmake-clean-cache",
+    "exit_code": 0,
+    "packages_finished": 4,
+    "output": "ros-workspace-build.txt"
+  },
+  "colcon_tests": {
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "output": "ros-workspace-test.txt"
+  },
+  "workspace_test_script": {
+    "command": "BUILD_DIR=_output/build/arm64-debug bash scripts/ros2/test.sh",
+    "exit_code": 1,
+    "failed_check": "Nav2 restart recovery: assert-cmd-zero",
+    "output": "ros-workspace-test.txt",
+    "cause": "Unresolved; launch and navigation goal succeed, final velocity-zero assertion fails."
+  },
+  "independent_smokes": [
+    {
+      "script": "scripts/tests/ros2-nav2-bridge-smoke.sh",
+      "exit_code": 0,
+      "output": "ros-workspace-bridge-smoke.txt"
+    },
+    {
+      "script": "scripts/tests/lidar-nav2-source-smoke.sh",
+      "exit_code": 0,
+      "output": "ros-workspace-lidar-smoke.txt"
+    }
+  ],
+  "nav2_failure_logs": [
+    "ros-workspace-nav2-failure.txt",
+    "ros-workspace-navigator-failure.txt"
+  ],
+  "physical_hardware_validation": false
+}

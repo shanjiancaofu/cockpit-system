@@ -1,4 +1,4 @@
-#include "cockpit/modules/vehicle/chassis_odometry_time_mapper.h"
+#include "cockpit/driver/vehicle/chassis_odometry_time_mapper.h"
 
 #include <cstdint>
 #include <cstdlib>

@@ -1,4 +1,4 @@
-#include "cockpit/modules/camera/frames/camera_frame.h"
+#include "cockpit/driver/camera/frames/camera_frame.h"
 
 #include <iostream>
 #include <string>

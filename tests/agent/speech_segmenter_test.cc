@@ -1,4 +1,4 @@
-#include "agent/speech/segment/speech_segmenter.h"
+#include "cockpit/voice/speech/segment/speech_segmenter.h"
 
 #include <cstdint>
 #include <iostream>

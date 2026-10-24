@@ -1,4 +1,4 @@
-#include "agent/runtime/voice_input_gate.h"
+#include "cockpit/voice/runtime/voice_input_gate.h"
 
 #include <atomic>
 #include <chrono>
@@ -9,13 +9,13 @@
 #include <mutex>
 #include <thread>
 
-#include "agent/speech/asr/mock_speech_recognizer.h"
-#include "agent/speech/kws/mock_wake_word_detector.h"
-#include "agent/speech/kws/wake_prompt_player.h"
-#include "agent/speech/pipeline/speech_pipeline.h"
-#include "agent/speech/vad/mock_voice_activity_detector.h"
-#include "cockpit/modules/audio/frames/audio_frame.h"
-#include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
+#include "cockpit/driver/audio/frames/audio_frame.h"
+#include "cockpit/voice/domain/assistant/mock_voice_assistant.h"
+#include "cockpit/voice/speech/asr/mock_speech_recognizer.h"
+#include "cockpit/voice/speech/kws/mock_wake_word_detector.h"
+#include "cockpit/voice/speech/kws/wake_prompt_player.h"
+#include "cockpit/voice/speech/pipeline/speech_pipeline.h"
+#include "cockpit/voice/speech/vad/mock_voice_activity_detector.h"
 
 namespace {
 

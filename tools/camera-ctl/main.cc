@@ -1,6 +1,6 @@
 #include "camera_ctl.h"
 
-#include "cockpit/core/runtime/process_runtime.h"
+#include "cockpit/exchange/foundation/runtime/process_runtime.h"
 
 int main(int argc, char** argv) {
   const auto runtime = cockpit::runtime::ProcessRuntime::Create(argc, argv, "camera-ctl");

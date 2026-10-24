@@ -1,4 +1,4 @@
-#include "cockpit/modules/can/socket_can_adapter.h"
+#include "cockpit/driver/can/socket_can_adapter.h"
 
 #include <array>
 #include <cstdint>

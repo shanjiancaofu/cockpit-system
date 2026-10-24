@@ -7,13 +7,13 @@
 #include <string>
 #include <thread>
 
-#include "agent/audio/audio_stream_client.h"
-#include "agent/interaction/voice_interaction_service.h"
-#include "agent/speech/asr/mock_speech_recognizer.h"
-#include "agent/speech/pipeline/speech_pipeline.h"
-#include "agent/speech/vad/mock_voice_activity_detector.h"
-#include "cockpit/library/driver/audio/transport/audio_stream_publisher.h"
-#include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
+#include "cockpit/driver/audio/runtime/transport/audio_stream_publisher.h"
+#include "cockpit/voice/audio/audio_stream_client.h"
+#include "cockpit/voice/domain/assistant/mock_voice_assistant.h"
+#include "cockpit/voice/interaction/voice_interaction_service.h"
+#include "cockpit/voice/speech/asr/mock_speech_recognizer.h"
+#include "cockpit/voice/speech/pipeline/speech_pipeline.h"
+#include "cockpit/voice/speech/vad/mock_voice_activity_detector.h"
 
 int main() {
   const std::string socket_path =

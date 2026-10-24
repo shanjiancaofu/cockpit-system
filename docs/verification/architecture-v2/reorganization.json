@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-24T11:34:48.452953+00:00",
+  "base_commit": "421b5df",
+  "scope": "V2 source ownership, public interfaces and build dependencies",
+  "host": {
+    "architecture": "aarch64",
+    "kernel": "5.15.199-tegra"
+  },
+  "modules": [
+    "agent",
+    "carcloud",
+    "debugger",
+    "driver",
+    "eunomia",
+    "exchange",
+    "geois",
+    "hawkeye",
+    "hmi",
+    "navigator",
+    "ros",
+    "shield",
+    "spider",
+    "transfer",
+    "upgrader",
+    "vanguard",
+    "voice"
+  ],
+  "foundation": "cockpit/exchange/foundation",
+  "logger_implementation": "cockpit/debugger/logging",
+  "build": {
+    "command": "cmake --build _output/build/arm64-debug -j4",
+    "exit_code": 0,
+    "build_type": "Debug",
+    "native_argus_enabled": true,
+    "ros2_enabled": true,
+    "sherpa_enabled": false
+  },
+  "ctest": {
+    "command": "scripts/tests/ctest.sh --test-dir _output/build/arm64-debug --output-on-failure",
+    "exit_code": 0,
+    "passed": 102,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_seconds": 131.22,
+    "output": "ctest.txt"
+  },
+  "boundaries": {
+    "module_check": "passed",
+    "guard_unit_cases": 6,
+    "platform_driver_check": "passed",
+    "interface_declarations": "scripts/dev/module_boundaries.py:EXPORTED_HEADERS"
+  },
+  "unchanged_contracts": [
+    {
+      "before_path": "cockpit/navigator/common/module.exports",
+      "after_path": "cockpit/exchange/abi/module.exports",
+      "sha256_before": "558ab18ab0e885b882dcc4deeaba14cbc54d3cf530322794a89a205370e7fa9d",
+      "sha256_after": "558ab18ab0e885b882dcc4deeaba14cbc54d3cf530322794a89a205370e7fa9d"
+    },
+    {
+      "before_path": "cockpit/navigator/common/module_api.h",
+      "after_path": "cockpit/exchange/abi/module_api.h",
+      "sha256_before": "2930a2aafd82d15d3b3ba6d19edcf41d2c3991b72f80863bd6c9248b03ca2b0f",
+      "sha256_after": "2930a2aafd82d15d3b3ba6d19edcf41d2c3991b72f80863bd6c9248b03ca2b0f"
+    },
+    {
+      "before_path": "cockpit/navigator/common/module_id.h",
+      "after_path": "cockpit/navigator/common/module_id.h",
+      "sha256_before": "6f378ddda672eb4942bba0b9c103e34762f0e38f42de63c4d8d6c361a87f0af8",
+      "sha256_after": "6f378ddda672eb4942bba0b9c103e34762f0e38f42de63c4d8d6c361a87f0af8"
+    },
+    {
+      "before_path": "cockpit/proto/audio.proto",
+      "after_path": "cockpit/exchange/proto/audio.proto",
+      "sha256_before": "7078d601bdd3011104106d0b5737b8285f6759ca152ef71e2a55491c90b4975d",
+      "sha256_after": "7078d601bdd3011104106d0b5737b8285f6759ca152ef71e2a55491c90b4975d"
+    },
+    {
+      "before_path": "cockpit/proto/bridge.proto",
+      "after_path": "cockpit/exchange/proto/bridge.proto",
+      "sha256_before": "029f01158daac8c09d244320bc59ff4887cfa4a39e6fb11a78edb2b338b1c9f0",
+      "sha256_after": "029f01158daac8c09d244320bc59ff4887cfa4a39e6fb11a78edb2b338b1c9f0"
+    },
+    {
+      "before_path": "cockpit/proto/camera.proto",
+      "after_path": "cockpit/exchange/proto/camera.proto",
+      "sha256_before": "b6d386fa2d3c55f9e5594542b134c733a5c0e9a28af7d69ad2035c7ff469e188",
+      "sha256_after": "b6d386fa2d3c55f9e5594542b134c733a5c0e9a28af7d69ad2035c7ff469e188"
+    },
+    {
+      "before_path": "cockpit/proto/cloud.proto",
+      "after_path": "cockpit/exchange/proto/cloud.proto",
+      "sha256_before": "5ab24a266d5cd33b87a4e3e516192177f6aea73cedbb146f77376c467182886a",
+      "sha256_after": "5ab24a266d5cd33b87a4e3e516192177f6aea73cedbb146f77376c467182886a"
+    },
+    {
+      "before_path": "cockpit/proto/common.proto",
+      "after_path": "cockpit/exchange/proto/common.proto",
+      "sha256_before": "71a9e726fb40c794eae3722b87692df29a464711565ce99f1b0af118b56a386c",
+      "sha256_after": "71a9e726fb40c794eae3722b87692df29a464711565ce99f1b0af118b56a386c"
+    },
+    {
+      "before_path": "cockpit/proto/gateway.proto",
+      "after_path": "cockpit/exchange/proto/gateway.proto",
+      "sha256_before": "49492380b0a809879b3cc6bd57379119a94ee5e05b37f6724adb731122878ed7",
+      "sha256_after": "49492380b0a809879b3cc6bd57379119a94ee5e05b37f6724adb731122878ed7"
+    },
+    {
+      "before_path": "cockpit/proto/hmi.proto",
+      "after_path": "cockpit/exchange/proto/hmi.proto",
+      "sha256_before": "6afefc3c5a7695e12e785fbf97e26faa113e492a81c43dcf1483ed19983b6b28",
+      "sha256_after": "6afefc3c5a7695e12e785fbf97e26faa113e492a81c43dcf1483ed19983b6b28"
+    },
+    {
+      "before_path": "cockpit/proto/media.proto",
+      "after_path": "cockpit/exchange/proto/media.proto",
+      "sha256_before": "00784d494d3d926a4d664a63934f48bb05a7bb2c46efcc7fae90547a0f6b1e21",
+      "sha256_after": "00784d494d3d926a4d664a63934f48bb05a7bb2c46efcc7fae90547a0f6b1e21"
+    },
+    {
+      "before_path": "cockpit/proto/recording.proto",
+      "after_path": "cockpit/exchange/proto/recording.proto",
+      "sha256_before": "06c8f24150d09dc2b5628a78e820a886ba844fd4d05ebef31a534944e4168624",
+      "sha256_after": "06c8f24150d09dc2b5628a78e820a886ba844fd4d05ebef31a534944e4168624"
+    },
+    {
+      "before_path": "cockpit/proto/sentinel.proto",
+      "after_path": "cockpit/exchange/proto/sentinel.proto",
+      "sha256_before": "b52e7ef9a277b0c2ff7e91e52aab16103cfb7d958c554c857e39eca4a7a48ded",
+      "sha256_after": "b52e7ef9a277b0c2ff7e91e52aab16103cfb7d958c554c857e39eca4a7a48ded"
+    },
+    {
+      "before_path": "cockpit/proto/vehicle_state.proto",
+      "after_path": "cockpit/exchange/proto/vehicle_state.proto",
+      "sha256_before": "9e7ef304ae8690ab4616f5ad83680babb5e18d59a5fc147dd2d95775d1f52c3d",
+      "sha256_after": "9e7ef304ae8690ab4616f5ad83680babb5e18d59a5fc147dd2d95775d1f52c3d"
+    },
+    {
+      "before_path": "cockpit/proto/voice.proto",
+      "after_path": "cockpit/exchange/proto/voice.proto",
+      "sha256_before": "30b7f2fcef755fd664d8ca53881a146285b5188dcf8236308171762e45dfb5af",
+      "sha256_after": "30b7f2fcef755fd664d8ca53881a146285b5188dcf8236308171762e45dfb5af"
+    }
+  ],
+  "hardware_camera_validation_rerun": false,
+  "remaining_limitations": [
+    "No new Camera performance baseline or SIGKILL recovery result is claimed.",
+    "Native Argus SIGKILL daemon recovery remains a separate production blocker.",
+    "VLA/TensorRT, Jara upload, WebRTC/MQTT and geois remain planned capabilities.",
+    "Full Nav2 workspace smoke fails assert-cmd-zero after navigation stack restart; see ros-workspace.json. Colcon tests and independent Bridge/LiDAR smokes pass."
+  ],
+  "foundation_headers": "cockpit/exchange/foundation",
+  "header_layout": "Headers stay in their functional directories alongside implementations.",
+  "ros_module": {
+    "source": "cockpit/ros/bridge",
+    "workspace": "cockpit/ros",
+    "contracts": "cockpit/exchange/proto/bridge.proto",
+    "runtime_module_name": "bridge",
+    "installed_library": "lib/cockpit/modules/libbridge.so",
+    "files_moved": 25,
+    "ros2_enabled_build": "passed",
+    "ros2_integration_tests": "passed",
+    "packages_source": "cockpit/ros/src",
+    "workspace_verification": "ros-workspace.json"
+  }
+}

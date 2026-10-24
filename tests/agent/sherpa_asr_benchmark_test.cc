@@ -13,10 +13,10 @@
 #include <string>
 #include <vector>
 
-#include "agent/speech/providers/sherpa/sherpa_sensevoice_recognizer.h"
-#include "cockpit/modules/audio/wav/wav_file.h"
-#include "cockpit/modules/voice/assistant/deterministic_command_router.h"
-#include "cockpit/modules/voice/assistant/transcript_normalizer.h"
+#include "cockpit/driver/audio/wav/wav_file.h"
+#include "cockpit/voice/domain/assistant/deterministic_command_router.h"
+#include "cockpit/voice/domain/assistant/transcript_normalizer.h"
+#include "cockpit/voice/speech/providers/sherpa/sherpa_sensevoice_recognizer.h"
 
 namespace {
 

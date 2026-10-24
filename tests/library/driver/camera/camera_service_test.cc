@@ -1,4 +1,4 @@
-#include "cockpit/library/driver/camera/control/camera_service.h"
+#include "cockpit/driver/camera/runtime/control/camera_service.h"
 
 #include <linux/videodev2.h>
 
@@ -10,8 +10,8 @@
 #include <utility>
 #include <vector>
 
-#include "cockpit/core/event/message_bus.h"
-#include "cockpit/library/driver/camera/recording_bridge.h"
+#include "cockpit/driver/camera/runtime/recording_bridge.h"
+#include "cockpit/exchange/foundation/event/message_bus.h"
 
 namespace {
 

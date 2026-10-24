@@ -1,4 +1,4 @@
-#include "cockpit/modules/recording/recording_session.h"
+#include "cockpit/spider/recording/recording_session.h"
 
 #include <unistd.h>
 

@@ -13,11 +13,11 @@
 #include <vector>
 
 #include "camera.grpc.pb.h"
-#include "cockpit/core/time/time.h"
-#include "cockpit/library/driver/vehicle/vehicle_grpc_service.h"
-#include "cockpit/library/sentinel/chassis_event_client.h"
-#include "cockpit/library/sentinel/sentinel_actions.h"
-#include "cockpit/modules/sentinel/sentinel_service.h"
+#include "cockpit/driver/vehicle/runtime/vehicle_grpc_service.h"
+#include "cockpit/exchange/foundation/time/time.h"
+#include "cockpit/vanguard/sentinel/runtime/chassis_event_client.h"
+#include "cockpit/vanguard/sentinel/runtime/sentinel_actions.h"
+#include "cockpit/vanguard/sentinel/sentinel_service.h"
 #include "recording.grpc.pb.h"
 
 namespace {

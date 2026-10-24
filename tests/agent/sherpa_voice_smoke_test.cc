@@ -10,16 +10,16 @@
 #include <string>
 #include <vector>
 
-#include "agent/speech/kws/wake_word_detector.h"
-#include "agent/speech/pipeline/speech_pipeline.h"
-#include "agent/speech/providers/sherpa/sherpa_sensevoice_recognizer.h"
-#include "agent/speech/providers/sherpa/sherpa_voice_activity_detector.h"
-#include "agent/speech/providers/sherpa/sherpa_wake_word_detector.h"
-#include "cockpit/core/config/system_config.h"
-#include "cockpit/modules/audio/frames/audio_frame.h"
-#include "cockpit/modules/audio/wav/wav_file.h"
-#include "cockpit/modules/voice/assistant/deterministic_command_router.h"
-#include "cockpit/modules/voice/assistant/transcript_normalizer.h"
+#include "cockpit/driver/audio/frames/audio_frame.h"
+#include "cockpit/driver/audio/wav/wav_file.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
+#include "cockpit/voice/domain/assistant/deterministic_command_router.h"
+#include "cockpit/voice/domain/assistant/transcript_normalizer.h"
+#include "cockpit/voice/speech/kws/wake_word_detector.h"
+#include "cockpit/voice/speech/pipeline/speech_pipeline.h"
+#include "cockpit/voice/speech/providers/sherpa/sherpa_sensevoice_recognizer.h"
+#include "cockpit/voice/speech/providers/sherpa/sherpa_voice_activity_detector.h"
+#include "cockpit/voice/speech/providers/sherpa/sherpa_wake_word_detector.h"
 
 namespace {
 

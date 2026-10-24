@@ -1,4 +1,4 @@
-#include "cockpit/core/event/message_bus.h"
+#include "cockpit/exchange/foundation/event/message_bus.h"
 
 #include <iostream>
 

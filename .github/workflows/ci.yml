@@ -28,6 +28,8 @@ jobs:
           bash -n "${shell_files[@]}"
       - name: Run flake8
         run: python3 -m flake8 --exclude '_output,build,logs,log' .
+      - name: Check V2 module boundaries
+        run: python3 scripts/dev/module_boundaries.py
       - name: Run pre-commit
         run: pre-commit run --all-files
   build-and-test:

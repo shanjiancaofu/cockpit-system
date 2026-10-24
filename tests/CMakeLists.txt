@@ -1,4 +1,9 @@
 add_executable(cockpit_smoke_test integration/smoke_test.cc)
+find_program(COCKPIT_ARCH_PYTHON NAMES python3 REQUIRED)
+add_test(NAME module_boundary_test COMMAND "${COCKPIT_ARCH_PYTHON}"
+    "${PROJECT_SOURCE_DIR}/scripts/dev/module_boundaries.py")
+add_test(NAME module_boundary_guard_test COMMAND "${COCKPIT_ARCH_PYTHON}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tools/module_boundaries_test.py")
 target_link_libraries(cockpit_smoke_test PRIVATE can vehicle)
 add_test(NAME cockpit_smoke_test COMMAND cockpit_smoke_test)
 
@@ -651,7 +656,7 @@ if(TARGET ui_model)
 
     add_executable(cockpit_ui_qml_test
         apps/cockpit-ui/cockpit_ui_qml_test.cc
-        ${PROJECT_SOURCE_DIR}/cockpit/apps/cockpit-ui/qml.qrc
+        ${PROJECT_SOURCE_DIR}/cockpit/hmi/app/qml.qrc
     )
     set_target_properties(cockpit_ui_qml_test PROPERTIES AUTOMOC ON AUTORCC ON)
     target_link_libraries(cockpit_ui_qml_test PRIVATE

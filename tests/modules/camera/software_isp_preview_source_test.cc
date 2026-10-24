@@ -1,4 +1,4 @@
-#include "cockpit/modules/camera/capture/software_isp_preview_source.h"
+#include "cockpit/driver/camera/capture/software_isp_preview_source.h"
 
 #include <algorithm>
 #include <atomic>

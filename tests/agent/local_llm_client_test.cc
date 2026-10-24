@@ -2,10 +2,10 @@
 #include <iostream>
 #include <memory>
 
-#include "agent/interaction/voice_interaction_service.h"
-#include "agent/llm/mock_local_llm_client.h"
-#include "cockpit/modules/voice/actions/mock_action_dispatcher.h"
-#include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
+#include "cockpit/agent/llm/mock_local_llm_client.h"
+#include "cockpit/voice/domain/actions/mock_action_dispatcher.h"
+#include "cockpit/voice/domain/assistant/mock_voice_assistant.h"
+#include "cockpit/voice/interaction/voice_interaction_service.h"
 
 namespace {
 

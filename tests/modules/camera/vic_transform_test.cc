@@ -1,4 +1,4 @@
-#include "cockpit/modules/camera/transform/vic_transform.h"
+#include "cockpit/driver/camera/transform/vic_transform.h"
 
 #include <cassert>
 #include <cstdint>

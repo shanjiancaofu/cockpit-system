@@ -11,9 +11,9 @@
 #include <string>
 #include <thread>
 
-#include "agent/audio/audio_stream_client.h"
-#include "cockpit/library/driver/audio/transport/audio_stream_publisher.h"
-#include "cockpit/modules/audio/transport/audio_stream_protocol.h"
+#include "cockpit/driver/audio/runtime/transport/audio_stream_publisher.h"
+#include "cockpit/driver/audio/transport/audio_stream_protocol.h"
+#include "cockpit/voice/audio/audio_stream_client.h"
 
 namespace {
 

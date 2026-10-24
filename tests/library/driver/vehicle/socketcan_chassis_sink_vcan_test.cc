@@ -2,9 +2,9 @@
 #include <iostream>
 #include <string>
 
-#include "cockpit/library/driver/vehicle/socketcan_chassis_sink.h"
-#include "cockpit/modules/can/socket_can_adapter.h"
-#include "cockpit/modules/vehicle/chassis_can_codec.h"
+#include "cockpit/driver/can/socket_can_adapter.h"
+#include "cockpit/driver/vehicle/chassis_can_codec.h"
+#include "cockpit/driver/vehicle/runtime/socketcan_chassis_sink.h"
 
 namespace {
 

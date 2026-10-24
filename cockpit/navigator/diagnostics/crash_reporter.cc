@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "cockpit/core/json/json.h"
+#include "cockpit/exchange/foundation/json/json.h"
 
 namespace cockpit {
 namespace navigator {

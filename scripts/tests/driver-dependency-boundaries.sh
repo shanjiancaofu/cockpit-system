@@ -18,7 +18,7 @@ printf '%s\n' '#pragma once' >"${clean_driver_dir}/clean_driver.h"
 COCKPIT_DRIVER_SOURCE_DIR="${clean_driver_dir}" \
   bash "${lint_script}" --driver-boundaries-only >/dev/null
 
-printf '%s\n' '#include "cockpit/modules/audio/frames/audio_frame.h"' \
+printf '%s\n' '#include "cockpit/driver/audio/frames/audio_frame.h"' \
   >"${include_violation_dir}/bad_driver.cc"
 printf '%s\n' 'add_library(bad_driver INTERFACE)' \
   >"${include_violation_dir}/CMakeLists.txt"

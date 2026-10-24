@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "cockpit/modules/vehicle/chassis_command_sink.h"
+#include "cockpit/driver/vehicle/chassis_command_sink.h"
 
 namespace {
 

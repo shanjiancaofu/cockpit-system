@@ -5,7 +5,7 @@
 #include <string>
 
 #include "camera.pb.h"
-#include "cockpit/core/json/json.h"
+#include "cockpit/exchange/foundation/json/json.h"
 
 namespace {
 

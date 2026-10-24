@@ -5,8 +5,8 @@
 #include <thread>
 #include <vector>
 
-#include "cockpit/library/driver/camera/control/camera_service.h"
-#include "cockpit/modules/camera/capture/synthetic_preview_source.h"
+#include "cockpit/driver/camera/capture/synthetic_preview_source.h"
+#include "cockpit/driver/camera/runtime/control/camera_service.h"
 
 namespace {
 

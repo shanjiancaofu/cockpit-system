@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <string>
 
-#include "cockpit/core/json/json.h"
+#include "cockpit/exchange/foundation/json/json.h"
 #include "tools/camera/camera-diag/diagnostics.h"
 
 int main() {

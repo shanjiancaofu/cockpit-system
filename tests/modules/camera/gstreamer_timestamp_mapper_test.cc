@@ -1,4 +1,4 @@
-#include "cockpit/modules/camera/capture/gstreamer_timestamp_mapper.h"
+#include "cockpit/driver/camera/capture/gstreamer_timestamp_mapper.h"
 
 #include <cstdint>
 #include <iostream>

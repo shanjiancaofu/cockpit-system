@@ -1,4 +1,4 @@
-#include "agent/speech/asr/mock_speech_recognizer.h"
+#include "cockpit/voice/speech/asr/mock_speech_recognizer.h"
 
 #include <chrono>
 #include <iostream>

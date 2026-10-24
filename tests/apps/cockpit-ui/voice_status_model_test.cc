@@ -1,4 +1,4 @@
-#include "cockpit/apps/cockpit-ui/voice/voice_status_model.h"
+#include "cockpit/hmi/app/voice/voice_status_model.h"
 
 #include <grpcpp/grpcpp.h>
 

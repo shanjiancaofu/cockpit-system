@@ -1,4 +1,4 @@
-#include "cockpit/library/driver/vehicle/vcan_chassis_safety_loop.h"
+#include "cockpit/driver/vehicle/runtime/vcan_chassis_safety_loop.h"
 
 #include <array>
 #include <chrono>
@@ -9,8 +9,8 @@
 #include <string>
 #include <thread>
 
-#include "cockpit/modules/can/socket_can_adapter.h"
-#include "cockpit/modules/vehicle/chassis_can_codec.h"
+#include "cockpit/driver/can/socket_can_adapter.h"
+#include "cockpit/driver/vehicle/chassis_can_codec.h"
 
 namespace {
 

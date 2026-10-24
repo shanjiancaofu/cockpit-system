@@ -14,9 +14,9 @@
 
 #include "audio.grpc.pb.h"
 #include "camera.grpc.pb.h"
-#include "cockpit/core/config/system_config.h"
-#include "cockpit/core/health/service_health.h"
-#include "cockpit/core/json/json.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
+#include "cockpit/exchange/foundation/health/service_health.h"
+#include "cockpit/exchange/foundation/json/json.h"
 #include "common.pb.h"
 #include "gateway.grpc.pb.h"
 #include "recording.grpc.pb.h"

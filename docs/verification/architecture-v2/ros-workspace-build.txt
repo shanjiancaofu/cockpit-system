@@ -1,0 +1,22 @@
+Starting >>> cockpit_chassis_safety
+Starting >>> cockpit_nav2_test_support
+[Processing: cockpit_chassis_safety, cockpit_nav2_test_support]
+Finished <<< cockpit_nav2_test_support [48.1s]
+Finished <<< cockpit_chassis_safety [59.1s]
+Starting >>> cockpit_nav2_bringup
+Finished <<< cockpit_nav2_bringup [1.88s]
+Starting >>> cockpit_lidar_bringup
+--- stderr: cockpit_lidar_bringup
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CMAKE_EXPORT_COMPILE_COMMANDS
+
+
+---
+Finished <<< cockpit_lidar_bringup [1.67s]
+
+Summary: 4 packages finished [1min 3s]
+  1 package had stderr output: cockpit_lidar_bringup
+cockpit ROS2 workspace build passed
+install=/home/fff/code/github/cockpit-system/_output/ros2/install

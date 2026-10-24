@@ -9,8 +9,8 @@
 #include <thread>
 #include <utility>
 
-#include "cockpit/core/build/build_info.h"
-#include "cockpit/core/logging/logger.h"
+#include "cockpit/exchange/foundation/build/build_info.h"
+#include "cockpit/exchange/foundation/logging/logger.h"
 #include "cockpit/navigator/dl_api/module_loader.h"
 
 namespace cockpit {

@@ -6,14 +6,14 @@
 #include <string>
 #include <thread>
 
-#include "cockpit/core/logging/logger.h"
-#include "cockpit/core/runtime/process_runtime.h"
-#include "cockpit/drivers/socketcan/socket_can.h"
-#include "cockpit/modules/can/can_frame.h"
-#include "cockpit/modules/can/socket_can_adapter.h"
-#include "cockpit/modules/vehicle/chassis_can_codec.h"
-#include "cockpit/modules/vehicle/vehicle_can_codec.h"
-#include "cockpit/modules/vehicle/vehicle_state.h"
+#include "cockpit/driver/can/can_frame.h"
+#include "cockpit/driver/can/socket_can_adapter.h"
+#include "cockpit/driver/platform/socketcan/socket_can.h"
+#include "cockpit/driver/vehicle/chassis_can_codec.h"
+#include "cockpit/driver/vehicle/vehicle_can_codec.h"
+#include "cockpit/driver/vehicle/vehicle_state.h"
+#include "cockpit/exchange/foundation/logging/logger.h"
+#include "cockpit/exchange/foundation/runtime/process_runtime.h"
 
 namespace {
 

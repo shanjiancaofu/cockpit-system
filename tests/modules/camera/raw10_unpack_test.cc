@@ -1,4 +1,4 @@
-#include "cockpit/modules/camera/isp/raw10_unpack.h"
+#include "cockpit/driver/camera/isp/raw10_unpack.h"
 
 #include <array>
 #include <cstddef>

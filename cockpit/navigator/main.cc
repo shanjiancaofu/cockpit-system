@@ -10,9 +10,9 @@
 #include <string>
 #include <utility>
 
-#include "cockpit/core/config/system_config.h"
-#include "cockpit/core/logging/logger.h"
-#include "cockpit/core/runtime/args.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
+#include "cockpit/exchange/foundation/logging/logger.h"
+#include "cockpit/exchange/foundation/runtime/args.h"
 #include "cockpit/navigator/connection/ipc_connector.h"
 #include "cockpit/navigator/navigator.h"
 #include "cockpit/navigator/run_config/run_config.h"

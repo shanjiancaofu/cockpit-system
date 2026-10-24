@@ -1,4 +1,4 @@
-#include "cockpit/library/driver/audio/playback/audio_playback.h"
+#include "cockpit/driver/audio/runtime/playback/audio_playback.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -9,8 +9,8 @@
 #include <string>
 #include <thread>
 
-#include "agent/speech/tts/mock_speech_synthesizer.h"
-#include "cockpit/modules/audio/playback/audio_player.h"
+#include "cockpit/driver/audio/playback/audio_player.h"
+#include "cockpit/voice/speech/tts/mock_speech_synthesizer.h"
 
 namespace {
 

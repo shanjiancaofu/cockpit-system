@@ -1,4 +1,4 @@
-#include "cockpit/library/driver/camera/photo/camera_photo_service.h"
+#include "cockpit/driver/camera/runtime/photo/camera_photo_service.h"
 
 #include <unistd.h>
 
@@ -8,9 +8,9 @@
 #include <iostream>
 #include <string>
 
-#include "cockpit/core/time/time.h"
-#include "cockpit/modules/camera/photo/jpeg_encoder.h"
-#include "cockpit/modules/camera/shared_memory/shared_frame_buffer.h"
+#include "cockpit/driver/camera/photo/jpeg_encoder.h"
+#include "cockpit/driver/camera/shared_memory/shared_frame_buffer.h"
+#include "cockpit/exchange/foundation/time/time.h"
 
 namespace {
 

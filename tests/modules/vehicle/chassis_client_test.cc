@@ -1,4 +1,4 @@
-#include "cockpit/modules/vehicle/chassis_client.h"
+#include "cockpit/driver/vehicle/chassis_client.h"
 
 #include <array>
 #include <cstdint>

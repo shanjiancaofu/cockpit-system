@@ -1,0 +1,8 @@
+add_subdirectory(platform)
+add_subdirectory(audio)
+add_subdirectory(can)
+add_subdirectory(camera)
+add_subdirectory(vehicle)
+add_subdirectory(audio/runtime)
+add_subdirectory(camera/runtime)
+add_subdirectory(vehicle/runtime)

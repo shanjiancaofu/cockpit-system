@@ -17,8 +17,8 @@
 #include <utility>
 #include <vector>
 
-#include "cockpit/core/logging/logger.h"
-#include "cockpit/core/time/time.h"
+#include "cockpit/exchange/foundation/logging/logger.h"
+#include "cockpit/exchange/foundation/time/time.h"
 
 extern char** environ;
 

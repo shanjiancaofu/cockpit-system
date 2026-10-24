@@ -1,7 +1,7 @@
 #pragma once
 
-#include "cockpit/core/config/system_config.h"
-#include "cockpit/core/runtime/args.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
+#include "cockpit/exchange/foundation/runtime/args.h"
 
 namespace cockpit {
 namespace ctl {

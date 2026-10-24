@@ -1,4 +1,4 @@
-#include "cockpit/apps/cockpit-ui/health/service_health_model.h"
+#include "cockpit/hmi/app/health/service_health_model.h"
 
 #include <QVariantMap>
 #include <QtTest>

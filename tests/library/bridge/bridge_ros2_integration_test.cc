@@ -13,13 +13,13 @@
 #include <thread>
 #include <vector>
 
-#include "cockpit/library/bridge/ros2_camera_frame_adapter.h"
-#include "cockpit/library/bridge/ros2_camera_info_adapter.h"
-#include "cockpit/library/bridge/ros2_camera_publisher.h"
-#include "cockpit/library/bridge/ros2_chassis_odometry_adapter.h"
-#include "cockpit/library/bridge/ros2_chassis_odometry_publisher.h"
-#include "cockpit/library/bridge/ros2_nav2_provider.h"
-#include "cockpit/modules/camera/capture/synthetic_preview_source.h"
+#include "cockpit/driver/camera/capture/synthetic_preview_source.h"
+#include "cockpit/ros/bridge/runtime/ros2_camera_frame_adapter.h"
+#include "cockpit/ros/bridge/runtime/ros2_camera_info_adapter.h"
+#include "cockpit/ros/bridge/runtime/ros2_camera_publisher.h"
+#include "cockpit/ros/bridge/runtime/ros2_chassis_odometry_adapter.h"
+#include "cockpit/ros/bridge/runtime/ros2_chassis_odometry_publisher.h"
+#include "cockpit/ros/bridge/runtime/ros2_nav2_provider.h"
 
 namespace {
 

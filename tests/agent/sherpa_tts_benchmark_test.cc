@@ -11,9 +11,9 @@
 #include <utility>
 #include <vector>
 
-#include "agent/speech/providers/sherpa/sherpa_kokoro_speech_synthesizer.h"
-#include "agent/speech/tts/speech_text_segmenter.h"
-#include "cockpit/core/config/system_config.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
+#include "cockpit/voice/speech/providers/sherpa/sherpa_kokoro_speech_synthesizer.h"
+#include "cockpit/voice/speech/tts/speech_text_segmenter.h"
 
 namespace {
 

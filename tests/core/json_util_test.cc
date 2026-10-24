@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 
-#include "cockpit/core/json/json.h"
+#include "cockpit/exchange/foundation/json/json.h"
 
 namespace {
 

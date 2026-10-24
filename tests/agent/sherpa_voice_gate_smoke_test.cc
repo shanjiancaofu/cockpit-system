@@ -8,15 +8,15 @@
 #include <thread>
 #include <vector>
 
-#include "agent/runtime/voice_input_gate.h"
-#include "agent/speech/providers/sherpa/sherpa_sensevoice_recognizer.h"
-#include "agent/speech/providers/sherpa/sherpa_voice_activity_detector.h"
-#include "agent/speech/providers/sherpa/sherpa_wake_word_detector.h"
-#include "cockpit/core/config/system_config.h"
-#include "cockpit/modules/audio/frames/audio_frame.h"
-#include "cockpit/modules/audio/wav/wav_file.h"
-#include "cockpit/modules/voice/actions/mock_action_dispatcher.h"
-#include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
+#include "cockpit/driver/audio/frames/audio_frame.h"
+#include "cockpit/driver/audio/wav/wav_file.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
+#include "cockpit/voice/domain/actions/mock_action_dispatcher.h"
+#include "cockpit/voice/domain/assistant/mock_voice_assistant.h"
+#include "cockpit/voice/runtime/voice_input_gate.h"
+#include "cockpit/voice/speech/providers/sherpa/sherpa_sensevoice_recognizer.h"
+#include "cockpit/voice/speech/providers/sherpa/sherpa_voice_activity_detector.h"
+#include "cockpit/voice/speech/providers/sherpa/sherpa_wake_word_detector.h"
 
 namespace {
 

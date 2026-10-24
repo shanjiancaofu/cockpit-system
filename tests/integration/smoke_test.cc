@@ -1,9 +1,9 @@
 #include <array>
 #include <iostream>
 
-#include "cockpit/modules/can/can_frame.h"
-#include "cockpit/modules/vehicle/vehicle_can_codec.h"
-#include "cockpit/modules/vehicle/vehicle_state.h"
+#include "cockpit/driver/can/can_frame.h"
+#include "cockpit/driver/vehicle/vehicle_can_codec.h"
+#include "cockpit/driver/vehicle/vehicle_state.h"
 
 int main() {
   const auto state = cockpit::vehicle::MakeMockVehicleState(0);

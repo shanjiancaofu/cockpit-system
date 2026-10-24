@@ -1,4 +1,4 @@
-#include "cockpit/apps/cockpit-ui/apps/app_launcher_model.h"
+#include "cockpit/hmi/app/apps/app_launcher_model.h"
 
 #include <QtTest>
 #include <atomic>

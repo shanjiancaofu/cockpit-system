@@ -1,4 +1,4 @@
-#include "cockpit/modules/bridge/bridge_service.h"
+#include "cockpit/ros/bridge/bridge_service.h"
 
 #include <cmath>
 #include <cstdlib>
@@ -6,7 +6,7 @@
 #include <memory>
 #include <string>
 
-#include "cockpit/modules/bridge/fake_bridge_provider.h"
+#include "cockpit/ros/bridge/fake_bridge_provider.h"
 
 namespace {
 

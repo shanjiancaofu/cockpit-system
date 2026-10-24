@@ -1,0 +1,47 @@
+#pragma once
+
+#include <cstddef>
+#include <memory>
+#include <string>
+
+#include "cockpit/exchange/foundation/base/macros.h"
+
+namespace cockpit {
+namespace ipc {
+
+class SharedMemoryRegion {
+ public:
+  static std::unique_ptr<SharedMemoryRegion> Create(const std::string& name, std::size_t size,
+                                                    std::string* error);
+  static std::unique_ptr<SharedMemoryRegion> Open(const std::string& name, std::string* error);
+  static bool Unlink(const std::string& name, std::string* error);
+  ~SharedMemoryRegion();
+
+  COCKPIT_DISALLOW_COPY_AND_ASSIGN(SharedMemoryRegion);
+
+  void* data() {
+    return mapping_;
+  }
+  const void* data() const {
+    return mapping_;
+  }
+  std::size_t size() const {
+    return size_;
+  }
+  const std::string& name() const {
+    return name_;
+  }
+  bool TryLockExclusive(std::string* error) const;
+
+ private:
+  SharedMemoryRegion(std::string name, int fd, void* mapping, std::size_t size, bool owner);
+
+  std::string name_;
+  int fd_ = -1;
+  void* mapping_ = nullptr;
+  std::size_t size_ = 0;
+  bool owner_ = false;
+};
+
+}  // namespace ipc
+}  // namespace cockpit

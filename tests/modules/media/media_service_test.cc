@@ -1,9 +1,9 @@
-#include "cockpit/library/media/media_service.h"
+#include "cockpit/hmi/media/runtime/media_service.h"
 
 #include <iostream>
 #include <string>
 
-#include "cockpit/modules/media/media_player.h"
+#include "cockpit/hmi/media/media_player.h"
 
 namespace {
 

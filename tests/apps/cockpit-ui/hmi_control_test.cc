@@ -1,4 +1,4 @@
-#include "cockpit/apps/cockpit-ui/hmi_control.h"
+#include "cockpit/hmi/app/hmi_control.h"
 
 #include <unistd.h>
 
@@ -11,12 +11,12 @@
 #include <string>
 #include <thread>
 
-#include "agent/hmi/local_hmi_command_provider.h"
-#include "cockpit/apps/cockpit-ui/media/grpc_media_player_backend.h"
-#include "cockpit/apps/cockpit-ui/media/media_control_model.h"
-#include "cockpit/library/media/media_grpc_service.h"
-#include "cockpit/library/media/media_service.h"
-#include "cockpit/modules/media/media_player.h"
+#include "cockpit/hmi/app/media/grpc_media_player_backend.h"
+#include "cockpit/hmi/app/media/media_control_model.h"
+#include "cockpit/hmi/media/media_player.h"
+#include "cockpit/hmi/media/runtime/media_grpc_service.h"
+#include "cockpit/hmi/media/runtime/media_service.h"
+#include "cockpit/voice/hmi/local_hmi_command_provider.h"
 
 int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);

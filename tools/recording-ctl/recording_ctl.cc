@@ -6,8 +6,8 @@
 
 #include "recording_control_client.h"
 
-#include "cockpit/core/runtime/process_runtime.h"
-#include "cockpit/core/time/time.h"
+#include "cockpit/exchange/foundation/runtime/process_runtime.h"
+#include "cockpit/exchange/foundation/time/time.h"
 #include "tools/diagnostics/cli_output.h"
 
 namespace {

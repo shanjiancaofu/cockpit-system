@@ -1,0 +1,6 @@
+find_package(OpenCV QUIET COMPONENTS calib3d highgui imgcodecs imgproc videoio)
+if(OpenCV_FOUND AND TARGET gstreamer_camera)
+    add_library(camera_calibrator STATIC camera/camera_calibrator_core.cc camera/camera_calibrator_options.cc)
+    target_include_directories(camera_calibrator PUBLIC ${OpenCV_INCLUDE_DIRS})
+    target_link_libraries(camera_calibrator PUBLIC gstreamer_camera camera_frames ${OpenCV_LIBS})
+endif()

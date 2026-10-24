@@ -6,7 +6,7 @@
 #include <string>
 
 #include "bridge.grpc.pb.h"
-#include "cockpit/core/runtime/process_runtime.h"
+#include "cockpit/exchange/foundation/runtime/process_runtime.h"
 #include "common.pb.h"
 #include "tools/diagnostics/cli_output.h"
 

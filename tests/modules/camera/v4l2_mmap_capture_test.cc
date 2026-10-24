@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "cockpit/drivers/v4l2/v4l2_mmap_capture_internal.h"
+#include "cockpit/driver/platform/v4l2/v4l2_mmap_capture_internal.h"
 
 int main() {
   using cockpit::camera::V4l2RawFrame;

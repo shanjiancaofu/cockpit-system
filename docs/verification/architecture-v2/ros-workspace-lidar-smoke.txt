@@ -1,0 +1,3 @@
+LiDAR/Nav2 source smoke passed
+publisher_count=1 subscriber_count=2 frame_id=base_scan
+log=/home/fff/code/github/cockpit-system/_output/runtime/lidar-nav2-source.4rysLx/launch.log

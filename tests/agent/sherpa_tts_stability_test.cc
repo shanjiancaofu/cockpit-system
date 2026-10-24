@@ -8,8 +8,8 @@
 #include <sstream>
 #include <string>
 
-#include "agent/speech/providers/sherpa/sherpa_kokoro_speech_synthesizer.h"
-#include "cockpit/core/config/system_config.h"
+#include "cockpit/exchange/foundation/config/system_config.h"
+#include "cockpit/voice/speech/providers/sherpa/sherpa_kokoro_speech_synthesizer.h"
 
 namespace {
 

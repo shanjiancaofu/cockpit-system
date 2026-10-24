@@ -1,4 +1,4 @@
-#include "cockpit/library/driver/audio/capture/audio_capture_controller.h"
+#include "cockpit/driver/audio/runtime/capture/audio_capture_controller.h"
 
 #include <unistd.h>
 

@@ -4,8 +4,8 @@
 #include <thread>
 #include <type_traits>
 
-#include "cockpit/modules/audio/frames/audio_frame.h"
-#include "cockpit/modules/audio/frames/spsc_ring_buffer.h"
+#include "cockpit/driver/audio/frames/audio_frame.h"
+#include "cockpit/driver/audio/frames/spsc_ring_buffer.h"
 
 namespace {
 

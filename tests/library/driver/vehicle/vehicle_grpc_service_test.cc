@@ -1,4 +1,4 @@
-#include "cockpit/library/driver/vehicle/vehicle_grpc_service.h"
+#include "cockpit/driver/vehicle/runtime/vehicle_grpc_service.h"
 
 #include <grpcpp/grpcpp.h>
 #include <unistd.h>

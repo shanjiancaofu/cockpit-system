@@ -8,7 +8,7 @@
 #include <iterator>
 #include <string>
 
-#include "cockpit/core/json/json.h"
+#include "cockpit/exchange/foundation/json/json.h"
 
 namespace {
 

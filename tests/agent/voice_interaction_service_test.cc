@@ -1,4 +1,4 @@
-#include "agent/interaction/voice_interaction_service.h"
+#include "cockpit/voice/interaction/voice_interaction_service.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -10,9 +10,9 @@
 #include <stdexcept>
 #include <thread>
 
-#include "cockpit/modules/voice/actions/cockpit_action_dispatcher.h"
-#include "cockpit/modules/voice/actions/mock_action_dispatcher.h"
-#include "cockpit/modules/voice/assistant/mock_voice_assistant.h"
+#include "cockpit/voice/domain/actions/cockpit_action_dispatcher.h"
+#include "cockpit/voice/domain/actions/mock_action_dispatcher.h"
+#include "cockpit/voice/domain/assistant/mock_voice_assistant.h"
 
 namespace {
 

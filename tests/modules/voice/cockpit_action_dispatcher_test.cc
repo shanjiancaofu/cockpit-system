@@ -1,4 +1,4 @@
-#include "cockpit/modules/voice/actions/cockpit_action_dispatcher.h"
+#include "cockpit/voice/domain/actions/cockpit_action_dispatcher.h"
 
 #include <chrono>
 #include <cstdint>

@@ -10,10 +10,10 @@
 
 #include "audio_control_client.h"
 
-#include "cockpit/core/logging/logger.h"
-#include "cockpit/core/runtime/process_runtime.h"
-#include "cockpit/drivers/alsa/alsa_pcm.h"
-#include "cockpit/modules/audio/wav/wav_file.h"
+#include "cockpit/driver/audio/wav/wav_file.h"
+#include "cockpit/driver/platform/alsa/alsa_pcm.h"
+#include "cockpit/exchange/foundation/logging/logger.h"
+#include "cockpit/exchange/foundation/runtime/process_runtime.h"
 #include "tools/diagnostics/cli_output.h"
 
 namespace {
