@@ -1,0 +1,8 @@
+{
+  "purpose": "Diagnostic prototype before reserve tuning, not final acceptance",
+  "pool_size": 6,
+  "capture_reserve": 1,
+  "transform_queue_capacity": 2,
+  "slow_ms": 100,
+  "note": "Prototype error field still contained an expected held-lease Stop message. Use raw sensor timestamps and FPS to assess pipeline stalls; final gate fixes reporting and uses reserve=4."
+}

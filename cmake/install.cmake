@@ -32,6 +32,7 @@ set(cockpit_runtime_target_candidates
     camera-diag
     camera-stress
     libargus-capture-probe
+    native-frame-broker-probe
     can-simulator
     cockpit-ctl
     bridge-ctl

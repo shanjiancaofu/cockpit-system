@@ -1,0 +1,216 @@
+{
+  "schema_version": 2,
+  "scope": "PR-03/04 Native Runtime, Frame Broker and VIC",
+  "passed": true,
+  "tests": [
+    {
+      "name": "diagnostics",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-diag",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/diagnostics.json"
+      ],
+      "returncode": 0,
+      "report": "diagnostics.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "raw-restart",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-stress",
+        "--cycles",
+        "10",
+        "--frames",
+        "60",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/raw-restart.json"
+      ],
+      "returncode": 0,
+      "report": "raw-restart.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-runtime-lifecycle",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/native_argus_capture_hardware_test",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/native-runtime-lifecycle.json"
+      ],
+      "returncode": 0,
+      "report": "native-runtime-lifecycle.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-continuous",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "3000",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/native-continuous.json"
+      ],
+      "returncode": 0,
+      "report": "native-continuous.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-restart",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--cycles",
+        "10",
+        "--frames",
+        "60",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/native-restart.json"
+      ],
+      "returncode": 0,
+      "report": "native-restart.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-timeout",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "60",
+        "--timeout-ms",
+        "1",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/native-timeout.json"
+      ],
+      "returncode": 1,
+      "report": "native-timeout.json",
+      "expected_success": false,
+      "passed": true
+    },
+    {
+      "name": "after-timeout",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/after-timeout.json"
+      ],
+      "returncode": 0,
+      "report": "after-timeout.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "vic-layouts",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/vic_transform_hardware_test",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/vic-layouts.json"
+      ],
+      "returncode": 0,
+      "report": "vic-layouts.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "broker-continuous",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/native-frame-broker-probe",
+        "--frames",
+        "3000",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/broker-continuous.json"
+      ],
+      "returncode": 0,
+      "report": "broker-continuous.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "broker-restart",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/native-frame-broker-probe",
+        "--cycles",
+        "10",
+        "--frames",
+        "60",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/broker-restart.json"
+      ],
+      "returncode": 0,
+      "report": "broker-restart.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "broker-vic",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/native-frame-broker-probe",
+        "--mode",
+        "vic",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/broker-vic.json"
+      ],
+      "returncode": 0,
+      "report": "broker-vic.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "diagnostics-after-native",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-diag",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/diagnostics-after-native.json"
+      ],
+      "returncode": 0,
+      "report": "diagnostics-after-native.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "normal-daemon-stability",
+      "passed": true
+    }
+  ],
+  "binary_sha256": {
+    "camera-diag": "3e62e822d12bb89a22763297149f9866fc64d2d39f60d6278d58a8e77173c7ad",
+    "camera-stress": "f5ba6c2b93d304ec5491fec5cb3e434ee89edd4822d1385fd46bddc66a864439",
+    "libargus-capture-probe": "5f8172bdcbe1e5a59fea225088458d7de3642ee699f98ff35d25d2cb44ffcd68",
+    "native_argus_capture_hardware_test": "bc8978e9a40426fbaca9895df847a8c8fe06209ac00cc1b53622b6930ae7ce0f",
+    "native-frame-broker-probe": "283a472b0951f295d1a062eb83efd61b690037358ba79a4798604c73a3057394",
+    "vic_transform_hardware_test": "e144973a8c5334600b329bd281064884a8bea5f7fdfcbaf8eadc492f2d06d279"
+  },
+  "daemon_before": {
+    "returncode": 0,
+    "properties": {
+      "MainPID": "44664",
+      "NRestarts": "3",
+      "ExecMainStatus": "0",
+      "ActiveState": "active",
+      "InvocationID": "6cd6e470fff2439a964e9d0b2bfd8986"
+    }
+  },
+  "daemon_after": {
+    "returncode": 0,
+    "properties": {
+      "MainPID": "44664",
+      "NRestarts": "3",
+      "ExecMainStatus": "0",
+      "ActiveState": "active",
+      "InvocationID": "6cd6e470fff2439a964e9d0b2bfd8986"
+    }
+  },
+  "started_utc": "2026-10-24T09:15:53.536428+00:00",
+  "finished_utc": "2026-10-24T09:21:47.446863+00:00",
+  "abnormal_exit": "reported separately; not part of normal-path acceptance"
+}

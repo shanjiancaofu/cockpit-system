@@ -1,0 +1,35 @@
+2026-10-24T17:22:57+0800 nvidia nvargus-daemon[44664]: === libargus-capture-probe[50693]: Connection established (FFFF857AB840)
+2026-10-24T17:22:57+0800 nvidia nvargus-daemon[44664]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-24T17:22:57+0800 nvidia nvargus-daemon[44664]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-24T17:22:58+0800 nvidia nvargus-daemon[44664]: === libargus-capture-probe[50693]: CameraProvider initialized (0xffff647bc300)
+2026-10-24T17:22:58+0800 nvidia nvargus-daemon[44664]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: === libargus-capture-probe[50693]: Connection closed (FFFF857AB840)
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: (Argus) Error FileOperationFailed: Socket write failed: Broken pipe (in src/rpc/socket/common/SocketUtils.cpp, function writeSocket(), line 49)
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: (Argus) Error FileOperationFailed:  (propagating from libs/rpc_socket_server/ServerSocketManager.cpp, function sendResponse(), line 92)
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: (Argus) Error FileOperationFailed:  (propagating from libs/rpc_socket_server/ServerSocketManager.cpp, function handleRequest(), line 174)
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: (Argus) Error FileOperationFailed: Message processing failed (id = 1565) (in libs/rpc_socket_server/ServerWorkerThread.cpp, function run(), line 143)
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: === libargus-capture-probe[50693]: WARNING: CameraProvider was not destroyed before client connection terminated.
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: === libargus-capture-probe[50693]:          The client may have abnormally terminated. Destroying CameraProvider...
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: === libargus-capture-probe[50693]: CameraProvider destroyed (0xffff647bc300)
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: === libargus-capture-probe[50693]: WARNING: Cleaning up 1 outstanding requests...
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: === libargus-capture-probe[50693]: WARNING: Cleaning up 1 outstanding sessions...
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: === libargus-capture-probe[50693]: WARNING: Cleaning up 1 outstanding streams...
+2026-10-24T17:23:06+0800 nvidia nvargus-daemon[44664]: === libargus-capture-probe[50693]: WARNING: Cleaning up 6 outstanding buffers...
+2026-10-24T17:23:06+0800 nvidia systemd[1]: nvargus-daemon.service: Main process exited, code=killed, status=11/SEGV
+2026-10-24T17:23:06+0800 nvidia systemd[1]: nvargus-daemon.service: Failed with result 'signal'.
+2026-10-24T17:23:06+0800 nvidia systemd[1]: nvargus-daemon.service: Consumed 1min 22.199s CPU time.
+2026-10-24T17:23:07+0800 nvidia systemd[1]: nvargus-daemon.service: Scheduled restart job, restart counter is at 4.
+2026-10-24T17:23:07+0800 nvidia systemd[1]: Stopped Argus daemon.
+2026-10-24T17:23:07+0800 nvidia systemd[1]: nvargus-daemon.service: Consumed 1min 22.199s CPU time.
+2026-10-24T17:23:07+0800 nvidia systemd[1]: Started Argus daemon.
+2026-10-24T17:23:07+0800 nvidia nvargus-daemon[50745]: === NVIDIA Libargus Camera Service (0.99.33)
+2026-10-24T17:23:07+0800 nvidia nvargus-daemon[50745]: === Listening for connections...
+2026-10-24T17:23:08+0800 nvidia nvargus-daemon[50745]: === libargus-capture-probe[50752]: Connection established (FFFFA61CB840)
+2026-10-24T17:23:08+0800 nvidia nvargus-daemon[50745]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-24T17:23:08+0800 nvidia nvargus-daemon[50745]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-24T17:23:08+0800 nvidia nvargus-daemon[50745]: === libargus-capture-probe[50752]: CameraProvider initialized (0xffffa0ac9210)
+2026-10-24T17:23:08+0800 nvidia nvargus-daemon[50745]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-24T17:23:11+0800 nvidia nvargus-daemon[50745]: === libargus-capture-probe[50752]: CameraProvider destroyed (0xffffa0ac9210)
+2026-10-24T17:23:11+0800 nvidia nvargus-daemon[50745]: CaptureService:stop: is requested --------------------------
+2026-10-24T17:23:12+0800 nvidia nvargus-daemon[50745]: === libargus-capture-probe[50752]: Connection closed (FFFFA61CB840)
+2026-10-24T17:23:12+0800 nvidia nvargus-daemon[50745]: === libargus-capture-probe[50752]: Connection cleaned up (FFFFA61CB840)

@@ -1,0 +1,132 @@
+{
+  "backend": "native-buffer",
+  "argv": [
+    "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+    "--frames",
+    "9000",
+    "--output",
+    "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-exit/native-buffer-abrupt.json"
+  ],
+  "daemon_before": {
+    "argv": [
+      "systemctl",
+      "show",
+      "nvargus-daemon",
+      "-p",
+      "NRestarts",
+      "-p",
+      "MainPID",
+      "-p",
+      "ActiveState",
+      "-p",
+      "InvocationID"
+    ],
+    "returncode": 0,
+    "output": "MainPID=44664\nNRestarts=3\nActiveState=active\nInvocationID=6cd6e470fff2439a964e9d0b2bfd8986\n",
+    "properties": {
+      "MainPID": "44664",
+      "NRestarts": "3",
+      "ActiveState": "active",
+      "InvocationID": "6cd6e470fff2439a964e9d0b2bfd8986"
+    }
+  },
+  "observed_frames": 226,
+  "seconds_before_kill": 8.468614101409912,
+  "returncode": -9,
+  "fault_injected": true,
+  "immediate": {
+    "argv": [
+      "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+      "--frames",
+      "60",
+      "--output",
+      "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-exit/native-buffer-immediate.json"
+    ],
+    "returncode": 1,
+    "output": "passed=0 report=/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-exit/native-buffer-immediate.json error=\n(Argus) Error FileOperationFailed: Failed socket read: Connection reset by peer (in src/rpc/socket/common/SocketUtils.cpp, function readSocket(), line 79)\n(Argus) Error FileOperationFailed:  (propagating from src/rpc/socket/client/SocketClientDispatch.cpp, function openSocketConnection(), line 220)\n(Argus) Error FileOperationFailed: Cannot create camera provider (in src/rpc/socket/client/SocketClientDispatch.cpp, function createCameraProvider(), line 107)\n",
+    "captured": false
+  },
+  "daemon_after_immediate": {
+    "argv": [
+      "systemctl",
+      "show",
+      "nvargus-daemon",
+      "-p",
+      "NRestarts",
+      "-p",
+      "MainPID",
+      "-p",
+      "ActiveState",
+      "-p",
+      "InvocationID"
+    ],
+    "returncode": 0,
+    "output": "MainPID=0\nNRestarts=3\nActiveState=activating\nInvocationID=6cd6e470fff2439a964e9d0b2bfd8986\n",
+    "properties": {
+      "MainPID": "0",
+      "NRestarts": "3",
+      "ActiveState": "activating",
+      "InvocationID": "6cd6e470fff2439a964e9d0b2bfd8986"
+    }
+  },
+  "daemon_stable_before_followup": {
+    "argv": [
+      "systemctl",
+      "show",
+      "nvargus-daemon",
+      "-p",
+      "NRestarts",
+      "-p",
+      "MainPID",
+      "-p",
+      "ActiveState",
+      "-p",
+      "InvocationID"
+    ],
+    "returncode": 0,
+    "output": "MainPID=50745\nNRestarts=4\nActiveState=active\nInvocationID=cd1b0339036d43b7b21ea710fa778915\n",
+    "properties": {
+      "MainPID": "50745",
+      "NRestarts": "4",
+      "ActiveState": "active",
+      "InvocationID": "cd1b0339036d43b7b21ea710fa778915"
+    }
+  },
+  "followup": {
+    "argv": [
+      "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+      "--frames",
+      "60",
+      "--output",
+      "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-exit/native-buffer-followup.json"
+    ],
+    "returncode": 0,
+    "output": "passed=1 report=/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-exit/native-buffer-followup.json error=\n",
+    "captured": true
+  },
+  "daemon_after": {
+    "argv": [
+      "systemctl",
+      "show",
+      "nvargus-daemon",
+      "-p",
+      "NRestarts",
+      "-p",
+      "MainPID",
+      "-p",
+      "ActiveState",
+      "-p",
+      "InvocationID"
+    ],
+    "returncode": 0,
+    "output": "MainPID=50745\nNRestarts=4\nActiveState=active\nInvocationID=cd1b0339036d43b7b21ea710fa778915\n",
+    "properties": {
+      "MainPID": "50745",
+      "NRestarts": "4",
+      "ActiveState": "active",
+      "InvocationID": "cd1b0339036d43b7b21ea710fa778915"
+    }
+  },
+  "daemon_restarted": true,
+  "immediate_recovery_passed": false
+}

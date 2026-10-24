@@ -1,0 +1,1 @@
+passed=1 report=/home/fff/code/github/cockpit-system/_output/runtime/camera-pr04-gate/native-restart.json error=

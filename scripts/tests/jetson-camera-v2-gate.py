@@ -30,6 +30,7 @@ def main():
     parser.add_argument('--cycles', type=int, default=10)
     parser.add_argument('--normal-only', action='store_true',
                         help='Validate normal lifecycle/timeout recovery without SIGKILL injection')
+    parser.add_argument('--broker', action='store_true', help='Include PR-04 broker and VIC acceptance')
     args = parser.parse_args()
     if args.continuous_frames < 300 or args.cycles < 2:
         parser.error('continuous-frames >= 300 and cycles >= 2 are required')
@@ -40,9 +41,10 @@ def main():
     report = dict(schema_version=2, started_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                   tests=[], physical_disconnect_recovery='not_tested',
                   note='No daemon restart or driver patch. SIGKILL targets only the probe started by this script.')
-    report['binary_sha256'] = {name: hashlib.sha256((binaries / name).read_bytes()).hexdigest()
-                               for name in ('camera-diag', 'camera-stress', 'libargus-capture-probe',
-                                            'native_argus_capture_hardware_test')}
+    names = ['camera-diag', 'camera-stress', 'libargus-capture-probe', 'native_argus_capture_hardware_test']
+    if args.broker:
+        names += ['native-frame-broker-probe', 'vic_transform_hardware_test']
+    report['binary_sha256'] = {name: hashlib.sha256((binaries / name).read_bytes()).hexdigest() for name in names}
     report['daemon_before'] = service_state()
 
     def execute(name, binary, *options, expect_success=True):
@@ -80,6 +82,11 @@ def main():
     execute('native-timeout', 'libargus-capture-probe', '--frames', 60, '--timeout-ms', 1,
             expect_success=False)
     execute('after-timeout', 'libargus-capture-probe', '--frames', 300)
+    if args.broker:
+        execute('vic-layouts', 'vic_transform_hardware_test')
+        execute('broker-continuous', 'native-frame-broker-probe', '--frames', args.continuous_frames)
+        execute('broker-restart', 'native-frame-broker-probe', '--cycles', args.cycles, '--frames', 60)
+        execute('broker-vic', 'native-frame-broker-probe', '--mode', 'vic', '--frames', 300)
     execute('diagnostics-after-native', 'camera-diag', '--frames', 300)
     normal_daemon = service_state()
     daemon_stable = (normal_daemon['returncode'] == 0 and
@@ -90,13 +97,21 @@ def main():
     report['tests'].append(dict(name='normal-daemon-stability', passed=daemon_stable))
     normal_count = len(report['tests'])
     report['normal_path_passed'] = all(item['passed'] for item in report['tests'])
-    normal = dict(schema_version=2, scope='PR-03 Native Runtime normal lifecycle and timeout recovery',
+    normal = dict(schema_version=2, scope='PR-03/04 Native Runtime, Frame Broker and VIC' if args.broker else 'PR-03 Native Runtime normal lifecycle and timeout recovery',
                   passed=report['normal_path_passed'], tests=list(report['tests']),
                   binary_sha256=report['binary_sha256'], daemon_before=report['daemon_before'],
                   daemon_after=normal_daemon, started_utc=report['started_utc'],
                   finished_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                   abnormal_exit='reported separately; not part of normal-path acceptance')
     (args.output_dir / 'camera_native_runtime_gate.json').write_text(json.dumps(normal, indent=2) + '\n')
+    if args.broker:
+        baseline = json.loads((args.output_dir / 'native-continuous.json').read_text())
+        broker = json.loads((args.output_dir / 'broker-continuous.json').read_text())
+        normal['comparison'] = dict(
+            workload='Native NV12 acquisition + metadata + first-frame 64-byte luma sample; broker adds two consumers, no VIC/Qt/encoder',
+            baseline_cpu_percent=baseline.get('process_cpu_percent'), broker_cpu_percent=broker.get('process_cpu_percent'),
+            baseline_max_rss_kib=baseline.get('max_rss_kib'), broker_max_rss_kib=broker.get('max_rss_kib'))
+        (args.output_dir / 'camera_frame_broker_gate.json').write_text(json.dumps(normal, indent=2) + '\n')
 
     # Wait for evidence of actual frame production, then kill only our process group.
     # This is a separate acceptance scope; a daemon restart never counts as immediate recovery.

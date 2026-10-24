@@ -1,0 +1,1 @@
+{"schema_version":1,"passed":true,"held_lease_stop":true,"pool_starvation":true,"cross_thread_return":true,"same_session_timeout_recovery":true,"same_runtime_restart":true,"lease_outlives_runtime":true,"allocated":12,"destroyed":12,"frames_acquired":6,"leases_returned":6,"buffers_released":6,"outstanding_leases":0,"resources_balanced":true,"cleanup_errors":[],"error":""}

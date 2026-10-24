@@ -17,3 +17,4 @@ add_executable(camera-stress camera-stress/main.cc)
 target_link_libraries(camera-stress PRIVATE camera_diagnostics)
 
 add_subdirectory(libargus-capture-probe)
+add_subdirectory(native-frame-broker-probe)

@@ -1,0 +1,164 @@
+{
+  "backend": "gstreamer",
+  "argv": [
+    "gst-launch-1.0",
+    "-v",
+    "nvarguscamerasrc",
+    "sensor-id=0",
+    "!",
+    "video/x-raw(memory:NVMM),format=NV12,width=1920,height=1080,framerate=30/1",
+    "!",
+    "identity",
+    "silent=false",
+    "signal-handoffs=false",
+    "!",
+    "fakesink",
+    "sync=false"
+  ],
+  "daemon_before": {
+    "argv": [
+      "systemctl",
+      "show",
+      "nvargus-daemon",
+      "-p",
+      "NRestarts",
+      "-p",
+      "MainPID",
+      "-p",
+      "ActiveState",
+      "-p",
+      "InvocationID"
+    ],
+    "returncode": 0,
+    "output": "MainPID=50745\nNRestarts=4\nActiveState=active\nInvocationID=cd1b0339036d43b7b21ea710fa778915\n",
+    "properties": {
+      "MainPID": "50745",
+      "NRestarts": "4",
+      "ActiveState": "active",
+      "InvocationID": "cd1b0339036d43b7b21ea710fa778915"
+    }
+  },
+  "observed_frames": 209,
+  "seconds_before_kill": 8.159868478775024,
+  "returncode": -9,
+  "fault_injected": true,
+  "immediate": {
+    "argv": [
+      "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-preview-probe",
+      "--backend",
+      "argus",
+      "--device",
+      "nvargus://0",
+      "--width",
+      "1920",
+      "--height",
+      "1080",
+      "--fps",
+      "30",
+      "--frames",
+      "60",
+      "--timeout-ms",
+      "15000",
+      "--config",
+      "/home/fff/code/github/cockpit-system/configs/development.yaml"
+    ],
+    "returncode": 0,
+    "output": "GST_ARGUS: Creating output stream\nCONSUMER: Waiting until producer is connected...\nGST_ARGUS: Available Sensor modes :\nGST_ARGUS: 3280 x 2464 FR = 21.000000 fps Duration = 47619048 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;\n\nGST_ARGUS: 3280 x 1848 FR = 28.000001 fps Duration = 35714284 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;\n\nGST_ARGUS: 1920 x 1080 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;\n\nGST_ARGUS: 1640 x 1232 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;\n\nGST_ARGUS: 1280 x 720 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;\n\nGST_ARGUS: Running with following settings:\n   Camera index = 0 \n   Camera mode  = 2 \n   Output Stream W = 1920 H = 1080 \n   seconds to Run    = 0 \n   Frame Rate = 29.999999 \nGST_ARGUS: Setup Complete, Starting captures for 0 seconds\nGST_ARGUS: Starting repeat capture requests.\nCONSUMER: Producer has connected; continuing.\nGST_ARGUS: Cleaning up\nCONSUMER: Done Success\nGST_ARGUS: Done Success\ncaptured 60 frame(s) from nvargus://0 size=1920x1080 stride=7680 bytes=8294400 fps=50\nwarmup_frames=0 steady_fps=50.1528\nprocess_cpu_ms=609.019 process_wall_ms=2686.64 process_cpu_percent=22.6684 max_rss_kib=229792\n2026-10-24 17:23:21_426 [INFO] camera-preview-probe started config=/home/fff/code/github/cockpit-system/configs/development.yaml (/home/fff/code/github/cockpit-system/cockpit/core/runtime/process_runtime.cc:42)\n2026-10-24 17:23:24_129 [INFO] camera-preview-probe stopped (/home/fff/code/github/cockpit-system/cockpit/core/runtime/process_runtime.cc:60)\n",
+    "captured": true
+  },
+  "daemon_after_immediate": {
+    "argv": [
+      "systemctl",
+      "show",
+      "nvargus-daemon",
+      "-p",
+      "NRestarts",
+      "-p",
+      "MainPID",
+      "-p",
+      "ActiveState",
+      "-p",
+      "InvocationID"
+    ],
+    "returncode": 0,
+    "output": "MainPID=50745\nNRestarts=4\nActiveState=active\nInvocationID=cd1b0339036d43b7b21ea710fa778915\n",
+    "properties": {
+      "MainPID": "50745",
+      "NRestarts": "4",
+      "ActiveState": "active",
+      "InvocationID": "cd1b0339036d43b7b21ea710fa778915"
+    }
+  },
+  "daemon_stable_before_followup": {
+    "argv": [
+      "systemctl",
+      "show",
+      "nvargus-daemon",
+      "-p",
+      "NRestarts",
+      "-p",
+      "MainPID",
+      "-p",
+      "ActiveState",
+      "-p",
+      "InvocationID"
+    ],
+    "returncode": 0,
+    "output": "MainPID=50745\nNRestarts=4\nActiveState=active\nInvocationID=cd1b0339036d43b7b21ea710fa778915\n",
+    "properties": {
+      "MainPID": "50745",
+      "NRestarts": "4",
+      "ActiveState": "active",
+      "InvocationID": "cd1b0339036d43b7b21ea710fa778915"
+    }
+  },
+  "followup": {
+    "argv": [
+      "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-preview-probe",
+      "--backend",
+      "argus",
+      "--device",
+      "nvargus://0",
+      "--width",
+      "1920",
+      "--height",
+      "1080",
+      "--fps",
+      "30",
+      "--frames",
+      "60",
+      "--timeout-ms",
+      "15000",
+      "--config",
+      "/home/fff/code/github/cockpit-system/configs/development.yaml"
+    ],
+    "returncode": 0,
+    "output": "GST_ARGUS: Creating output stream\nCONSUMER: Waiting until producer is connected...\nGST_ARGUS: Available Sensor modes :\nGST_ARGUS: 3280 x 2464 FR = 21.000000 fps Duration = 47619048 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;\n\nGST_ARGUS: 3280 x 1848 FR = 28.000001 fps Duration = 35714284 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;\n\nGST_ARGUS: 1920 x 1080 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;\n\nGST_ARGUS: 1640 x 1232 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;\n\nGST_ARGUS: 1280 x 720 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;\n\nGST_ARGUS: Running with following settings:\n   Camera index = 0 \n   Camera mode  = 2 \n   Output Stream W = 1920 H = 1080 \n   seconds to Run    = 0 \n   Frame Rate = 29.999999 \nGST_ARGUS: Setup Complete, Starting captures for 0 seconds\nGST_ARGUS: Starting repeat capture requests.\nCONSUMER: Producer has connected; continuing.\nGST_ARGUS: Cleaning up\nCONSUMER: Done Success\nGST_ARGUS: Done Success\ncaptured 60 frame(s) from nvargus://0 size=1920x1080 stride=7680 bytes=8294400 fps=47.619\nwarmup_frames=0 steady_fps=47.7996\nprocess_cpu_ms=600.316 process_wall_ms=2494.27 process_cpu_percent=24.0678 max_rss_kib=229932\n2026-10-24 17:23:25_865 [INFO] camera-preview-probe started config=/home/fff/code/github/cockpit-system/configs/development.yaml (/home/fff/code/github/cockpit-system/cockpit/core/runtime/process_runtime.cc:42)\n2026-10-24 17:23:28_376 [INFO] camera-preview-probe stopped (/home/fff/code/github/cockpit-system/cockpit/core/runtime/process_runtime.cc:60)\n",
+    "captured": true
+  },
+  "daemon_after": {
+    "argv": [
+      "systemctl",
+      "show",
+      "nvargus-daemon",
+      "-p",
+      "NRestarts",
+      "-p",
+      "MainPID",
+      "-p",
+      "ActiveState",
+      "-p",
+      "InvocationID"
+    ],
+    "returncode": 0,
+    "output": "MainPID=50745\nNRestarts=4\nActiveState=active\nInvocationID=cd1b0339036d43b7b21ea710fa778915\n",
+    "properties": {
+      "MainPID": "50745",
+      "NRestarts": "4",
+      "ActiveState": "active",
+      "InvocationID": "cd1b0339036d43b7b21ea710fa778915"
+    }
+  },
+  "daemon_restarted": false,
+  "immediate_recovery_passed": true
+}

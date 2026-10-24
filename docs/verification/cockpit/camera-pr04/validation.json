@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "base_commit": "b47288eee3d96d12331e375a4d7d443fd756cd7c",
+  "ordinary_ctest_passed": [
+    "frame_broker_test",
+    "vic_transform_test",
+    "frame_lease_test",
+    "camera_frame_test",
+    "camera_service_test",
+    "camera_diagnostics_test",
+    "camera_diagnostics_cli_test",
+    "v4l2_mmap_capture_test",
+    "software_isp_preview_source_test",
+    "gstreamer_timestamp_mapper_test"
+  ],
+  "sdk_disabled_ctest_passed": [
+    "frame_broker_test",
+    "vic_transform_test"
+  ],
+  "asan_ubsan": {
+    "tests": [
+      "frame_broker_test",
+      "vic_transform_test"
+    ],
+    "result": "passed",
+    "leak_detection": true,
+    "flags": "-std=c++17 -g -fsanitize=address,undefined -fno-omit-frame-pointer",
+    "note": "Hardware-independent broker and CPU-plane code; VIC SDK stub used for sanitizer plane test"
+  },
+  "tsan": "not_run; repository CTest launcher supports Linux x86_64 only, target is aarch64",
+  "normal_hardware_gate": "passed",
+  "production_switch_ready": false,
+  "native_sigkill": "immediate recovery failed; daemon restarted; later capture succeeded",
+  "gstreamer_sigkill": "this case immediately recovered without daemon restart",
+  "production_default": "unchanged GStreamer; no new native/VIC direct dependency in camera_driver",
+  "format_check": "clang-format --dry-run -Werror passed",
+  "diff_check": "git diff --check passed"
+}

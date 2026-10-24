@@ -1,0 +1,44 @@
+2026-10-24T17:23:13+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: Connection established (FFFFA61CB840)
+2026-10-24T17:23:13+0800 nvidia nvargus-daemon[50745]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-24T17:23:13+0800 nvidia nvargus-daemon[50745]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-24T17:23:13+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: CameraProvider initialized (0xffffa1434dd0)
+2026-10-24T17:23:13+0800 nvidia nvargus-daemon[50745]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: (Argus) Error FileOperationFailed: Failed socket read: Connection reset by peer (in src/rpc/socket/common/SocketUtils.cpp, function readSocket(), line 79)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: (Argus) Error FileOperationFailed:  (propagating from libs/rpc_socket_server/ServerSocketManager.cpp, function recvThreadCore(), line 192)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: (Argus) Error FileOperationFailed:  (propagating from libs/rpc_socket_server/ServerSocketManager.cpp, function run(), line 58)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: Connection closed (FFFFA61CB840)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: WARNING: CameraProvider was not destroyed before client connection terminated.
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]:          The client may have abnormally terminated. Destroying CameraProvider...
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: CameraProvider destroyed (0xffffa1434dd0)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: WARNING: Cleaning up 1 outstanding requests...
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: WARNING: Cleaning up 1 outstanding stream settings...
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: WARNING: Cleaning up 1 outstanding queues...
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: WARNING: Cleaning up 1 outstanding sessions...
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: SCF: Error InvalidState:  (propagating from src/services/gl/EGLStreamProducer.cpp, function presentBufferInternal(), line 535)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: SCF: Error InvalidState:  (propagating from src/services/gl/EGLStreamProducer.cpp, function presentBufferInternal(), line 535)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: SCF: Error InvalidState:  (propagating from src/services/gl/EGLStreamProducer.cpp, function presentBufferInternal(), line 535)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: SCF: Error InvalidState:  (propagating from src/services/gl/EGLStreamProducer.cpp, function presentBufferInternal(), line 535)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: SCF: Error InvalidState:  (propagating from src/services/gl/EGLStreamProducer.cpp, function presentBufferInternal(), line 535)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: WARNING: Cleaning up 1 outstanding streams...
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: (Argus) Error InvalidState: Unknown stream deleted. (in src/api/CaptureSessionImpl.cpp, function outputStreamDeleted(), line 1120)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: NOTE: Destroy all libargus objects before destroying the CameraProvider to avoid these warnings.
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: CaptureService:stop: is requested --------------------------
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === gst-launch-1.0[50801]: Connection cleaned up (FFFFA61CB840)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === camera-preview-probe[50855]: Connection established (FFFF33FFB840)
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-24T17:23:21+0800 nvidia nvargus-daemon[50745]: === camera-preview-probe[50855]: CameraProvider initialized (0xffffa07ad7f0)
+2026-10-24T17:23:22+0800 nvidia nvargus-daemon[50745]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-24T17:23:24+0800 nvidia nvargus-daemon[50745]: === camera-preview-probe[50855]: CameraProvider destroyed (0xffffa07ad7f0)
+2026-10-24T17:23:24+0800 nvidia nvargus-daemon[50745]: CaptureService:stop: is requested --------------------------
+2026-10-24T17:23:24+0800 nvidia nvargus-daemon[50745]: === camera-preview-probe[50855]: Connection closed (FFFF33FFB840)
+2026-10-24T17:23:24+0800 nvidia nvargus-daemon[50745]: === camera-preview-probe[50855]: Connection cleaned up (FFFF33FFB840)
+2026-10-24T17:23:25+0800 nvidia nvargus-daemon[50745]: === camera-preview-probe[50910]: Connection established (FFFF33FFB840)
+2026-10-24T17:23:25+0800 nvidia nvargus-daemon[50745]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-24T17:23:26+0800 nvidia nvargus-daemon[50745]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-24T17:23:26+0800 nvidia nvargus-daemon[50745]: === camera-preview-probe[50910]: CameraProvider initialized (0xffffa146efc0)
+2026-10-24T17:23:26+0800 nvidia nvargus-daemon[50745]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-24T17:23:28+0800 nvidia nvargus-daemon[50745]: === camera-preview-probe[50910]: CameraProvider destroyed (0xffffa146efc0)
+2026-10-24T17:23:28+0800 nvidia nvargus-daemon[50745]: CaptureService:stop: is requested --------------------------
+2026-10-24T17:23:28+0800 nvidia nvargus-daemon[50745]: === camera-preview-probe[50910]: Connection closed (FFFF33FFB840)
+2026-10-24T17:23:28+0800 nvidia nvargus-daemon[50745]: === camera-preview-probe[50910]: Connection cleaned up (FFFF33FFB840)
