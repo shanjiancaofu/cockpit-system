@@ -1,0 +1,66 @@
+{
+  "schema_version": 2,
+  "scope": "SIGKILL abnormal exit recovery",
+  "passed": false,
+  "tests": [
+    {
+      "name": "abrupt-exit",
+      "passed": true,
+      "observed_frame_production": true,
+      "returncode": -9
+    },
+    {
+      "name": "after-sigkill",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/after-sigkill.json"
+      ],
+      "returncode": 1,
+      "report": "after-sigkill.json",
+      "expected_success": true,
+      "passed": false
+    },
+    {
+      "name": "after-sigkill-followup",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/after-sigkill-followup.json"
+      ],
+      "returncode": 1,
+      "report": "after-sigkill-followup.json",
+      "expected_success": true,
+      "passed": false
+    },
+    {
+      "name": "daemon-stability",
+      "passed": false
+    }
+  ],
+  "recovery": "unrecovered",
+  "daemon_before": {
+    "returncode": 0,
+    "properties": {
+      "MainPID": "39458",
+      "NRestarts": "2",
+      "ExecMainStatus": "0",
+      "ActiveState": "active",
+      "InvocationID": "b56dcedb5b8f4e7096c338b479febf71"
+    }
+  },
+  "daemon_after": {
+    "returncode": 0,
+    "properties": {
+      "MainPID": "44664",
+      "NRestarts": "3",
+      "ExecMainStatus": "0",
+      "ActiveState": "active",
+      "InvocationID": "6cd6e470fff2439a964e9d0b2bfd8986"
+    }
+  }
+}

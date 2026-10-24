@@ -317,7 +317,13 @@ add_executable(camera_frame_test modules/camera/camera_frame_test.cc)
 target_link_libraries(camera_frame_test PRIVATE camera)
 add_test(NAME camera_frame_test COMMAND camera_frame_test)
 
+add_executable(frame_lease_test modules/camera/frame_lease_test.cc)
+target_link_libraries(frame_lease_test PRIVATE native_camera_capture)
+add_test(NAME frame_lease_test COMMAND frame_lease_test)
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_executable(native_argus_capture_hardware_test modules/camera/native_argus_capture_hardware_test.cc)
+    target_link_libraries(native_argus_capture_hardware_test PRIVATE native_camera_capture camera_diagnostics)
     add_executable(v4l2_mmap_capture_test modules/camera/v4l2_mmap_capture_test.cc)
     target_link_libraries(v4l2_mmap_capture_test PRIVATE v4l2_camera)
     add_test(NAME v4l2_mmap_capture_test COMMAND v4l2_mmap_capture_test)

@@ -1,0 +1,1 @@
+status=healthy report=/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/diagnostics-after-native.json errors=0

@@ -3,6 +3,9 @@
 本轮交付 PR-00、PR-01 和隔离的 PR-02 最小验证程序。生产服务仍使用原有采集链路。
 验收依据为本机 Jetson / IMX219 实测，源码、构建和报告均位于 cockpit-system 仓库。
 
+后续 PR-03 已将原生采集提取为可复用 Runtime，接口与新验收见 [Camera V2 原生 Runtime](CameraV2原生Runtime.md)。
+本文表格保留 PR-00/01/02 的历史实测结果。
+
 ## 构建与运行
 
 ```bash
@@ -34,8 +37,9 @@ python3 scripts/tests/jetson-camera-v2-gate.py \
   --output-dir _output/runtime/camera-v2-gate-new
 ```
 
-`libargus-capture-probe` 仅在找到 libargus、NvBufSurface、EGL 开发头文件和库时构建，
-可通过 `COCKPIT_JETSON_MULTIMEDIA_ROOT` 设置 Multimedia SDK 目录。缺少 SDK 时其余工具仍可构建。
+原生 Runtime 需要 libargus、NvBufSurface、EGL 开发头文件和库，
+可通过 `COCKPIT_JETSON_MULTIMEDIA_ROOT` 设置 Multimedia SDK 目录。PR-03 在缺少 SDK 时构建明确拒绝采集的 stub，
+诊断工具仍可构建，probe 会返回不支持的错误。
 三项新工具均纳入 CMake 安装清单。采集工具需要独占相机，不能与现有 Camera 服务同时测试。
 
 ## PR-00：冻结 V1 基线

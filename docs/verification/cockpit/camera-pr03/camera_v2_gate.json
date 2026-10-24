@@ -1,0 +1,209 @@
+{
+  "schema_version": 2,
+  "started_utc": "2026-10-24T08:28:28.717757+00:00",
+  "tests": [
+    {
+      "name": "diagnostics",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-diag",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/diagnostics.json"
+      ],
+      "returncode": 0,
+      "report": "diagnostics.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "raw-restart",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-stress",
+        "--cycles",
+        "10",
+        "--frames",
+        "60",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/raw-restart.json"
+      ],
+      "returncode": 0,
+      "report": "raw-restart.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-runtime-lifecycle",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/native_argus_capture_hardware_test",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/native-runtime-lifecycle.json"
+      ],
+      "returncode": 0,
+      "report": "native-runtime-lifecycle.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-continuous",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "3000",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/native-continuous.json"
+      ],
+      "returncode": 0,
+      "report": "native-continuous.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-restart",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--cycles",
+        "10",
+        "--frames",
+        "60",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/native-restart.json"
+      ],
+      "returncode": 0,
+      "report": "native-restart.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-timeout",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "60",
+        "--timeout-ms",
+        "1",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/native-timeout.json"
+      ],
+      "returncode": 1,
+      "report": "native-timeout.json",
+      "expected_success": false,
+      "passed": true
+    },
+    {
+      "name": "after-timeout",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/after-timeout.json"
+      ],
+      "returncode": 0,
+      "report": "after-timeout.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "diagnostics-after-native",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-diag",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/diagnostics-after-native.json"
+      ],
+      "returncode": 0,
+      "report": "diagnostics-after-native.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "normal-daemon-stability",
+      "passed": true
+    },
+    {
+      "name": "abrupt-exit",
+      "passed": true,
+      "observed_frame_production": true,
+      "returncode": -9
+    },
+    {
+      "name": "after-sigkill",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/after-sigkill.json"
+      ],
+      "returncode": 1,
+      "report": "after-sigkill.json",
+      "expected_success": true,
+      "passed": false
+    },
+    {
+      "name": "after-sigkill-followup",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr03-gate/after-sigkill-followup.json"
+      ],
+      "returncode": 1,
+      "report": "after-sigkill-followup.json",
+      "expected_success": true,
+      "passed": false
+    },
+    {
+      "name": "daemon-stability",
+      "passed": false
+    }
+  ],
+  "physical_disconnect_recovery": "not_tested",
+  "note": "No daemon restart or driver patch. SIGKILL targets only the probe started by this script.",
+  "binary_sha256": {
+    "camera-diag": "3e62e822d12bb89a22763297149f9866fc64d2d39f60d6278d58a8e77173c7ad",
+    "camera-stress": "f5ba6c2b93d304ec5491fec5cb3e434ee89edd4822d1385fd46bddc66a864439",
+    "libargus-capture-probe": "5f8172bdcbe1e5a59fea225088458d7de3642ee699f98ff35d25d2cb44ffcd68",
+    "native_argus_capture_hardware_test": "bc8978e9a40426fbaca9895df847a8c8fe06209ac00cc1b53622b6930ae7ce0f"
+  },
+  "daemon_before": {
+    "returncode": 0,
+    "properties": {
+      "MainPID": "39458",
+      "NRestarts": "2",
+      "ExecMainStatus": "0",
+      "ActiveState": "active",
+      "InvocationID": "b56dcedb5b8f4e7096c338b479febf71"
+    }
+  },
+  "normal_path_passed": true,
+  "daemon_after_sigkill": {
+    "returncode": 0,
+    "properties": {
+      "MainPID": "0",
+      "NRestarts": "2",
+      "ExecMainStatus": "11",
+      "ActiveState": "activating",
+      "InvocationID": "b56dcedb5b8f4e7096c338b479febf71"
+    }
+  },
+  "daemon_after": {
+    "returncode": 0,
+    "properties": {
+      "MainPID": "44664",
+      "NRestarts": "3",
+      "ExecMainStatus": "0",
+      "ActiveState": "active",
+      "InvocationID": "6cd6e470fff2439a964e9d0b2bfd8986"
+    }
+  },
+  "abrupt_recovery": "unrecovered",
+  "abnormal_exit_passed": false,
+  "passed": false,
+  "kernel_journal_returncode": 0,
+  "argus_journal_returncode": 0,
+  "finished_utc": "2026-10-24T08:32:01.072783+00:00"
+}

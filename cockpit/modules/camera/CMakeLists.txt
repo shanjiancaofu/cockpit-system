@@ -6,7 +6,7 @@ pkg_check_modules(GSTREAMER REQUIRED
     gstreamer-video-1.0
 )
 
-add_library(camera_frames STATIC frames/camera_frame.cc frames/latest_frame_buffer.cc)
+add_library(camera_frames STATIC frames/camera_frame.cc frames/latest_frame_buffer.cc frames/native_frame.cc)
 
 add_library(camera_isp STATIC
     isp/raw10_unpack.cc
@@ -20,6 +20,19 @@ target_include_directories(camera_isp PUBLIC ${PROJECT_SOURCE_DIR} ${OpenCV_INCL
 target_link_libraries(camera_isp PUBLIC camera_frames ${OpenCV_LIBS})
 
 add_library(camera_capture INTERFACE)
+
+include(${PROJECT_SOURCE_DIR}/cmake/jetson_camera.cmake)
+if(COCKPIT_CAMERA_HAS_NATIVE_ARGUS)
+    add_library(native_camera_capture STATIC capture/native_argus_capture.cc)
+    target_include_directories(native_camera_capture SYSTEM PRIVATE
+        "${COCKPIT_ARGUS_INCLUDE_DIR}" "${COCKPIT_NVBUFSURFACE_INCLUDE_DIR}" "${COCKPIT_EGL_INCLUDE_DIR}")
+    target_link_libraries(native_camera_capture PRIVATE
+        "${COCKPIT_ARGUS_LIBRARY}" "${COCKPIT_NVBUFSURFACE_LIBRARY}" "${COCKPIT_EGL_LIBRARY}")
+else()
+    add_library(native_camera_capture STATIC capture/native_argus_capture_stub.cc)
+    message(STATUS "Native Argus SDK unavailable/disabled: building explicit unsupported runtime")
+endif()
+target_link_libraries(native_camera_capture PUBLIC camera_frames time_util Threads::Threads)
 
 add_library(software_isp_camera_source STATIC capture/software_isp_preview_source.cc)
 target_link_libraries(software_isp_camera_source PUBLIC
