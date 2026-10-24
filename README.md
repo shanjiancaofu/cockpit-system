@@ -249,6 +249,9 @@ CAMERA_PIPELINE=uvc CAMERA_UVC_INPUT_FORMAT=mjpeg CAMERA_DEVICE=/dev/video0 \
 
 ## Camera V4L2/Argus/ISP 性能基线
 
+Camera V2 的基线冻结、诊断工具、原生 libargus probe 和真机验收结果见
+[Camera V2 底层验证](docs/CameraV2底层验证.md)。当前原生 probe 保持隔离，异常退出恢复仍有 BSP blocker。
+
 ```bash
 # Argus + Jetson 硬件 ISP
 _output/build/arm64-debug/bin/camera-preview-probe \

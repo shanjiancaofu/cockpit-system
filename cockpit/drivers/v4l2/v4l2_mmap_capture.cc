@@ -66,6 +66,7 @@ DequeuedBufferResult CopyAndRequeueDequeuedBuffer(const std::vector<V4l2MappedBu
     next_frame.bytes_per_line = bytes_per_line;
     next_frame.bytes_used = buffer->bytesused;
     next_frame.sequence = buffer->sequence;
+    next_frame.buffer_flags = buffer->flags;
     next_frame.timestamp_ns = static_cast<std::int64_t>(buffer->timestamp.tv_sec) * 1000000000LL +
                               static_cast<std::int64_t>(buffer->timestamp.tv_usec) * 1000LL;
     next_frame.timestamp_flags =
@@ -221,6 +222,7 @@ bool V4l2MmapCapture::Start(const V4l2MmapConfig& config, std::string* error) {
 }
 
 bool V4l2MmapCapture::WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string* error) {
+  last_wait_status_ = V4l2WaitStatus::kError;
   if (!running() || frame == nullptr || timeout_ms <= 0) {
     SetError(error, "invalid V4L2 WaitFrame request");
     return false;
@@ -231,6 +233,7 @@ bool V4l2MmapCapture::WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string
     poll_result = poll(&descriptor, 1, timeout_ms);
   } while (poll_result < 0 && errno == EINTR);
   if (poll_result == 0) {
+    last_wait_status_ = V4l2WaitStatus::kTimeout;
     SetError(error, "V4L2 frame poll timed out");
     return false;
   }
@@ -249,6 +252,7 @@ bool V4l2MmapCapture::WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string
   buffer.memory = V4L2_MEMORY_MMAP;
   if (Xioctl(fd_, VIDIOC_DQBUF, &buffer) < 0) {
     if (errno == EAGAIN) {
+      last_wait_status_ = V4l2WaitStatus::kNotReady;
       SetError(error, "V4L2 frame was not ready after poll");
     } else {
       SetError(error, ErrorMessage("VIDIOC_DQBUF"));
@@ -266,25 +270,36 @@ bool V4l2MmapCapture::WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string
       result == detail::DequeuedBufferResult::kRequeueFailed) {
     Stop();
   }
-  return result == detail::DequeuedBufferResult::kSuccess;
+  if (result == detail::DequeuedBufferResult::kSuccess) {
+    last_wait_status_ = V4l2WaitStatus::kFrame;
+    return true;
+  }
+  return false;
 }
 
-void V4l2MmapCapture::Stop() {
-  if (fd_ < 0) return;
+bool V4l2MmapCapture::Stop(std::string* error) {
+  if (fd_ < 0) return true;
+  bool ok = true;
+  const auto record_error = [&](const std::string& action) {
+    if (ok) SetError(error, ErrorMessage(action));
+    ok = false;
+  };
   if (streaming_) {
     v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    Xioctl(fd_, VIDIOC_STREAMOFF, &type);
+    if (Xioctl(fd_, VIDIOC_STREAMOFF, &type) < 0) record_error("VIDIOC_STREAMOFF");
     streaming_ = false;
   }
   for (auto& buffer : buffers_) {
-    if (buffer.start != nullptr) munmap(buffer.start, buffer.length);
+    if (buffer.start != nullptr && munmap(buffer.start, buffer.length) < 0)
+      record_error("munmap V4L2 buffer");
   }
   buffers_.clear();
-  close(fd_);
+  if (close(fd_) < 0) record_error("close V4L2 device");
   fd_ = -1;
   width_ = height_ = bytes_per_line_ = size_image_ = 0;
   driver_.clear();
   card_.clear();
+  return ok;
 }
 
 bool V4l2MmapCapture::running() const {

@@ -1,0 +1,912 @@
+{
+  "schema_version": 1,
+  "started_utc": "2026-10-24T07:44:52.083737+00:00",
+  "backend": "argus",
+  "pipeline": "V1 nvarguscamerasrc -> BGRx CPU frame",
+  "git": {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "returncode": 0,
+    "output": "d5ecef372b6b1e9f2cfb9dc63ed1f40c9d3d6942\n"
+  },
+  "worktree": {
+    "argv": [
+      "git",
+      "status",
+      "--porcelain"
+    ],
+    "returncode": 0,
+    "output": " M cockpit/drivers/v4l2/v4l2_mmap_capture.cc\n M cockpit/drivers/v4l2/v4l2_mmap_capture.h\n M tools/CMakeLists.txt\n M tools/camera-preview-probe/camera_preview_probe.cc\n?? docs/cockpit_system_phase1_full_design.md\n?? scripts/run/camera-v1-baseline.py\n?? tools/camera/\n"
+  },
+  "probe_sha256": "f00a06f844124b20dac7781c15cbc1d949564f1f8b98cac4a2bdf4e1e8cd1dde",
+  "config_sha256": "e1cd8248bd6a25fb70ac6a103f3aa6905b567139c763c6a126754c7a8700707d",
+  "fps_method": "steady clock callback arrival after warmup; includes V1 delivery behavior, not sensor timestamps",
+  "resource_method": "process lifetime CPU/RSS including initialization, warmup, measurement and stop",
+  "sequence_gaps": null,
+  "buffer_errors": null,
+  "unavailable_metrics_reason": "V1 preview API does not expose capture sequence or buffer flags",
+  "environment": {
+    "bsp": {
+      "argv": [
+        "cat",
+        "/etc/nv_tegra_release"
+      ],
+      "returncode": 0,
+      "output": "# R36 (release), REVISION: 5.2, GCID: 46426093, BOARD: generic, EABI: aarch64, DATE: Thu Jul 16 18:56:22 UTC 2026\n# KERNEL_VARIANT: oot\nTARGET_USERSPACE_LIB_DIR=nvidia\nTARGET_USERSPACE_LIB_DIR_PATH=usr/lib/aarch64-linux-gnu/nvidia\n"
+    },
+    "kernel": {
+      "argv": [
+        "uname",
+        "-a"
+      ],
+      "returncode": 0,
+      "output": "Linux nvidia 5.15.199-tegra #1 SMP PREEMPT Thu Jul 16 11:27:38 PDT 2026 aarch64 aarch64 aarch64 GNU/Linux\n"
+    },
+    "devices": {
+      "argv": [
+        "v4l2-ctl",
+        "--list-devices"
+      ],
+      "returncode": 0,
+      "output": "NVIDIA Tegra Video Input Device (platform:tegra-camrtc-ca):\n\t/dev/media0\n\nvi-output, imx219 9-0010 (platform:tegra-capture-vi:1):\n\t/dev/video0\n\n"
+    },
+    "video0": {
+      "argv": [
+        "v4l2-ctl",
+        "--all",
+        "-d",
+        "/dev/video0"
+      ],
+      "returncode": 0,
+      "output": "Driver Info:\n\tDriver name      : tegra-video\n\tCard type        : vi-output, imx219 9-0010\n\tBus info         : platform:tegra-capture-vi:1\n\tDriver version   : 5.15.199\n\tCapabilities     : 0x84200001\n\t\tVideo Capture\n\t\tStreaming\n\t\tExtended Pix Format\n\t\tDevice Capabilities\n\tDevice Caps      : 0x04200001\n\t\tVideo Capture\n\t\tStreaming\n\t\tExtended Pix Format\nMedia Driver Info:\n\tDriver name      : tegra-camrtc-ca\n\tModel            : NVIDIA Tegra Video Input Device\n\tSerial           : \n\tBus info         : \n\tMedia version    : 5.15.199\n\tHardware revision: 0x00000003 (3)\n\tDriver version   : 5.15.199\nInterface Info:\n\tID               : 0x03000008\n\tType             : V4L Video\nEntity Info:\n\tID               : 0x00000006 (6)\n\tName             : vi-output, imx219 9-0010\n\tFunction         : V4L2 I/O\n\tPad 0x01000007   : 0: Sink\n\t  Link 0x0200000c: from remote pad 0x1000003 of entity '13e00000.host1x:nvcsi@15a00000-' (Unknown sub-device (0002000a)): Data, Enabled\nPriority: 2\nVideo input : 0 (Camera 1: ok)\nFormat Video Capture:\n\tWidth/Height      : 1920/1080\n\tPixel Format      : 'RG10' (10-bit Bayer RGRG/GBGB)\n\tField             : None\n\tBytes per Line    : 3840\n\tSize Image        : 4147200\n\tColorspace        : sRGB\n\tTransfer Function : Default (maps to sRGB)\n\tYCbCr/HSV Encoding: Default (maps to ITU-R 601)\n\tQuantization      : Default (maps to Full Range)\n\tFlags             : \nStreaming Parameters Video Capture:\n\tCapabilities     : timeperframe\n\tFrames per second: 30.000 (30/1)\n\tRead buffers     : 0\n\nCamera Controls\n\n                     group_hold 0x009a2003 (bool)   : default=0 value=0 flags=execute-on-write\n                    sensor_mode 0x009a2008 (int64)  : min=0 max=5 step=1 default=0 value=2 flags=slider\n                           gain 0x009a2009 (int64)  : min=16 max=171 step=1 default=16 value=55 flags=slider\n                       exposure 0x009a200a (int64)  : min=13 max=683710 step=1 default=2495 value=30000 flags=slider\n                     frame_rate 0x009a200b (int64)  : min=2000000 max=30000000 step=1 default=30000000 value=30000000 flags=slider\n           sensor_configuration 0x009a2032 (u32)    : min=0 max=4294967295 step=1 default=0 dims=[22] flags=read-only, volatile, has-payload\n         sensor_mode_i2c_packet 0x009a2033 (u32)    : min=0 max=4294967295 step=1 default=0 dims=[1026] flags=read-only, volatile, has-payload\n      sensor_control_i2c_packet 0x009a2034 (u32)    : min=0 max=4294967295 step=1 default=0 dims=[1026] flags=read-only, volatile, has-payload\n                    bypass_mode 0x009a2064 (intmenu): min=0 max=1 default=0 value=1 (1 0x1)\n\t\t\t\t0: 0 (0x0)\n\t\t\t\t1: 1 (0x1)\n                override_enable 0x009a2065 (intmenu): min=0 max=1 default=0 value=1 (1 0x1)\n\t\t\t\t0: 0 (0x0)\n\t\t\t\t1: 1 (0x1)\n                   height_align 0x009a2066 (int)    : min=1 max=16 step=1 default=1 value=1\n                     size_align 0x009a2067 (intmenu): min=0 max=2 default=0 value=0 (1 0x1)\n\t\t\t\t0: 1 (0x1)\n\t\t\t\t1: 65536 (0x10000)\n\t\t\t\t2: 131072 (0x20000)\n               write_isp_format 0x009a2068 (int)    : min=1 max=1 step=1 default=1 value=1\n       sensor_signal_properties 0x009a2069 (u32)    : min=0 max=4294967295 step=1 default=0 dims=[30][18] flags=read-only, has-payload\n        sensor_image_properties 0x009a206a (u32)    : min=0 max=4294967295 step=1 default=0 dims=[30][16] flags=read-only, has-payload\n      sensor_control_properties 0x009a206b (u32)    : min=0 max=4294967295 step=1 default=0 dims=[30][36] flags=read-only, has-payload\n              sensor_dv_timings 0x009a206c (u32)    : min=0 max=4294967295 step=1 default=0 dims=[30][16] flags=read-only, has-payload\n               low_latency_mode 0x009a206d (bool)   : default=0 value=0\n               preferred_stride 0x009a206e (int)    : min=0 max=65535 step=1 default=0 value=0\n    override_capture_timeout_ms 0x009a206f (int)    : min=-1 max=2147483647 step=1 default=2500 value=2500\n                   sensor_modes 0x009a2082 (int)    : min=0 max=30 step=1 default=30 value=5 flags=read-only\n"
+    },
+    "modes": {
+      "argv": [
+        "v4l2-ctl",
+        "--list-formats-ext",
+        "-d",
+        "/dev/video0"
+      ],
+      "returncode": 0,
+      "output": "ioctl: VIDIOC_ENUM_FMT\n\tType: Video Capture\n\n\t[0]: 'RG10' (10-bit Bayer RGRG/GBGB)\n\t\tSize: Discrete 3280x2464\n\t\t\tInterval: Discrete 0.048s (21.000 fps)\n\t\tSize: Discrete 3280x1848\n\t\t\tInterval: Discrete 0.036s (28.000 fps)\n\t\tSize: Discrete 1920x1080\n\t\t\tInterval: Discrete 0.033s (30.000 fps)\n\t\tSize: Discrete 1640x1232\n\t\t\tInterval: Discrete 0.033s (30.000 fps)\n\t\tSize: Discrete 1280x720\n\t\t\tInterval: Discrete 0.017s (60.000 fps)\n"
+    },
+    "media": {
+      "argv": [
+        "media-ctl",
+        "-p"
+      ],
+      "returncode": 0,
+      "output": "Media controller API version 5.15.199\n\nMedia device information\n------------------------\ndriver          tegra-camrtc-ca\nmodel           NVIDIA Tegra Video Input Device\nserial          \nbus info        \nhw revision     0x3\ndriver version  5.15.199\n\nDevice topology\n- entity 1: 13e00000.host1x:nvcsi@15a00000- (2 pads, 2 links)\n            type V4L2 subdev subtype Unknown flags 0\n            device node name /dev/v4l-subdev0\n\tpad0: Sink\n\t\t<- \"imx219 9-0010\":0 [ENABLED]\n\tpad1: Source\n\t\t-> \"vi-output, imx219 9-0010\":0 [ENABLED]\n\n- entity 4: imx219 9-0010 (1 pad, 1 link)\n            type V4L2 subdev subtype Sensor flags 0\n            device node name /dev/v4l-subdev1\n\tpad0: Source\n\t\t[fmt:SRGGB10_1X10/1920x1080@1/30 field:none colorspace:srgb]\n\t\t-> \"13e00000.host1x:nvcsi@15a00000-\":0 [ENABLED]\n\n- entity 6: vi-output, imx219 9-0010 (1 pad, 1 link)\n            type Node subtype V4L flags 0\n            device node name /dev/video0\n\tpad0: Sink\n\t\t<- \"13e00000.host1x:nvcsi@15a00000-\":1 [ENABLED]\n\n"
+    },
+    "power_mode": {
+      "argv": [
+        "nvpmodel",
+        "-q"
+      ],
+      "returncode": 0,
+      "output": "NV Power Mode: 25W\n1\n"
+    },
+    "packages": {
+      "argv": [
+        "dpkg-query",
+        "-W",
+        "nvidia-l4t-core",
+        "nvidia-l4t-camera",
+        "nvidia-jetpack"
+      ],
+      "returncode": 1,
+      "output": "dpkg-query: no packages found matching nvidia-jetpack\nnvidia-l4t-camera\t36.5.2-20260716114719\nnvidia-l4t-core\t36.5.2-20260716114719\n"
+    }
+  },
+  "runs": [
+    {
+      "width": 1280,
+      "height": 720,
+      "requested_fps": 30,
+      "requested_frames": 300,
+      "warmup_frames": 60,
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-preview-probe",
+        "--backend",
+        "argus",
+        "--device",
+        "nvargus://0",
+        "--width",
+        "1280",
+        "--height",
+        "720",
+        "--fps",
+        "30",
+        "--frames",
+        "300",
+        "--timeout-ms",
+        "30000",
+        "--warmup-frames",
+        "60",
+        "--config",
+        "/home/fff/code/github/cockpit-system/configs/development.yaml"
+      ],
+      "started_utc": "2026-10-24T07:44:52.193730+00:00",
+      "process_samples": [
+        {
+          "elapsed_s": 0.002874135971069336,
+          "rss_kib": 4,
+          "cpu_ticks": 0,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 0.25390028953552246,
+          "rss_kib": 37064,
+          "cpu_ticks": 6,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 0.5048520565032959,
+          "rss_kib": 59976,
+          "cpu_ticks": 8,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 0.7559123039245605,
+          "rss_kib": 103496,
+          "cpu_ticks": 8,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 1.006842851638794,
+          "rss_kib": 103496,
+          "cpu_ticks": 8,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 1.257707118988037,
+          "rss_kib": 207976,
+          "cpu_ticks": 22,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 1.50864839553833,
+          "rss_kib": 207932,
+          "cpu_ticks": 28,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 1.7597582340240479,
+          "rss_kib": 208176,
+          "cpu_ticks": 34,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 2.010761260986328,
+          "rss_kib": 208168,
+          "cpu_ticks": 40,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 2.2616970539093018,
+          "rss_kib": 208160,
+          "cpu_ticks": 46,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 2.512648344039917,
+          "rss_kib": 208160,
+          "cpu_ticks": 52,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 2.763882637023926,
+          "rss_kib": 211892,
+          "cpu_ticks": 58,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 3.0150198936462402,
+          "rss_kib": 208168,
+          "cpu_ticks": 63,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 3.266343832015991,
+          "rss_kib": 211892,
+          "cpu_ticks": 70,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 3.5172903537750244,
+          "rss_kib": 208160,
+          "cpu_ticks": 76,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 3.768554449081421,
+          "rss_kib": 208216,
+          "cpu_ticks": 82,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 4.019837856292725,
+          "rss_kib": 208152,
+          "cpu_ticks": 88,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 4.270928621292114,
+          "rss_kib": 208144,
+          "cpu_ticks": 94,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 4.522019386291504,
+          "rss_kib": 208144,
+          "cpu_ticks": 99,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 4.7728965282440186,
+          "rss_kib": 208136,
+          "cpu_ticks": 106,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 5.023775577545166,
+          "rss_kib": 208136,
+          "cpu_ticks": 111,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 5.275026321411133,
+          "rss_kib": 208128,
+          "cpu_ticks": 117,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 5.526016712188721,
+          "rss_kib": 208120,
+          "cpu_ticks": 123,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 5.776738882064819,
+          "rss_kib": 208120,
+          "cpu_ticks": 129,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 6.027997970581055,
+          "rss_kib": 208120,
+          "cpu_ticks": 134,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 6.2790610790252686,
+          "rss_kib": 208120,
+          "cpu_ticks": 140,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 6.530112028121948,
+          "rss_kib": 211840,
+          "cpu_ticks": 146,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 6.781335830688477,
+          "rss_kib": 208104,
+          "cpu_ticks": 152,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 7.032280921936035,
+          "rss_kib": 211836,
+          "cpu_ticks": 158,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 7.2832114696502686,
+          "rss_kib": 208096,
+          "cpu_ticks": 164,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 7.534423112869263,
+          "rss_kib": 211820,
+          "cpu_ticks": 170,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 7.785319805145264,
+          "rss_kib": 208088,
+          "cpu_ticks": 175,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 8.03624176979065,
+          "rss_kib": 208156,
+          "cpu_ticks": 183,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 8.287123441696167,
+          "rss_kib": 208080,
+          "cpu_ticks": 188,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 8.53824234008789,
+          "rss_kib": 208072,
+          "cpu_ticks": 195,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 8.789353609085083,
+          "rss_kib": 208072,
+          "cpu_ticks": 201,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 9.040501356124878,
+          "rss_kib": 208064,
+          "cpu_ticks": 206,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 9.291585683822632,
+          "rss_kib": 208064,
+          "cpu_ticks": 212,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 9.542654037475586,
+          "rss_kib": 208056,
+          "cpu_ticks": 219,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 9.793730974197388,
+          "rss_kib": 208056,
+          "cpu_ticks": 224,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 10.044823169708252,
+          "rss_kib": 208048,
+          "cpu_ticks": 230,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 10.295862913131714,
+          "rss_kib": 211780,
+          "cpu_ticks": 237,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 10.546991348266602,
+          "rss_kib": 208040,
+          "cpu_ticks": 242,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 10.798095226287842,
+          "rss_kib": 211764,
+          "cpu_ticks": 249,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 11.048984050750732,
+          "rss_kib": 208032,
+          "cpu_ticks": 255,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 11.299854755401611,
+          "rss_kib": 211764,
+          "cpu_ticks": 261,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 11.550936937332153,
+          "rss_kib": 208024,
+          "cpu_ticks": 266,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 11.802066326141357,
+          "rss_kib": 208016,
+          "cpu_ticks": 273,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 12.05312466621399,
+          "rss_kib": 208016,
+          "cpu_ticks": 279,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 12.30405306816101,
+          "rss_kib": 208016,
+          "cpu_ticks": 285,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 12.5551598072052,
+          "rss_kib": 140936,
+          "cpu_ticks": 290,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 12.806328535079956,
+          "rss_kib": 140936,
+          "cpu_ticks": 290,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 13.057510137557983,
+          "rss_kib": 130092,
+          "cpu_ticks": 290,
+          "clock_ticks_per_second": 100
+        }
+      ],
+      "tegrastats_status": "started",
+      "returncode": 0,
+      "metrics": {
+        "fps": 30.005,
+        "steady_fps": 30.0055,
+        "process_cpu_ms": 2865.51,
+        "process_wall_ms": 12481.2,
+        "process_cpu_percent": 22.9586,
+        "max_rss_kib": 211924.0
+      },
+      "captured_frames": 300,
+      "actual_size": [
+        1280,
+        720
+      ],
+      "passed": true,
+      "logs": {
+        "probe": "1280x720.probe.txt",
+        "tegrastats": "1280x720.tegrastats.txt"
+      },
+      "tegrastats_returncode": -15,
+      "kernel_log": {
+        "argv": [
+          "journalctl",
+          "-k",
+          "--no-pager",
+          "-o",
+          "short-iso",
+          "--since",
+          "@1792827892.193777",
+          "--until",
+          "@1792827905.505734"
+        ],
+        "returncode": 0,
+        "output": "-- No entries --\n"
+      },
+      "argus_log": {
+        "argv": [
+          "journalctl",
+          "-u",
+          "nvargus-daemon",
+          "--no-pager",
+          "-o",
+          "short-iso",
+          "--since",
+          "@1792827892.193777",
+          "--until",
+          "@1792827905.515373"
+        ],
+        "returncode": 0,
+        "output": "2026-10-24T15:44:52+0800 nvidia nvargus-daemon[991]: === camera-preview-probe[37606]: Connection established (FFFF9A5CB840)\n2026-10-24T15:44:52+0800 nvidia nvargus-daemon[991]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0\n2026-10-24T15:44:52+0800 nvidia nvargus-daemon[991]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree\n2026-10-24T15:44:52+0800 nvidia nvargus-daemon[991]: === camera-preview-probe[37606]: CameraProvider initialized (0xffff95809680)\n2026-10-24T15:44:52+0800 nvidia nvargus-daemon[991]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2\n2026-10-24T15:45:04+0800 nvidia nvargus-daemon[991]: === camera-preview-probe[37606]: CameraProvider destroyed (0xffff95809680)\n2026-10-24T15:45:04+0800 nvidia nvargus-daemon[991]: CaptureService:stop: is requested --------------------------\n2026-10-24T15:45:05+0800 nvidia nvargus-daemon[991]: === camera-preview-probe[37606]: Connection closed (FFFF9A5CB840)\n2026-10-24T15:45:05+0800 nvidia nvargus-daemon[991]: === camera-preview-probe[37606]: Connection cleaned up (FFFF9A5CB840)\n"
+      },
+      "finished_utc": "2026-10-24T07:45:05.524172+00:00"
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "requested_fps": 30,
+      "requested_frames": 300,
+      "warmup_frames": 60,
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-preview-probe",
+        "--backend",
+        "argus",
+        "--device",
+        "nvargus://0",
+        "--width",
+        "1920",
+        "--height",
+        "1080",
+        "--fps",
+        "30",
+        "--frames",
+        "300",
+        "--timeout-ms",
+        "30000",
+        "--warmup-frames",
+        "60",
+        "--config",
+        "/home/fff/code/github/cockpit-system/configs/development.yaml"
+      ],
+      "started_utc": "2026-10-24T07:45:05.524233+00:00",
+      "process_samples": [
+        {
+          "elapsed_s": 0.0027723312377929688,
+          "rss_kib": 4,
+          "cpu_ticks": 0,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 0.2537708282470703,
+          "rss_kib": 37052,
+          "cpu_ticks": 6,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 0.5047774314880371,
+          "rss_kib": 59960,
+          "cpu_ticks": 7,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 0.7557635307312012,
+          "rss_kib": 101432,
+          "cpu_ticks": 8,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 1.00661301612854,
+          "rss_kib": 108900,
+          "cpu_ticks": 8,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 1.2577521800994873,
+          "rss_kib": 228112,
+          "cpu_ticks": 26,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 1.5085597038269043,
+          "rss_kib": 228068,
+          "cpu_ticks": 33,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 1.7594337463378906,
+          "rss_kib": 228056,
+          "cpu_ticks": 39,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 2.010497570037842,
+          "rss_kib": 228048,
+          "cpu_ticks": 46,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 2.261376142501831,
+          "rss_kib": 228040,
+          "cpu_ticks": 53,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 2.512390375137329,
+          "rss_kib": 228040,
+          "cpu_ticks": 60,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 2.763486623764038,
+          "rss_kib": 228040,
+          "cpu_ticks": 68,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 3.014439821243286,
+          "rss_kib": 228048,
+          "cpu_ticks": 75,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 3.2653236389160156,
+          "rss_kib": 228040,
+          "cpu_ticks": 82,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 3.516390085220337,
+          "rss_kib": 228040,
+          "cpu_ticks": 89,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 3.767475128173828,
+          "rss_kib": 231776,
+          "cpu_ticks": 96,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 4.018340826034546,
+          "rss_kib": 228032,
+          "cpu_ticks": 103,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 4.269430875778198,
+          "rss_kib": 231756,
+          "cpu_ticks": 110,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 4.5204057693481445,
+          "rss_kib": 228024,
+          "cpu_ticks": 117,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 4.771471977233887,
+          "rss_kib": 231748,
+          "cpu_ticks": 124,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 5.022338151931763,
+          "rss_kib": 228016,
+          "cpu_ticks": 132,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 5.273420810699463,
+          "rss_kib": 228076,
+          "cpu_ticks": 138,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 5.524356126785278,
+          "rss_kib": 228000,
+          "cpu_ticks": 145,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 5.775424480438232,
+          "rss_kib": 228000,
+          "cpu_ticks": 152,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 6.026439428329468,
+          "rss_kib": 228000,
+          "cpu_ticks": 159,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 6.277306795120239,
+          "rss_kib": 227992,
+          "cpu_ticks": 166,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 6.5283308029174805,
+          "rss_kib": 227984,
+          "cpu_ticks": 173,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 6.779397964477539,
+          "rss_kib": 227984,
+          "cpu_ticks": 180,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 7.03023099899292,
+          "rss_kib": 227984,
+          "cpu_ticks": 186,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 7.2813849449157715,
+          "rss_kib": 227968,
+          "cpu_ticks": 194,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 7.5322418212890625,
+          "rss_kib": 228036,
+          "cpu_ticks": 200,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 7.783102035522461,
+          "rss_kib": 227968,
+          "cpu_ticks": 208,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 8.03425121307373,
+          "rss_kib": 231700,
+          "cpu_ticks": 216,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 8.2852942943573,
+          "rss_kib": 227960,
+          "cpu_ticks": 223,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 8.536352157592773,
+          "rss_kib": 231684,
+          "cpu_ticks": 229,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 8.78723931312561,
+          "rss_kib": 227952,
+          "cpu_ticks": 236,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 9.038344144821167,
+          "rss_kib": 231676,
+          "cpu_ticks": 244,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 9.289422750473022,
+          "rss_kib": 227944,
+          "cpu_ticks": 251,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 9.540350198745728,
+          "rss_kib": 227936,
+          "cpu_ticks": 257,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 9.791443824768066,
+          "rss_kib": 227936,
+          "cpu_ticks": 265,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 10.042438745498657,
+          "rss_kib": 227928,
+          "cpu_ticks": 272,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 10.293522596359253,
+          "rss_kib": 227928,
+          "cpu_ticks": 279,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 10.544611930847168,
+          "rss_kib": 227920,
+          "cpu_ticks": 286,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 10.795714139938354,
+          "rss_kib": 227912,
+          "cpu_ticks": 293,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 11.04677939414978,
+          "rss_kib": 227912,
+          "cpu_ticks": 300,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 11.297885179519653,
+          "rss_kib": 227912,
+          "cpu_ticks": 307,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 11.548941135406494,
+          "rss_kib": 227904,
+          "cpu_ticks": 314,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 11.800127029418945,
+          "rss_kib": 231640,
+          "cpu_ticks": 321,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 12.05124020576477,
+          "rss_kib": 227896,
+          "cpu_ticks": 328,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 12.302528858184814,
+          "rss_kib": 231628,
+          "cpu_ticks": 336,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 12.553775310516357,
+          "rss_kib": 149236,
+          "cpu_ticks": 340,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 12.804958581924438,
+          "rss_kib": 149236,
+          "cpu_ticks": 340,
+          "clock_ticks_per_second": 100
+        },
+        {
+          "elapsed_s": 13.056138038635254,
+          "rss_kib": 134048,
+          "cpu_ticks": 341,
+          "clock_ticks_per_second": 100
+        }
+      ],
+      "tegrastats_status": "started",
+      "returncode": 0,
+      "metrics": {
+        "fps": 30.005,
+        "steady_fps": 30.0063,
+        "process_cpu_ms": 3379.55,
+        "process_wall_ms": 12488.5,
+        "process_cpu_percent": 27.0613,
+        "max_rss_kib": 231860.0
+      },
+      "captured_frames": 300,
+      "actual_size": [
+        1920,
+        1080
+      ],
+      "passed": true,
+      "logs": {
+        "probe": "1920x1080.probe.txt",
+        "tegrastats": "1920x1080.tegrastats.txt"
+      },
+      "tegrastats_returncode": -15,
+      "kernel_log": {
+        "argv": [
+          "journalctl",
+          "-k",
+          "--no-pager",
+          "-o",
+          "short-iso",
+          "--since",
+          "@1792827905.524246",
+          "--until",
+          "@1792827918.833238"
+        ],
+        "returncode": 0,
+        "output": "-- No entries --\n"
+      },
+      "argus_log": {
+        "argv": [
+          "journalctl",
+          "-u",
+          "nvargus-daemon",
+          "--no-pager",
+          "-o",
+          "short-iso",
+          "--since",
+          "@1792827905.524246",
+          "--until",
+          "@1792827918.842206"
+        ],
+        "returncode": 0,
+        "output": "2026-10-24T15:45:05+0800 nvidia nvargus-daemon[991]: === camera-preview-probe[37665]: Connection established (FFFF9A5CB840)\n2026-10-24T15:45:05+0800 nvidia nvargus-daemon[991]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0\n2026-10-24T15:45:05+0800 nvidia nvargus-daemon[991]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree\n2026-10-24T15:45:05+0800 nvidia nvargus-daemon[991]: === camera-preview-probe[37665]: CameraProvider initialized (0xffff956dc850)\n2026-10-24T15:45:06+0800 nvidia nvargus-daemon[991]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2\n2026-10-24T15:45:18+0800 nvidia nvargus-daemon[991]: === camera-preview-probe[37665]: CameraProvider destroyed (0xffff956dc850)\n2026-10-24T15:45:18+0800 nvidia nvargus-daemon[991]: CaptureService:stop: is requested --------------------------\n2026-10-24T15:45:18+0800 nvidia nvargus-daemon[991]: === camera-preview-probe[37665]: Connection closed (FFFF9A5CB840)\n2026-10-24T15:45:18+0800 nvidia nvargus-daemon[991]: === camera-preview-probe[37665]: Connection cleaned up (FFFF9A5CB840)\n"
+      },
+      "finished_utc": "2026-10-24T07:45:18.851050+00:00"
+    }
+  ],
+  "finished_utc": "2026-10-24T07:45:18.851092+00:00",
+  "passed": true
+}

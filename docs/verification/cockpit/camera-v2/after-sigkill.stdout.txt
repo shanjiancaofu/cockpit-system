@@ -1,0 +1,4 @@
+(Argus) Error FileOperationFailed: Failed socket read: Connection reset by peer (in src/rpc/socket/common/SocketUtils.cpp, function readSocket(), line 79)
+(Argus) Error FileOperationFailed:  (propagating from src/rpc/socket/client/SocketClientDispatch.cpp, function openSocketConnection(), line 220)
+(Argus) Error FileOperationFailed: Cannot create camera provider (in src/rpc/socket/client/SocketClientDispatch.cpp, function createCameraProvider(), line 107)
+passed=0 report=/home/fff/code/github/cockpit-system/_output/runtime/camera-v2-final/after-sigkill.json error=CameraProvider::create

@@ -23,6 +23,7 @@ void PrintUsage() {
   std::cout << "camera-preview-probe --backend argus|uvc|software_isp --device DEVICE "
                "[--uvc-input-format mjpeg|yuyv] [--frames 30] "
                "[--width 640] [--height 480] [--fps 30] "
+               "[--warmup-frames 0] "
                "[--timeout-ms 5000] [--config configs/development.yaml]\n";
 }
 
@@ -36,6 +37,9 @@ struct ProbeState {
   std::uint32_t stride_bytes = 0;
   std::size_t bytes = 0;
   int frames = 0;
+  int warmup_remaining = 0;
+  std::chrono::steady_clock::time_point first_arrival;
+  std::chrono::steady_clock::time_point last_arrival;
 };
 
 }  // namespace
@@ -57,12 +61,14 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
 
   const int target_frames = runtime.args().GetInt("frames", 30);
   const int timeout_ms = runtime.args().GetInt("timeout-ms", 5000);
-  if (target_frames <= 0 || timeout_ms <= 0) {
-    std::cerr << "frames and timeout-ms must be positive\n";
+  const int warmup_frames = runtime.args().GetInt("warmup-frames", 0);
+  if (target_frames <= 0 || timeout_ms <= 0 || warmup_frames < 0) {
+    std::cerr << "frames/timeout-ms must be positive and warmup-frames nonnegative\n";
     return 2;
   }
 
   ProbeState state;
+  state.warmup_remaining = warmup_frames;
   std::unique_ptr<cockpit::camera::CameraPreviewSource> preview;
 #if defined(COCKPIT_CAMERA_HAS_SOFTWARE_ISP)
   if (backend == "software_isp") {
@@ -101,8 +107,15 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
       config,
       [&state, target_frames](const cockpit::camera::CameraFrame& frame) {
         std::lock_guard<std::mutex> lock(state.mutex);
+        if (state.warmup_remaining > 0) {
+          --state.warmup_remaining;
+          return;
+        }
+        if (state.frames >= target_frames) return;
+        state.last_arrival = std::chrono::steady_clock::now();
         if (state.frames == 0) {
           state.first_timestamp_ms = frame.timestamp_ms;
+          state.first_arrival = state.last_arrival;
         }
         state.last_timestamp_ms = frame.timestamp_ms;
         state.width = frame.width;
@@ -149,6 +162,11 @@ int cockpit::camera_preview_probe::ProbeCameraPreview(
   std::cout << "captured " << state.frames << " frame(s) from " << config.device
             << " size=" << state.width << 'x' << state.height << " stride=" << state.stride_bytes
             << " bytes=" << state.bytes << " fps=" << fps << '\n';
+  const double steady_span_s =
+      std::chrono::duration<double>(state.last_arrival - state.first_arrival).count();
+  std::cout << "warmup_frames=" << (warmup_frames - state.warmup_remaining) << " steady_fps="
+            << (steady_span_s > 0.0 && state.frames > 1 ? (state.frames - 1) / steady_span_s : 0.0)
+            << '\n';
   const auto cpu_time = [](const rusage& usage) {
     return static_cast<double>(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) * 1000.0 +
            static_cast<double>(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1000.0;

@@ -1,0 +1,1 @@
+status=healthy report=/home/fff/code/github/cockpit-system/_output/runtime/camera-v2-final/diagnostics.json errors=0

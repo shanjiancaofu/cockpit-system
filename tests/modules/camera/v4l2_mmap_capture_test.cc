@@ -21,6 +21,7 @@ int main() {
   buffer.index = 0;
   buffer.bytesused = storage.size();
   buffer.sequence = 7;
+  buffer.flags = V4L2_BUF_FLAG_ERROR | V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
   auto requeue = [&requeue_count](v4l2_buffer*) {
     ++requeue_count;
@@ -30,6 +31,9 @@ int main() {
          DequeuedBufferResult::kSuccess);
   assert(requeue_count == 1);
   assert(frame.data == storage);
+  assert(frame.sequence == 7);
+  assert(frame.buffer_flags & V4L2_BUF_FLAG_ERROR);
+  assert(frame.timestamp_flags == V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC);
 
   buffer.index = 1;
   assert(CopyAndRequeueDequeuedBuffer(buffers, 2, 2, 2, &buffer, &frame, requeue, &error) ==

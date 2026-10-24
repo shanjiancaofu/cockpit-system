@@ -30,8 +30,11 @@ struct V4l2RawFrame {
   std::uint32_t sequence = 0;
   std::int64_t timestamp_ns = 0;
   std::uint32_t timestamp_flags = 0;
+  std::uint32_t buffer_flags = 0;
   std::vector<std::uint8_t> data;
 };
+
+enum class V4l2WaitStatus { kFrame, kTimeout, kNotReady, kError };
 
 class V4l2MmapCapture final {
  public:
@@ -42,8 +45,11 @@ class V4l2MmapCapture final {
 
   bool Start(const V4l2MmapConfig& config, std::string* error);
   bool WaitFrame(V4l2RawFrame* frame, int timeout_ms, std::string* error);
-  void Stop();
+  bool Stop(std::string* error = nullptr);
   bool running() const;
+  V4l2WaitStatus last_wait_status() const {
+    return last_wait_status_;
+  }
   const V4l2MmapConfig& config() const {
     return config_;
   }
@@ -77,6 +83,7 @@ class V4l2MmapCapture final {
   std::uint32_t bytes_per_line_ = 0;
   std::uint32_t size_image_ = 0;
   bool streaming_ = false;
+  V4l2WaitStatus last_wait_status_ = V4l2WaitStatus::kError;
 };
 
 }  // namespace cockpit::camera
