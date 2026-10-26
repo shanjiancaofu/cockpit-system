@@ -20,3 +20,20 @@ _output/build/x86_64-debug/bin/camera-ctl --photo --filename dashboard.jpg \
 
 list/status/start/stop/photo 均支持 `--output text|json`。多个命令、非法 output 或非正数尺寸属于
 参数错误，返回退出码 2。
+
+## Native Hardware ISP 隔离控制
+
+新增 `camera-ctl tuning get|set|reset|verify --native`，直接创建隔离 Native Session，
+调用前停止占用相机的 Camera Service。该命令不会通过现有 gRPC 修改后台服务，设置仅对本次命令有效。
+
+```bash
+_output/build/arm64-debug/bin/camera-ctl tuning get --native --report _output/runtime/tuning.json
+_output/build/arm64-debug/bin/camera-ctl tuning set --native --exposure-us 8000 --gain 2
+_output/build/arm64-debug/bin/camera-ctl tuning set --native --ae auto --awb auto --ev 1
+_output/build/arm64-debug/bin/camera-ctl tuning reset --native
+_output/build/arm64-debug/bin/camera-ctl tuning --help
+```
+
+输出包含请求值、Request getter 读回值和逐帧 Metadata；新请求以 session_id/revision 标记。
+`--report` 保存 JSON，`--frames`/`--warmup` 控制采集数量。
+完整说明及验收见 [Camera V2 PR-05A](../../docs/CameraV2-PR05A.md)。

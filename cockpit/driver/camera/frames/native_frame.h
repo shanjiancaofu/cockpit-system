@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "cockpit/driver/camera/frames/camera_frame.h"
+#include "cockpit/driver/camera/tuning/camera_tuning.h"
 
 namespace cockpit::camera {
 
@@ -23,6 +24,7 @@ struct NativeFrame {
   CameraTimestampClock source_clock = CameraTimestampClock::kUnknown;
   std::int64_t received_at_ns = 0;  // CLOCK_REALTIME / Unix epoch.
   std::int64_t received_steady_ns = 0;
+  CameraTuningMetadata tuning;
 };
 
 // One owner, movable between threads. Destruction/Reset relinquishes the buffer once.

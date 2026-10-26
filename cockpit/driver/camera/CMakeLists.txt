@@ -6,7 +6,9 @@ pkg_check_modules(GSTREAMER REQUIRED
     gstreamer-video-1.0
 )
 
+add_library(camera_tuning STATIC tuning/camera_tuning.cc)
 add_library(camera_frames STATIC frames/camera_frame.cc frames/latest_frame_buffer.cc frames/native_frame.cc)
+target_link_libraries(camera_frames PUBLIC camera_tuning)
 add_library(camera_frame_broker STATIC frames/frame_broker.cc)
 target_link_libraries(camera_frame_broker PUBLIC camera_frames Threads::Threads)
 

@@ -1,0 +1,1 @@
+{"passed":true,"concurrent_acquire_and_control":true,"held_metadata_unchanged":true,"deferred_stop":true,"fresh_session":true,"resources_balanced":true,"frames_acquired":23,"leases_returned":23,"buffers_released":23,"allocated":12,"destroyed":12,"error":""}

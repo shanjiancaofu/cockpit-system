@@ -1,0 +1,221 @@
+Internal ctest changing into directory: /home/fff/code/github/cockpit-system/_output/build/arm64-debug
+Test project /home/fff/code/github/cockpit-system/_output/build/arm64-debug
+        Start   1: module_boundary_test
+  1/105 Test   #1: module_boundary_test .................   Passed    0.23 sec
+        Start   2: module_boundary_guard_test
+  2/105 Test   #2: module_boundary_guard_test ...........   Passed    0.16 sec
+        Start   3: cockpit_smoke_test
+  3/105 Test   #3: cockpit_smoke_test ...................   Passed    0.01 sec
+        Start   4: socket_can_adapter_test
+  4/105 Test   #4: socket_can_adapter_test ..............   Passed    0.01 sec
+        Start   5: navigator_test
+  5/105 Test   #5: navigator_test .......................   Passed    2.82 sec
+        Start   6: crash_reporter_test
+  6/105 Test   #6: crash_reporter_test ..................   Passed    0.01 sec
+        Start   7: run_config_test
+  7/105 Test   #7: run_config_test ......................   Passed    0.00 sec
+        Start   8: safe_ota_test
+  8/105 Test   #8: safe_ota_test ........................   Passed   31.31 sec
+        Start   9: navigator_stability_test
+  9/105 Test   #9: navigator_stability_test .............   Passed    3.96 sec
+        Start  10: hmi_runtime_test
+ 10/105 Test  #10: hmi_runtime_test .....................   Passed    3.32 sec
+        Start  11: audio_wav_test
+ 11/105 Test  #11: audio_wav_test .......................   Passed    0.01 sec
+        Start  12: audio_frame_buffer_test
+ 12/105 Test  #12: audio_frame_buffer_test ..............   Passed    0.03 sec
+        Start  13: audio_stream_transport_test
+ 13/105 Test  #13: audio_stream_transport_test ..........   Passed    0.02 sec
+        Start  14: event_queue_test
+ 14/105 Test  #14: event_queue_test .....................   Passed    0.06 sec
+        Start  15: time_test
+ 15/105 Test  #15: time_test ............................   Passed    0.00 sec
+        Start  16: message_bus_test
+ 16/105 Test  #16: message_bus_test .....................   Passed    0.00 sec
+        Start  17: module_manager_test
+ 17/105 Test  #17: module_manager_test ..................   Passed    0.01 sec
+        Start  18: shared_memory_region_test
+ 18/105 Test  #18: shared_memory_region_test ............   Passed    0.00 sec
+        Start  19: json_util_test
+ 19/105 Test  #19: json_util_test .......................   Passed    0.00 sec
+        Start  20: logger_test
+ 20/105 Test  #20: logger_test ..........................   Passed    0.10 sec
+        Start  21: service_health_test
+ 21/105 Test  #21: service_health_test ..................   Passed    0.01 sec
+        Start  22: cli_output_test
+ 22/105 Test  #22: cli_output_test ......................   Passed    0.02 sec
+        Start  23: diagnostic_snapshot_test
+ 23/105 Test  #23: diagnostic_snapshot_test .............   Passed    0.33 sec
+        Start  24: gateway_grpc_service_test
+ 24/105 Test  #24: gateway_grpc_service_test ............   Passed    2.14 sec
+        Start  25: vehicle_grpc_service_test
+ 25/105 Test  #25: vehicle_grpc_service_test ............   Passed    0.04 sec
+        Start  26: chassis_can_codec_test
+ 26/105 Test  #26: chassis_can_codec_test ...............   Passed    0.01 sec
+        Start  27: chassis_client_test
+ 27/105 Test  #27: chassis_client_test ..................   Passed    0.01 sec
+        Start  28: chassis_odometry_time_mapper_test
+ 28/105 Test  #28: chassis_odometry_time_mapper_test ....   Passed    0.01 sec
+        Start  29: chassis_safety_adapter_test
+ 29/105 Test  #29: chassis_safety_adapter_test ..........   Passed    0.01 sec
+        Start  30: vehicle_data_chassis_vcan_test
+ 30/105 Test  #30: vehicle_data_chassis_vcan_test .......   Passed    0.35 sec
+        Start  31: socketcan_chassis_sink_vcan_test
+ 31/105 Test  #31: socketcan_chassis_sink_vcan_test .....   Passed    0.04 sec
+        Start  32: vcan_chassis_safety_loop_test
+ 32/105 Test  #32: vcan_chassis_safety_loop_test ........   Passed    0.39 sec
+        Start  33: chassis_can_simulator_stdout_test
+ 33/105 Test  #33: chassis_can_simulator_stdout_test ....   Passed    0.02 sec
+        Start  34: recording_session_test
+ 34/105 Test  #34: recording_session_test ...............   Passed    0.04 sec
+        Start  35: recording_catalog_test
+ 35/105 Test  #35: recording_catalog_test ...............   Passed    0.03 sec
+        Start  36: recording_timeline_test
+ 36/105 Test  #36: recording_timeline_test ..............   Passed    0.01 sec
+        Start  37: recording_integrity_test
+ 37/105 Test  #37: recording_integrity_test .............   Passed    0.01 sec
+        Start  38: recording_service_test
+ 38/105 Test  #38: recording_service_test ...............   Passed    0.04 sec
+        Start  39: media_service_test
+ 39/105 Test  #39: media_service_test ...................   Passed    0.01 sec
+        Start  40: bridge_service_test
+ 40/105 Test  #40: bridge_service_test ..................   Passed    0.01 sec
+        Start  41: bridge_grpc_service_test
+ 41/105 Test  #41: bridge_grpc_service_test .............   Passed    0.03 sec
+        Start  42: bridge_ros2_integration_test
+ 42/105 Test  #42: bridge_ros2_integration_test .........   Passed    1.06 sec
+        Start  43: bridge_ros2_full_process_smoke
+ 43/105 Test  #43: bridge_ros2_full_process_smoke .......   Passed   10.42 sec
+        Start  44: sentinel_service_test
+ 44/105 Test  #44: sentinel_service_test ................   Passed    0.06 sec
+        Start  45: sentinel_fake_closure_test
+ 45/105 Test  #45: sentinel_fake_closure_test ...........   Passed    0.03 sec
+        Start  46: media_manifest_test
+ 46/105 Test  #46: media_manifest_test ..................   Passed    0.01 sec
+        Start  47: gstreamer_media_player_test
+ 47/105 Test  #47: gstreamer_media_player_test ..........   Passed    2.10 sec
+        Start  48: media_grpc_service_test
+ 48/105 Test  #48: media_grpc_service_test ..............   Passed    0.04 sec
+        Start  49: camera_frame_test
+ 49/105 Test  #49: camera_frame_test ....................   Passed    0.01 sec
+        Start  50: camera_tuning_test
+ 50/105 Test  #50: camera_tuning_test ...................   Passed    0.02 sec
+        Start  51: camera_tuning_stub_test
+ 51/105 Test  #51: camera_tuning_stub_test ..............   Passed    0.01 sec
+        Start  52: camera_tuning_cli_test
+ 52/105 Test  #52: camera_tuning_cli_test ...............   Passed    0.61 sec
+        Start  53: frame_lease_test
+ 53/105 Test  #53: frame_lease_test .....................   Passed    0.02 sec
+        Start  54: frame_broker_test
+ 54/105 Test  #54: frame_broker_test ....................   Passed    0.02 sec
+        Start  55: vic_transform_test
+ 55/105 Test  #55: vic_transform_test ...................   Passed    0.05 sec
+        Start  56: v4l2_mmap_capture_test
+ 56/105 Test  #56: v4l2_mmap_capture_test ...............   Passed    0.01 sec
+        Start  57: camera_diagnostics_test
+ 57/105 Test  #57: camera_diagnostics_test ..............   Passed    0.05 sec
+        Start  58: camera_diagnostics_cli_test
+ 58/105 Test  #58: camera_diagnostics_cli_test ..........   Passed    0.35 sec
+        Start  59: software_isp_preview_source_test
+ 59/105 Test  #59: software_isp_preview_source_test .....   Passed    6.88 sec
+        Start  60: gstreamer_timestamp_mapper_test
+ 60/105 Test  #60: gstreamer_timestamp_mapper_test ......   Passed    0.01 sec
+        Start  61: raw10_unpack_test
+ 61/105 Test  #61: raw10_unpack_test ....................   Passed    0.01 sec
+        Start  62: camera_calibration_loader_test
+ 62/105 Test  #62: camera_calibration_loader_test .......   Passed    0.01 sec
+        Start  63: lidar_camera_projection_test
+ 63/105 Test  #63: lidar_camera_projection_test .........   Passed    0.00 sec
+        Start  64: camera_calibrator_cli_test
+ 64/105 Test  #64: camera_calibrator_cli_test ...........   Passed    1.10 sec
+        Start  65: latest_frame_buffer_test
+ 65/105 Test  #65: latest_frame_buffer_test .............   Passed    0.01 sec
+        Start  66: shared_frame_buffer_test
+ 66/105 Test  #66: shared_frame_buffer_test .............   Passed    0.01 sec
+        Start  67: camera_service_test
+ 67/105 Test  #67: camera_service_test ..................   Passed    0.07 sec
+        Start  68: camera_calibrator_offline_test
+ 68/105 Test  #68: camera_calibrator_offline_test .......   Passed   57.51 sec
+        Start  69: camera_synthetic_stability_test
+ 69/105 Test  #69: camera_synthetic_stability_test ......   Passed    0.36 sec
+        Start  70: camera_photo_service_test
+ 70/105 Test  #70: camera_photo_service_test ............   Passed    0.07 sec
+        Start  71: audio_capture_stream_test
+ 71/105 Test  #71: audio_capture_stream_test ............   Passed    0.01 sec
+        Start  72: audio_level_meter_test
+ 72/105 Test  #72: audio_level_meter_test ...............   Passed    0.00 sec
+        Start  73: speech_segmenter_test
+ 73/105 Test  #73: speech_segmenter_test ................   Passed    0.01 sec
+        Start  74: mock_speech_recognizer_test
+ 74/105 Test  #74: mock_speech_recognizer_test ..........   Passed    0.00 sec
+        Start  75: mock_voice_assistant_test
+ 75/105 Test  #75: mock_voice_assistant_test ............   Passed    0.01 sec
+        Start  76: deterministic_command_router_test
+ 76/105 Test  #76: deterministic_command_router_test ....   Passed    0.00 sec
+        Start  77: async_voice_response_sink_test
+ 77/105 Test  #77: async_voice_response_sink_test .......   Passed    0.01 sec
+        Start  78: cockpit_action_dispatcher_test
+ 78/105 Test  #78: cockpit_action_dispatcher_test .......   Passed    0.00 sec
+        Start  79: driver_dependency_boundary_test
+ 79/105 Test  #79: driver_dependency_boundary_test ......   Passed    0.14 sec
+        Start  80: action_provider_deadline_test
+ 80/105 Test  #80: action_provider_deadline_test ........   Passed    0.12 sec
+        Start  81: audio_capture_controller_test
+ 81/105 Test  #81: audio_capture_controller_test ........   Passed    1.17 sec
+        Start  82: speech_pipeline_test
+ 82/105 Test  #82: speech_pipeline_test .................   Passed    0.03 sec
+        Start  83: voice_input_gate_test
+ 83/105 Test  #83: voice_input_gate_test ................   Passed    0.04 sec
+        Start  84: voice_interaction_service_test
+ 84/105 Test  #84: voice_interaction_service_test .......   Passed    0.14 sec
+        Start  85: voice_pcm_e2e_test
+ 85/105 Test  #85: voice_pcm_e2e_test ...................   Passed    0.02 sec
+        Start  86: local_llm_client_test
+ 86/105 Test  #86: local_llm_client_test ................   Passed    0.01 sec
+        Start  87: llama_server_local_llm_client_test
+ 87/105 Test  #87: llama_server_local_llm_client_test ...   Passed    0.36 sec
+        Start  88: llama_server_process_test
+ 88/105 Test  #88: llama_server_process_test ............   Passed    0.25 sec
+        Start  89: conversation_state_machine_test
+ 89/105 Test  #89: conversation_state_machine_test ......   Passed    0.01 sec
+        Start  90: audio_playback_test
+ 90/105 Test  #90: audio_playback_test ..................   Passed    0.69 sec
+        Start  91: audio_playback_client_test
+ 91/105 Test  #91: audio_playback_client_test ...........   Passed    0.28 sec
+        Start  92: audio_focus_controller_test
+ 92/105 Test  #92: audio_focus_controller_test ..........   Passed    0.14 sec
+        Start  93: speech_text_segmenter_test
+ 93/105 Test  #93: speech_text_segmenter_test ...........   Passed    0.01 sec
+        Start  94: audio_playback_grpc_test
+ 94/105 Test  #94: audio_playback_grpc_test .............   Passed    0.03 sec
+        Start  95: system_config_test
+ 95/105 Test  #95: system_config_test ...................   Passed    0.05 sec
+        Start  96: app_launcher_model_test
+ 96/105 Test  #96: app_launcher_model_test ..............   Passed    0.32 sec
+        Start  97: media_control_model_test
+ 97/105 Test  #97: media_control_model_test .............   Passed    0.43 sec
+        Start  98: media_control_model_grpc_test
+ 98/105 Test  #98: media_control_model_grpc_test ........   Passed    0.30 sec
+        Start  99: vehicle_state_model_test
+ 99/105 Test  #99: vehicle_state_model_test .............   Passed    0.09 sec
+        Start 100: camera_frame_model_test
+100/105 Test #100: camera_frame_model_test ..............   Passed    0.14 sec
+        Start 101: service_health_model_test
+101/105 Test #101: service_health_model_test ............   Passed    0.03 sec
+        Start 102: voice_status_model_test
+102/105 Test #102: voice_status_model_test ..............   Passed    0.34 sec
+        Start 103: sentinel_status_model_test
+103/105 Test #103: sentinel_status_model_test ...........   Passed    0.44 sec
+        Start 104: hmi_control_test
+104/105 Test #104: hmi_control_test .....................   Passed    0.05 sec
+        Start 105: cockpit_ui_qml_test
+105/105 Test #105: cockpit_ui_qml_test ..................   Passed    0.42 sec
+
+100% tests passed, 0 tests failed out of 105
+
+Label Time Summary:
+socketcan      =   0.78 sec*proc (3 tests)
+system-grpc    =  39.28 sec*proc (15 tests)
+system-ros2    =  11.48 sec*proc (2 tests)
+
+Total Test time (real) = 132.65 sec

@@ -9,6 +9,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <limits>
 #include <mutex>
 #include <stdexcept>
 #include <utility>
@@ -106,6 +107,47 @@ struct Slot {
 };
 std::atomic<std::uint64_t> next_session_id{1};
 
+const std::array<std::pair<const char*, AeMode>, 2> ae_modes{
+    {{"auto", AE_MODE_ON}, {"manual", AE_MODE_OFF}}};
+const std::array<std::pair<const char*, AwbMode>, 10> awb_modes{
+    {{"off", AWB_MODE_OFF},
+     {"auto", AWB_MODE_AUTO},
+     {"incandescent", AWB_MODE_INCANDESCENT},
+     {"fluorescent", AWB_MODE_FLUORESCENT},
+     {"warm-fluorescent", AWB_MODE_WARM_FLUORESCENT},
+     {"daylight", AWB_MODE_DAYLIGHT},
+     {"cloudy", AWB_MODE_CLOUDY_DAYLIGHT},
+     {"twilight", AWB_MODE_TWILIGHT},
+     {"shade", AWB_MODE_SHADE},
+     {"manual", AWB_MODE_MANUAL}}};
+const std::array<std::pair<const char*, AeAntibandingMode>, 4> antibanding_modes{
+    {{"off", AE_ANTIBANDING_MODE_OFF},
+     {"auto", AE_ANTIBANDING_MODE_AUTO},
+     {"50hz", AE_ANTIBANDING_MODE_50HZ},
+     {"60hz", AE_ANTIBANDING_MODE_60HZ}}};
+template <class T, std::size_t N>
+T Mode(const std::string& name, const std::array<std::pair<const char*, T>, N>& modes) {
+  for (const auto& entry : modes)
+    if (name == entry.first) return entry.second;
+  throw std::runtime_error("unknown tuning mode: " + name);
+}
+template <class T, std::size_t N>
+std::string Name(const T& mode, const std::array<std::pair<const char*, T>, N>& modes) {
+  for (const auto& entry : modes)
+    if (mode == entry.second) return entry.first;
+  return "unknown";
+}
+template <class T>
+TuningRange<T> Bounds(const Range<T>& range) {
+  return {range.min(), range.max()};
+}
+template <class T>
+TuningRange<T> Fit(TuningRange<T> requested, TuningRange<T> limits) {
+  requested.min = std::max(requested.min, limits.min);
+  requested.max = std::min(requested.max, limits.max);
+  return requested.min <= requested.max ? requested : limits;
+}
+
 // Shared only with leases. Argus operations are executed by the serialized
 // controller; return callbacks merely enqueue indices under returns_mutex.
 struct Session : std::enable_shared_from_this<Session> {
@@ -126,6 +168,10 @@ struct Session : std::enable_shared_from_this<Session> {
   bool active = false, stopping = false, closed = false;
   int mode_index = -1;
   std::string version;
+  SensorMode* selected_mode = nullptr;
+  CameraTuningState tuning;
+  std::uint64_t next_tuning_revision = 2;
+  std::string tuning_fault;
   std::mutex returns_mutex;
   std::vector<std::uint32_t> returns;
 
@@ -161,6 +207,16 @@ struct Session : std::enable_shared_from_this<Session> {
       }
     }
     Require(mode, "no sensor mode matching exact dimensions and frame duration");
+    selected_mode = mode;
+    auto* info = interface_cast<ISensorMode>(mode);
+    tuning.session_id = id;
+    tuning.capabilities.exposure_ns = Bounds(info->getExposureTimeRange());
+    tuning.capabilities.exposure_ns.max = std::min(tuning.capabilities.exposure_ns.max, duration);
+    tuning.capabilities.frame_duration_ns = duration;
+    tuning.capabilities.sensor_gain = Bounds(info->getAnalogGainRange());
+    tuning.capabilities.isp_gain = Bounds(properties->getIspDigitalGainRange());
+    tuning.capabilities.exposure_compensation_ev =
+        Bounds(properties->getExposureCompensationRange());
     session.reset(camera->createCaptureSession(device));
     capture = interface_cast<ICaptureSession>(session);
     Require(capture, "createCaptureSession");
@@ -218,14 +274,118 @@ struct Session : std::enable_shared_from_this<Session> {
     auto* req = interface_cast<IRequest>(request);
     auto* source = interface_cast<ISourceSettings>(request);
     Require(req && source, "createRequest / ISourceSettings");
-    Check(req->enableOutputStream(stream.get()), "enableOutputStream");
     Check(source->setSensorMode(mode), "setSensorMode");
     Check(source->setFrameDurationRange(Range<uint64_t>(duration)), "setFrameDurationRange");
+    CameraTuning defaults = ReadTuningRequest(request.get());
+    defaults.exposure_ns = Fit(defaults.exposure_ns, tuning.capabilities.exposure_ns);
+    defaults.sensor_gain = Fit(defaults.sensor_gain, tuning.capabilities.sensor_gain);
+    defaults.isp_gain = Fit(defaults.isp_gain, tuning.capabilities.isp_gain);
+    tuning.defaults = defaults;
+    std::string why;
+    if (!ValidateCameraTuning(defaults, tuning.capabilities, &why))
+      throw std::runtime_error("invalid SDK defaults: " + why);
+    BuildTuningRequest(request.get(), defaults, 1);
     active = true;  // Failed repeat may still need cancellation.
     Check(capture->repeat(request.get()), "repeat");
+    tuning.requested = defaults;
+    tuning.accepted = ReadTuningRequest(request.get());
+    tuning.revision = 1;
     counters->Update([](auto& stats) {
       ++stats.starts;
     });
+  }
+
+  CameraTuning ReadTuningRequest(Request* target) const {
+    auto* req = interface_cast<IRequest>(target);
+    Require(req, "IRequest for tuning query");
+    auto* source = interface_cast<ISourceSettings>(req->getSourceSettings());
+    auto* automatic = interface_cast<IAutoControlSettings>(req->getAutoControlSettings());
+    Require(source && automatic, "source/automatic tuning query unavailable");
+    CameraTuning settings;
+    settings.ae_mode = Name(automatic->getAeMode(), ae_modes);
+    settings.awb_mode = Name(automatic->getAwbMode(), awb_modes);
+    settings.antibanding = Name(automatic->getAeAntibandingMode(), antibanding_modes);
+    settings.ae_lock = automatic->getAeLock();
+    settings.awb_lock = automatic->getAwbLock();
+    settings.exposure_ns = Bounds(source->getExposureTimeRange());
+    settings.sensor_gain = Bounds(source->getGainRange());
+    settings.isp_gain = Bounds(automatic->getIspDigitalGainRange());
+    settings.exposure_compensation_ev = automatic->getExposureCompensation();
+    const auto wb = automatic->getWbGains();
+    for (std::size_t i = 0; i < 4; ++i) settings.wb_gains[i] = wb[i];
+    return settings;
+  }
+
+  void BuildTuningRequest(Request* target, const CameraTuning& settings, std::uint32_t revision) {
+    auto* req = interface_cast<IRequest>(target);
+    Require(req, "IRequest for tuning");
+    auto* source = interface_cast<ISourceSettings>(req->getSourceSettings());
+    auto* automatic = interface_cast<IAutoControlSettings>(req->getAutoControlSettings());
+    Require(source && automatic, "source/automatic tuning interfaces unavailable");
+    Check(req->enableOutputStream(stream.get()), "tuning enableOutputStream");
+    Check(source->setSensorMode(selected_mode), "tuning setSensorMode");
+    Check(source->setFrameDurationRange(Range<uint64_t>(tuning.capabilities.frame_duration_ns)),
+          "tuning setFrameDurationRange");
+    Check(source->setExposureTimeRange(
+              Range<uint64_t>(settings.exposure_ns.min, settings.exposure_ns.max)),
+          "tuning setExposureTimeRange");
+    Check(source->setGainRange(Range<float>(settings.sensor_gain.min, settings.sensor_gain.max)),
+          "tuning setGainRange");
+    Check(automatic->setIspDigitalGainRange(
+              Range<float>(settings.isp_gain.min, settings.isp_gain.max)),
+          "tuning setIspDigitalGainRange");
+    Check(automatic->setAeMode(Mode(settings.ae_mode, ae_modes)), "tuning setAeMode");
+    Check(automatic->setAeLock(settings.ae_lock), "tuning setAeLock");
+    Check(automatic->setExposureCompensation(settings.exposure_compensation_ev),
+          "tuning setExposureCompensation");
+    Check(automatic->setAeAntibandingMode(Mode(settings.antibanding, antibanding_modes)),
+          "tuning setAeAntibandingMode");
+    Check(automatic->setAwbMode(Mode(settings.awb_mode, awb_modes)), "tuning setAwbMode");
+    Check(automatic->setAwbLock(settings.awb_lock), "tuning setAwbLock");
+    if (settings.awb_mode == "manual")
+      Check(automatic->setWbGains(BayerTuple<float>(settings.wb_gains[0], settings.wb_gains[1],
+                                                    settings.wb_gains[2], settings.wb_gains[3])),
+            "tuning setWbGains");
+    Check(req->setClientData(revision), "tuning setClientData");
+  }
+
+  bool SetTuning(const CameraTuning& settings, std::uint32_t* revision, std::string* error) {
+    if (!active || stopping || closed || !tuning_fault.empty()) {
+      SetError(error,
+               "native tuning unavailable: session stopped or control fault: " + tuning_fault);
+      return false;
+    }
+    if (!ValidateCameraTuning(settings, tuning.capabilities, error)) return false;
+    try {
+      Require(next_tuning_revision <= std::numeric_limits<std::uint32_t>::max(),
+              "tuning revision exhausted");
+      CameraTuning next_settings = settings;
+      UniqueObj<Request> candidate(capture->createRequest(CAPTURE_INTENT_VIDEO_RECORD));
+      Require(candidate, "create tuning request");
+      // A failed submission might still have reached the daemon. Never reuse
+      // its clientData for a later request with different settings.
+      const auto next_revision = static_cast<std::uint32_t>(next_tuning_revision++);
+      BuildTuningRequest(candidate.get(), settings, next_revision);
+      auto accepted = ReadTuningRequest(candidate.get());
+      const auto status = capture->repeat(candidate.get());
+      if (status != STATUS_OK) {
+        // Preserve the old request/state on any failed update. If restoring the
+        // old repeat also fails, reject further acquire/control until Stop.
+        if (capture->repeat(request.get()) != STATUS_OK)
+          tuning_fault = "failed to restore repeating request";
+        throw std::runtime_error("tuning repeat rejected status=" + std::to_string(status) +
+                                 (tuning_fault.empty() ? "" : "; " + tuning_fault));
+      }
+      request.reset(candidate.release());
+      tuning.requested = std::move(next_settings);
+      tuning.accepted = std::move(accepted);
+      tuning.revision = next_revision;
+      if (revision) *revision = next_revision;
+      return true;
+    } catch (const std::exception& exception) {
+      SetError(error, exception.what());
+      return false;
+    }
   }
 
   void Return(std::uint32_t index) noexcept {
@@ -274,6 +434,10 @@ struct Session : std::enable_shared_from_this<Session> {
 
   NativeAcquireStatus Acquire(FrameLease* lease, int timeout_ms, std::string* error) {
     if (stopping || closed || !active) return NativeAcquireStatus::kStopped;
+    if (!tuning_fault.empty()) {
+      SetError(error, tuning_fault);
+      return NativeAcquireStatus::kError;
+    }
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
     do {
       if (!FlushReturns()) {
@@ -318,6 +482,19 @@ struct Session : std::enable_shared_from_this<Session> {
         frame.capture_id = metadata->getCaptureId();
         frame.sensor_timestamp_ns = metadata->getSensorTimestamp();
         frame.frame_duration_ns = metadata->getFrameDuration();
+        frame.tuning.valid = true;
+        frame.tuning.revision = metadata->getClientData();
+        frame.tuning.exposure_ns = metadata->getSensorExposureTime();
+        frame.tuning.sensor_gain = metadata->getSensorAnalogGain();
+        frame.tuning.isp_gain = metadata->getIspDigitalGain();
+        frame.tuning.ae_mode = Name(metadata->getAeMode(), ae_modes);
+        frame.tuning.awb_mode = Name(metadata->getAwbMode(), awb_modes);
+        frame.tuning.ae_locked = metadata->getAeLocked();
+        frame.tuning.awb_locked = metadata->getAwbState() == AWB_STATE_LOCKED;
+        frame.tuning.awb_cct = metadata->getAwbCct();
+        const auto gains = metadata->getAwbGains();
+        for (std::size_t i = 0; i < 4; ++i) frame.tuning.wb_gains[i] = gains[i];
+        tuning.last_observed = frame.tuning;
         frame.received_at_ns = time::WallTime::Now().ToNanoseconds();
         frame.received_steady_ns = time::SteadyTime::Now().ToNanoseconds();
         FrameLease next(frame, [self = shared_from_this(), index]() noexcept {
@@ -539,6 +716,32 @@ std::string NativeArgusCapture::version() const {
 int NativeArgusCapture::sensor_mode() const {
   std::lock_guard<std::mutex> lock(impl_->control);
   return impl_->mode;
+}
+bool NativeArgusCapture::GetTuning(CameraTuningState* state, std::string* error) const {
+  std::lock_guard<std::mutex> lock(impl_->control);
+  if (!state || !impl_->session || !impl_->session->active || impl_->session->stopping) {
+    SetError(error, "GetTuning requires an active native session and output state");
+    return false;
+  }
+  *state = impl_->session->tuning;
+  return true;
+}
+bool NativeArgusCapture::SetTuning(const CameraTuning& settings, std::uint32_t* revision,
+                                   std::string* error) {
+  std::lock_guard<std::mutex> lock(impl_->control);
+  if (!impl_->session) {
+    SetError(error, "SetTuning requires an active native session");
+    return false;
+  }
+  return impl_->session->SetTuning(settings, revision, error);
+}
+bool NativeArgusCapture::ResetTuning(std::uint32_t* revision, std::string* error) {
+  std::lock_guard<std::mutex> lock(impl_->control);
+  if (!impl_->session) {
+    SetError(error, "ResetTuning requires an active native session");
+    return false;
+  }
+  return impl_->session->SetTuning(impl_->session->tuning.defaults, revision, error);
 }
 bool NativeArgusCapture::SampleLuma(const FrameLease& lease, std::size_t bytes, std::uint64_t* sum,
                                     std::string* error) {

@@ -35,6 +35,18 @@ std::string NativeArgusCapture::version() const {
 int NativeArgusCapture::sensor_mode() const {
   return -1;
 }
+bool NativeArgusCapture::GetTuning(CameraTuningState*, std::string* error) const {
+  if (error) *error = "native Argus SDK unavailable or disabled at build time";
+  return false;
+}
+bool NativeArgusCapture::SetTuning(const CameraTuning&, std::uint32_t*, std::string* error) {
+  if (error) *error = "native Argus SDK unavailable or disabled at build time";
+  return false;
+}
+bool NativeArgusCapture::ResetTuning(std::uint32_t*, std::string* error) {
+  if (error) *error = "native Argus SDK unavailable or disabled at build time";
+  return false;
+}
 bool NativeArgusCapture::SampleLuma(const FrameLease&, std::size_t, std::uint64_t*,
                                     std::string* error) {
   if (error) *error = "native Argus SDK unavailable or disabled at build time";

@@ -1,0 +1,273 @@
+2026-10-26T16:58:32+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection established (FFFF5E7CB840)
+2026-10-26T16:58:32+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T16:58:32+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T16:58:32+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: CameraProvider initialized (0xffff7874e700)
+2026-10-26T16:58:32+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T16:58:33+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: CameraProvider destroyed (0xffff7874e700)
+2026-10-26T16:58:33+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T16:58:34+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection closed (FFFF5E7CB840)
+2026-10-26T16:58:34+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection cleaned up (FFFF5E7CB840)
+2026-10-26T16:58:34+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection established (FFFF5E7CB840)
+2026-10-26T16:58:34+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T16:58:34+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T16:58:34+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: CameraProvider initialized (0xffff78952af0)
+2026-10-26T16:58:34+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T16:58:34+0800 nvidia nvargus-daemon[1024]: (Argus) Error Timeout:  (propagating from src/api/BufferOutputStreamImpl.cpp, function acquireBuffer(), line 264)
+2026-10-26T16:58:35+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: CameraProvider destroyed (0xffff78952af0)
+2026-10-26T16:58:35+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T16:58:35+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection closed (FFFF5E7CB840)
+2026-10-26T16:58:35+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection cleaned up (FFFF5E7CB840)
+2026-10-26T16:58:35+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection established (FFFF5E7CB840)
+2026-10-26T16:58:35+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T16:58:35+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T16:58:36+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: CameraProvider initialized (0xffff786c5480)
+2026-10-26T16:58:36+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T16:58:36+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: CameraProvider destroyed (0xffff786c5480)
+2026-10-26T16:58:36+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T16:58:37+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection closed (FFFF5E7CB840)
+2026-10-26T16:58:37+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection cleaned up (FFFF5E7CB840)
+2026-10-26T16:58:37+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection established (FFFF5F7EB840)
+2026-10-26T16:58:37+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T16:58:37+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T16:58:37+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: CameraProvider initialized (0xffff513f8490)
+2026-10-26T16:58:38+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T16:58:38+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: CameraProvider destroyed (0xffff513f8490)
+2026-10-26T16:58:38+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T16:58:39+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection closed (FFFF5F7EB840)
+2026-10-26T16:58:39+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection cleaned up (FFFF5F7EB840)
+2026-10-26T16:58:39+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection established (FFFF5F7EB840)
+2026-10-26T16:58:39+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T16:58:39+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T16:58:39+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: CameraProvider initialized (0xffff512423e0)
+2026-10-26T16:58:39+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T16:58:40+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: CameraProvider destroyed (0xffff512423e0)
+2026-10-26T16:58:40+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T16:58:40+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection closed (FFFF5F7EB840)
+2026-10-26T16:58:40+0800 nvidia nvargus-daemon[1024]: === native_argus_capture_hardware_test[27145]: Connection cleaned up (FFFF5F7EB840)
+2026-10-26T16:58:40+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27323]: Connection established (FFFF5F7EB840)
+2026-10-26T16:58:41+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T16:58:41+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T16:58:41+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27323]: CameraProvider initialized (0xffff5108bf70)
+2026-10-26T16:58:41+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:00:22+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27323]: CameraProvider destroyed (0xffff5108bf70)
+2026-10-26T17:00:22+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:00:22+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27323]: Connection closed (FFFF5F7EB840)
+2026-10-26T17:00:22+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27323]: Connection cleaned up (FFFF5F7EB840)
+2026-10-26T17:00:22+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection established (FFFF5F7EB840)
+2026-10-26T17:00:22+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:00:22+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:00:23+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider initialized (0xffff50ed2a00)
+2026-10-26T17:00:23+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:00:25+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider destroyed (0xffff50ed2a00)
+2026-10-26T17:00:25+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:00:26+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection closed (FFFF5F7EB840)
+2026-10-26T17:00:26+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection cleaned up (FFFF5F7EB840)
+2026-10-26T17:00:26+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection established (FFFF5DFBB840)
+2026-10-26T17:00:26+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:00:26+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:00:26+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider initialized (0xffff353f8490)
+2026-10-26T17:00:27+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:00:29+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider destroyed (0xffff353f8490)
+2026-10-26T17:00:29+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:00:30+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection closed (FFFF5DFBB840)
+2026-10-26T17:00:30+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection cleaned up (FFFF5DFBB840)
+2026-10-26T17:00:30+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection established (FFFF5EFDB840)
+2026-10-26T17:00:30+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:00:30+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:00:30+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider initialized (0xffff493f84b0)
+2026-10-26T17:00:30+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:00:33+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider destroyed (0xffff493f84b0)
+2026-10-26T17:00:33+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:00:33+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection closed (FFFF5EFDB840)
+2026-10-26T17:00:33+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection cleaned up (FFFF5EFDB840)
+2026-10-26T17:00:33+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection established (FFFF5F7EB840)
+2026-10-26T17:00:34+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:00:34+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:00:34+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider initialized (0xffff553f8450)
+2026-10-26T17:00:34+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:00:37+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider destroyed (0xffff553f8450)
+2026-10-26T17:00:37+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:00:37+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection closed (FFFF5F7EB840)
+2026-10-26T17:00:37+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection cleaned up (FFFF5F7EB840)
+2026-10-26T17:00:37+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection established (FFFF5DFBB840)
+2026-10-26T17:00:37+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:00:37+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:00:37+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider initialized (0xffff786d5f20)
+2026-10-26T17:00:38+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:00:40+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider destroyed (0xffff786d5f20)
+2026-10-26T17:00:40+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:00:41+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection closed (FFFF5DFBB840)
+2026-10-26T17:00:41+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection cleaned up (FFFF5DFBB840)
+2026-10-26T17:00:41+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection established (FFFF5EFDB840)
+2026-10-26T17:00:41+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:00:41+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:00:41+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider initialized (0xffff1d3f8460)
+2026-10-26T17:00:41+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:00:44+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider destroyed (0xffff1d3f8460)
+2026-10-26T17:00:44+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:00:45+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection closed (FFFF5EFDB840)
+2026-10-26T17:00:45+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection cleaned up (FFFF5EFDB840)
+2026-10-26T17:00:45+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection established (FFFF5F7EB840)
+2026-10-26T17:00:45+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:00:45+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:00:45+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider initialized (0xffff093f8270)
+2026-10-26T17:00:45+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:00:48+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider destroyed (0xffff093f8270)
+2026-10-26T17:00:48+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:00:48+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection closed (FFFF5F7EB840)
+2026-10-26T17:00:48+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection cleaned up (FFFF5F7EB840)
+2026-10-26T17:00:48+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection established (FFFF5D7AB840)
+2026-10-26T17:00:48+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:00:48+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:00:49+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider initialized (0xffff413f8450)
+2026-10-26T17:00:49+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:00:51+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider destroyed (0xffff413f8450)
+2026-10-26T17:00:51+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:00:52+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection closed (FFFF5D7AB840)
+2026-10-26T17:00:52+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection cleaned up (FFFF5D7AB840)
+2026-10-26T17:00:52+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection established (FFFF5DFBB840)
+2026-10-26T17:00:52+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:00:52+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:00:52+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider initialized (0xffff2d3f8450)
+2026-10-26T17:00:52+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:00:55+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider destroyed (0xffff2d3f8450)
+2026-10-26T17:00:55+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:00:56+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection closed (FFFF5DFBB840)
+2026-10-26T17:00:56+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection cleaned up (FFFF5DFBB840)
+2026-10-26T17:00:56+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection established (FFFF5EFDB840)
+2026-10-26T17:00:56+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:00:56+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:00:56+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider initialized (0xffff786defd0)
+2026-10-26T17:00:56+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:00:59+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: CameraProvider destroyed (0xffff786defd0)
+2026-10-26T17:00:59+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:00:59+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection closed (FFFF5EFDB840)
+2026-10-26T17:00:59+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[27629]: Connection cleaned up (FFFF5EFDB840)
+2026-10-26T17:00:59+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[28051]: Connection established (FFFF5EFDB840)
+2026-10-26T17:01:00+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:01:00+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:01:00+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[28051]: CameraProvider initialized (0xffff797b8fe0)
+2026-10-26T17:01:00+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:01:00+0800 nvidia nvargus-daemon[1024]: (Argus) Error Timeout:  (propagating from src/api/BufferOutputStreamImpl.cpp, function acquireBuffer(), line 264)
+2026-10-26T17:01:00+0800 nvidia nvargus-daemon[1024]: (Argus) Error Timeout:  (propagating from src/api/BufferOutputStreamImpl.cpp, function acquireBuffer(), line 264)
+2026-10-26T17:01:01+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[28051]: CameraProvider destroyed (0xffff797b8fe0)
+2026-10-26T17:01:01+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:01:01+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[28051]: Connection closed (FFFF5EFDB840)
+2026-10-26T17:01:01+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[28051]: Connection cleaned up (FFFF5EFDB840)
+2026-10-26T17:01:01+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[28089]: Connection established (FFFF5EFDB840)
+2026-10-26T17:01:01+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:01:01+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:01:02+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[28089]: CameraProvider initialized (0xffff796ba300)
+2026-10-26T17:01:02+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:01:12+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[28089]: CameraProvider destroyed (0xffff796ba300)
+2026-10-26T17:01:12+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:01:13+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[28089]: Connection closed (FFFF5EFDB840)
+2026-10-26T17:01:13+0800 nvidia nvargus-daemon[1024]: === libargus-capture-probe[28089]: Connection cleaned up (FFFF5EFDB840)
+2026-10-26T17:01:13+0800 nvidia nvargus-daemon[1024]: === native_camera_tuning_hardware_test[28156]: Connection established (FFFF5EFDB840)
+2026-10-26T17:01:13+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:01:13+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:01:13+0800 nvidia nvargus-daemon[1024]: === native_camera_tuning_hardware_test[28156]: CameraProvider initialized (0xffff78610a00)
+2026-10-26T17:01:14+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:01:15+0800 nvidia nvargus-daemon[1024]: === native_camera_tuning_hardware_test[28156]: CameraProvider destroyed (0xffff78610a00)
+2026-10-26T17:01:15+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:01:16+0800 nvidia nvargus-daemon[1024]: === native_camera_tuning_hardware_test[28156]: Connection closed (FFFF5EFDB840)
+2026-10-26T17:01:16+0800 nvidia nvargus-daemon[1024]: === native_camera_tuning_hardware_test[28156]: Connection cleaned up (FFFF5EFDB840)
+2026-10-26T17:01:16+0800 nvidia nvargus-daemon[1024]: === native_camera_tuning_hardware_test[28156]: Connection established (FFFF5E7CB840)
+2026-10-26T17:01:16+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:01:16+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:01:16+0800 nvidia nvargus-daemon[1024]: === native_camera_tuning_hardware_test[28156]: CameraProvider initialized (0xffff7884dfb0)
+2026-10-26T17:01:16+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:01:17+0800 nvidia nvargus-daemon[1024]: === native_camera_tuning_hardware_test[28156]: CameraProvider destroyed (0xffff7884dfb0)
+2026-10-26T17:01:17+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:01:17+0800 nvidia nvargus-daemon[1024]: === native_camera_tuning_hardware_test[28156]: Connection closed (FFFF5E7CB840)
+2026-10-26T17:01:17+0800 nvidia nvargus-daemon[1024]: === native_camera_tuning_hardware_test[28156]: Connection cleaned up (FFFF5E7CB840)
+2026-10-26T17:01:17+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection established (FFFF5E7CB840)
+2026-10-26T17:01:17+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:01:17+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:01:18+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider initialized (0xffff783ce3c0)
+2026-10-26T17:01:18+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:01:26+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider destroyed (0xffff783ce3c0)
+2026-10-26T17:01:26+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:01:27+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection closed (FFFF5E7CB840)
+2026-10-26T17:01:27+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection cleaned up (FFFF5E7CB840)
+2026-10-26T17:01:27+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection established (FFFF5DFBB840)
+2026-10-26T17:01:27+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:01:27+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:01:27+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider initialized (0xffff4933e0e0)
+2026-10-26T17:01:28+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:01:36+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider destroyed (0xffff4933e0e0)
+2026-10-26T17:01:36+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:01:37+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection closed (FFFF5DFBB840)
+2026-10-26T17:01:37+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection cleaned up (FFFF5DFBB840)
+2026-10-26T17:01:37+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection established (FFFF5F7EB840)
+2026-10-26T17:01:37+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:01:37+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:01:37+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider initialized (0xffff113f86b0)
+2026-10-26T17:01:37+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:01:46+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider destroyed (0xffff113f86b0)
+2026-10-26T17:01:46+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:01:46+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection closed (FFFF5F7EB840)
+2026-10-26T17:01:46+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection cleaned up (FFFF5F7EB840)
+2026-10-26T17:01:46+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection established (FFFF5F7EB840)
+2026-10-26T17:01:46+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:01:47+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:01:47+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider initialized (0xffff1123ede0)
+2026-10-26T17:01:47+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:01:56+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider destroyed (0xffff1123ede0)
+2026-10-26T17:01:56+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:01:56+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection closed (FFFF5F7EB840)
+2026-10-26T17:01:56+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection cleaned up (FFFF5F7EB840)
+2026-10-26T17:01:56+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection established (FFFF5F7EB840)
+2026-10-26T17:01:56+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:01:56+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:01:56+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider initialized (0xffff110858c0)
+2026-10-26T17:01:57+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:02:05+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider destroyed (0xffff110858c0)
+2026-10-26T17:02:05+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:02:06+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection closed (FFFF5F7EB840)
+2026-10-26T17:02:06+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection cleaned up (FFFF5F7EB840)
+2026-10-26T17:02:06+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection established (FFFF5D7AB840)
+2026-10-26T17:02:06+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:02:06+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:02:06+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider initialized (0xffff10ecc330)
+2026-10-26T17:02:06+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:02:15+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider destroyed (0xffff10ecc330)
+2026-10-26T17:02:15+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:02:15+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection closed (FFFF5D7AB840)
+2026-10-26T17:02:15+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection cleaned up (FFFF5D7AB840)
+2026-10-26T17:02:15+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection established (FFFF5DFBB840)
+2026-10-26T17:02:16+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:02:16+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:02:16+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider initialized (0xffff1d33e110)
+2026-10-26T17:02:16+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:02:25+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider destroyed (0xffff1d33e110)
+2026-10-26T17:02:25+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:02:25+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection closed (FFFF5DFBB840)
+2026-10-26T17:02:25+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection cleaned up (FFFF5DFBB840)
+2026-10-26T17:02:25+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection established (FFFF5E7CB840)
+2026-10-26T17:02:25+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:02:25+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:02:25+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider initialized (0xffff153f84e0)
+2026-10-26T17:02:26+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:02:34+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider destroyed (0xffff153f84e0)
+2026-10-26T17:02:34+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:02:35+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection closed (FFFF5E7CB840)
+2026-10-26T17:02:35+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection cleaned up (FFFF5E7CB840)
+2026-10-26T17:02:35+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection established (FFFF5D7AB840)
+2026-10-26T17:02:35+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:02:35+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:02:35+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider initialized (0xffff48b0ded0)
+2026-10-26T17:02:35+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:02:44+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider destroyed (0xffff48b0ded0)
+2026-10-26T17:02:44+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:02:45+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection closed (FFFF5D7AB840)
+2026-10-26T17:02:45+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection cleaned up (FFFF5D7AB840)
+2026-10-26T17:02:45+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection established (FFFF5DFBB840)
+2026-10-26T17:02:45+0800 nvidia nvargus-daemon[1024]: OFParserListModules: module list: /proc/device-tree/tegra-camera-platform/modules/module0
+2026-10-26T17:02:45+0800 nvidia nvargus-daemon[1024]: OFParserGetVirtualDevice: NVIDIA Camera virtual enumerator not found in proc device-tree
+2026-10-26T17:02:45+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider initialized (0xffff49905910)
+2026-10-26T17:02:45+0800 nvidia nvargus-daemon[1024]: Detected mode switch and to re-init Isp with new sensor mode. Old sensor mode 0 New sensor mode 2
+2026-10-26T17:02:54+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: CameraProvider destroyed (0xffff49905910)
+2026-10-26T17:02:54+0800 nvidia nvargus-daemon[1024]: CaptureService:stop: is requested --------------------------
+2026-10-26T17:02:54+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection closed (FFFF5DFBB840)
+2026-10-26T17:02:54+0800 nvidia nvargus-daemon[1024]: === camera-ctl[28241]: Connection cleaned up (FFFF5DFBB840)

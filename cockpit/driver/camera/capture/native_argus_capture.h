@@ -54,6 +54,12 @@ class NativeArgusCapture final {
   NativeCaptureStats stats() const;
   std::string version() const;
   int sensor_mode() const;
+  // Serialized with Start/Acquire/Stop. Updates build a fresh Request and only
+  // commit after SDK acceptance. Success means queued, not yet observed on a frame.
+  bool GetTuning(CameraTuningState* state, std::string* error = nullptr) const;
+  bool SetTuning(const CameraTuning& settings, std::uint32_t* revision = nullptr,
+                 std::string* error = nullptr);
+  bool ResetTuning(std::uint32_t* revision = nullptr, std::string* error = nullptr);
   // Small synchronous CPU read for validation; maps/synchronizes/unmaps within the lease.
   bool SampleLuma(const FrameLease& lease, std::size_t bytes, std::uint64_t* sum,
                   std::string* error = nullptr);

@@ -241,6 +241,7 @@ Camera V2 的基线冻结、诊断工具、原生 libargus probe 和真机验收
 [Camera V2 底层验证](docs/CameraV2底层验证.md)。当前原生 probe 保持隔离，异常退出恢复仍有 BSP blocker。
 PR-03 已提取可复用的 [Native Runtime / FrameLease](docs/CameraV2原生Runtime.md)，正常生命周期和异常退出分别验收。
 PR-04 的 [Native Frame Broker / VIC 验证](docs/CameraV2-PR04.md) 提供共享租约、双消费者有界队列和 CPU 预览兼容转换。
+PR-05A 的 [Native Hardware ISP 控制](docs/CameraV2-PR05A.md) 提供隔离 Session 的 AE/AWB、曝光/增益、锁定、Reset 和逐帧生效验证。
 
 ```bash
 # Argus + Jetson 硬件 ISP

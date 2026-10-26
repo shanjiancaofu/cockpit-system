@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-26T09:14:32.890106+00:00",
+  "base_commit": "6ef4b1058873596db28d7d8568706264674a9c24",
+  "passed": true,
+  "scope": "PR-05A Native Hardware ISP controls; isolated session only",
+  "build": {
+    "command": "cmake --build _output/build/arm64-debug -j4",
+    "exit_code": 0
+  },
+  "ctest": {
+    "passed": 105,
+    "failed": 0,
+    "elapsed_seconds": 132.65,
+    "report": "ctest.txt"
+  },
+  "normal_regression_gate": {
+    "report": "camera_v2_gate.json",
+    "passed": true,
+    "note": "Collected before final non-reused submission-ID hardening; final control/thread tests were rerun on the final binaries."
+  },
+  "final_control_gate": {
+    "report": "tuning-controls.json",
+    "passed": true,
+    "sessions": 10,
+    "phases": 70,
+    "acquired_returned_released": 2400,
+    "surfaces_allocated_destroyed": 60
+  },
+  "final_thread_gate": {
+    "report": "tuning-concurrent.json",
+    "passed": true
+  },
+  "ae_awb_lock_metadata_stability": [
+    {
+      "session": 1,
+      "frames": 30,
+      "stable": true
+    },
+    {
+      "session": 2,
+      "frames": 30,
+      "stable": true
+    },
+    {
+      "session": 3,
+      "frames": 30,
+      "stable": true
+    },
+    {
+      "session": 4,
+      "frames": 30,
+      "stable": true
+    },
+    {
+      "session": 5,
+      "frames": 30,
+      "stable": true
+    },
+    {
+      "session": 6,
+      "frames": 30,
+      "stable": true
+    },
+    {
+      "session": 7,
+      "frames": 30,
+      "stable": true
+    },
+    {
+      "session": 8,
+      "frames": 30,
+      "stable": true
+    },
+    {
+      "session": 9,
+      "frames": 30,
+      "stable": true
+    },
+    {
+      "session": 10,
+      "frames": 30,
+      "stable": true
+    }
+  ],
+  "final_binary_sha256": {
+    "camera-ctl": "4fc72445ec4dcf781468da42834560137dc9acae1f7b3ff65487ef43a712490c",
+    "native_camera_tuning_hardware_test": "f3ec5ee6b37a7579b35d1b643c01bcd37e15d752580fb2a7fb1e3066f6d5cf7d",
+    "libargus-capture-probe": "549249914031a5a78ade453172a8c56993dce272630e2e00f010839ec956ccaa"
+  },
+  "implementation_sha256": {
+    "cockpit/driver/camera/capture/native_argus_capture.cc": "c015539be12cb84d62a141025b3ed997e384716ad236eb365248fffc2a7ab30b",
+    "cockpit/driver/camera/capture/native_argus_capture_stub.cc": "b7332b956e7b39947ef56defbfe4181d8b874f95ba29cdb6c613ce206b27d7e6",
+    "cockpit/driver/camera/tuning/camera_tuning.h": "eb623a5facc50c028216d616883e0bf1425de4106665f097c205ab5a8c7e4106",
+    "cockpit/driver/camera/tuning/camera_tuning.cc": "50491dbe28c9fc1918ea9d7b239d88183dadd9da8c1351f97657cb5ba91331ff",
+    "tools/camera-ctl/camera_tuning_ctl.cc": "3b2791afd645fa42a8c30544fc0a81be88536236e1c2a6683e1fa4d1551c1a67",
+    "tests/modules/camera/native_camera_tuning_hardware_test.cc": "519cb62be6fda5304cdfd79818d1d9f570c567d97d203a282dd7117d0762b7de"
+  },
+  "production_default": "GStreamer; unchanged",
+  "abnormal_exit_injection_run": false,
+  "remaining_limitations": [
+    "Native SIGKILL/daemon recovery remains a production blocker; prior failure evidence is unchanged.",
+    "CLI owns a new isolated session; it does not configure the production gRPC CameraService.",
+    "SDK mode lists are candidates, not exhaustive per-device support declarations.",
+    "No controlled-light IQ, Profile persistence, Qt Native integration or asynchronous GPU fence acceptance in this phase."
+  ],
+  "final_daemon_state": {
+    "returncode": 0,
+    "properties": {
+      "MainPID": "1024",
+      "NRestarts": "0",
+      "ExecMainStatus": "0",
+      "ActiveState": "active",
+      "InvocationID": "c86d43b4c02d455e9ea0b193544eb5e0"
+    }
+  },
+  "final_daemon_invocation_unchanged": true
+}

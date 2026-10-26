@@ -1,0 +1,5411 @@
+{
+  "schema_version": 1,
+  "isolated_native_session": true,
+  "passed": true,
+  "argus_version": "0.99.3.3 (multi-process)",
+  "capabilities": {
+    "exposure_ns": [
+      13000,
+      33333334
+    ],
+    "sensor_gain": [
+      1.0,
+      10.625
+    ],
+    "isp_gain": [
+      1.0,
+      256.0
+    ],
+    "exposure_compensation_ev": [
+      -2.0,
+      2.0
+    ],
+    "fixed_frame_duration_ns": 33333334,
+    "ae_modes": [
+      "auto",
+      "manual"
+    ],
+    "awb_modes": [
+      "off",
+      "auto",
+      "incandescent",
+      "fluorescent",
+      "warm-fluorescent",
+      "daylight",
+      "cloudy",
+      "twilight",
+      "shade",
+      "manual"
+    ],
+    "antibanding_modes": [
+      "off",
+      "auto",
+      "50hz",
+      "60hz"
+    ],
+    "mode_lists": "SDK candidates; device acceptance checked by SetTuning"
+  },
+  "defaults": {
+    "ae": "auto",
+    "awb": "auto",
+    "ae_lock": false,
+    "awb_lock": false,
+    "antibanding": "auto",
+    "exposure_ns": [
+      13000,
+      33333334
+    ],
+    "sensor_gain": [
+      1.0,
+      10.625
+    ],
+    "isp_gain": [
+      1.0,
+      256.0
+    ],
+    "ev": 0.0,
+    "wb_gains": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "phases": [
+    {
+      "phase": "warmup",
+      "session_id": 1,
+      "requested_revision": 1,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 1,
+        "exposure_ns": 33330000,
+        "sensor_gain": 3.291384,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.446978,
+          1.0,
+          1.0,
+          1.616345
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 4539
+      }
+    },
+    {
+      "phase": "manual",
+      "session_id": 1,
+      "requested_revision": 2,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "accepted_request": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 2,
+        "exposure_ns": 8000000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ],
+        "ae": "manual",
+        "awb": "manual",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 6164
+      }
+    },
+    {
+      "phase": "auto-restored",
+      "session_id": 1,
+      "requested_revision": 3,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 3,
+        "exposure_ns": 33333327,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.524487,
+          1.0,
+          1.0,
+          1.456022
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5292
+      }
+    },
+    {
+      "phase": "ev-50hz",
+      "session_id": 1,
+      "requested_revision": 4,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 4,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 7.040201,
+        "wb_gains": [
+          1.528913,
+          1.0,
+          1.0,
+          1.448996
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5335
+      }
+    },
+    {
+      "phase": "ev-60hz",
+      "session_id": 1,
+      "requested_revision": 5,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 5,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.529024,
+          1.0,
+          1.0,
+          1.448821
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5337
+      }
+    },
+    {
+      "phase": "locked",
+      "session_id": 1,
+      "requested_revision": 6,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 6,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.184603,
+        "wb_gains": [
+          1.529025,
+          1.0,
+          1.0,
+          1.448819
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": true,
+        "awb_locked": true,
+        "awb_cct": 5337
+      }
+    },
+    {
+      "phase": "reset",
+      "session_id": 1,
+      "requested_revision": 7,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 7,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.837539,
+        "wb_gains": [
+          1.529026,
+          1.0,
+          1.0,
+          1.448817
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5337
+      }
+    },
+    {
+      "phase": "warmup",
+      "session_id": 2,
+      "requested_revision": 1,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 1,
+        "exposure_ns": 33330000,
+        "sensor_gain": 3.242573,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.449052,
+          1.0,
+          1.0,
+          1.613089
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 4553
+      }
+    },
+    {
+      "phase": "manual",
+      "session_id": 2,
+      "requested_revision": 2,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "accepted_request": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 2,
+        "exposure_ns": 8000000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ],
+        "ae": "manual",
+        "awb": "manual",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 6164
+      }
+    },
+    {
+      "phase": "auto-restored",
+      "session_id": 2,
+      "requested_revision": 3,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 3,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.547814,
+          1.0,
+          1.0,
+          1.449925
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5401
+      }
+    },
+    {
+      "phase": "ev-50hz",
+      "session_id": 2,
+      "requested_revision": 4,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 4,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 7.04217,
+        "wb_gains": [
+          1.552778,
+          1.0,
+          1.0,
+          1.443005
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5448
+      }
+    },
+    {
+      "phase": "ev-60hz",
+      "session_id": 2,
+      "requested_revision": 5,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 5,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.552903,
+          1.0,
+          1.0,
+          1.442833
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5449
+      }
+    },
+    {
+      "phase": "locked",
+      "session_id": 2,
+      "requested_revision": 6,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 6,
+        "exposure_ns": 33333327,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.053134,
+        "wb_gains": [
+          1.552904,
+          1.0,
+          1.0,
+          1.442831
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": true,
+        "awb_locked": true,
+        "awb_cct": 5449
+      }
+    },
+    {
+      "phase": "reset",
+      "session_id": 2,
+      "requested_revision": 7,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 7,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.815671,
+        "wb_gains": [
+          1.552906,
+          1.0,
+          1.0,
+          1.442829
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5449
+      }
+    },
+    {
+      "phase": "warmup",
+      "session_id": 3,
+      "requested_revision": 1,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 1,
+        "exposure_ns": 33330000,
+        "sensor_gain": 3.322472,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.449983,
+          1.0,
+          1.0,
+          1.61149
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 4560
+      }
+    },
+    {
+      "phase": "manual",
+      "session_id": 3,
+      "requested_revision": 2,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "accepted_request": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 2,
+        "exposure_ns": 8000000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ],
+        "ae": "manual",
+        "awb": "manual",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 6164
+      }
+    },
+    {
+      "phase": "auto-restored",
+      "session_id": 3,
+      "requested_revision": 3,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 3,
+        "exposure_ns": 33333327,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.527051,
+          1.0,
+          1.0,
+          1.451239
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5320
+      }
+    },
+    {
+      "phase": "ev-50hz",
+      "session_id": 3,
+      "requested_revision": 4,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 4,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 7.162874,
+        "wb_gains": [
+          1.531265,
+          1.0,
+          1.0,
+          1.444157
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5363
+      }
+    },
+    {
+      "phase": "ev-60hz",
+      "session_id": 3,
+      "requested_revision": 5,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 5,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.53137,
+          1.0,
+          1.0,
+          1.44398
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5364
+      }
+    },
+    {
+      "phase": "locked",
+      "session_id": 3,
+      "requested_revision": 6,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 6,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.17724,
+        "wb_gains": [
+          1.531371,
+          1.0,
+          1.0,
+          1.443978
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": true,
+        "awb_locked": true,
+        "awb_cct": 5364
+      }
+    },
+    {
+      "phase": "reset",
+      "session_id": 3,
+      "requested_revision": 7,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 7,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.836788,
+        "wb_gains": [
+          1.531372,
+          1.0,
+          1.0,
+          1.443976
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5364
+      }
+    },
+    {
+      "phase": "warmup",
+      "session_id": 4,
+      "requested_revision": 1,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 1,
+        "exposure_ns": 33330000,
+        "sensor_gain": 3.347578,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.453229,
+          1.0,
+          1.0,
+          1.609168
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 4575
+      }
+    },
+    {
+      "phase": "manual",
+      "session_id": 4,
+      "requested_revision": 2,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "accepted_request": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 2,
+        "exposure_ns": 8000000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ],
+        "ae": "manual",
+        "awb": "manual",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 6164
+      }
+    },
+    {
+      "phase": "auto-restored",
+      "session_id": 4,
+      "requested_revision": 3,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 3,
+        "exposure_ns": 33329989,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.550173,
+          1.0,
+          1.0,
+          1.445399
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5429
+      }
+    },
+    {
+      "phase": "ev-50hz",
+      "session_id": 4,
+      "requested_revision": 4,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 4,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 6.635949,
+        "wb_gains": [
+          1.555477,
+          1.0,
+          1.0,
+          1.438243
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5478
+      }
+    },
+    {
+      "phase": "ev-60hz",
+      "session_id": 4,
+      "requested_revision": 5,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 5,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.555609,
+          1.0,
+          1.0,
+          1.438064
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5479
+      }
+    },
+    {
+      "phase": "locked",
+      "session_id": 4,
+      "requested_revision": 6,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 6,
+        "exposure_ns": 33333327,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.074506,
+        "wb_gains": [
+          1.555611,
+          1.0,
+          1.0,
+          1.438063
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": true,
+        "awb_locked": true,
+        "awb_cct": 5479
+      }
+    },
+    {
+      "phase": "reset",
+      "session_id": 4,
+      "requested_revision": 7,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 7,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.818545,
+        "wb_gains": [
+          1.555613,
+          1.0,
+          1.0,
+          1.438061
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5479
+      }
+    },
+    {
+      "phase": "warmup",
+      "session_id": 5,
+      "requested_revision": 1,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 1,
+        "exposure_ns": 33330000,
+        "sensor_gain": 3.278005,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.45279,
+          1.0,
+          1.0,
+          1.6083
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 4576
+      }
+    },
+    {
+      "phase": "manual",
+      "session_id": 5,
+      "requested_revision": 2,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "accepted_request": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 2,
+        "exposure_ns": 8000000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ],
+        "ae": "manual",
+        "awb": "manual",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 6164
+      }
+    },
+    {
+      "phase": "auto-restored",
+      "session_id": 5,
+      "requested_revision": 3,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 3,
+        "exposure_ns": 33330000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.564373,
+          1.0,
+          1.0,
+          1.445373
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5482
+      }
+    },
+    {
+      "phase": "ev-50hz",
+      "session_id": 5,
+      "requested_revision": 4,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 4,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 6.598235,
+        "wb_gains": [
+          1.570602,
+          1.0,
+          1.0,
+          1.438218
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5536
+      }
+    },
+    {
+      "phase": "ev-60hz",
+      "session_id": 5,
+      "requested_revision": 5,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 5,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.570758,
+          1.0,
+          1.0,
+          1.438039
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5537
+      }
+    },
+    {
+      "phase": "locked",
+      "session_id": 5,
+      "requested_revision": 6,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 6,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.042668,
+        "wb_gains": [
+          1.57076,
+          1.0,
+          1.0,
+          1.438038
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": true,
+        "awb_locked": true,
+        "awb_cct": 5537
+      }
+    },
+    {
+      "phase": "reset",
+      "session_id": 5,
+      "requested_revision": 7,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 7,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.815026,
+        "wb_gains": [
+          1.570762,
+          1.0,
+          1.0,
+          1.438036
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5537
+      }
+    },
+    {
+      "phase": "warmup",
+      "session_id": 6,
+      "requested_revision": 1,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 1,
+        "exposure_ns": 33330000,
+        "sensor_gain": 3.25227,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.455894,
+          1.0,
+          1.0,
+          1.602085
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 4601
+      }
+    },
+    {
+      "phase": "manual",
+      "session_id": 6,
+      "requested_revision": 2,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "accepted_request": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 2,
+        "exposure_ns": 8000000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ],
+        "ae": "manual",
+        "awb": "manual",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 6164
+      }
+    },
+    {
+      "phase": "auto-restored",
+      "session_id": 6,
+      "requested_revision": 3,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 3,
+        "exposure_ns": 33330000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.539317,
+          1.0,
+          1.0,
+          1.448934
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5374
+      }
+    },
+    {
+      "phase": "ev-50hz",
+      "session_id": 6,
+      "requested_revision": 4,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 4,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 6.865801,
+        "wb_gains": [
+          1.543618,
+          1.0,
+          1.0,
+          1.442331
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5416
+      }
+    },
+    {
+      "phase": "ev-60hz",
+      "session_id": 6,
+      "requested_revision": 5,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 5,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.543727,
+          1.0,
+          1.0,
+          1.442167
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5418
+      }
+    },
+    {
+      "phase": "locked",
+      "session_id": 6,
+      "requested_revision": 6,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 6,
+        "exposure_ns": 33333327,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.199054,
+        "wb_gains": [
+          1.543727,
+          1.0,
+          1.0,
+          1.442164
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": true,
+        "awb_locked": true,
+        "awb_cct": 5418
+      }
+    },
+    {
+      "phase": "reset",
+      "session_id": 6,
+      "requested_revision": 7,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 7,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.837132,
+        "wb_gains": [
+          1.543729,
+          1.0,
+          1.0,
+          1.442163
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5418
+      }
+    },
+    {
+      "phase": "warmup",
+      "session_id": 7,
+      "requested_revision": 1,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 1,
+        "exposure_ns": 33330000,
+        "sensor_gain": 3.347694,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.453307,
+          1.0,
+          1.0,
+          1.604653
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 4587
+      }
+    },
+    {
+      "phase": "manual",
+      "session_id": 7,
+      "requested_revision": 2,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "accepted_request": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 2,
+        "exposure_ns": 8000000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ],
+        "ae": "manual",
+        "awb": "manual",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 6164
+      }
+    },
+    {
+      "phase": "auto-restored",
+      "session_id": 7,
+      "requested_revision": 3,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 3,
+        "exposure_ns": 33329989,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.549497,
+          1.0,
+          1.0,
+          1.448159
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5415
+      }
+    },
+    {
+      "phase": "ev-50hz",
+      "session_id": 7,
+      "requested_revision": 4,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 4,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 6.679764,
+        "wb_gains": [
+          1.554505,
+          1.0,
+          1.0,
+          1.441593
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5460
+      }
+    },
+    {
+      "phase": "ev-60hz",
+      "session_id": 7,
+      "requested_revision": 5,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 5,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.554631,
+          1.0,
+          1.0,
+          1.441429
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5462
+      }
+    },
+    {
+      "phase": "locked",
+      "session_id": 7,
+      "requested_revision": 6,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 6,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.107918,
+        "wb_gains": [
+          1.554632,
+          1.0,
+          1.0,
+          1.441427
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": true,
+        "awb_locked": true,
+        "awb_cct": 5462
+      }
+    },
+    {
+      "phase": "reset",
+      "session_id": 7,
+      "requested_revision": 7,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 7,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.831916,
+        "wb_gains": [
+          1.554633,
+          1.0,
+          1.0,
+          1.441425
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5462
+      }
+    },
+    {
+      "phase": "warmup",
+      "session_id": 8,
+      "requested_revision": 1,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 1,
+        "exposure_ns": 33330000,
+        "sensor_gain": 3.257481,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.449338,
+          1.0,
+          1.0,
+          1.607171
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 4569
+      }
+    },
+    {
+      "phase": "manual",
+      "session_id": 8,
+      "requested_revision": 2,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "accepted_request": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 2,
+        "exposure_ns": 8000000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ],
+        "ae": "manual",
+        "awb": "manual",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 6164
+      }
+    },
+    {
+      "phase": "auto-restored",
+      "session_id": 8,
+      "requested_revision": 3,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 3,
+        "exposure_ns": 33330000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.553989,
+          1.0,
+          1.0,
+          1.446879
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5437
+      }
+    },
+    {
+      "phase": "ev-50hz",
+      "session_id": 8,
+      "requested_revision": 4,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 4,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 6.893248,
+        "wb_gains": [
+          1.559452,
+          1.0,
+          1.0,
+          1.440087
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5485
+      }
+    },
+    {
+      "phase": "ev-60hz",
+      "session_id": 8,
+      "requested_revision": 5,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 5,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.55959,
+          1.0,
+          1.0,
+          1.439919
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5487
+      }
+    },
+    {
+      "phase": "locked",
+      "session_id": 8,
+      "requested_revision": 6,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 6,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.142671,
+        "wb_gains": [
+          1.559592,
+          1.0,
+          1.0,
+          1.439918
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": true,
+        "awb_locked": true,
+        "awb_cct": 5487
+      }
+    },
+    {
+      "phase": "reset",
+      "session_id": 8,
+      "requested_revision": 7,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 7,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.828226,
+        "wb_gains": [
+          1.559593,
+          1.0,
+          1.0,
+          1.439915
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5487
+      }
+    },
+    {
+      "phase": "warmup",
+      "session_id": 9,
+      "requested_revision": 1,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 1,
+        "exposure_ns": 33330000,
+        "sensor_gain": 3.302901,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.451881,
+          1.0,
+          1.0,
+          1.606575
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 4578
+      }
+    },
+    {
+      "phase": "manual",
+      "session_id": 9,
+      "requested_revision": 2,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "accepted_request": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 2,
+        "exposure_ns": 8000000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ],
+        "ae": "manual",
+        "awb": "manual",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 6164
+      }
+    },
+    {
+      "phase": "auto-restored",
+      "session_id": 9,
+      "requested_revision": 3,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 3,
+        "exposure_ns": 33333327,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.545234,
+          1.0,
+          1.0,
+          1.446868
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5404
+      }
+    },
+    {
+      "phase": "ev-50hz",
+      "session_id": 9,
+      "requested_revision": 4,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 4,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 7.05757,
+        "wb_gains": [
+          1.550418,
+          1.0,
+          1.0,
+          1.439844
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5452
+      }
+    },
+    {
+      "phase": "ev-60hz",
+      "session_id": 9,
+      "requested_revision": 5,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 5,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.550548,
+          1.0,
+          1.0,
+          1.439669
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5453
+      }
+    },
+    {
+      "phase": "locked",
+      "session_id": 9,
+      "requested_revision": 6,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 6,
+        "exposure_ns": 33333327,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.176695,
+        "wb_gains": [
+          1.55055,
+          1.0,
+          1.0,
+          1.439667
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": true,
+        "awb_locked": true,
+        "awb_cct": 5453
+      }
+    },
+    {
+      "phase": "reset",
+      "session_id": 9,
+      "requested_revision": 7,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 7,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.842574,
+        "wb_gains": [
+          1.550551,
+          1.0,
+          1.0,
+          1.439665
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5453
+      }
+    },
+    {
+      "phase": "warmup",
+      "session_id": 10,
+      "requested_revision": 1,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 1,
+        "exposure_ns": 33330000,
+        "sensor_gain": 3.343348,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.451381,
+          1.0,
+          1.0,
+          1.606944
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 4576
+      }
+    },
+    {
+      "phase": "manual",
+      "session_id": 10,
+      "requested_revision": 2,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "accepted_request": {
+        "ae": "manual",
+        "awb": "manual",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          8000000,
+          8000000
+        ],
+        "sensor_gain": [
+          2.0,
+          2.0
+        ],
+        "isp_gain": [
+          1.0,
+          1.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 2,
+        "exposure_ns": 8000000,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.5,
+          1.0,
+          1.0,
+          1.25
+        ],
+        "ae": "manual",
+        "awb": "manual",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 6164
+      }
+    },
+    {
+      "phase": "auto-restored",
+      "session_id": 10,
+      "requested_revision": 3,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 3,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.566254,
+          1.0,
+          1.0,
+          1.442072
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5503
+      }
+    },
+    {
+      "phase": "ev-50hz",
+      "session_id": 10,
+      "requested_revision": 4,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "50hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 4,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 7.122406,
+        "wb_gains": [
+          1.572344,
+          1.0,
+          1.0,
+          1.434945
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5557
+      }
+    },
+    {
+      "phase": "ev-60hz",
+      "session_id": 10,
+      "requested_revision": 5,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "60hz",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": -1.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 5,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.0,
+        "wb_gains": [
+          1.572496,
+          1.0,
+          1.0,
+          1.434767
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5558
+      }
+    },
+    {
+      "phase": "locked",
+      "session_id": 10,
+      "requested_revision": 6,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": true,
+        "awb_lock": true,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 6,
+        "exposure_ns": 33333335,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.18811,
+        "wb_gains": [
+          1.572499,
+          1.0,
+          1.0,
+          1.434766
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": true,
+        "awb_locked": true,
+        "awb_cct": 5558
+      }
+    },
+    {
+      "phase": "reset",
+      "session_id": 10,
+      "requested_revision": 7,
+      "matched_frames": 30,
+      "requested": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "accepted_request": {
+        "ae": "auto",
+        "awb": "auto",
+        "ae_lock": false,
+        "awb_lock": false,
+        "antibanding": "auto",
+        "exposure_ns": [
+          13000,
+          33333334
+        ],
+        "sensor_gain": [
+          1.0,
+          10.625
+        ],
+        "isp_gain": [
+          1.0,
+          256.0
+        ],
+        "ev": 0.0,
+        "wb_gains": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "actual_last": {
+        "valid": true,
+        "revision": 7,
+        "exposure_ns": 29999999,
+        "sensor_gain": 2.0,
+        "isp_gain": 1.855847,
+        "wb_gains": [
+          1.572501,
+          1.0,
+          1.0,
+          1.434763
+        ],
+        "ae": "auto",
+        "awb": "auto",
+        "ae_locked": false,
+        "awb_locked": false,
+        "awb_cct": 5558
+      }
+    }
+  ],
+  "frames_acquired": 2400,
+  "leases_returned": 2400,
+  "buffers_released": 2400,
+  "allocated": 60,
+  "destroyed": 60,
+  "resources_balanced": true,
+  "error": "",
+  "frame_metadata_file": "tuning-frames.tsv",
+  "full_runtime_report_sha256": "b5cf25c406b753cab953faac209cb1942d60be6f6c820205f34dae008d888e7d",
+  "binary_sha256": "4fc72445ec4dcf781468da42834560137dc9acae1f7b3ff65487ef43a712490c",
+  "commands": [
+    "camera-ctl tuning verify --native --frames 30 --warmup 30 --cycles 10",
+    "native_camera_tuning_hardware_test --output final-concurrent.json"
+  ],
+  "recorded_at": "2026-10-26T09:10:59.539430+00:00"
+}

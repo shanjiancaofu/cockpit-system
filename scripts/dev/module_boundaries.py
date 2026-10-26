@@ -35,6 +35,7 @@ EXPORTED_HEADERS = frozenset({
     'cockpit/driver/camera/photo/jpeg_encoder.h',
     'cockpit/driver/camera/shared_memory/shared_frame_buffer.h',
     'cockpit/driver/camera/transform/vic_transform.h',
+    'cockpit/driver/camera/tuning/camera_tuning.h',
     'cockpit/driver/can/can_frame.h',
     'cockpit/driver/vehicle/chassis_can_codec.h',
     'cockpit/driver/vehicle/chassis_event.h',
