@@ -1,0 +1,21 @@
+schema_version: 1
+name: "manual-roundtrip"
+target:
+  backend: native_argus
+  device_index: 0
+  sensor_model: "imx219"
+  sensor_mode: 2
+  width: 1920
+  height: 1080
+  fps: 30
+settings:
+  ae_mode: manual
+  awb_mode: manual
+  antibanding: auto
+  ae_lock: false
+  awb_lock: false
+  exposure_ns: [8000000, 8000000]
+  sensor_gain: [2, 2]
+  isp_gain: [1, 1]
+  exposure_compensation_ev: 0
+  wb_gains: [1.5, 1, 1, 1.25]

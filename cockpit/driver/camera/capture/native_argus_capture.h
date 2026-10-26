@@ -9,6 +9,7 @@
 #include "cockpit/driver/camera/frames/native_frame.h"
 
 namespace cockpit::camera {
+struct TuningProfile;
 struct NativeCaptureConfig {
   std::uint32_t device_index = 0, width = 1920, height = 1080, fps = 30;
   std::uint32_t buffer_count = 6;
@@ -60,6 +61,10 @@ class NativeArgusCapture final {
   bool SetTuning(const CameraTuning& settings, std::uint32_t* revision = nullptr,
                  std::string* error = nullptr);
   bool ResetTuning(std::uint32_t* revision = nullptr, std::string* error = nullptr);
+  // Validate target/capabilities and submit under the same control lock.
+  // Acceptance is asynchronous; observe session_id/revision in acquired frames.
+  bool ApplyTuningProfile(const TuningProfile& profile, std::uint32_t* revision = nullptr,
+                          std::string* error = nullptr);
   // Small synchronous CPU read for validation; maps/synchronizes/unmaps within the lease.
   bool SampleLuma(const FrameLease& lease, std::size_t bytes, std::uint64_t* sum,
                   std::string* error = nullptr);

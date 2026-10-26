@@ -73,6 +73,10 @@ def main():
         action="store_true",
         help="Include PR-05A ISP control and metadata acceptance",
     )
+    parser.add_argument(
+        "--profiles", action="store_true",
+        help="Include PR-05B profile persistence and device validation",
+    )
     args = parser.parse_args()
     if args.continuous_frames < 300 or args.cycles < 2:
         parser.error("continuous-frames >= 300 and cycles >= 2 are required")
@@ -100,6 +104,8 @@ def main():
         names += ["native-frame-broker-probe", "vic_transform_hardware_test"]
     if args.tuning:
         names += ["camera-ctl", "native_camera_tuning_hardware_test"]
+    if args.profiles:
+        names += ["native_tuning_profile_hardware_test"]
     report["binary_sha256"] = {
         name: hashlib.sha256((binaries / name).read_bytes()).hexdigest()
         for name in names
@@ -230,6 +236,10 @@ def main():
             args.cycles,
             output_option="--report",
         )
+    if args.profiles:
+        execute(
+            "native-tuning-profiles", "native_tuning_profile_hardware_test"
+        )
     execute("diagnostics-after-native", "camera-diag", "--frames", 300)
     normal_daemon = service_state()
     daemon_stable = (
@@ -251,6 +261,8 @@ def main():
         scopes.append("PR-04 Frame Broker and VIC")
     if args.tuning:
         scopes.append("PR-05A Hardware ISP controls")
+    if args.profiles:
+        scopes.append("PR-05B tuning profiles and target validation")
     normal = dict(
         schema_version=2,
         scope="; ".join(scopes),

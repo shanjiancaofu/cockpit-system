@@ -48,9 +48,15 @@ struct CameraTuningMetadata {
   bool ae_locked = false, awb_locked = false;
   std::uint32_t awb_cct = 0;
 };
+struct NativeCameraDescriptor {
+  std::uint32_t device_index = 0, width = 0, height = 0, fps = 0;
+  int sensor_mode = -1;
+  std::string sensor_model;
+};
 struct CameraTuningState {
   std::uint64_t session_id = 0;
   std::uint32_t revision = 0;
+  NativeCameraDescriptor device;
   CameraTuningCapabilities capabilities;
   CameraTuning requested, accepted, defaults;
   CameraTuningMetadata last_observed;

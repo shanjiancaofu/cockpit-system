@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-26T11:31:19.249143+00:00",
+  "base_commit": "e5d7bbe571eb8a71af7807ce74c08f9f18367463",
+  "scope": "PR-05B Tuning Profile V1; isolated Native sessions only",
+  "passed": true,
+  "build": {
+    "command": "cmake --build _output/build/arm64-debug -j4",
+    "exit_code": 0
+  },
+  "ctest": {
+    "passed": 106,
+    "failed": 0,
+    "report": "ctest.txt",
+    "elapsed_seconds": 131.99
+  },
+  "final_cli_recheck": {
+    "command": "ctest --test-dir _output/build/arm64-debug -R '^camera_tuning_cli_test$' --output-on-failure",
+    "passed": true,
+    "note": "Revalidated after final profile/report alias protection."
+  },
+  "normal_hardware_gate": {
+    "report": "camera_v2_gate.json",
+    "passed": true
+  },
+  "profile_hardware": {
+    "report": "native-tuning-profiles.json",
+    "sessions": 10,
+    "rejections": 70,
+    "acquired_returned_released": 1080,
+    "surfaces_allocated_destroyed": 60,
+    "metadata_file": "profile-frames.tsv"
+  },
+  "final_cli": {
+    "save_report": "final-save.json",
+    "load_report": "final-load.json",
+    "saved_profile": "final-manual.yaml",
+    "example_profile_report": "example.json",
+    "passed": true
+  },
+  "daemon_invocation_unchanged": true,
+  "final_daemon_state": {
+    "returncode": 0,
+    "properties": {
+      "MainPID": "1024",
+      "NRestarts": "0",
+      "ExecMainStatus": "0",
+      "ActiveState": "active",
+      "InvocationID": "c86d43b4c02d455e9ea0b193544eb5e0"
+    }
+  },
+  "binary_sha256": {
+    "camera-ctl": "c8e9dc325c7d026fd754dda4f2d7ccf076b20f739b8c981149b5ae7f31b7bbf5",
+    "native_tuning_profile_hardware_test": "9e8101a0610a87092aa8ad1c0df0982aaa9b6decac54307abbe9abb1b388da4f"
+  },
+  "source_sha256": {
+    "cockpit/driver/camera/tuning/tuning_profile.h": "0dedb31858e02de9fdd98651cdbef3d91527d63a7f0fbee897db26a53372761d",
+    "cockpit/driver/camera/tuning/tuning_profile.cc": "167c2ded5b6853256e99b7c1d008174a983612b963e828415e2f8c013736d6bf",
+    "cockpit/driver/camera/capture/native_argus_capture.cc": "e17d822b3e2e15fcb4cddfa4bfedcc4c2dac8f3c5fa9f354e781d6ee9ca036df",
+    "tools/camera-ctl/camera_tuning_ctl.cc": "c4007524e2de7f9d7bedd9ded34df666f30607a62d79a51585b568e1d91d549c",
+    "configs/camera/imx219_tuning.yaml": "ea787706c255999ccf55138ff71b6b026e64369a04c983d6c6cf30085a931a0c"
+  },
+  "production_default": "argus_isp / GStreamer; unchanged",
+  "abnormal_exit_injection_run": false,
+  "limitations": [
+    "Native SIGKILL daemon recovery remains a production blocker.",
+    "SDK/metadata failure rollback is implemented, but daemon/driver fault injection was not performed.",
+    "No production CameraService RPC/Qt Native preview integration in this PR.",
+    "Denoise/edge/color/tone-map controls are not part of Profile V1."
+  ]
+}

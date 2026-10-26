@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -12,6 +13,7 @@
 #include <vector>
 
 #include "cockpit/driver/camera/capture/native_argus_capture.h"
+#include "cockpit/driver/camera/tuning/tuning_profile.h"
 #include "cockpit/exchange/foundation/json/json.h"
 
 namespace cockpit::camera_ctl {
@@ -67,6 +69,15 @@ Json Settings(const cam::CameraTuning& s) {
                  {"isp_gain", Range(s.isp_gain)},
                  {"ev", Number(s.exposure_compensation_ev)},
                  {"wb_gains", Gains(s.wb_gains)}});
+}
+Json Device(const cam::NativeCameraDescriptor& d) {
+  return Object({{"backend", Quote("native_argus")},
+                 {"device_index", Number(d.device_index)},
+                 {"sensor_model", Quote(d.sensor_model)},
+                 {"sensor_mode", Number(d.sensor_mode)},
+                 {"width", Number(d.width)},
+                 {"height", Number(d.height)},
+                 {"fps", Number(d.fps)}});
 }
 Json Metadata(const cam::CameraTuningMetadata& m) {
   return Object({{"valid", Bool(m.valid)},
@@ -124,7 +135,8 @@ std::uint64_t Exposure(double us) {
   return static_cast<std::uint64_t>(std::round(ns));
 }
 struct Options {
-  std::string action, report;
+  std::string action, report, profile_path, profile_name = "saved-camera-profile";
+  cam::TuningProfile profile;
   cam::NativeCaptureConfig config;
   int frames = 60, warmup = 30, cycles = 1;
   std::map<std::string, std::string> values;
@@ -178,13 +190,23 @@ void Patch(cam::CameraTuning* s, const std::map<std::string, std::string>& value
   }
   if (values.count("wb-gains") && !values.count("awb")) s->awb_mode = "manual";
 }
+std::filesystem::path ResolvedOutput(std::filesystem::path path) {
+  for (int links = 0; links < 40; ++links) {
+    path = std::filesystem::weakly_canonical(std::filesystem::absolute(path));
+    if (!std::filesystem::is_symlink(std::filesystem::symlink_status(path))) return path;
+    // Resolve a dangling output symlink too: save may create its target later.
+    const auto target = std::filesystem::read_symlink(path);
+    path = target.is_absolute() ? target : path.parent_path() / target;
+  }
+  throw std::invalid_argument("too many profile/report symlinks");
+}
 Options Parse(int argc, char** argv) {
   if (argc < 2) throw std::invalid_argument("missing tuning action");
   Options options;
   options.action = argv[1];
   if (options.action != "get" && options.action != "set" && options.action != "reset" &&
-      options.action != "verify")
-    throw std::invalid_argument("tuning action must be get/set/reset/verify");
+      options.action != "verify" && options.action != "save" && options.action != "load")
+    throw std::invalid_argument("tuning action must be get/set/reset/verify/save/load");
   bool native = false;
   const std::vector<std::string> controls{"ae",
                                           "awb",
@@ -223,7 +245,12 @@ Options Parse(int argc, char** argv) {
       options.cycles = Integer(value, 1, 100);
     else if (key == "report")
       options.report = value;
-    else if (std::find(controls.begin(), controls.end(), key) != controls.end()) {
+    else if (key == "profile")
+      options.profile_path = value;
+    else if (key == "profile-name") {
+      if (options.action != "save") throw std::invalid_argument("--profile-name requires save");
+      options.profile_name = value;
+    } else if (std::find(controls.begin(), controls.end(), key) != controls.end()) {
       if (!options.values.emplace(key, value).second)
         throw std::invalid_argument("duplicate tuning control: " + key);
     } else
@@ -232,8 +259,30 @@ Options Parse(int argc, char** argv) {
   if (!native)
     throw std::invalid_argument(
         "isolated capture requires --native; stop the Camera Service first");
-  if ((options.action == "set") == options.values.empty())
-    throw std::invalid_argument("set requires controls; get/reset/verify accept no controls");
+  if ((options.action == "set" && options.values.empty()) ||
+      (options.action != "set" && options.action != "save" && !options.values.empty()))
+    throw std::invalid_argument("set requires controls; only set/save accept controls");
+  const bool profile_action = options.action == "save" || options.action == "load";
+  if (profile_action != !options.profile_path.empty())
+    throw std::invalid_argument("save/load require --profile; other actions reject it");
+  if (options.action == "save" &&
+      (options.profile_name.empty() || options.profile_name.size() > 128))
+    throw std::invalid_argument("profile name must contain 1..128 bytes");
+  if (profile_action && !options.report.empty()) {
+    std::error_code ignored;
+    if (ResolvedOutput(options.profile_path) == ResolvedOutput(options.report) ||
+        std::filesystem::equivalent(options.profile_path, options.report, ignored))
+      throw std::invalid_argument("--report must not overwrite the profile or an alias of it");
+  }
+  if (options.action == "load") {
+    std::string why;
+    if (!cam::LoadTuningProfile(options.profile_path, &options.profile, &why))
+      throw std::invalid_argument(why);
+    const auto& d = options.profile.target;
+    if (d.device_index != options.config.device_index || d.width != options.config.width ||
+        d.height != options.config.height || d.fps != options.config.fps)
+      throw std::invalid_argument("profile format/device differs from CLI capture options");
+  }
   if (options.values.count("exposure-us") && options.values.count("exposure-range-us"))
     throw std::invalid_argument("conflicting exposure options");
   if (options.values.count("gain") && options.values.count("gain-range"))
@@ -282,6 +331,14 @@ Json Phase(cam::NativeArgusCapture& capture, const std::string& name, int frames
   }
   Require(matched == frames, "new tuning revision did not reach metadata before frame budget");
   if (verify) {
+    const auto& requested = state.requested;
+    Require(static_cast<double>(last.exposure_ns) + 100000 >= requested.exposure_ns.min &&
+                static_cast<double>(last.exposure_ns) <= requested.exposure_ns.max + 100000.0 &&
+                last.sensor_gain >= requested.sensor_gain.min * 0.95f &&
+                last.sensor_gain <= requested.sensor_gain.max * 1.05f &&
+                last.isp_gain >= requested.isp_gain.min * 0.95f &&
+                last.isp_gain <= requested.isp_gain.max * 1.05f,
+            "actual exposure/gain outside requested range");
     Require(
         state.accepted.antibanding == state.requested.antibanding &&
             Near(state.accepted.exposure_compensation_ev, state.requested.exposure_compensation_ev),
@@ -311,19 +368,45 @@ Json Phase(cam::NativeArgusCapture& capture, const std::string& name, int frames
                  {"accepted_request", Settings(state.accepted)},
                  {"actual_last", Metadata(last)}});
 }
+Json LoadVerified(cam::NativeArgusCapture& capture, const cam::TuningProfile& profile, int frames,
+                  std::vector<Json>* observed, std::vector<Json>* phases, bool* rollback_attempted,
+                  bool* rollback_succeeded) {
+  cam::CameraTuningState before;
+  std::string error;
+  Require(capture.GetTuning(&before, &error), error);
+  Require(capture.ApplyTuningProfile(profile, nullptr, &error), error);
+  try {
+    return Phase(capture, "profile-loaded", frames, true, observed);
+  } catch (const std::exception& e) {
+    const std::string original = e.what();
+    *rollback_attempted = true;
+    if (capture.SetTuning(before.accepted, nullptr, &error)) {
+      try {
+        phases->push_back(Phase(capture, "profile-rollback", frames, true, observed));
+        *rollback_succeeded = true;
+      } catch (const std::exception& rollback) {
+        error = rollback.what();
+      }
+    }
+    throw std::runtime_error(original + (*rollback_succeeded ? "; previous settings restored"
+                                                             : "; rollback failed: " + error));
+  }
+}
 }  // namespace
 int ControlNativeTuning(int argc, char** argv) {
   if (argc == 2 && std::string(argv[1]) == "--help") {
-    std::cout << "camera-ctl tuning get|set|reset|verify --native [--device 0] [--width 1920 "
-                 "--height 1080 --fps 30]\n"
-                 "  [--frames 60 --warmup 30 --cycles 1 --report file.json]\n"
-                 "  set: --ae auto|manual --awb auto|manual|daylight|... --ae-lock on|off "
-                 "--awb-lock on|off\n"
-                 "       --exposure-us 8000 --gain 2 --isp-gain 1 --ev 0 --antibanding "
-                 "auto|off|50hz|60hz\n"
-                 "       --exposure-range-us 100,20000 --gain-range 1,8 --wb-gains R,Gr,Gb,B\n"
-                 "ISOLATED native session; stop Camera Service first. Settings last only for this "
-                 "invocation.\n";
+    std::cout
+        << "camera-ctl tuning get|set|reset|verify|save|load --native [--device 0] [--width 1920 "
+           "--height 1080 --fps 30]\n"
+           "  [--frames 60 --warmup 30 --cycles 1 --report file.json]\n"
+           "  set: --ae auto|manual --awb auto|manual|daylight|... --ae-lock on|off "
+           "--awb-lock on|off\n"
+           "       --exposure-us 8000 --gain 2 --isp-gain 1 --ev 0 --antibanding "
+           "auto|off|50hz|60hz\n"
+           "       --exposure-range-us 100,20000 --gain-range 1,8 --wb-gains R,Gr,Gb,B\n"
+           "  save/load: --profile file.yaml [save: --profile-name name and optional controls]\n"
+           "ISOLATED native session; stop Camera Service first. Settings last only for this "
+           "invocation.\n";
     return 0;
   }
   Options options;
@@ -335,7 +418,9 @@ int ControlNativeTuning(int argc, char** argv) {
   }
   cam::NativeArgusCapture capture;
   std::vector<Json> phases, observed;
-  Json capabilities = "null", defaults = "null";
+  Json capabilities = "null", defaults = "null", device = "null";
+  bool rollback_attempted = false, rollback_succeeded = false;
+  cam::TuningProfileSaveResult storage;
   std::string failure;
   bool balanced = true;
   try {
@@ -344,6 +429,7 @@ int ControlNativeTuning(int argc, char** argv) {
       Require(capture.Start(options.config, &error), error);
       cam::CameraTuningState state;
       Require(capture.GetTuning(&state, &error), error);
+      device = Device(state.device);
       capabilities = Capabilities(state.capabilities);
       defaults = Settings(state.defaults);
       phases.push_back(Phase(capture, "warmup", options.warmup, false, &observed));
@@ -392,14 +478,23 @@ int ControlNativeTuning(int argc, char** argv) {
         cam::CameraTuningState after;
         Require(capture.GetTuning(&after, &error), error);
         Require(after.revision == before.revision, "rejected update changed revision");
+      } else if (options.action == "load") {
+        phases.push_back(LoadVerified(capture, options.profile, options.frames, &observed, &phases,
+                                      &rollback_attempted, &rollback_succeeded));
       } else {
-        if (options.action == "set") {
+        if (options.action == "set" || (options.action == "save" && !options.values.empty())) {
           auto settings = state.requested;
           Patch(&settings, options.values);
           Require(capture.SetTuning(settings, nullptr, &error), error);
         } else if (options.action == "reset")
           Require(capture.ResetTuning(nullptr, &error), error);
         phases.push_back(Phase(capture, options.action, options.frames, true, &observed));
+        if (options.action == "save") {
+          Require(capture.GetTuning(&state, &error), error);
+          storage = cam::SaveTuningProfile(options.profile_path,
+                                           cam::MakeTuningProfile(state, options.profile_name));
+          Require(storage.durable, storage.error);
+        }
       }
       Require(capture.Stop(&error) == cam::NativeStopStatus::kStopped, error);
       balanced = balanced && capture.stats().ResourcesBalanced();
@@ -417,6 +512,12 @@ int ControlNativeTuning(int argc, char** argv) {
                               {"isolated_native_session", "true"},
                               {"passed", Bool(passed)},
                               {"argus_version", Quote(capture.version())},
+                              {"device", device},
+                              {"profile_path", Quote(options.profile_path)},
+                              {"profile_file_committed", Bool(storage.committed)},
+                              {"profile_file_durable", Bool(storage.durable)},
+                              {"rollback_attempted", Bool(rollback_attempted)},
+                              {"rollback_succeeded", Bool(rollback_succeeded)},
                               {"capabilities", capabilities},
                               {"defaults", defaults},
                               {"phases", Array(phases)},

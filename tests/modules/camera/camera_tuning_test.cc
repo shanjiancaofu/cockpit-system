@@ -3,6 +3,7 @@
 #include <string>
 
 #include "cockpit/driver/camera/capture/native_argus_capture.h"
+#include "cockpit/driver/camera/tuning/tuning_profile.h"
 
 int main() {
   using namespace cockpit::camera;
@@ -69,5 +70,6 @@ int main() {
   assert(!stopped.GetTuning(&state, &error) && !error.empty());
   assert(!stopped.SetTuning(settings, &revision, &error) && revision == 99);
   assert(!stopped.ResetTuning(&revision, &error) && revision == 99);
+  assert(!stopped.ApplyTuningProfile(TuningProfile{}, &revision, &error) && revision == 99);
   assert(stopped.Stop() == NativeStopStatus::kStopped && stopped.stats().ResourcesBalanced());
 }

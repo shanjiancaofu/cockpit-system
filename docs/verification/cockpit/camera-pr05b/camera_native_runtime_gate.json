@@ -1,0 +1,169 @@
+{
+  "schema_version": 2,
+  "scope": "PR-03 Native Runtime normal lifecycle and timeout recovery; PR-05B tuning profiles and target validation",
+  "passed": true,
+  "tests": [
+    {
+      "name": "diagnostics",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-diag",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr05b/gate/diagnostics.json"
+      ],
+      "returncode": 0,
+      "report": "diagnostics.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "raw-restart",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-stress",
+        "--cycles",
+        "10",
+        "--frames",
+        "60",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr05b/gate/raw-restart.json"
+      ],
+      "returncode": 0,
+      "report": "raw-restart.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-runtime-lifecycle",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/native_argus_capture_hardware_test",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr05b/gate/native-runtime-lifecycle.json"
+      ],
+      "returncode": 0,
+      "report": "native-runtime-lifecycle.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-continuous",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr05b/gate/native-continuous.json"
+      ],
+      "returncode": 0,
+      "report": "native-continuous.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-restart",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--cycles",
+        "10",
+        "--frames",
+        "60",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr05b/gate/native-restart.json"
+      ],
+      "returncode": 0,
+      "report": "native-restart.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-timeout",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "60",
+        "--timeout-ms",
+        "1",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr05b/gate/native-timeout.json"
+      ],
+      "returncode": 1,
+      "report": "native-timeout.json",
+      "expected_success": false,
+      "passed": true
+    },
+    {
+      "name": "after-timeout",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/libargus-capture-probe",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr05b/gate/after-timeout.json"
+      ],
+      "returncode": 0,
+      "report": "after-timeout.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "native-tuning-profiles",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/native_tuning_profile_hardware_test",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr05b/gate/native-tuning-profiles.json"
+      ],
+      "returncode": 0,
+      "report": "native-tuning-profiles.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "diagnostics-after-native",
+      "argv": [
+        "/home/fff/code/github/cockpit-system/_output/build/arm64-debug/bin/camera-diag",
+        "--frames",
+        "300",
+        "--output",
+        "/home/fff/code/github/cockpit-system/_output/runtime/camera-pr05b/gate/diagnostics-after-native.json"
+      ],
+      "returncode": 0,
+      "report": "diagnostics-after-native.json",
+      "expected_success": true,
+      "passed": true
+    },
+    {
+      "name": "normal-daemon-stability",
+      "passed": true
+    }
+  ],
+  "binary_sha256": {
+    "camera-diag": "2462887e57a5778cb1359b655a8623b8eec535df540f797386d8f0576a0ba410",
+    "camera-stress": "448a4673c6b2172370cbb5f4335009cf7d421d6d7adeefcf2693540293e27cd8",
+    "libargus-capture-probe": "c5d5ad3144b47390fdf030ceb99888c61d4b5206cfb4fe5ef859308c74282108",
+    "native_argus_capture_hardware_test": "aa20e0bdb3a4a385545e8f761764678779383636a1a9662ced4e07d0d19d158a",
+    "native_tuning_profile_hardware_test": "9e8101a0610a87092aa8ad1c0df0982aaa9b6decac54307abbe9abb1b388da4f"
+  },
+  "daemon_before": {
+    "returncode": 0,
+    "properties": {
+      "MainPID": "1024",
+      "NRestarts": "0",
+      "ExecMainStatus": "0",
+      "ActiveState": "active",
+      "InvocationID": "c86d43b4c02d455e9ea0b193544eb5e0"
+    }
+  },
+  "daemon_after": {
+    "returncode": 0,
+    "properties": {
+      "MainPID": "1024",
+      "NRestarts": "0",
+      "ExecMainStatus": "0",
+      "ActiveState": "active",
+      "InvocationID": "c86d43b4c02d455e9ea0b193544eb5e0"
+    }
+  },
+  "started_utc": "2026-10-26T11:18:45.600026+00:00",
+  "finished_utc": "2026-10-26T11:21:31.177108+00:00",
+  "abnormal_exit": "reported separately; not part of normal-path acceptance"
+}

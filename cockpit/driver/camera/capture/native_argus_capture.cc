@@ -14,6 +14,7 @@
 #include <stdexcept>
 #include <utility>
 
+#include "cockpit/driver/camera/tuning/tuning_profile.h"
 #include "cockpit/exchange/foundation/time/time.h"
 
 namespace cockpit::camera {
@@ -210,6 +211,8 @@ struct Session : std::enable_shared_from_this<Session> {
     selected_mode = mode;
     auto* info = interface_cast<ISensorMode>(mode);
     tuning.session_id = id;
+    tuning.device = {config.device_index, config.width, config.height,
+                     config.fps,          mode_index,   properties->getModelName()};
     tuning.capabilities.exposure_ns = Bounds(info->getExposureTimeRange());
     tuning.capabilities.exposure_ns.max = std::min(tuning.capabilities.exposure_ns.max, duration);
     tuning.capabilities.frame_duration_ns = duration;
@@ -742,6 +745,18 @@ bool NativeArgusCapture::ResetTuning(std::uint32_t* revision, std::string* error
     return false;
   }
   return impl_->session->SetTuning(impl_->session->tuning.defaults, revision, error);
+}
+bool NativeArgusCapture::ApplyTuningProfile(const TuningProfile& profile, std::uint32_t* revision,
+                                            std::string* error) {
+  std::lock_guard<std::mutex> lock(impl_->control);
+  if (!impl_->session || !impl_->session->active || impl_->session->stopping) {
+    SetError(error, "ApplyTuningProfile requires an active native session");
+    return false;
+  }
+  const auto& state = impl_->session->tuning;
+  if (!ValidateTuningProfileForDevice(profile, state.device, state.capabilities, error))
+    return false;
+  return impl_->session->SetTuning(profile.settings, revision, error);
 }
 bool NativeArgusCapture::SampleLuma(const FrameLease& lease, std::size_t bytes, std::uint64_t* sum,
                                     std::string* error) {

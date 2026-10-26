@@ -1,0 +1,23 @@
+# Explicit opt-in Native Hardware ISP profile. Not loaded by production defaults.
+# Target verified on R36.5.2; re-export if the device/model/mode ordering changes.
+schema_version: 1
+name: "imx219-1080p30-auto"
+target:
+  backend: native_argus
+  device_index: 0
+  sensor_model: "imx219"
+  sensor_mode: 2
+  width: 1920
+  height: 1080
+  fps: 30
+settings:
+  ae_mode: auto
+  awb_mode: auto
+  ae_lock: false
+  awb_lock: false
+  antibanding: auto
+  exposure_ns: [13000, 33333334]
+  sensor_gain: [1, 10.625]
+  isp_gain: [1, 256]
+  exposure_compensation_ev: 0
+  wb_gains: [1, 1, 1, 1]

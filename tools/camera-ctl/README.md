@@ -37,3 +37,20 @@ _output/build/arm64-debug/bin/camera-ctl tuning --help
 输出包含请求值、Request getter 读回值和逐帧 Metadata；新请求以 session_id/revision 标记。
 `--report` 保存 JSON，`--frames`/`--warmup` 控制采集数量。
 完整说明及验收见 [Camera V2 PR-05A](../../docs/CameraV2-PR05A.md)。
+
+## Tuning Profile V1
+
+```bash
+mkdir -p _output/runtime/camera-pr05b
+_output/build/arm64-debug/bin/camera-ctl tuning save --native \
+  --profile _output/runtime/camera-pr05b/manual.yaml --profile-name manual \
+  --exposure-us 8000 --gain 2 --wb-gains 1.5,1,1,1.25
+_output/build/arm64-debug/bin/camera-ctl tuning load --native \
+  --profile _output/runtime/camera-pr05b/manual.yaml --report _output/runtime/camera-pr05b/load.json
+_output/build/arm64-debug/bin/camera-ctl tuning load --native \
+  --profile configs/camera/imx219_tuning.yaml
+```
+
+save 保存 SDK Request 的读回值；load 核对实际 Sensor Model/Mode 和参数范围，并等待 Metadata 验证。
+load 不接受单项覆盖，非默认格式需显式指定匹配的设备、尺寸和 FPS。
+完整说明见 [PR-05B](../../docs/CameraV2-PR05B.md)。
