@@ -60,6 +60,10 @@ struct CameraServiceStatus {
   std::uint64_t native_broker_retained_frames = 0;
   std::uint64_t native_vic_transformed = 0;
   double native_vic_total_ms = 0.0;
+  std::uint64_t native_encoder_frames_submitted = 0;
+  std::uint64_t native_encoder_packets = 0;
+  std::uint64_t native_encoder_keyframes = 0;
+  std::uint64_t native_encoder_bytes = 0;
   std::vector<runtime::ModuleStatus> modules;
   std::string last_error;
 };
@@ -69,6 +73,11 @@ struct CameraStartPreviewRequest {
   std::uint32_t width = 640;
   std::uint32_t height = 480;
   std::uint32_t fps = 30;
+  std::string h264_output_path;
+  std::uint32_t h264_width = 1280;
+  std::uint32_t h264_height = 720;
+  std::uint32_t h264_bitrate = 2'000'000;
+  std::uint32_t h264_gop = 30;
 };
 
 struct CameraServiceOptions {

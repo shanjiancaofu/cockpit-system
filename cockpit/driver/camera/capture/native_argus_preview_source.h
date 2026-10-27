@@ -6,6 +6,7 @@
 
 #include "cockpit/driver/camera/capture/camera_preview_source.h"
 #include "cockpit/driver/camera/capture/native_argus_capture.h"
+#include "cockpit/driver/camera/encode/h264_encoder.h"
 #include "cockpit/driver/camera/frames/frame_broker.h"
 #include "cockpit/driver/camera/transform/vic_transform.h"
 
@@ -20,6 +21,8 @@ struct NativePreviewStatus {
   NativeCaptureStats capture;
   FrameBrokerStats broker;
   VicTransformStats vic;
+  VicTransformStats encode_vic;
+  H264EncoderStats encoder;
   std::string error;
 };
 

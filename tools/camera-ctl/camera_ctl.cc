@@ -13,6 +13,7 @@ namespace {
 void PrintUsage() {
   std::cout << "camera-ctl [--list|--status|--start|--stop|--photo] "
                "[--device /dev/video0|nvargus://0] [--width 640] [--height 480] [--fps 30] "
+               "[--h264-output file.h264 --h264-width 1280 --h264-height 720] "
                "[--filename snapshot.jpg] "
                "[--output text|json] [--config configs/development.yaml]\n";
 }
@@ -69,7 +70,11 @@ void PrintStatusText(const cockpit::proto::camera::CameraStatus& status) {
               << "native broker budget dropped: " << status.native_broker_budget_dropped() << '\n'
               << "native broker retained: " << status.native_broker_retained_frames() << '\n'
               << "native VIC transformed: " << status.native_vic_transformed() << '\n'
-              << "native VIC total ms: " << status.native_vic_total_ms() << '\n';
+              << "native VIC total ms: " << status.native_vic_total_ms() << '\n'
+              << "native encoder frames: " << status.native_encoder_frames_submitted() << '\n'
+              << "native encoder packets: " << status.native_encoder_packets() << '\n'
+              << "native encoder keyframes: " << status.native_encoder_keyframes() << '\n'
+              << "native encoder bytes: " << status.native_encoder_bytes() << '\n';
   }
   if (!status.last_error_kind().empty()) {
     std::cout << "last error kind: " << status.last_error_kind() << '\n';
@@ -173,6 +178,19 @@ int cockpit::camera_ctl::ControlCamera(const cockpit::runtime::ProcessRuntime& r
     request.set_width(static_cast<std::uint32_t>(width));
     request.set_height(static_cast<std::uint32_t>(height));
     request.set_fps(static_cast<std::uint32_t>(fps));
+    request.set_h264_output_path(runtime.args().GetString("h264-output", ""));
+    const int h264_width = runtime.args().GetInt("h264-width", 1280);
+    const int h264_height = runtime.args().GetInt("h264-height", 720);
+    const int h264_bitrate = runtime.args().GetInt("h264-bitrate", 2'000'000);
+    const int h264_gop = runtime.args().GetInt("h264-gop", 30);
+    if (h264_width <= 0 || h264_height <= 0 || h264_bitrate <= 0 || h264_gop <= 0) {
+      return PrintArgumentError(runtime, output_format,
+                                "H264 dimensions, bitrate, and GOP must be positive");
+    }
+    request.set_h264_width(static_cast<std::uint32_t>(h264_width));
+    request.set_h264_height(static_cast<std::uint32_t>(h264_height));
+    request.set_h264_bitrate(static_cast<std::uint32_t>(h264_bitrate));
+    request.set_h264_gop(static_cast<std::uint32_t>(h264_gop));
     cockpit::proto::camera::CameraStatus status;
     if (!client.StartPreview(request, &status, &error)) {
       if (output_format == cockpit::diagnostics::OutputFormat::kText) {

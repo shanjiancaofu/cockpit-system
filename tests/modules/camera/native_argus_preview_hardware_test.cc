@@ -12,6 +12,7 @@ int main(int argc, char** argv) {
   using namespace cockpit::camera;
   std::uint32_t frames = 3000;
   std::uint32_t cycles = 10;
+  const std::string h264_output = argc > 3 ? argv[3] : std::string();
   if (argc > 1) frames = static_cast<std::uint32_t>(std::stoul(argv[1]));
   if (argc > 2) cycles = static_cast<std::uint32_t>(std::stoul(argv[2]));
   if (!frames || !cycles || !NativeArgusCapture::IsSupported()) {
@@ -27,6 +28,12 @@ int main(int argc, char** argv) {
     config.width = 1920;
     config.height = 1080;
     config.fps = 30;
+    if (!h264_output.empty()) {
+      config.h264_output_path = h264_output + "." + std::to_string(cycle) + ".h264";
+      config.h264_width = 1280;
+      config.h264_height = 720;
+      config.h264_bitrate = 2'000'000;
+    }
     std::string error;
     if (!source.Start(
             config,
@@ -56,6 +63,14 @@ int main(int argc, char** argv) {
         capture.frames_acquired != capture.leases_returned ||
         capture.leases_returned != capture.buffers_released) {
       std::cerr << "resource imbalance at cycle " << cycle << '\n';
+      return 1;
+    }
+    if (h264_output.empty() && status.encoder.frames_submitted != 0) {
+      std::cerr << "unexpected encoder activity without an output path\n";
+      return 1;
+    }
+    if (!h264_output.empty() && status.encoder.frames_submitted == 0) {
+      std::cerr << "encoder produced no frames at cycle " << cycle << '\n';
       return 1;
     }
   }

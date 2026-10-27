@@ -32,6 +32,11 @@ struct CameraPreviewConfig {
   std::uint32_t fps = 30;
   CameraPixelFormat output_format = CameraPixelFormat::kBgrx;
   std::string tuning_profile;
+  std::string h264_output_path;
+  std::uint32_t h264_width = 1280;
+  std::uint32_t h264_height = 720;
+  std::uint32_t h264_bitrate = 2'000'000;
+  std::uint32_t h264_gop = 30;
 };
 
 class CameraPreviewSource {

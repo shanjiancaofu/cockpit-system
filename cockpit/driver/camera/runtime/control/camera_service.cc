@@ -247,6 +247,11 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
   config.height = request.height;
   config.fps = request.fps;
   config.tuning_profile = options_.tuning_profile;
+  config.h264_output_path = request.h264_output_path;
+  config.h264_width = request.h264_width;
+  config.h264_height = request.h264_height;
+  config.h264_bitrate = request.h264_bitrate;
+  config.h264_gop = request.h264_gop;
 
   {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -374,6 +379,10 @@ CameraServiceStatus CameraService::status() const {
       result.native_broker_retained_frames = native.broker.retained_frames;
       result.native_vic_transformed = native.vic.transformed;
       result.native_vic_total_ms = native.vic.total_ms;
+      result.native_encoder_frames_submitted = native.encoder.frames_submitted;
+      result.native_encoder_packets = native.encoder.packets_emitted;
+      result.native_encoder_keyframes = native.encoder.keyframes;
+      result.native_encoder_bytes = native.encoder.bytes_emitted;
     }
   }
   result.modules = module_manager_.Status();

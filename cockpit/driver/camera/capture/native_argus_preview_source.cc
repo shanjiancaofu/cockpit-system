@@ -25,8 +25,12 @@ struct Run {
   NativeArgusCapture capture;
   NativeFrameBroker broker;
   VicTransform vic;
+  VicTransform encode_vic;
+  std::unique_ptr<H264Encoder> encoder;
+  H264FileWriter writer;
+  bool encoding = false;
   std::atomic<bool> running{false};
-  std::thread producer, preview;
+  std::thread producer, preview, encode;
   mutable std::mutex mutex;
   NativePreviewStatus status;
   std::deque<double> latencies;
@@ -55,8 +59,9 @@ struct Run {
         Require(published == FramePublishStatus::kPublished ||
                     published == FramePublishStatus::kBudgetDropped,
                 "native preview broker rejected frame");
-        // PR-06 has no encoder. Discard its copy immediately, including overload.
-        while (auto unused = broker.TryPop(FrameConsumer::kTransform)) unused.Reset();
+        if (!encoding) {
+          while (auto unused = broker.TryPop(FrameConsumer::kTransform)) unused.Reset();
+        }
         std::this_thread::yield();
       }
     } catch (const std::exception& e) {
@@ -92,6 +97,34 @@ struct Run {
       Fail(e.what());
     }
   }
+  void Encode(CameraPreviewConfig config) {
+    try {
+      while (running) {
+        auto lease = broker.WaitPop(FrameConsumer::kTransform, 100);
+        if (!lease) continue;
+        CpuVideoFrame cpu;
+        std::string error;
+        Require(encode_vic.Convert(lease,
+                                   {config.h264_width, config.h264_height, VicOutputFormat::kI420},
+                                   &cpu, &error),
+                error);
+        lease.Reset();
+        std::vector<H264Packet> packets;
+        Require(encoder->Encode(cpu, &packets, &error), error);
+        for (const auto& packet : packets) Require(writer.Write(packet, &error), error);
+      }
+      std::vector<H264Packet> packets;
+      Require(encoder->Flush(&packets, nullptr), "H264 flush failed");
+      for (const auto& packet : packets) {
+        std::string error;
+        Require(writer.Write(packet, &error), error);
+      }
+      std::string error;
+      Require(writer.Close(&error), error);
+    } catch (const std::exception& e) {
+      Fail(e.what());
+    }
+  }
 };
 }  // namespace
 struct NativeArgusPreviewSource::Impl {
@@ -102,10 +135,12 @@ struct NativeArgusPreviewSource::Impl {
     run->running = false;
     if (run->producer.joinable()) run->producer.join();
     if (run->preview.joinable()) run->preview.join();
+    if (run->encode.joinable()) run->encode.join();
     // Close only after device access has finished: Close revokes shared handles.
     run->broker.Close();
     std::string error;
     if (!run->vic.Reset(&error)) run->Fail(error);
+    if (!run->encode_vic.Reset(&error)) run->Fail(error);
     if (run->capture.Stop(&error) != NativeStopStatus::kStopped) run->Fail(error);
   }
   bool Check(std::uint64_t session, std::uint32_t revision, std::string* error) const {
@@ -161,6 +196,20 @@ bool NativeArgusPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
       Require(next->capture.ApplyTuningProfile(profile, nullptr, error),
               error ? *error : "native profile rejected");
     Require(next->capture.GetTuning(&state, error), error ? *error : "native state unavailable");
+    if (!config.h264_output_path.empty()) {
+      Require(H264Encoder::IsSupported(), "H264 encoder dependencies unavailable");
+      H264EncoderConfig encoder_config;
+      encoder_config.width = config.h264_width;
+      encoder_config.height = config.h264_height;
+      encoder_config.fps = config.fps;
+      encoder_config.bitrate = config.h264_bitrate;
+      encoder_config.gop = config.h264_gop;
+      next->encoder = std::make_unique<H264Encoder>();
+      Require(next->encoder->Start(encoder_config, error), error ? *error : "H264 start failed");
+      Require(next->writer.Open(config.h264_output_path, error),
+              error ? *error : "H264 output open failed");
+      next->encoding = true;
+    }
     next->status.session_id = state.session_id;
     Require(next->broker.BeginSession(state.session_id), "begin native preview broker session");
     next->running = true;
@@ -170,6 +219,11 @@ bool NativeArgusPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
     next->preview = std::thread([next, config, callback = std::move(callback)] {
       next->Preview(config, callback);
     });
+    if (next->encoding) {
+      next->encode = std::thread([next, config] {
+        next->Encode(config);
+      });
+    }
     return true;
   } catch (const std::exception& e) {
     Error(error, e.what());
@@ -237,6 +291,8 @@ bool NativeArgusPreviewSource::GetNativeStatus(NativePreviewStatus* status) cons
   status->capture = run.capture.stats();
   status->broker = run.broker.stats();
   status->vic = run.vic.stats();
+  status->encode_vic = run.encode_vic.stats();
+  if (run.encoder) status->encoder = run.encoder->stats();
   return true;
 }
 }  // namespace cockpit::camera

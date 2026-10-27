@@ -32,6 +32,11 @@ message StartPreviewRequest {
   uint32 width = 2;
   uint32 height = 3;
   uint32 fps = 4;
+  string h264_output_path = 5;
+  uint32 h264_width = 6;
+  uint32 h264_height = 7;
+  uint32 h264_bitrate = 8;
+  uint32 h264_gop = 9;
 }
 
 message CameraStatus {
@@ -67,6 +72,10 @@ message CameraStatus {
   uint64 native_broker_retained_frames = 37;
   uint64 native_vic_transformed = 38;
   double native_vic_total_ms = 39;
+  uint64 native_encoder_frames_submitted = 40;
+  uint64 native_encoder_packets = 41;
+  uint64 native_encoder_keyframes = 42;
+  uint64 native_encoder_bytes = 43;
   cockpit.proto.common.ServiceHealth health = 100;
 }
 

@@ -131,6 +131,11 @@ grpc::Status CameraGrpcService::StartPreview(grpc::ServerContext*,
   start_request.width = request->width() == 0 ? 640U : request->width();
   start_request.height = request->height() == 0 ? 480U : request->height();
   start_request.fps = request->fps() == 0 ? 30U : request->fps();
+  start_request.h264_output_path = request->h264_output_path();
+  start_request.h264_width = request->h264_width() == 0 ? 1280U : request->h264_width();
+  start_request.h264_height = request->h264_height() == 0 ? 720U : request->h264_height();
+  start_request.h264_bitrate = request->h264_bitrate() == 0 ? 2'000'000U : request->h264_bitrate();
+  start_request.h264_gop = request->h264_gop() == 0 ? 30U : request->h264_gop();
 
   std::string error;
   if (!camera_service_.StartPreview(start_request, &error)) {
@@ -227,6 +232,10 @@ void CameraGrpcService::FillStatus(const CameraServiceStatus& status,
   response->set_native_broker_retained_frames(status.native_broker_retained_frames);
   response->set_native_vic_transformed(status.native_vic_transformed);
   response->set_native_vic_total_ms(status.native_vic_total_ms);
+  response->set_native_encoder_frames_submitted(status.native_encoder_frames_submitted);
+  response->set_native_encoder_packets(status.native_encoder_packets);
+  response->set_native_encoder_keyframes(status.native_encoder_keyframes);
+  response->set_native_encoder_bytes(status.native_encoder_bytes);
   response->set_last_error(status.last_error);
   FillHealth(status, response->mutable_health());
   for (const auto& module : status.modules) {

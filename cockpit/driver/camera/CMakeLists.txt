@@ -81,5 +81,16 @@ target_compile_options(camera_photo PRIVATE ${GSTREAMER_CFLAGS_OTHER})
 add_library(camera INTERFACE)
 target_link_libraries(camera INTERFACE camera_capture camera_frames camera_photo)
 
+if(COCKPIT_HAS_H264_ENCODER)
+    add_library(camera_h264_encoder STATIC encode/h264_encoder.cc)
+    target_link_libraries(camera_h264_encoder PUBLIC camera_vic_transform PkgConfig::FFMPEG PkgConfig::X264)
+    target_include_directories(camera_h264_encoder SYSTEM PRIVATE ${FFMPEG_INCLUDE_DIRS} ${X264_INCLUDE_DIRS})
+else()
+    add_library(camera_h264_encoder STATIC encode/h264_encoder_stub.cc)
+    message(STATUS "FFmpeg/libx264 development dependencies unavailable: H264 encoder stub")
+endif()
+target_include_directories(camera_h264_encoder PUBLIC ${PROJECT_SOURCE_DIR})
+
 add_library(native_argus_preview STATIC capture/native_argus_preview_source.cc)
-target_link_libraries(native_argus_preview PUBLIC native_camera_capture camera_frame_broker camera_vic_transform)
+target_link_libraries(native_argus_preview PUBLIC
+    native_camera_capture camera_frame_broker camera_vic_transform camera_h264_encoder)
