@@ -44,6 +44,9 @@ bool CameraPreviewModule::ApplyTuningProfile(std::uint64_t session, std::uint32_
   return preview_source_ &&
          preview_source_->ApplyTuningProfile(session, revision, profile, state, error);
 }
+bool CameraPreviewModule::GetNativeStatus(NativePreviewStatus* status) const {
+  return preview_source_ && preview_source_->GetNativeStatus(status);
+}
 
 void CameraPreviewModule::Configure(CameraPreviewConfig config, FrameCallback callback) {
   config_ = std::move(config);

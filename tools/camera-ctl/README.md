@@ -21,6 +21,17 @@ _output/build/x86_64-debug/bin/camera-ctl --photo --filename dashboard.jpg \
 list/status/start/stop/photo 均支持 `--output text|json`。多个命令、非法 output 或非正数尺寸属于
 参数错误，返回退出码 2。
 
+Native CameraService 的同 Session Tuning 通过 `tuning-service` 调用，不会创建第二个 Argus
+Session。先用 `tuning-service get` 取得当前 profile，再编辑后提交 set/apply；响应中的
+`accepted` 表示 SDK 接受请求，`applied` 只有在对应 revision 出现在逐帧 Metadata 后才为 true。
+
+```bash
+_output/build/arm64-debug/bin/camera-ctl tuning-service get --address 127.0.0.1:50054 --output json
+_output/build/arm64-debug/bin/camera-ctl tuning-service apply \
+  --address 127.0.0.1:50054 --session-id 1 --revision 1 \
+  --profile configs/camera/imx219_tuning.yaml --output json
+```
+
 ## Native Hardware ISP 隔离控制
 
 新增 `camera-ctl tuning get|set|reset|verify --native`，直接创建隔离 Native Session，

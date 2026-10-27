@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <sstream>
@@ -15,6 +16,8 @@
 #include "cockpit/driver/camera/capture/native_argus_capture.h"
 #include "cockpit/driver/camera/tuning/tuning_profile.h"
 #include "cockpit/exchange/foundation/json/json.h"
+#include "tools/camera-ctl/camera_control_client.h"
+#include "tools/diagnostics/cli_output.h"
 
 namespace cockpit::camera_ctl {
 namespace {
@@ -539,5 +542,95 @@ int ControlNativeTuning(int argc, char** argv) {
   }
   std::cout << report << '\n';
   return passed ? 0 : 1;
+}
+
+int ControlServiceTuning(int argc, char** argv) {
+  if (argc < 2 || std::string(argv[1]) == "--help") {
+    std::cout << "camera-ctl tuning-service get|set|reset|apply [--address host:port] "
+                 "[--session-id N --revision N --profile file.yaml] [--output text|json]\n";
+    return argc < 2 ? 2 : 0;
+  }
+  const std::string action = argv[1];
+  if (action != "get" && action != "set" && action != "reset" && action != "apply") {
+    std::cerr << "tuning-service action must be get/set/reset/apply\n";
+    return 2;
+  }
+  std::string address = "127.0.0.1:50054";
+  std::string profile_path;
+  std::string output_name = "text";
+  std::uint64_t session_id = 0;
+  std::uint32_t revision = 0;
+  try {
+    const auto unsigned_value = [](const std::string& text, std::uint64_t maximum) {
+      std::size_t used = 0;
+      const auto value = std::stoull(text, &used);
+      if (used != text.size() || value == 0 || value > maximum)
+        throw std::invalid_argument("unsigned integer outside limits: " + text);
+      return value;
+    };
+    for (int i = 2; i < argc; ++i) {
+      const std::string flag = argv[i];
+      if (flag == "--address" || flag == "--profile" || flag == "--output") {
+        if (++i == argc) throw std::invalid_argument("missing option value: " + flag);
+        if (flag == "--address") address = argv[i];
+        if (flag == "--profile") profile_path = argv[i];
+        if (flag == "--output") output_name = argv[i];
+      } else if (flag == "--session-id") {
+        if (++i == argc) throw std::invalid_argument("missing option value: " + flag);
+        session_id = unsigned_value(argv[i], UINT64_MAX);
+      } else if (flag == "--revision") {
+        if (++i == argc) throw std::invalid_argument("missing option value: " + flag);
+        revision = static_cast<std::uint32_t>(unsigned_value(argv[i], UINT32_MAX));
+      } else {
+        throw std::invalid_argument("unknown option: " + flag);
+      }
+    }
+    if (action != "get" && !session_id) throw std::invalid_argument("--session-id is required");
+    if (action != "get" && !revision) throw std::invalid_argument("--revision is required");
+    if ((action == "set" || action == "apply") && profile_path.empty())
+      throw std::invalid_argument("--profile is required for set/apply");
+    cockpit::diagnostics::OutputFormat output;
+    std::string error;
+    if (!cockpit::diagnostics::ParseOutputFormat(output_name, &output, &error))
+      throw std::invalid_argument(error);
+    cockpit::camera::CameraControlClient client(address);
+    cockpit::proto::camera::CameraTuningResponse response;
+    bool ok = false;
+    if (action == "get") {
+      ok = client.GetTuning(&response, &error);
+    } else {
+      cockpit::proto::camera::CameraTuningRequest request;
+      request.set_session_id(session_id);
+      request.set_revision(revision);
+      if (!profile_path.empty()) {
+        std::ifstream input(profile_path, std::ios::binary);
+        if (!input) throw std::invalid_argument("cannot open profile: " + profile_path);
+        request.set_profile_yaml(
+            std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()));
+      }
+      if (action == "set") ok = client.SetTuning(request, &response, &error);
+      if (action == "reset") ok = client.ResetTuning(request, &response, &error);
+      if (action == "apply") ok = client.ApplyTuningProfile(request, &response, &error);
+    }
+    if (!ok && response.error().empty() && !error.empty()) response.set_error(error);
+    if (output == cockpit::diagnostics::OutputFormat::kJson) {
+      std::string serialization_error;
+      if (!cockpit::diagnostics::WriteJson(response, &std::cout, &serialization_error)) {
+        std::cerr << serialization_error << '\n';
+        return 1;
+      }
+    } else {
+      std::cout << "accepted: " << (response.accepted() ? "yes" : "no") << '\n'
+                << "applied: " << (response.applied() ? "yes" : "no") << '\n'
+                << "session id: " << response.session_id() << '\n'
+                << "revision: " << response.revision() << '\n';
+      if (!response.error().empty()) std::cout << "error: " << response.error() << '\n';
+      if (!error.empty() && !ok) std::cerr << error << '\n';
+    }
+    return ok ? 0 : 1;
+  } catch (const std::exception& e) {
+    std::cerr << e.what() << '\n';
+    return 2;
+  }
 }
 }  // namespace cockpit::camera_ctl

@@ -50,6 +50,16 @@ struct CameraServiceStatus {
   std::uint64_t restart_count = 0;
   std::uint64_t recover_count = 0;
   std::uint64_t last_recover_at_ms = 0;
+  bool native_metrics_valid = false;
+  std::uint64_t native_frames_delivered = 0;
+  double native_delivery_p95_ms = 0.0;
+  std::uint64_t native_capture_frames_acquired = 0;
+  std::uint64_t native_capture_leases_returned = 0;
+  std::uint64_t native_capture_buffers_released = 0;
+  std::uint64_t native_broker_budget_dropped = 0;
+  std::uint64_t native_broker_retained_frames = 0;
+  std::uint64_t native_vic_transformed = 0;
+  double native_vic_total_ms = 0.0;
   std::vector<runtime::ModuleStatus> modules;
   std::string last_error;
 };

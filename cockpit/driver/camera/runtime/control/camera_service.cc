@@ -361,6 +361,21 @@ CameraServiceStatus CameraService::status() const {
   std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
   std::lock_guard<std::mutex> lock(mutex_);
   CameraServiceStatus result = status_;
+  if (options_.capture_pipeline == CameraCapturePipeline::kNativeArgus && preview_module_) {
+    NativePreviewStatus native;
+    if (preview_module_->GetNativeStatus(&native) && native.session_id != 0) {
+      result.native_metrics_valid = true;
+      result.native_frames_delivered = native.frames_delivered;
+      result.native_delivery_p95_ms = native.delivery_p95_ms;
+      result.native_capture_frames_acquired = native.capture.frames_acquired;
+      result.native_capture_leases_returned = native.capture.leases_returned;
+      result.native_capture_buffers_released = native.capture.buffers_released;
+      result.native_broker_budget_dropped = native.broker.budget_dropped;
+      result.native_broker_retained_frames = native.broker.retained_frames;
+      result.native_vic_transformed = native.vic.transformed;
+      result.native_vic_total_ms = native.vic.total_ms;
+    }
+  }
   result.modules = module_manager_.Status();
   return result;
 }

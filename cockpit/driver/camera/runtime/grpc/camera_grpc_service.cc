@@ -217,6 +217,16 @@ void CameraGrpcService::FillStatus(const CameraServiceStatus& status,
   response->set_restart_count(status.restart_count);
   response->set_recover_count(status.recover_count);
   response->set_last_recover_at_ms(status.last_recover_at_ms);
+  response->set_native_metrics_valid(status.native_metrics_valid);
+  response->set_native_frames_delivered(status.native_frames_delivered);
+  response->set_native_delivery_p95_ms(status.native_delivery_p95_ms);
+  response->set_native_capture_frames_acquired(status.native_capture_frames_acquired);
+  response->set_native_capture_leases_returned(status.native_capture_leases_returned);
+  response->set_native_capture_buffers_released(status.native_capture_buffers_released);
+  response->set_native_broker_budget_dropped(status.native_broker_budget_dropped);
+  response->set_native_broker_retained_frames(status.native_broker_retained_frames);
+  response->set_native_vic_transformed(status.native_vic_transformed);
+  response->set_native_vic_total_ms(status.native_vic_total_ms);
   response->set_last_error(status.last_error);
   FillHealth(status, response->mutable_health());
   for (const auto& module : status.modules) {

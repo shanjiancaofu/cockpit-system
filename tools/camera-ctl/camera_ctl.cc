@@ -60,6 +60,17 @@ void PrintStatusText(const cockpit::proto::camera::CameraStatus& status) {
             << "restart count: " << status.restart_count() << '\n'
             << "recover count: " << status.recover_count() << '\n'
             << "last recover at ms: " << status.last_recover_at_ms() << '\n';
+  if (status.native_metrics_valid()) {
+    std::cout << "native frames delivered: " << status.native_frames_delivered() << '\n'
+              << "native delivery p95 ms: " << status.native_delivery_p95_ms() << '\n'
+              << "native capture acquired: " << status.native_capture_frames_acquired() << '\n'
+              << "native capture returned: " << status.native_capture_leases_returned() << '\n'
+              << "native capture released: " << status.native_capture_buffers_released() << '\n'
+              << "native broker budget dropped: " << status.native_broker_budget_dropped() << '\n'
+              << "native broker retained: " << status.native_broker_retained_frames() << '\n'
+              << "native VIC transformed: " << status.native_vic_transformed() << '\n'
+              << "native VIC total ms: " << status.native_vic_total_ms() << '\n';
+  }
   if (!status.last_error_kind().empty()) {
     std::cout << "last error kind: " << status.last_error_kind() << '\n';
   }
