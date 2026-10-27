@@ -8,6 +8,7 @@
 #include "camera.grpc.pb.h"
 #include "cockpit/driver/camera/runtime/control/camera_service.h"
 #include "cockpit/driver/camera/runtime/photo/camera_photo_service.h"
+#include "cockpit/driver/camera/tuning/tuning_profile.h"
 #include "cockpit/exchange/foundation/base/macros.h"
 #include "cockpit/spider/recording/client/recording_event_publisher.h"
 
@@ -38,9 +39,20 @@ class CameraGrpcService final : public proto::camera::CameraControl::Service {
   grpc::Status TakePhoto(grpc::ServerContext* context,
                          const proto::camera::TakePhotoRequest* request,
                          proto::camera::TakePhotoResponse* response) override;
+  grpc::Status GetTuning(grpc::ServerContext*, const proto::common::Empty*,
+                         proto::camera::CameraTuningResponse*) override;
+  grpc::Status SetTuning(grpc::ServerContext*, const proto::camera::CameraTuningRequest*,
+                         proto::camera::CameraTuningResponse*) override;
+  grpc::Status ResetTuning(grpc::ServerContext*, const proto::camera::CameraTuningRequest*,
+                           proto::camera::CameraTuningResponse*) override;
+  grpc::Status ApplyTuningProfile(grpc::ServerContext*, const proto::camera::CameraTuningRequest*,
+                                  proto::camera::CameraTuningResponse*) override;
 
   static void FillDevice(const VideoDeviceInfo& device, proto::camera::CameraDevice* response);
   static void FillStatus(const CameraServiceStatus& status, proto::camera::CameraStatus* response);
+  grpc::Status FillTuningResponse(const CameraServiceStatus&, const CameraTuningState*,
+                                  bool accepted, const std::string&,
+                                  proto::camera::CameraTuningResponse*);
 
   CameraService& camera_service_;
   CameraPhotoService& photo_service_;

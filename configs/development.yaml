@@ -32,6 +32,7 @@ services:
       listen_address: 127.0.0.1:50052
   camera:
     capture_pipeline: argus_isp
+    tuning_profile: ""
     uvc_input_format: mjpeg
     preview_stale_timeout_ms: 2000
     synthetic_fault: none

@@ -73,6 +73,39 @@ message TakePhotoResponse {
   uint64 size_bytes = 6;
 }
 
+message CameraTuningRequest {
+  uint64 session_id = 1;
+  uint32 revision = 2;
+  string profile_yaml = 3;
+}
+
+message CameraTuningMetadata {
+  bool valid = 1;
+  uint32 revision = 2;
+  uint64 exposure_ns = 3;
+  float sensor_gain = 4;
+  float isp_gain = 5;
+  repeated float wb_gains = 6;
+  string ae_mode = 7;
+  string awb_mode = 8;
+  bool ae_locked = 9;
+  bool awb_locked = 10;
+  uint32 awb_cct = 11;
+}
+
+message CameraTuningResponse {
+  // The SDK accepted the request. This does not imply that a captured frame has used it.
+  bool accepted = 1;
+  uint64 session_id = 2;
+  uint32 revision = 3;
+  string profile_yaml = 4;
+  string error = 5;
+  CameraStatus status = 6;
+  // True only when metadata from this session contains the requested revision.
+  bool applied = 7;
+  CameraTuningMetadata last_observed = 8;
+}
+
 service CameraControl {
   rpc ListDevices(cockpit.proto.common.Empty)
       returns (ListCameraDevicesResponse);
@@ -80,4 +113,8 @@ service CameraControl {
   rpc StopPreview(cockpit.proto.common.Empty) returns (CameraStatus);
   rpc GetStatus(cockpit.proto.common.Empty) returns (CameraStatus);
   rpc TakePhoto(TakePhotoRequest) returns (TakePhotoResponse);
+  rpc GetTuning(cockpit.proto.common.Empty) returns (CameraTuningResponse);
+  rpc SetTuning(CameraTuningRequest) returns (CameraTuningResponse);
+  rpc ResetTuning(CameraTuningRequest) returns (CameraTuningResponse);
+  rpc ApplyTuningProfile(CameraTuningRequest) returns (CameraTuningResponse);
 }

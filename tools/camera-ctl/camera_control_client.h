@@ -21,6 +21,13 @@ class CameraControlClient {
   bool GetStatus(proto::camera::CameraStatus* status, std::string* error);
   bool TakePhoto(const std::string& filename, proto::camera::TakePhotoResponse* response,
                  std::string* error);
+  bool GetTuning(proto::camera::CameraTuningResponse* response, std::string* error);
+  bool SetTuning(const proto::camera::CameraTuningRequest& request,
+                 proto::camera::CameraTuningResponse* response, std::string* error);
+  bool ResetTuning(const proto::camera::CameraTuningRequest& request,
+                   proto::camera::CameraTuningResponse* response, std::string* error);
+  bool ApplyTuningProfile(const proto::camera::CameraTuningRequest& request,
+                          proto::camera::CameraTuningResponse* response, std::string* error);
 
  private:
   static void SetDeadline(grpc::ClientContext* context);

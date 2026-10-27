@@ -74,6 +74,7 @@ bool CameraRuntime::Start(const std::string& config_path) {
     camera_options.preview_stale_timeout_ms =
         static_cast<std::uint64_t>(camera_config.preview_stale_timeout_ms);
     camera_options.capture_pipeline = ParseCameraCapturePipeline(camera_config.capture_pipeline);
+    camera_options.tuning_profile = camera_config.tuning_profile;
     camera_options.uvc_input_format = ParseCameraUvcInputFormat(camera_config.uvc_input_format);
     camera_options.calibration_pipeline = camera_config.calibration_pipeline;
     camera_options.calibration_device = camera_config.calibration_device;

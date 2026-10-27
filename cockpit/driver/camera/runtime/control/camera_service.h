@@ -12,6 +12,7 @@
 #include "cockpit/driver/camera/capture/camera_preview_source.h"
 #include "cockpit/driver/camera/frames/camera_frame_sink.h"
 #include "cockpit/driver/camera/runtime/preview/camera_preview_module.h"
+#include "cockpit/driver/camera/tuning/tuning_profile.h"
 #include "cockpit/driver/platform/v4l2/v4l2_camera.h"
 #include "cockpit/exchange/contracts/camera/camera_calibration.h"
 #include "cockpit/exchange/foundation/base/macros.h"
@@ -63,6 +64,7 @@ struct CameraStartPreviewRequest {
 struct CameraServiceOptions {
   std::uint64_t preview_stale_timeout_ms = 2000;
   CameraCapturePipeline capture_pipeline = CameraCapturePipeline::kArgusIsp;
+  std::string tuning_profile;
   CameraUvcInputFormat uvc_input_format = CameraUvcInputFormat::kMjpeg;
   std::optional<hawkeye::CameraCalibration> calibration;
   std::string calibration_pipeline;
@@ -102,6 +104,14 @@ class CameraService {
   void StopPreview();
   void CheckPreviewHealth();
   CameraServiceStatus status() const;
+  bool GetNativeTuning(CameraTuningState* state, std::string* error) const;
+  bool SetNativeTuning(std::uint64_t session_id, std::uint32_t revision,
+                       const CameraTuning& settings, CameraTuningState* state, std::string* error);
+  bool ResetNativeTuning(std::uint64_t session_id, std::uint32_t revision, CameraTuningState* state,
+                         std::string* error);
+  bool ApplyNativeTuningProfile(std::uint64_t session_id, std::uint32_t revision,
+                                const TuningProfile& profile, CameraTuningState* state,
+                                std::string* error);
 
  private:
   bool DeviceExists(const std::string& device, std::uint32_t width, std::uint32_t height,

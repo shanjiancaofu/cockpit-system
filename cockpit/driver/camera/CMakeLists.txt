@@ -80,3 +80,6 @@ target_compile_options(camera_photo PRIVATE ${GSTREAMER_CFLAGS_OTHER})
 
 add_library(camera INTERFACE)
 target_link_libraries(camera INTERFACE camera_capture camera_frames camera_photo)
+
+add_library(native_argus_preview STATIC capture/native_argus_preview_source.cc)
+target_link_libraries(native_argus_preview PUBLIC native_camera_capture camera_frame_broker camera_vic_transform)

@@ -63,6 +63,34 @@ bool CameraControlClient::TakePhoto(const std::string& filename,
   SetDeadline(&context);
   return FinishRpc(stub_->TakePhoto(&context, request, response), error);
 }
+bool CameraControlClient::GetTuning(proto::camera::CameraTuningResponse* response,
+                                    std::string* error) {
+  proto::common::Empty request;
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->GetTuning(&context, request, response), error);
+}
+bool CameraControlClient::SetTuning(const proto::camera::CameraTuningRequest& request,
+                                    proto::camera::CameraTuningResponse* response,
+                                    std::string* error) {
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->SetTuning(&context, request, response), error);
+}
+bool CameraControlClient::ResetTuning(const proto::camera::CameraTuningRequest& request,
+                                      proto::camera::CameraTuningResponse* response,
+                                      std::string* error) {
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->ResetTuning(&context, request, response), error);
+}
+bool CameraControlClient::ApplyTuningProfile(const proto::camera::CameraTuningRequest& request,
+                                             proto::camera::CameraTuningResponse* response,
+                                             std::string* error) {
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->ApplyTuningProfile(&context, request, response), error);
+}
 
 void CameraControlClient::SetDeadline(grpc::ClientContext* context) {
   context->set_wait_for_ready(true);

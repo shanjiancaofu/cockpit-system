@@ -912,10 +912,12 @@ int RunImpl(int argc, char** argv) {
     bool evaluation_valid = false;
     std::string error;
     const bool started = pipeline.Start(
-        cockpit::camera::CameraPreviewConfig{
-            options.device, static_cast<std::uint32_t>(options.width),
-            static_cast<std::uint32_t>(options.height), static_cast<std::uint32_t>(options.fps),
-            cockpit::camera::CameraPixelFormat::kBgrx},
+        cockpit::camera::CameraPreviewConfig{options.device,
+                                             static_cast<std::uint32_t>(options.width),
+                                             static_cast<std::uint32_t>(options.height),
+                                             static_cast<std::uint32_t>(options.fps),
+                                             cockpit::camera::CameraPixelFormat::kBgrx,
+                                             {}},
         [&](cockpit::camera::CameraFrame frame) {
           const bool need_preview = options.preview && frame.sequence % preview_period_frames == 0U;
           const bool need_analysis = frame.sequence % analysis_period_frames == 0U;

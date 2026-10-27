@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "cockpit/driver/camera/capture/argus_isp_preview_source.h"
+#include "cockpit/driver/camera/capture/native_argus_preview_source.h"
 #include "cockpit/driver/camera/capture/software_isp_preview_source.h"
 #include "cockpit/driver/camera/capture/uvc_preview_source.h"
 #include "cockpit/driver/camera/frames/latest_frame_buffer.h"
@@ -33,6 +34,7 @@ std::unique_ptr<CameraPreviewSource> CreateDefaultPreviewSource() {
 
 CameraCapturePipeline ParseCameraCapturePipeline(const std::string& value) {
   if (value == "argus_isp") return CameraCapturePipeline::kArgusIsp;
+  if (value == "native_argus") return CameraCapturePipeline::kNativeArgus;
   if (value == "uvc") return CameraCapturePipeline::kUvc;
   if (value == "software_isp") return CameraCapturePipeline::kSoftwareIsp;
   if (value == "synthetic") return CameraCapturePipeline::kSynthetic;
@@ -43,6 +45,8 @@ const char* CameraCapturePipelineName(CameraCapturePipeline pipeline) {
   switch (pipeline) {
     case CameraCapturePipeline::kArgusIsp:
       return "argus_isp";
+    case CameraCapturePipeline::kNativeArgus:
+      return "native_argus";
     case CameraCapturePipeline::kUvc:
       return "uvc";
     case CameraCapturePipeline::kSoftwareIsp:
@@ -63,6 +67,9 @@ std::unique_ptr<CameraPreviewSource> CreateCameraPreviewSource(
     CameraCapturePipeline pipeline, CameraUvcInputFormat uvc_input_format) {
   if (pipeline == CameraCapturePipeline::kArgusIsp) {
     return std::make_unique<ArgusIspPreviewSource>();
+  }
+  if (pipeline == CameraCapturePipeline::kNativeArgus) {
+    return std::make_unique<NativeArgusPreviewSource>();
   }
   if (pipeline == CameraCapturePipeline::kUvc) {
     return std::make_unique<UvcPreviewSource>(uvc_input_format);
@@ -96,10 +103,13 @@ std::vector<VideoDeviceInfo> NormalizePreviewDevices(std::vector<VideoDeviceInfo
                             device.bus_info.rfind("platform:tegra-capture-vi", 0) == 0;
     const bool uvc = device.query_ok && device.supports_capture && device.supports_streaming &&
                      device.driver == "uvcvideo" && device.bus_info.rfind("usb-", 0) == 0;
-    if (pipeline == CameraCapturePipeline::kArgusIsp && jetson_csi) {
+    if ((pipeline == CameraCapturePipeline::kArgusIsp ||
+         pipeline == CameraCapturePipeline::kNativeArgus) &&
+        jetson_csi) {
       device.path = "nvargus://" + std::to_string(argus_sensor_id++);
       device.driver = "nvargus";
-      device.card += " (Argus ISP)";
+      device.card +=
+          pipeline == CameraCapturePipeline::kNativeArgus ? " (Native Argus)" : " (Argus ISP)";
       normalized.push_back(std::move(device));
     } else if (pipeline == CameraCapturePipeline::kUvc && uvc) {
       normalized.push_back(std::move(device));
@@ -236,6 +246,7 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
   config.width = request.width;
   config.height = request.height;
   config.fps = request.fps;
+  config.tuning_profile = options_.tuning_profile;
 
   {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -354,6 +365,36 @@ CameraServiceStatus CameraService::status() const {
   return result;
 }
 
+bool CameraService::GetNativeTuning(CameraTuningState* state, std::string* error) const {
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+  if (options_.capture_pipeline != CameraCapturePipeline::kNativeArgus || !preview_module_)
+    return CameraPreviewSource::Unsupported(error);
+  return preview_module_->GetTuning(state, error);
+}
+bool CameraService::SetNativeTuning(std::uint64_t session_id, std::uint32_t revision,
+                                    const CameraTuning& settings, CameraTuningState* state,
+                                    std::string* error) {
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+  if (options_.capture_pipeline != CameraCapturePipeline::kNativeArgus || !preview_module_)
+    return CameraPreviewSource::Unsupported(error);
+  return preview_module_->SetTuning(session_id, revision, settings, state, error);
+}
+bool CameraService::ResetNativeTuning(std::uint64_t session_id, std::uint32_t revision,
+                                      CameraTuningState* state, std::string* error) {
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+  if (options_.capture_pipeline != CameraCapturePipeline::kNativeArgus || !preview_module_)
+    return CameraPreviewSource::Unsupported(error);
+  return preview_module_->ResetTuning(session_id, revision, state, error);
+}
+bool CameraService::ApplyNativeTuningProfile(std::uint64_t session_id, std::uint32_t revision,
+                                             const TuningProfile& profile, CameraTuningState* state,
+                                             std::string* error) {
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+  if (options_.capture_pipeline != CameraCapturePipeline::kNativeArgus || !preview_module_)
+    return CameraPreviewSource::Unsupported(error);
+  return preview_module_->ApplyTuningProfile(session_id, revision, profile, state, error);
+}
+
 bool CameraService::DeviceExists(const std::string& device, std::uint32_t width,
                                  std::uint32_t height, std::string* error) const {
   std::string list_error;
@@ -361,6 +402,7 @@ bool CameraService::DeviceExists(const std::string& device, std::uint32_t width,
   for (const auto& info : devices) {
     if (info.path == device && info.query_ok && info.supports_capture && info.supports_streaming) {
       if (options_.capture_pipeline == CameraCapturePipeline::kArgusIsp ||
+          options_.capture_pipeline == CameraCapturePipeline::kNativeArgus ||
           options_.capture_pipeline == CameraCapturePipeline::kSynthetic) {
         return true;
       }

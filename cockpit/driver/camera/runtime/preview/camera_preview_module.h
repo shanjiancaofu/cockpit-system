@@ -25,6 +25,12 @@ class CameraPreviewModule : public runtime::BasicModule {
   bool is_running() const;
   bool is_recovering() const;
   const std::string& last_error() const;
+  bool GetTuning(CameraTuningState*, std::string*) const;
+  bool SetTuning(std::uint64_t, std::uint32_t, const CameraTuning&, CameraTuningState*,
+                 std::string*);
+  bool ResetTuning(std::uint64_t, std::uint32_t, CameraTuningState*, std::string*);
+  bool ApplyTuningProfile(std::uint64_t, std::uint32_t, const TuningProfile&, CameraTuningState*,
+                          std::string*);
 
   void Configure(CameraPreviewConfig config, FrameCallback callback);
 

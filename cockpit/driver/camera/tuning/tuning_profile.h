@@ -27,6 +27,8 @@ bool ValidateTuningProfileForDevice(const TuningProfile& profile,
 // Outputs are replaced only after complete parsing and validation.
 bool DecodeTuningProfile(std::string_view yaml, TuningProfile* profile,
                          std::string* error = nullptr);
+bool EncodeTuningProfile(const TuningProfile& profile, std::string* yaml,
+                         std::string* error = nullptr);
 bool LoadTuningProfile(const std::filesystem::path& path, TuningProfile* profile,
                        std::string* error = nullptr);
 

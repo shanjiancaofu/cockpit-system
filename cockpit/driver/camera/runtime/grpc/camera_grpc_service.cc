@@ -226,5 +226,84 @@ void CameraGrpcService::FillStatus(const CameraServiceStatus& status,
   }
 }
 
+grpc::Status CameraGrpcService::FillTuningResponse(const CameraServiceStatus& service_status,
+                                                   const CameraTuningState* state, bool accepted,
+                                                   const std::string& error,
+                                                   proto::camera::CameraTuningResponse* response) {
+  response->Clear();
+  response->set_accepted(accepted);
+  response->set_error(error);
+  FillStatus(service_status, response->mutable_status());
+  if (state != nullptr) {
+    response->set_session_id(state->session_id);
+    response->set_revision(state->revision);
+    response->set_applied(state->last_observed.valid &&
+                          state->last_observed.revision == state->revision);
+    auto* observed = response->mutable_last_observed();
+    observed->set_valid(state->last_observed.valid);
+    observed->set_revision(state->last_observed.revision);
+    observed->set_exposure_ns(state->last_observed.exposure_ns);
+    observed->set_sensor_gain(state->last_observed.sensor_gain);
+    observed->set_isp_gain(state->last_observed.isp_gain);
+    for (const auto gain : state->last_observed.wb_gains) observed->add_wb_gains(gain);
+    observed->set_ae_mode(state->last_observed.ae_mode);
+    observed->set_awb_mode(state->last_observed.awb_mode);
+    observed->set_ae_locked(state->last_observed.ae_locked);
+    observed->set_awb_locked(state->last_observed.awb_locked);
+    observed->set_awb_cct(state->last_observed.awb_cct);
+    TuningProfile profile = MakeTuningProfile(*state, "camera-service-session");
+    std::string yaml;
+    std::string encode_error;
+    if (EncodeTuningProfile(profile, &yaml, &encode_error)) response->set_profile_yaml(yaml);
+  }
+  return accepted ? grpc::Status::OK
+                  : grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                 error.empty() ? "camera tuning request rejected" : error);
+}
+
+grpc::Status CameraGrpcService::GetTuning(grpc::ServerContext*, const proto::common::Empty*,
+                                          proto::camera::CameraTuningResponse* response) {
+  CameraTuningState state;
+  std::string error;
+  const bool ok = camera_service_.GetNativeTuning(&state, &error);
+  return FillTuningResponse(camera_service_.status(), ok ? &state : nullptr, ok, error, response);
+}
+
+grpc::Status CameraGrpcService::SetTuning(grpc::ServerContext*,
+                                          const proto::camera::CameraTuningRequest* request,
+                                          proto::camera::CameraTuningResponse* response) {
+  TuningProfile profile;
+  std::string error;
+  if (!DecodeTuningProfile(request->profile_yaml(), &profile, &error))
+    return FillTuningResponse(camera_service_.status(), nullptr, false, error, response);
+  CameraTuningState state;
+  const bool ok = camera_service_.SetNativeTuning(request->session_id(), request->revision(),
+                                                  profile.settings, &state, &error);
+  return FillTuningResponse(camera_service_.status(), ok ? &state : nullptr, ok, error, response);
+}
+
+grpc::Status CameraGrpcService::ResetTuning(grpc::ServerContext*,
+                                            const proto::camera::CameraTuningRequest* request,
+                                            proto::camera::CameraTuningResponse* response) {
+  CameraTuningState state;
+  std::string error;
+  const bool ok =
+      camera_service_.ResetNativeTuning(request->session_id(), request->revision(), &state, &error);
+  return FillTuningResponse(camera_service_.status(), ok ? &state : nullptr, ok, error, response);
+}
+
+grpc::Status CameraGrpcService::ApplyTuningProfile(
+    grpc::ServerContext*, const proto::camera::CameraTuningRequest* request,
+    proto::camera::CameraTuningResponse* response) {
+  TuningProfile profile;
+  std::string error;
+  if (!DecodeTuningProfile(request->profile_yaml(), &profile, &error))
+    return FillTuningResponse(camera_service_.status(), nullptr, false, error, response);
+  CameraTuningState state;
+  const bool ok = camera_service_.ApplyNativeTuningProfile(
+      request->session_id(), request->revision(), profile, &state, &error);
+  return FillTuningResponse(camera_service_.status(), ok ? &state : nullptr, ok, error, response);
+}
+
 }  // namespace camera
 }  // namespace cockpit

@@ -26,6 +26,24 @@ bool CameraPreviewModule::is_recovering() const {
 const std::string& CameraPreviewModule::last_error() const {
   return last_error_;
 }
+bool CameraPreviewModule::GetTuning(CameraTuningState* state, std::string* error) const {
+  return preview_source_ && preview_source_->GetTuning(state, error);
+}
+bool CameraPreviewModule::SetTuning(std::uint64_t session, std::uint32_t revision,
+                                    const CameraTuning& settings, CameraTuningState* state,
+                                    std::string* error) {
+  return preview_source_ && preview_source_->SetTuning(session, revision, settings, state, error);
+}
+bool CameraPreviewModule::ResetTuning(std::uint64_t session, std::uint32_t revision,
+                                      CameraTuningState* state, std::string* error) {
+  return preview_source_ && preview_source_->ResetTuning(session, revision, state, error);
+}
+bool CameraPreviewModule::ApplyTuningProfile(std::uint64_t session, std::uint32_t revision,
+                                             const TuningProfile& profile, CameraTuningState* state,
+                                             std::string* error) {
+  return preview_source_ &&
+         preview_source_->ApplyTuningProfile(session, revision, profile, state, error);
+}
 
 void CameraPreviewModule::Configure(CameraPreviewConfig config, FrameCallback callback) {
   config_ = std::move(config);

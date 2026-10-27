@@ -207,6 +207,18 @@ bool DecodeTuningProfile(std::string_view text, TuningProfile* profile, std::str
     return false;
   }
 }
+bool EncodeTuningProfile(const TuningProfile& profile, std::string* yaml, std::string* error) {
+  try {
+    Require(yaml, "profile YAML output is null");
+    std::string why;
+    Require(ValidateTuningProfile(profile, &why), why);
+    *yaml = Encode(profile);
+    return true;
+  } catch (const std::exception& e) {
+    Error(error, e.what());
+    return false;
+  }
+}
 bool LoadTuningProfile(const std::filesystem::path& path, TuningProfile* profile,
                        std::string* error) {
   std::ifstream input(path, std::ios::binary);

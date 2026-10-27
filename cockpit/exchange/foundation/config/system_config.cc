@@ -191,7 +191,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   const YAML::Node camera_service = ChildMap(services, "camera", "services.camera");
   ValidateKeys(
       camera_service, "services.camera",
-      {"grpc", "capture_pipeline", "uvc_input_format", "preview_stale_timeout_ms",
+      {"grpc", "capture_pipeline", "tuning_profile", "uvc_input_format", "preview_stale_timeout_ms",
        "synthetic_fault", "synthetic_fault_after_frames", "shared_memory_name", "max_frame_bytes",
        "photo_directory", "photo_jpeg_quality", "photo_max_frame_age_ms", "calibration_file",
        "calibration_pipeline", "calibration_device"});
@@ -203,6 +203,9 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.camera.capture_pipeline =
       Read(camera_service, "capture_pipeline", config.services_.camera.capture_pipeline,
            "services.camera.capture_pipeline");
+  config.services_.camera.tuning_profile =
+      Read(camera_service, "tuning_profile", config.services_.camera.tuning_profile,
+           "services.camera.tuning_profile");
   config.services_.camera.uvc_input_format =
       Read(camera_service, "uvc_input_format", config.services_.camera.uvc_input_format,
            "services.camera.uvc_input_format");
@@ -596,10 +599,16 @@ void SystemConfig::Validate() const {
   }
   ValidateAddress(services_.camera.grpc.listen_address, "services.camera.grpc.listen_address");
   const auto& camera_pipeline = services_.camera.capture_pipeline;
-  if (camera_pipeline != "argus_isp" && camera_pipeline != "uvc" &&
-      camera_pipeline != "software_isp" && camera_pipeline != "synthetic") {
+  if (camera_pipeline != "argus_isp" && camera_pipeline != "native_argus" &&
+      camera_pipeline != "uvc" && camera_pipeline != "software_isp" &&
+      camera_pipeline != "synthetic") {
     throw std::runtime_error(
-        "services.camera.capture_pipeline must be argus_isp, uvc, software_isp, or synthetic");
+        "services.camera.capture_pipeline must be argus_isp, native_argus, uvc, software_isp, or "
+        "synthetic");
+  }
+  if (!services_.camera.tuning_profile.empty() && camera_pipeline != "native_argus") {
+    throw std::runtime_error(
+        "services.camera.tuning_profile requires services.camera.capture_pipeline=native_argus");
   }
   if (services_.camera.uvc_input_format != "mjpeg" && services_.camera.uvc_input_format != "yuyv") {
     throw std::runtime_error("services.camera.uvc_input_format must be mjpeg or yuyv");

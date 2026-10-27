@@ -2,7 +2,7 @@ add_library(camera_preview STATIC ${PROJECT_SOURCE_DIR}/cockpit/driver/camera/ru
 target_link_libraries(camera_preview PUBLIC camera_capture runtime software_isp_camera_source)
 
 add_library(camera_control STATIC ${PROJECT_SOURCE_DIR}/cockpit/driver/camera/runtime/control/camera_service.cc)
-target_link_libraries(camera_control PUBLIC base camera_frames camera_preview event camera_calibration_contracts runtime v4l2_camera)
+target_link_libraries(camera_control PUBLIC base camera_frames camera_preview native_argus_preview event camera_calibration_contracts runtime v4l2_camera)
 target_link_libraries(camera_control PRIVATE gstreamer_camera json_util)
 
 add_library(camera_photo_service STATIC ${PROJECT_SOURCE_DIR}/cockpit/driver/camera/runtime/photo/camera_photo_service.cc)
