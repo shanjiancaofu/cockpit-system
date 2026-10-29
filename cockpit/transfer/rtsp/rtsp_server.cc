@@ -7,10 +7,12 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstring>
 #include <mutex>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace cockpit::transfer {
@@ -59,11 +61,15 @@ struct RtspServer::Impl {
   std::int64_t pts = 0;
   std::vector<std::uint8_t> pending_packet;
   std::int64_t pending_pts = 0;
+  bool pending_keyframe = false;
+  bool have_input_pts = false;
+  std::int64_t input_pts_origin = 0;
+  std::int64_t last_input_pts = 0;
   std::vector<std::uint8_t> sps;
   std::vector<std::uint8_t> pps;
 
   static std::vector<std::vector<std::uint8_t>> Nals(const std::vector<std::uint8_t>& data) {
-    std::vector<std::size_t> starts;
+    std::vector<std::pair<std::size_t, std::size_t>> starts;
     for (std::size_t i = 0; i + 3 < data.size();) {
       const std::size_t size = data[i] == 0 && data[i + 1] == 0 && data[i + 2] == 1
                                    ? 3
@@ -72,16 +78,21 @@ struct RtspServer::Impl {
                                           ? 4
                                           : 0);
       if (size) {
-        starts.push_back(i + size);
+        starts.emplace_back(i, i + size);
         i += size;
       } else {
         ++i;
       }
     }
     std::vector<std::vector<std::uint8_t>> result;
+    if (starts.empty()) {
+      if (!data.empty()) result.push_back(data);
+      return result;
+    }
     for (std::size_t i = 0; i < starts.size(); ++i) {
-      const auto end = i + 1 < starts.size() ? starts[i + 1] : data.size();
-      if (starts[i] < end) result.emplace_back(data.begin() + starts[i], data.begin() + end);
+      const auto begin = starts[i].second;
+      const auto end = i + 1 < starts.size() ? starts[i + 1].first : data.size();
+      if (begin < end) result.emplace_back(data.begin() + begin, data.begin() + end);
     }
     return result;
   }
@@ -168,8 +179,8 @@ struct RtspServer::Impl {
     auto* self = static_cast<Impl*>(user_data);
     g_signal_connect(media, "unprepared", G_CALLBACK(Impl::MediaUnprepared), user_data);
     GstElement* element = gst_rtsp_media_get_element(media);
-    GstElement* source = gst_bin_get_by_name(GST_BIN(element), "src");
-    gst_object_unref(element);
+    GstElement* source = element ? gst_bin_get_by_name(GST_BIN(element), "src") : nullptr;
+    if (element) gst_object_unref(element);
     std::lock_guard<std::mutex> lock(self->mutex);
     if (self->appsrc) gst_object_unref(self->appsrc);
     self->appsrc = source ? GST_APP_SRC(source) : nullptr;
@@ -196,7 +207,7 @@ struct RtspServer::Impl {
         gst_caps_unref(caps);
         gst_buffer_unref(codec);
       }
-      if (!self->pending_packet.empty()) {
+      if (!self->pending_packet.empty() && self->pending_keyframe) {
         const auto avcc = Avcc(self->pending_packet);
         auto* buffer = gst_buffer_new_allocate(nullptr, avcc.size(), nullptr);
         gst_buffer_fill(buffer, 0, avcc.data(), avcc.size());
@@ -206,6 +217,7 @@ struct RtspServer::Impl {
         GST_BUFFER_DURATION(buffer) = gst_util_uint64_scale(GST_SECOND, 1, self->config.fps);
         gst_app_src_push_buffer(self->appsrc, buffer);
         self->pending_packet.clear();
+        self->pending_keyframe = false;
       }
     }
   }
@@ -221,13 +233,22 @@ struct RtspServer::Impl {
     if (source) gst_object_unref(source);
     if (element) gst_object_unref(element);
   }
-  void Push(std::vector<std::uint8_t> data, std::int64_t packet_pts) {
+  void Push(std::vector<std::uint8_t> data, std::int64_t packet_pts, bool keyframe) {
     std::lock_guard<std::mutex> lock(mutex);
     if (data.empty()) return;
+    if (!have_input_pts || (keyframe && packet_pts < last_input_pts)) {
+      input_pts_origin = packet_pts;
+      have_input_pts = true;
+    }
+    last_input_pts = packet_pts;
+    packet_pts = std::max<std::int64_t>(0, packet_pts - input_pts_origin);
     UpdateParameterSets(data);
     if (!appsrc) {
-      pending_packet = std::move(data);
-      pending_pts = packet_pts;
+      if (keyframe) {
+        pending_packet = std::move(data);
+        pending_pts = packet_pts;
+        pending_keyframe = true;
+      }
       return;
     }
     const auto avcc = Avcc(data);
@@ -240,6 +261,7 @@ struct RtspServer::Impl {
   }
   void Receive() {
     std::vector<std::uint8_t> datagram(65536);
+    bool keyframe = false;
     while (!stopping) {
       const auto count = recv(socket, datagram.data(), datagram.size(), 0);
       if (count < static_cast<ssize_t>(kHeaderSize)) continue;
@@ -252,6 +274,7 @@ struct RtspServer::Impl {
         frame_id = current;
         expected_fragments = total;
         pts = Get64(datagram.data() + 12);
+        keyframe = Get32(datagram.data() + 20) != 0;
         fragments.assign(total, {});
       }
       fragments[index].assign(datagram.begin() + kHeaderSize, datagram.begin() + count);
@@ -262,7 +285,7 @@ struct RtspServer::Impl {
       std::vector<std::uint8_t> packet;
       for (const auto& fragment : fragments)
         packet.insert(packet.end(), fragment.begin(), fragment.end());
-      Push(std::move(packet), pts);
+      Push(std::move(packet), pts, keyframe);
       expected_fragments = 0;
     }
   }
@@ -285,7 +308,14 @@ bool RtspServer::Start(const RtspServerConfig& config, std::string* error) {
   }
   sockaddr_in address{};
   address.sin_family = AF_INET;
-  address.sin_addr.s_addr = htonl(INADDR_ANY);
+  // The UDP leg is an internal camera-to-transfer hop. Keep it on loopback so
+  // arbitrary network peers cannot inject encoded video into the RTSP server.
+  if (inet_pton(AF_INET, "127.0.0.1", &address.sin_addr) != 1) {
+    if (error) *error = "configure RTSP UDP loopback address failed";
+    close(impl_->socket);
+    impl_->socket = -1;
+    return false;
+  }
   address.sin_port = htons(config.udp_port);
   if (bind(impl_->socket, reinterpret_cast<sockaddr*>(&address), sizeof(address)) != 0) {
     if (error) *error = "bind RTSP UDP input port failed";
@@ -294,6 +324,11 @@ bool RtspServer::Start(const RtspServerConfig& config, std::string* error) {
     return false;
   }
   impl_->config = config;
+  impl_->have_input_pts = false;
+  impl_->input_pts_origin = 0;
+  impl_->last_input_pts = 0;
+  impl_->pending_packet.clear();
+  impl_->pending_keyframe = false;
   impl_->context = g_main_context_new();
   impl_->loop = g_main_loop_new(impl_->context, FALSE);
   impl_->server = gst_rtsp_server_new();

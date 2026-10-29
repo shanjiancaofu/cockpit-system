@@ -6,6 +6,7 @@ find_package(Protobuf 3.12.4 EXACT REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GRPCPP REQUIRED IMPORTED_TARGET grpc++)
 pkg_check_modules(FFMPEG QUIET IMPORTED_TARGET libavcodec libavutil libswscale)
+pkg_check_modules(GSTREAMER QUIET IMPORTED_TARGET gstreamer-1.0 gstreamer-app-1.0)
 pkg_check_modules(X264 QUIET IMPORTED_TARGET x264)
 set(COCKPIT_LOCAL_GSTREAMER_PC
     "${CMAKE_SOURCE_DIR}/../../../_output/deps/gstreamer/usr/lib/aarch64-linux-gnu/pkgconfig")

@@ -1,6 +1,7 @@
 #include "cockpit/transfer/runtime/transfer_runtime.h"
 
 #include <algorithm>
+#include <chrono>
 #include <exception>
 #include <memory>
 #include <string>
@@ -60,18 +61,26 @@ bool TransferRuntime::Start(const std::string& config_path, int samples, int max
   result_.store(0);
   running_.store(true);
   worker_ = std::thread([this, samples, max_hz] {
-    int stream_result = vehicle_client_->Stream(
-        samples, max_hz,
-        [this](const proto::vehicle::VehicleState& state) {
-          gateway_service_.PublishVehicleState(state);
-        },
-        [this] {
-          return !stopping_.load();
-        });
-    if (!stopping_.load() && stream_result == 0) {
-      stream_result = 1;
-    }
-    result_.store(stream_result);
+    int stream_result = 0;
+    do {
+      stream_result = vehicle_client_->Stream(
+          samples, max_hz,
+          [this](const proto::vehicle::VehicleState& state) {
+            gateway_service_.PublishVehicleState(state);
+          },
+          [this] {
+            return !stopping_.load();
+          });
+      // An unlimited vehicle stream is a background input.  Its failure must
+      // not tear down the independently running RTSP publisher; retry after a
+      // short delay until Stop() is requested. Finite sample runs retain their
+      // existing completion semantics.
+      if (samples <= 0 && !stopping_.load() && stream_result != 0) {
+        LOG_WARN("vehicle state stream ended; keeping transfer runtime alive");
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      }
+    } while (samples <= 0 && !stopping_.load() && stream_result != 0);
+    result_.store(stopping_.load() ? 0 : stream_result);
     running_.store(false);
   });
   return true;

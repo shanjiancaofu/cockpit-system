@@ -239,6 +239,10 @@ add_executable(recording_integrity_test modules/recording/recording_integrity_te
 target_link_libraries(recording_integrity_test PRIVATE recording)
 add_test(NAME recording_integrity_test COMMAND recording_integrity_test)
 
+add_executable(h264_gop_ring_test modules/recording/h264_gop_ring_test.cc)
+target_link_libraries(h264_gop_ring_test PRIVATE recording)
+add_test(NAME h264_gop_ring_test COMMAND h264_gop_ring_test)
+
 add_executable(recording_service_test library/recording/recording_service_test.cc)
 target_link_libraries(recording_service_test PRIVATE recording_service)
 add_test(NAME recording_service_test COMMAND recording_service_test)
