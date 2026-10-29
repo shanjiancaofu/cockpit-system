@@ -14,6 +14,7 @@ void PrintUsage() {
   std::cout << "camera-ctl [--list|--status|--start|--stop|--photo] "
                "[--device /dev/video0|nvargus://0] [--width 640] [--height 480] [--fps 30] "
                "[--h264-output file.h264 --h264-width 1280 --h264-height 720] "
+               "[--h264-udp-host 127.0.0.1 --h264-udp-port 8556] "
                "[--filename snapshot.jpg] "
                "[--output text|json] [--config configs/development.yaml]\n";
 }
@@ -191,6 +192,12 @@ int cockpit::camera_ctl::ControlCamera(const cockpit::runtime::ProcessRuntime& r
     request.set_h264_height(static_cast<std::uint32_t>(h264_height));
     request.set_h264_bitrate(static_cast<std::uint32_t>(h264_bitrate));
     request.set_h264_gop(static_cast<std::uint32_t>(h264_gop));
+    request.set_h264_udp_host(runtime.args().GetString("h264-udp-host", ""));
+    const int h264_udp_port = runtime.args().GetInt("h264-udp-port", 0);
+    if (h264_udp_port < 0 || h264_udp_port > 65535) {
+      return PrintArgumentError(runtime, output_format, "H264 UDP port must be between 0 and 65535");
+    }
+    request.set_h264_udp_port(static_cast<std::uint32_t>(h264_udp_port));
     cockpit::proto::camera::CameraStatus status;
     if (!client.StartPreview(request, &status, &error)) {
       if (output_format == cockpit::diagnostics::OutputFormat::kText) {

@@ -7,10 +7,16 @@ extern "C" {
 }
 
 #include <algorithm>
+#include <cstring>
 #include <fstream>
 #include <limits>
 #include <mutex>
 #include <stdexcept>
+
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 namespace cockpit::camera {
 namespace {
@@ -256,4 +262,125 @@ bool H264FileWriter::Close(std::string* error) {
 std::uint64_t H264FileWriter::bytes_written() const {
   return impl_->bytes;
 }
+
+struct H264UdpPublisher::Impl {
+  int socket = -1;
+  sockaddr_storage destination{};
+  socklen_t destination_size = 0;
+  H264UdpPublisherConfig config;
+  H264UdpPublisherStats counters;
+  std::uint32_t frame_id = 0;
+  ~Impl() {
+    if (socket >= 0) close(socket);
+  }
+};
+
+namespace {
+constexpr std::uint32_t kUdpMagic = 0x43525031;  // CRP1
+constexpr std::size_t kUdpHeaderSize = 24;
+void Put16(std::uint8_t* p, std::uint16_t value) {
+  const auto network = htons(value);
+  std::memcpy(p, &network, sizeof(network));
+}
+void Put32(std::uint8_t* p, std::uint32_t value) {
+  const auto network = htonl(value);
+  std::memcpy(p, &network, sizeof(network));
+}
+void Put64(std::uint8_t* p, std::int64_t value) {
+  const auto high = htonl(static_cast<std::uint32_t>(static_cast<std::uint64_t>(value) >> 32));
+  const auto low = htonl(static_cast<std::uint32_t>(value));
+  std::memcpy(p, &high, sizeof(high));
+  std::memcpy(p + 4, &low, sizeof(low));
+}
+}  // namespace
+
+H264UdpPublisher::H264UdpPublisher() : impl_(std::make_unique<Impl>()) {}
+H264UdpPublisher::~H264UdpPublisher() { Close(); }
+bool H264UdpPublisher::Open(const H264UdpPublisherConfig& config, std::string* error) {
+  Close();
+  if (config.host.empty() || config.port == 0 || (config.mtu != 0 && config.mtu <= kUdpHeaderSize + 1)) {
+    SetError(error, "invalid H264 UDP publisher configuration");
+    return false;
+  }
+  addrinfo hints{};
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_DGRAM;
+  addrinfo* result = nullptr;
+  const auto service = std::to_string(config.port);
+  const int resolved = getaddrinfo(config.host.c_str(), service.c_str(), &hints, &result);
+  if (resolved != 0 || !result) {
+    SetError(error, "resolve H264 UDP host failed: " + config.host);
+    if (result) freeaddrinfo(result);
+    return false;
+  }
+  impl_->socket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+  if (impl_->socket < 0) {
+    SetError(error, "create H264 UDP socket failed");
+    freeaddrinfo(result);
+    return false;
+  }
+  std::memcpy(&impl_->destination, result->ai_addr, result->ai_addrlen);
+  impl_->destination_size = static_cast<socklen_t>(result->ai_addrlen);
+  freeaddrinfo(result);
+  impl_->config = config;
+  impl_->counters = {};
+  impl_->frame_id = 0;
+  return true;
+}
+bool H264UdpPublisher::Publish(const H264Packet& packet, std::string* error) {
+  if (impl_->socket < 0 || packet.data.empty()) {
+    SetError(error, "H264 UDP publisher is not open or packet is empty");
+    return false;
+  }
+  if (impl_->config.mtu == 0) {
+    const auto sent = sendto(impl_->socket, packet.data.data(), packet.data.size(), 0,
+                             reinterpret_cast<const sockaddr*>(&impl_->destination),
+                             impl_->destination_size);
+    if (sent != static_cast<ssize_t>(packet.data.size())) {
+      SetError(error, "send H264 UDP packet failed");
+      return false;
+    }
+    ++impl_->counters.packets;
+    ++impl_->counters.fragments;
+    impl_->counters.bytes += packet.data.size();
+    return true;
+  }
+  const std::size_t payload = impl_->config.mtu - kUdpHeaderSize;
+  const std::size_t fragments = (packet.data.size() + payload - 1) / payload;
+  if (fragments > UINT16_MAX) {
+    SetError(error, "H264 packet is too large for UDP fragmentation");
+    return false;
+  }
+  const auto frame = impl_->frame_id++;
+  for (std::size_t index = 0; index < fragments; ++index) {
+    const auto offset = index * payload;
+    const auto size = std::min(payload, packet.data.size() - offset);
+    std::vector<std::uint8_t> datagram(kUdpHeaderSize + size);
+    Put32(datagram.data(), kUdpMagic);
+    Put32(datagram.data() + 4, frame);
+    Put16(datagram.data() + 8, static_cast<std::uint16_t>(index));
+    Put16(datagram.data() + 10, static_cast<std::uint16_t>(fragments));
+    Put64(datagram.data() + 12, packet.pts);
+    Put32(datagram.data() + 20, packet.keyframe ? 1U : 0U);
+    std::memcpy(datagram.data() + kUdpHeaderSize, packet.data.data() + offset, size);
+    const auto sent = sendto(impl_->socket, datagram.data(), datagram.size(), 0,
+                             reinterpret_cast<const sockaddr*>(&impl_->destination),
+                             impl_->destination_size);
+    if (sent != static_cast<ssize_t>(datagram.size())) {
+      SetError(error, "send H264 UDP fragment failed");
+      return false;
+    }
+    ++impl_->counters.fragments;
+    impl_->counters.bytes += size;
+  }
+  ++impl_->counters.packets;
+  return true;
+}
+void H264UdpPublisher::Close() {
+  if (impl_ && impl_->socket >= 0) {
+    close(impl_->socket);
+    impl_->socket = -1;
+  }
+}
+H264UdpPublisherStats H264UdpPublisher::stats() const { return impl_->counters; }
 }  // namespace cockpit::camera

@@ -23,6 +23,7 @@ struct NativePreviewStatus {
   VicTransformStats vic;
   VicTransformStats encode_vic;
   H264EncoderStats encoder;
+  H264UdpPublisherStats udp;
   std::string error;
 };
 

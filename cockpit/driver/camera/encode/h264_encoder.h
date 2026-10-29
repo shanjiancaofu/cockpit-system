@@ -35,6 +35,17 @@ struct H264EncoderStats {
   std::uint64_t bytes_emitted = 0;
 };
 
+struct H264UdpPublisherConfig {
+  std::string host = "127.0.0.1";
+  std::uint16_t port = 8556;
+  std::size_t mtu = 1200;
+};
+struct H264UdpPublisherStats {
+  std::uint64_t packets = 0;
+  std::uint64_t fragments = 0;
+  std::uint64_t bytes = 0;
+};
+
 class H264Encoder final {
  public:
   H264Encoder();
@@ -67,6 +78,23 @@ class H264FileWriter final {
   bool Write(const H264Packet& packet, std::string* error = nullptr);
   bool Close(std::string* error = nullptr);
   std::uint64_t bytes_written() const;
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
+
+class H264UdpPublisher final {
+ public:
+  H264UdpPublisher();
+  ~H264UdpPublisher();
+  H264UdpPublisher(const H264UdpPublisher&) = delete;
+  H264UdpPublisher& operator=(const H264UdpPublisher&) = delete;
+
+  bool Open(const H264UdpPublisherConfig& config, std::string* error = nullptr);
+  bool Publish(const H264Packet& packet, std::string* error = nullptr);
+  void Close();
+  H264UdpPublisherStats stats() const;
 
  private:
   struct Impl;

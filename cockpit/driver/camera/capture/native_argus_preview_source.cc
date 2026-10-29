@@ -27,6 +27,7 @@ struct Run {
   VicTransform vic;
   VicTransform encode_vic;
   std::unique_ptr<H264Encoder> encoder;
+  std::unique_ptr<H264UdpPublisher> udp;
   H264FileWriter writer;
   bool encoding = false;
   std::atomic<bool> running{false};
@@ -111,13 +112,17 @@ struct Run {
         lease.Reset();
         std::vector<H264Packet> packets;
         Require(encoder->Encode(cpu, &packets, &error), error);
-        for (const auto& packet : packets) Require(writer.Write(packet, &error), error);
+        for (const auto& packet : packets) {
+          if (config.h264_output_path.size()) Require(writer.Write(packet, &error), error);
+          if (udp) Require(udp->Publish(packet, &error), error);
+        }
       }
       std::vector<H264Packet> packets;
       Require(encoder->Flush(&packets, nullptr), "H264 flush failed");
       for (const auto& packet : packets) {
         std::string error;
-        Require(writer.Write(packet, &error), error);
+        if (config.h264_output_path.size()) Require(writer.Write(packet, &error), error);
+        if (udp) Require(udp->Publish(packet, &error), error);
       }
       std::string error;
       Require(writer.Close(&error), error);
@@ -196,7 +201,7 @@ bool NativeArgusPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
       Require(next->capture.ApplyTuningProfile(profile, nullptr, error),
               error ? *error : "native profile rejected");
     Require(next->capture.GetTuning(&state, error), error ? *error : "native state unavailable");
-    if (!config.h264_output_path.empty()) {
+    if (!config.h264_output_path.empty() || config.h264_udp_port != 0) {
       Require(H264Encoder::IsSupported(), "H264 encoder dependencies unavailable");
       H264EncoderConfig encoder_config;
       encoder_config.width = config.h264_width;
@@ -206,8 +211,14 @@ bool NativeArgusPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
       encoder_config.gop = config.h264_gop;
       next->encoder = std::make_unique<H264Encoder>();
       Require(next->encoder->Start(encoder_config, error), error ? *error : "H264 start failed");
-      Require(next->writer.Open(config.h264_output_path, error),
-              error ? *error : "H264 output open failed");
+      if (!config.h264_output_path.empty())
+        Require(next->writer.Open(config.h264_output_path, error),
+                error ? *error : "H264 output open failed");
+      if (config.h264_udp_port != 0) {
+        next->udp = std::make_unique<H264UdpPublisher>();
+        Require(next->udp->Open({config.h264_udp_host, config.h264_udp_port, 1200}, error),
+                error ? *error : "H264 UDP publisher open failed");
+      }
       next->encoding = true;
     }
     next->status.session_id = state.session_id;
@@ -293,6 +304,7 @@ bool NativeArgusPreviewSource::GetNativeStatus(NativePreviewStatus* status) cons
   status->vic = run.vic.stats();
   status->encode_vic = run.encode_vic.stats();
   if (run.encoder) status->encoder = run.encoder->stats();
+  if (run.udp) status->udp = run.udp->stats();
   return true;
 }
 }  // namespace cockpit::camera

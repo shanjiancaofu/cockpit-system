@@ -147,8 +147,8 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
 
   const YAML::Node services = ChildMap(root, "services", "services");
   ValidateKeys(services, "services",
-               {"vehicle_data", "gateway", "audio", "camera", "voice_interaction", "media",
-                "recording", "sentinel", "bridge"});
+               {"vehicle_data", "gateway", "transfer", "audio", "camera", "voice_interaction",
+                "media", "recording", "sentinel", "bridge"});
   const YAML::Node vehicle_data = ChildMap(services, "vehicle_data", "services.vehicle_data");
   ValidateKeys(vehicle_data, "services.vehicle_data", {"source", "publish_interval_ms", "grpc"});
   config.services_.vehicle_data.source = Read(
@@ -179,6 +179,25 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.gateway.grpc.listen_address =
       Read(gateway_grpc, "listen_address", config.services_.gateway.grpc.listen_address,
            "services.gateway.grpc.listen_address");
+  const YAML::Node transfer = ChildMap(services, "transfer", "services.transfer");
+  ValidateKeys(
+      transfer, "services.transfer",
+      {"rtsp_enabled", "rtsp_address", "rtsp_port", "rtsp_path", "rtsp_udp_port", "rtsp_fps"});
+  config.services_.transfer.rtsp_enabled =
+      Read(transfer, "rtsp_enabled", config.services_.transfer.rtsp_enabled,
+           "services.transfer.rtsp_enabled");
+  config.services_.transfer.rtsp_address =
+      Read(transfer, "rtsp_address", config.services_.transfer.rtsp_address,
+           "services.transfer.rtsp_address");
+  config.services_.transfer.rtsp_port = Read(
+      transfer, "rtsp_port", config.services_.transfer.rtsp_port, "services.transfer.rtsp_port");
+  config.services_.transfer.rtsp_path = Read(
+      transfer, "rtsp_path", config.services_.transfer.rtsp_path, "services.transfer.rtsp_path");
+  config.services_.transfer.rtsp_udp_port =
+      Read(transfer, "rtsp_udp_port", config.services_.transfer.rtsp_udp_port,
+           "services.transfer.rtsp_udp_port");
+  config.services_.transfer.rtsp_fps =
+      Read(transfer, "rtsp_fps", config.services_.transfer.rtsp_fps, "services.transfer.rtsp_fps");
   const YAML::Node audio_service = ChildMap(services, "audio", "services.audio");
   ValidateKeys(audio_service, "services.audio", {"auto_start", "grpc"});
   config.services_.audio.auto_start = Read(
@@ -581,6 +600,14 @@ void SystemConfig::Validate() const {
   ValidateAddress(services_.gateway.grpc.listen_address, "services.gateway.grpc.listen_address");
   RequirePositive(services_.gateway.stream_timeout_ms, "services.gateway.stream_timeout_ms");
   RequirePositive(services_.gateway.retry_delay_ms, "services.gateway.retry_delay_ms");
+  if (services_.transfer.rtsp_enabled) {
+    if (services_.transfer.rtsp_address.empty() || services_.transfer.rtsp_port <= 0 ||
+        services_.transfer.rtsp_port > 65535 ||
+        services_.transfer.rtsp_udp_port <= 0 || services_.transfer.rtsp_udp_port > 65535 ||
+        services_.transfer.rtsp_fps <= 0 || services_.transfer.rtsp_path.empty()) {
+      throw std::runtime_error("services.transfer RTSP address, port, FPS and path are invalid");
+    }
+  }
   ValidateAddress(services_.audio.grpc.listen_address, "services.audio.grpc.listen_address");
   if (features_.voice.speech_segment.pre_roll_ms < 0) {
     throw std::runtime_error("features.voice.speech_segment.pre_roll_ms must not be negative");

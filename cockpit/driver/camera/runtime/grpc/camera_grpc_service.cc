@@ -136,6 +136,8 @@ grpc::Status CameraGrpcService::StartPreview(grpc::ServerContext*,
   start_request.h264_height = request->h264_height() == 0 ? 720U : request->h264_height();
   start_request.h264_bitrate = request->h264_bitrate() == 0 ? 2'000'000U : request->h264_bitrate();
   start_request.h264_gop = request->h264_gop() == 0 ? 30U : request->h264_gop();
+  start_request.h264_udp_host = request->h264_udp_host();
+  start_request.h264_udp_port = static_cast<std::uint16_t>(request->h264_udp_port());
 
   std::string error;
   if (!camera_service_.StartPreview(start_request, &error)) {

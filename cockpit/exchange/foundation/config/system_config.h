@@ -41,6 +41,15 @@ struct GatewayConfig {
   GrpcServerConfig grpc{"127.0.0.1:50051"};
 };
 
+struct TransferServiceConfig {
+  bool rtsp_enabled = false;
+  std::string rtsp_address = "0.0.0.0";
+  int rtsp_port = 8554;
+  std::string rtsp_path = "/camera";
+  int rtsp_udp_port = 8556;
+  int rtsp_fps = 30;
+};
+
 struct VadConfig {
   std::string provider = "mock";
 };
@@ -133,6 +142,7 @@ struct BridgeServiceConfig {
 struct ServicesConfig {
   VehicleDataConfig vehicle_data;
   GatewayConfig gateway;
+  TransferServiceConfig transfer;
   AudioDriverConfig audio;
   CameraServiceConfig camera;
   VoiceInteractionServiceConfig voice_interaction;

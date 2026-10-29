@@ -52,4 +52,17 @@ bool H264FileWriter::Close(std::string*) {
 std::uint64_t H264FileWriter::bytes_written() const {
   return 0;
 }
+struct H264UdpPublisher::Impl {};
+H264UdpPublisher::H264UdpPublisher() : impl_(std::make_unique<Impl>()) {}
+H264UdpPublisher::~H264UdpPublisher() = default;
+bool H264UdpPublisher::Open(const H264UdpPublisherConfig&, std::string* error) {
+  Unsupported(error);
+  return false;
+}
+bool H264UdpPublisher::Publish(const H264Packet&, std::string* error) {
+  Unsupported(error);
+  return false;
+}
+void H264UdpPublisher::Close() {}
+H264UdpPublisherStats H264UdpPublisher::stats() const { return {}; }
 }  // namespace cockpit::camera

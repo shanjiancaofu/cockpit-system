@@ -37,6 +37,8 @@ struct CameraPreviewConfig {
   std::uint32_t h264_height = 720;
   std::uint32_t h264_bitrate = 2'000'000;
   std::uint32_t h264_gop = 30;
+  std::string h264_udp_host;
+  std::uint16_t h264_udp_port = 0;
 };
 
 class CameraPreviewSource {

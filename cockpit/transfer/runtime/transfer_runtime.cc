@@ -31,6 +31,21 @@ bool TransferRuntime::Start(const std::string& config_path, int samples, int max
     if (!gateway_service_.Start(gateway_config.grpc.listen_address, std::max(1, 1000 / max_hz))) {
       return false;
     }
+    const auto& rtsp_config = system_config.services().transfer;
+    if (rtsp_config.rtsp_enabled) {
+      RtspServerConfig server_config;
+      server_config.address = rtsp_config.rtsp_address;
+      server_config.port = static_cast<std::uint16_t>(rtsp_config.rtsp_port);
+      server_config.path = rtsp_config.rtsp_path;
+      server_config.udp_port = static_cast<std::uint16_t>(rtsp_config.rtsp_udp_port);
+      server_config.fps = static_cast<std::uint32_t>(rtsp_config.rtsp_fps);
+      std::string rtsp_error;
+      if (!rtsp_server_.Start(server_config, &rtsp_error)) {
+        LOG_ERROR(rtsp_error);
+        gateway_service_.Shutdown();
+        return false;
+      }
+    }
     vehicle_client_ = std::make_unique<gateway::VehicleStateClient>(
         gateway_config.vehicle_data_address, gateway_config.stream_timeout_ms,
         gateway_config.retry_delay_ms);
@@ -68,6 +83,7 @@ void TransferRuntime::Stop() {
     worker_.join();
   }
   gateway_service_.Shutdown();
+  rtsp_server_.Stop();
   vehicle_client_.reset();
   running_.store(false);
 }

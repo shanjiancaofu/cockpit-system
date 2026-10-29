@@ -26,6 +26,13 @@ services:
     retry_delay_ms: 200
     grpc:
       listen_address: 127.0.0.1:50051
+  transfer:
+    rtsp_enabled: false
+    rtsp_address: 0.0.0.0
+    rtsp_port: 8554
+    rtsp_path: /camera
+    rtsp_udp_port: 8556
+    rtsp_fps: 30
   audio:
     auto_start: false
     grpc:

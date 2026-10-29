@@ -5,6 +5,7 @@
 #include <string>
 #include <thread>
 
+#include "cockpit/transfer/rtsp/rtsp_server.h"
 #include "cockpit/transfer/runtime/gateway_grpc_service.h"
 #include "cockpit/transfer/runtime/vehicle_state_client.h"
 
@@ -25,6 +26,7 @@ class TransferRuntime {
 
  private:
   gateway::GatewayGrpcService gateway_service_;
+  RtspServer rtsp_server_;
   std::unique_ptr<gateway::VehicleStateClient> vehicle_client_;
   std::thread worker_;
   std::atomic_bool stopping_{false};

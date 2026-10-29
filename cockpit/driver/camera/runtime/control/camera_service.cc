@@ -252,6 +252,8 @@ bool CameraService::StartPreview(const CameraStartPreviewRequest& request, std::
   config.h264_height = request.h264_height;
   config.h264_bitrate = request.h264_bitrate;
   config.h264_gop = request.h264_gop;
+  config.h264_udp_host = request.h264_udp_host;
+  config.h264_udp_port = request.h264_udp_port;
 
   {
     std::lock_guard<std::mutex> lock(mutex_);
