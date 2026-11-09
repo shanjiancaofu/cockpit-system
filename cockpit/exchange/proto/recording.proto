@@ -31,6 +31,18 @@ message AppendRecordingDataFileRequest {
   bool copy_into_session = 7;
 }
 
+// Event wall time is metadata; capture starts at the latest received video PTS.
+message TriggerEventVideoRequest {
+  string event_id = 1;
+  int64 timestamp_ms = 2;
+  string event_type = 3;
+}
+
+message TriggerEventVideoResponse {
+  string session_id = 1;
+  string path = 2; // Session-relative path; indexed after MP4 finalization.
+}
+
 message RecordingStatus {
   RecordingState state = 1;
   string session_id = 2;
@@ -218,6 +230,7 @@ service RecordingControl {
   rpc Stop(cockpit.proto.common.Empty) returns (RecordingStatus);
   rpc AppendEvent(AppendRecordingEventRequest) returns (RecordingStatus);
   rpc AppendDataFile(AppendRecordingDataFileRequest) returns (RecordingStatus);
+  rpc TriggerEventVideo(TriggerEventVideoRequest) returns (TriggerEventVideoResponse);
   rpc GetStatus(cockpit.proto.common.Empty) returns (RecordingStatus);
   rpc List(ListRecordingsRequest) returns (ListRecordingsResponse);
   rpc GetDetail(GetRecordingDetailRequest) returns (RecordingSessionDetail);

@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <utility>
+#include <sstream>
+#include "cockpit/spider/recording/file_checksum.h"
+#include "cockpit/exchange/foundation/json/json.h"
 
 #include "cockpit/exchange/foundation/logging/logger.h"
 
@@ -25,8 +28,9 @@ RecordingSessionLimits NormalizeLimits(const std::filesystem::path& root_directo
 RecordingService::RecordingService(std::filesystem::path root_directory, std::string vehicle_id,
                                    RecordingRetentionPolicy retention_policy,
                                    RecordingMetadata metadata,
-                                   RecordingSessionLimits session_limits)
-    : session_(root_directory, std::move(vehicle_id), std::move(metadata),
+                                   RecordingSessionLimits session_limits,
+                                   EventVideoRecorderConfig video_config)
+    : video_config_(std::move(video_config)), video_(video_config_), session_(root_directory, std::move(vehicle_id), std::move(metadata),
                NormalizeLimits(root_directory, retention_policy, std::move(session_limits))),
       catalog_(std::move(root_directory)),
       retention_policy_(retention_policy) {
@@ -37,6 +41,7 @@ bool RecordingService::Initialize(std::string* error) {
 }
 
 bool RecordingService::Start(const std::string& trigger, std::string* error) {
+  std::lock_guard<std::mutex> lock(video_mutex_);
   if (!RefreshAndPrune(error)) {
     return false;
   }
@@ -45,6 +50,8 @@ bool RecordingService::Start(const std::string& trigger, std::string* error) {
 }
 
 bool RecordingService::Stop(std::string* error) {
+  std::lock_guard<std::mutex> lock(video_mutex_);
+  if (!FinishVideoLocked("session_stop", error)) return false;
   if (!session_.Stop(error)) {
     return false;
   }
@@ -236,10 +243,124 @@ void RecordingService::HandleVehicleState(const proto::vehicle::VehicleState& st
 }
 
 RecordingStatus RecordingService::status() const {
+  std::lock_guard<std::mutex> lock(video_mutex_);
   RecordingStatus status = session_.status();
+  if (!video_error_.empty()) status.last_error = video_error_;
   status.stored_sessions = catalog_.List().size();
   status.stored_bytes = catalog_.total_bytes();
   return status;
+}
+
+bool RecordingService::TriggerEventVideo(const std::string& event_id, std::int64_t timestamp_ms,
+                                          const std::string& event_type, std::string* path,
+                                          std::string* error, std::string* session_id) {
+  std::lock_guard<std::mutex> lock(video_mutex_);
+  const auto fail = [&](const std::string& message) {
+    if (error) *error = message;
+    return false;
+  };
+  if (event_id.empty() || event_id.size() > 128 || event_type.size() > 128 || timestamp_ms <= 0)
+    return fail("invalid event video request");
+  const auto current = session_.status();
+  if (current.state != RecordingState::kRecording) return fail("recording session is not active");
+  const auto now = std::chrono::steady_clock::now();
+  if (latest_video_pts_ < 0 || now - last_video_at_ > std::chrono::seconds(2) ||
+      video_.HistoryStartPts() < 0) return fail("no recent decodable H264 video; wait for a keyframe");
+  if (!FinishVideoLocked("retrigger", error)) return false;
+  PendingVideo pending;
+  pending.event_id = event_id;
+  pending.event_type = event_type;
+  pending.timestamp_ms = timestamp_ms;
+  pending.first_pts = video_.HistoryStartPts();
+  pending.trigger_pts = pending.last_pts = latest_video_pts_;
+  // Filenames are independent of user supplied event IDs, including repeated IDs.
+  const auto name = "event_video_" + std::to_string(++video_sequence_);
+  if (!video_.Trigger(name, latest_video_pts_, &pending.path, error,
+                      std::filesystem::path(current.directory) / "artifacts")) return false;
+  pending_video_ = std::move(pending);
+  video_deadline_ = now + std::chrono::milliseconds(video_config_.post_event_ms);
+  const RecordingEvent event{timestamp_ms, "/recording/video/trigger",
+      "{\"event_id\":\"" + json::EscapeString(event_id) + "\",\"event_type\":\"" +
+      json::EscapeString(event_type) + "\",\"video_pts\":" + std::to_string(latest_video_pts_) + "}"};
+  if (!session_.AppendEvent(event, error)) {
+    video_.Finish();
+    std::filesystem::remove(pending_video_.path);
+    pending_video_ = {};
+    return false;
+  }
+  video_error_.clear();
+  if (session_id) *session_id = current.session_id;
+  if (path) *path = std::filesystem::path(pending_video_.path).lexically_relative(current.directory).string();
+  return true;
+}
+
+bool RecordingService::HandleVideoPacket(const EncodedVideoPacket& packet, bool discontinuity,
+                                          std::string* error) {
+  std::lock_guard<std::mutex> lock(video_mutex_);
+  if (packet.pts < 0 || packet.dts != packet.pts || packet.data.empty()) {
+    if (error) *error = "event video requires nonnegative PTS and DTS == PTS";
+    return false;
+  }
+  const auto now = std::chrono::steady_clock::now();
+  if (discontinuity || (latest_video_pts_ >= 0 && packet.pts <= latest_video_pts_) ||
+      (latest_video_pts_ >= 0 && now - last_video_at_ > std::chrono::seconds(2))) {
+    if (!FinishVideoLocked("input_discontinuity", error)) return false;
+    video_.ClearHistory();
+    latest_video_pts_ = -1;
+  }
+  latest_video_pts_ = packet.pts;
+  last_video_at_ = now;
+  if (!pending_video_.path.empty()) pending_video_.last_pts = packet.pts;
+  if (!video_.Append(packet, error)) {
+    video_error_ = error ? *error : "append event video failed";
+    return false;
+  }
+  if (!pending_video_.path.empty() && !video_.active()) return FinishVideoLocked("post_event", error);
+  return true;
+}
+
+void RecordingService::PollVideo() {
+  std::lock_guard<std::mutex> lock(video_mutex_);
+  if (pending_video_.path.empty()) return;
+  const auto now = std::chrono::steady_clock::now();
+  const bool stale = now - last_video_at_ > std::chrono::seconds(2);
+  if (stale || now >= video_deadline_ || session_.status().state != RecordingState::kRecording) {
+    std::string error;
+    if (!FinishVideoLocked(stale ? "input_timeout" : "deadline", &error)) video_error_ = error;
+  }
+}
+
+bool RecordingService::FinishVideoLocked(const std::string& reason, std::string* error) {
+  if (pending_video_.path.empty()) return true;
+  if (!video_.Finish(error)) return false;
+  const auto current = session_.status();
+  RecordingDataFile file;
+  file.timestamp_ms = pending_video_.timestamp_ms;
+  file.source = "camera_event_video";
+  file.kind = "video/mp4";
+  file.path = std::filesystem::path(pending_video_.path).lexically_relative(current.directory).string();
+  std::error_code filesystem_error;
+  file.size_bytes = std::filesystem::file_size(pending_video_.path, filesystem_error);
+  if (filesystem_error || !ComputeFnv1a64(pending_video_.path, &file.checksum, error)) {
+    if (filesystem_error && error) *error = filesystem_error.message();
+    return false;
+  }
+  // This file is already inside artifacts; its relative path survives session rename.
+  if (!session_.AppendDataFile(file, error)) return false;
+  std::ostringstream payload;
+  payload << "{\"event_id\":\"" << json::EscapeString(pending_video_.event_id)
+          << "\",\"event_type\":\"" << json::EscapeString(pending_video_.event_type)
+          << "\",\"path\":\"" << json::EscapeString(file.path)
+          << "\",\"codec\":\"h264\",\"fps\":" << video_config_.fps
+          << ",\"time_base\":\"1/" << video_config_.fps
+          << "\",\"event_timestamp_ms\":" << pending_video_.timestamp_ms
+          << ",\"first_pts\":" << pending_video_.first_pts
+          << ",\"trigger_pts\":" << pending_video_.trigger_pts
+          << ",\"last_pts\":" << pending_video_.last_pts
+          << ",\"finish_reason\":\"" << reason << "\"}";
+  const RecordingEvent event{pending_video_.timestamp_ms, "/recording/video/complete", payload.str()};
+  pending_video_ = {};
+  return session_.AppendEvent(event, error);
 }
 
 bool RecordingService::RefreshAndPrune(std::string* error) {

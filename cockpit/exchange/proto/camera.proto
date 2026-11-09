@@ -39,6 +39,7 @@ message StartPreviewRequest {
   uint32 h264_gop = 9;
   string h264_udp_host = 10;
   uint32 h264_udp_port = 11;
+  uint32 recording_udp_port = 12; // Local CRP1 output; 0 disables event video.
 }
 
 message CameraStatus {

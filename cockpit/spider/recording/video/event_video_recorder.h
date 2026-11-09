@@ -27,9 +27,12 @@ class EventVideoRecorder final {
 
   bool Append(const EncodedVideoPacket& packet, std::string* error = nullptr);
   bool Trigger(const std::string& event_id, std::int64_t timestamp_pts,
-               std::string* output_path = nullptr, std::string* error = nullptr);
+               std::string* output_path = nullptr, std::string* error = nullptr,
+               const std::filesystem::path& output_directory = {});
   bool Finish(std::string* error = nullptr);
   bool active() const;
+  void ClearHistory();
+  std::int64_t HistoryStartPts() const;
 
  private:
   bool FinishLocked(std::string* error);

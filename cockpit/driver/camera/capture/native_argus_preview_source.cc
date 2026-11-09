@@ -28,6 +28,7 @@ struct Run {
   VicTransform encode_vic;
   std::unique_ptr<H264Encoder> encoder;
   std::unique_ptr<H264UdpPublisher> udp;
+  std::unique_ptr<H264UdpPublisher> recording_udp;
   H264FileWriter writer;
   bool encoding = false;
   std::atomic<bool> running{false};
@@ -115,6 +116,7 @@ struct Run {
         for (const auto& packet : packets) {
           if (config.h264_output_path.size()) Require(writer.Write(packet, &error), error);
           if (udp) Require(udp->Publish(packet, &error), error);
+          if (recording_udp) recording_udp->Publish(packet, nullptr);
         }
       }
       std::vector<H264Packet> packets;
@@ -123,6 +125,7 @@ struct Run {
         std::string error;
         if (config.h264_output_path.size()) Require(writer.Write(packet, &error), error);
         if (udp) Require(udp->Publish(packet, &error), error);
+          if (recording_udp) recording_udp->Publish(packet, nullptr);
       }
       std::string error;
       Require(writer.Close(&error), error);
@@ -201,7 +204,7 @@ bool NativeArgusPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
       Require(next->capture.ApplyTuningProfile(profile, nullptr, error),
               error ? *error : "native profile rejected");
     Require(next->capture.GetTuning(&state, error), error ? *error : "native state unavailable");
-    if (!config.h264_output_path.empty() || config.h264_udp_port != 0) {
+    if (!config.h264_output_path.empty() || config.h264_udp_port != 0 || config.recording_udp_port != 0) {
       Require(H264Encoder::IsSupported(), "H264 encoder dependencies unavailable");
       H264EncoderConfig encoder_config;
       encoder_config.width = config.h264_width;
@@ -218,6 +221,11 @@ bool NativeArgusPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
         next->udp = std::make_unique<H264UdpPublisher>();
         Require(next->udp->Open({config.h264_udp_host, config.h264_udp_port, 1200}, error),
                 error ? *error : "H264 UDP publisher open failed");
+      }
+      if (config.recording_udp_port != 0) {
+        next->recording_udp = std::make_unique<H264UdpPublisher>();
+        Require(next->recording_udp->Open({"127.0.0.1", config.recording_udp_port, 1200}, error),
+                error ? *error : "Recording UDP publisher open failed");
       }
       next->encoding = true;
     }

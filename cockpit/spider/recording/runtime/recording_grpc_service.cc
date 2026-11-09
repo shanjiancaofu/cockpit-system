@@ -166,6 +166,23 @@ grpc::Status RecordingGrpcService::AppendDataFile(
   return grpc::Status::OK;
 }
 
+grpc::Status RecordingGrpcService::TriggerEventVideo(
+    grpc::ServerContext*, const proto::recording::TriggerEventVideoRequest* request,
+    proto::recording::TriggerEventVideoResponse* response) {
+  if (request->event_id().empty() || request->event_id().size() > 128 ||
+      request->event_type().size() > 128 || request->timestamp_ms() <= 0) {
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "invalid event video request");
+  }
+  std::string path, session_id, error;
+  if (!recording_service_.TriggerEventVideo(request->event_id(), request->timestamp_ms(),
+                                          request->event_type(), &path, &error, &session_id)) {
+    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error);
+  }
+  response->set_session_id(session_id);
+  response->set_path(path);
+  return grpc::Status::OK;
+}
+
 grpc::Status RecordingGrpcService::GetStatus(grpc::ServerContext*, const proto::common::Empty*,
                                              proto::recording::RecordingStatus* response) {
   FillStatus(recording_service_.status(), response);

@@ -4,6 +4,7 @@ target_link_libraries(recording_service PUBLIC contracts logging recording)
 add_library(recording_runtime STATIC
     ${PROJECT_SOURCE_DIR}/cockpit/spider/recording/runtime/recording_grpc_service.cc
     ${PROJECT_SOURCE_DIR}/cockpit/spider/recording/runtime/recording_runtime.cc
+    ${PROJECT_SOURCE_DIR}/cockpit/spider/recording/runtime/h264_video_input.cc
     ${PROJECT_SOURCE_DIR}/cockpit/spider/recording/runtime/vehicle_state_subscriber.cc
 )
 target_include_directories(recording_runtime PUBLIC ${PROJECT_SOURCE_DIR})

@@ -18,6 +18,7 @@
 #include "cockpit/spider/recording/recording_session.h"
 #include "cockpit/spider/recording/runtime/recording_grpc_service.h"
 #include "cockpit/spider/recording/runtime/recording_service.h"
+#include "cockpit/spider/recording/runtime/h264_video_input.h"
 #include "cockpit/spider/recording/runtime/vehicle_state_subscriber.h"
 
 namespace cockpit {
@@ -46,16 +47,20 @@ class RecordingRuntime::Impl {
  public:
   Impl(std::filesystem::path directory, std::string vehicle_id, RecordingRetentionPolicy retention,
        RecordingMetadata metadata, RecordingSessionLimits limits,
-       const std::string& vehicle_address, int stream_timeout_ms, int retry_delay_ms)
+       const std::string& vehicle_address, int stream_timeout_ms, int retry_delay_ms,
+       std::uint16_t h264_udp_port)
       : service(std::move(directory), std::move(vehicle_id), retention, std::move(metadata),
-                std::move(limits)),
+                std::move(limits), EventVideoRecorderConfig{{}, 10'000, 20'000, 30}),
         grpc(service),
-        subscriber(vehicle_address, stream_timeout_ms, retry_delay_ms) {
+        subscriber(vehicle_address, stream_timeout_ms, retry_delay_ms),
+        h264_udp_port(h264_udp_port) {
   }
 
   RecordingService service;
   RecordingGrpcService grpc;
   VehicleStateSubscriber subscriber;
+  H264VideoInput video_input;
+  std::uint16_t h264_udp_port;
   std::thread worker;
   std::atomic_bool stopping{false};
   std::atomic_bool running{false};
@@ -118,7 +123,8 @@ bool RecordingRuntime::Start(const std::string& config_path,
             recording_config.min_free_bytes,
             std::filesystem::absolute(std::filesystem::path(system_config.paths().data_dir))},
         recording_config.vehicle_data_address, recording_config.stream_timeout_ms,
-        recording_config.retry_delay_ms);
+        recording_config.retry_delay_ms,
+        static_cast<std::uint16_t>(recording_config.h264_udp_port));
     std::string error;
     if (!impl_->service.Initialize(&error)) {
       LOG_ERROR("initialize recording catalog failed: " + error);
@@ -131,6 +137,21 @@ bool RecordingRuntime::Start(const std::string& config_path,
       return false;
     }
     if (!impl_->grpc.Listen(recording_config.grpc.listen_address)) {
+      impl_.reset();
+      return false;
+    }
+
+    // The camera publishes the shared encoded stream on this local-only port.
+    // It is deliberately independent of RTSP's input port.
+    if (!impl_->video_input.Start(impl_->h264_udp_port,
+        [this](const EncodedVideoPacket& packet, bool discontinuity) {
+          std::string error;
+          if (!impl_->service.HandleVideoPacket(packet, discontinuity, &error) && !error.empty()) {
+            LOG_WARN("recording H264 packet rejected: " + error);
+          }
+        }, [this] { impl_->service.PollVideo(); }, &error)) {
+      LOG_ERROR("start recording H264 input failed: " + error);
+      impl_->grpc.Shutdown();
       impl_.reset();
       return false;
     }
@@ -163,6 +184,7 @@ void RecordingRuntime::Stop() {
     return;
   }
   impl_->stopping.store(true);
+  impl_->video_input.Stop();
   if (impl_->worker.joinable()) {
     impl_->worker.join();
   }

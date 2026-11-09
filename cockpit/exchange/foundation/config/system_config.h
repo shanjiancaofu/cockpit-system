@@ -110,6 +110,7 @@ struct RecordingServiceConfig {
   bool auto_start = false;
   std::string directory = "recordings";
   std::string vehicle_data_address = "127.0.0.1:50050";
+  int h264_udp_port = 8557;
   int stream_timeout_ms = 10000;
   int retry_delay_ms = 200;
   int max_sessions = 100;

@@ -198,6 +198,11 @@ int cockpit::camera_ctl::ControlCamera(const cockpit::runtime::ProcessRuntime& r
       return PrintArgumentError(runtime, output_format, "H264 UDP port must be between 0 and 65535");
     }
     request.set_h264_udp_port(static_cast<std::uint32_t>(h264_udp_port));
+    const int recording_port = runtime.args().GetInt("recording-udp-port", 0);
+    if (recording_port < 0 || recording_port > 65535) {
+      return PrintArgumentError(runtime, output_format, "Recording UDP port must be between 0 and 65535");
+    }
+    request.set_recording_udp_port(static_cast<std::uint32_t>(recording_port));
     cockpit::proto::camera::CameraStatus status;
     if (!client.StartPreview(request, &status, &error)) {
       if (output_format == cockpit::diagnostics::OutputFormat::kText) {

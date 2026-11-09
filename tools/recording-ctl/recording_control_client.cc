@@ -62,6 +62,14 @@ bool RecordingControlClient::AppendDataFile(
   return FinishRpc(stub_->AppendDataFile(&context, request, status), error);
 }
 
+bool RecordingControlClient::TriggerEventVideo(
+    const proto::recording::TriggerEventVideoRequest& request,
+    proto::recording::TriggerEventVideoResponse* response, std::string* error) {
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->TriggerEventVideo(&context, request, response), error);
+}
+
 bool RecordingControlClient::GetStatus(proto::recording::RecordingStatus* status,
                                        std::string* error) {
   proto::common::Empty request;

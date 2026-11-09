@@ -302,7 +302,7 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
 
   const YAML::Node recording = ChildMap(services, "recording", "services.recording");
   ValidateKeys(recording, "services.recording",
-               {"auto_start", "directory", "vehicle_data_address", "stream_timeout_ms",
+               {"auto_start", "directory", "vehicle_data_address", "h264_udp_port", "stream_timeout_ms",
                 "retry_delay_ms", "max_sessions", "max_total_bytes", "max_session_bytes",
                 "max_session_duration_seconds", "min_free_bytes", "grpc"});
   config.services_.recording.auto_start =
@@ -313,6 +313,9 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
   config.services_.recording.vehicle_data_address =
       Read(recording, "vehicle_data_address", config.services_.recording.vehicle_data_address,
            "services.recording.vehicle_data_address");
+  config.services_.recording.h264_udp_port =
+      Read(recording, "h264_udp_port", config.services_.recording.h264_udp_port,
+           "services.recording.h264_udp_port");
   config.services_.recording.stream_timeout_ms =
       Read(recording, "stream_timeout_ms", config.services_.recording.stream_timeout_ms,
            "services.recording.stream_timeout_ms");
@@ -708,6 +711,9 @@ void SystemConfig::Validate() const {
   RequireNotEmpty(services_.recording.directory, "services.recording.directory");
   ValidateAddress(services_.recording.vehicle_data_address,
                   "services.recording.vehicle_data_address");
+  if (services_.recording.h264_udp_port <= 0 || services_.recording.h264_udp_port > 65535) {
+    throw std::runtime_error("services.recording.h264_udp_port must be between 1 and 65535");
+  }
   ValidateAddress(services_.recording.grpc.listen_address,
                   "services.recording.grpc.listen_address");
   RequirePositive(services_.recording.stream_timeout_ms, "services.recording.stream_timeout_ms");

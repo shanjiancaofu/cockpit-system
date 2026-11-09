@@ -40,14 +40,16 @@ bool EventVideoRecorder::Append(const EncodedVideoPacket& packet, std::string* e
 }
 
 bool EventVideoRecorder::Trigger(const std::string& event_id, std::int64_t timestamp_pts,
-                                 std::string* output_path, std::string* error) {
+                                 std::string* output_path, std::string* error,
+                                 const std::filesystem::path& output_directory) {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (event_id.empty() || timestamp_pts < 0 || config_.output_directory.empty() || config_.fps == 0) {
+  const auto directory = output_directory.empty() ? config_.output_directory : output_directory;
+  if (event_id.empty() || timestamp_pts < 0 || directory.empty() || config_.fps == 0 || ring_.size() == 0) {
     if (error) *error = "invalid event video trigger";
     return false;
   }
   if (active_ && !FinishLocked(error)) return false;
-  output_path_ = config_.output_directory / (SafeEventId(event_id) + ".mp4");
+  output_path_ = directory / (SafeEventId(event_id) + ".mp4");
   if (!muxer_.Open(output_path_.string(), config_.fps, error)) return false;
   for (const auto& packet : ring_.Snapshot()) {
     if (!muxer_.Write(packet, error)) {
@@ -71,6 +73,17 @@ bool EventVideoRecorder::FinishLocked(std::string* error) {
   if (!active_) return true;
   active_ = false;
   return muxer_.Close(error);
+}
+
+std::int64_t EventVideoRecorder::HistoryStartPts() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  const auto packets = ring_.Snapshot();
+  return packets.empty() ? -1 : packets.front().pts;
+}
+
+void EventVideoRecorder::ClearHistory() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  ring_.Clear();
 }
 
 bool EventVideoRecorder::active() const {

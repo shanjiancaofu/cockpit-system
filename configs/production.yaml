@@ -63,6 +63,7 @@ services:
     auto_start: false
     directory: recordings
     vehicle_data_address: unix:/cockpit-system/run/vehicle-data.grpc.sock
+    h264_udp_port: 8557
     stream_timeout_ms: 10000
     retry_delay_ms: 200
     max_sessions: 100

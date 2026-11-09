@@ -22,6 +22,8 @@ class RecordingControlClient {
                    std::string* error);
   bool AppendDataFile(const proto::recording::AppendRecordingDataFileRequest& request,
                       proto::recording::RecordingStatus* status, std::string* error);
+  bool TriggerEventVideo(const proto::recording::TriggerEventVideoRequest& request,
+                         proto::recording::TriggerEventVideoResponse* response, std::string* error);
   bool GetStatus(proto::recording::RecordingStatus* status, std::string* error);
   bool List(std::uint32_t limit, proto::recording::ListRecordingsResponse* response,
             std::string* error);

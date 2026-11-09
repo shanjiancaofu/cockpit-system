@@ -379,6 +379,20 @@ int cockpit::recording_ctl::ControlRecording(const cockpit::runtime::ProcessRunt
     ok = client.Start(runtime.args().GetString("trigger", "manual"), &status, &error);
   } else if (runtime.args().HasFlag("stop")) {
     ok = client.Stop(&status, &error);
+  } else if (runtime.args().HasFlag("trigger-video")) {
+    cockpit::proto::recording::TriggerEventVideoRequest request;
+    request.set_event_id(runtime.args().GetString("event-id", ""));
+    request.set_event_type(runtime.args().GetString("event-type", "manual"));
+    request.set_timestamp_ms(ParseInt64(runtime.args().GetString(
+        "event-timestamp-ms", std::to_string(cockpit::time::WallTime::Now().ToMilliseconds()))));
+    cockpit::proto::recording::TriggerEventVideoResponse response;
+    if (!client.TriggerEventVideo(request, &response, &error)) {
+      std::cerr << error << '\n';
+      return 1;
+    }
+    std::cout << "session id: " << response.session_id() << '\n'
+              << "video path: " << response.path() << '\n';
+    return 0;
   } else if (!event_topic.empty()) {
     const std::string payload = runtime.args().GetString("event-payload", "{}");
     ok = client.AppendEvent(cockpit::time::WallTime::Now().ToMilliseconds(), event_topic, payload,

@@ -31,6 +31,9 @@ class RecordingGrpcService final : public proto::recording::RecordingControl::Se
   grpc::Status AppendDataFile(grpc::ServerContext* context,
                               const proto::recording::AppendRecordingDataFileRequest* request,
                               proto::recording::RecordingStatus* response) override;
+  grpc::Status TriggerEventVideo(grpc::ServerContext* context,
+      const proto::recording::TriggerEventVideoRequest* request,
+      proto::recording::TriggerEventVideoResponse* response) override;
   grpc::Status GetStatus(grpc::ServerContext* context, const proto::common::Empty* request,
                          proto::recording::RecordingStatus* response) override;
   grpc::Status List(grpc::ServerContext* context,
