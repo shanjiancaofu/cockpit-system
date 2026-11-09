@@ -153,7 +153,7 @@ libavcodec 真正解码并检查尺寸。它不是 Chrome/Edge 验收，也不�
 
 - [ ] Chrome 与 Edge 实际播放 720P（页面实际尺寸、可见连续画面）。
 - [ ] Chrome/Edge 实际播放 1080P。
-- [ ] Qt 本地 Native Camera 预览与浏览器并行。
+- Qt / HMI：**Out of Scope**。不再测试或修改，不作为验收阻塞。
 - [ ] VLC RTSP 与浏览器并行、编码器仍只有一份。
 - [ ] 手动事件 MP4 录像期间浏览器持续播放；录像文件可播放。
 - [ ] 浏览器刷新、断开后重连恢复。
@@ -187,7 +187,7 @@ libavcodec 真正解码并检查尺寸。它不是 Chrome/Edge 验收，也不�
 - WebRTC OFF：RTSP 与 WebRTC stub 构建成功，receiver 测试通过。
 - 新增 receiver 与 HTTP/Peer/Track 路径单独 ASan/UBSan 执行通过；第三方 libdatachannel
   为非插桩 Release 库，这不等同于全部依赖均通过 sanitizer 或长稳测试。
-- Chrome/Edge、Native Camera + Qt + VLC + 事件 MP4 并行仍为上面的待人工验收项。
+- Chrome/Edge、Native Camera + VLC + 事件 MP4 并行仍有待人工验收项；Qt/HMI 已 Out of Scope。
 
 开发日志在未入版本控制的 `_output/pr10-final-tests.log`、
 `_output/build/pr10/Testing/Temporary/LastTest.log` 和 `_output/pr10-sanitizers/`。
@@ -244,6 +244,15 @@ PLI、溢出后的主动请求断言。均不把 RPC accepted 或计数增长单
 ### `63fbe91` 后续验收补充
 
 Chrome 720P 的实际有界面浏览器解码、重连与刷新已验证；Chrome 1080P 也复现了默认
-H.264 offer Level 不匹配，不能再仅标为 Firefox 限制。Edge 和 Qt/VLC 可见联合画面仍待验收。
+H.264 offer Level 不匹配，不能再仅标为 Firefox 限制。Edge 和标准 VLC 可见联合画面仍待验收；Qt/HMI 已移出范围。
 具体结果、证据路径和 UI 暂缓原因见设备验收记录第 6 节。非标准浏览器安装路径可通过
 现有脚本的 `--browser-binary` 指定，标准安装不需要此参数。
+
+
+### 当前收尾（`eb46f7b` 后续工作区）
+
+- 接收能力匹配已补 RFC 6184 max-recv-level、方向性、Level 1b 与部分扩展校验。
+  默认只声明 Level 3.1 的浏览器仍明确不兼容 1080P Level 4.0；不改写 SDP 或 SPS。
+- 原生 Web 控制台已改版，包含真实 getStats 指标与分阶段状态，保留全部约定 DOM/Session 接口。
+- 原始 Offer/Answer、默认浏览器限制、UI 和实际 MP4 播放证据见设备验收记录第 7 节。
+- Qt/HMI Out of Scope；标准 VLC RTSP、外部 Edge 及完整三路可见联合验收尚不能宣布通过。

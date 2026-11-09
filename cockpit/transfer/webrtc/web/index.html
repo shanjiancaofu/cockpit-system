@@ -1,25 +1,152 @@
 <!doctype html>
 <html lang="zh-CN">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cockpit 实时视频</title>
+<meta name="color-scheme" content="light">
+<title>Cockpit Media Console</title>
 <style>
-body { margin: 2rem auto; padding: 0 1rem; max-width: 1080px; font: 16px system-ui; color: #e8edf3; background: #151b24; }
-video { width: 100%; background: #000; border-radius: 8px; }
-button { padding: .6rem 1.2rem; margin-right: .5rem; cursor: pointer; }
-#status { display: block; margin: 1rem 0; white-space: pre-wrap; }
+:root{font-family:Inter,"Noto Sans SC",system-ui,-apple-system,"Segoe UI",sans-serif;color:#263a34;background:#f3f6f5;--ink:#263a34;--muted:#7a8b84;--line:#e1e9e5;--green:#168765;--soft:#eaf5ef;--amber:#ae711d;--red:#bf4b43}
+*{box-sizing:border-box}body{margin:0;min-width:320px}button,a{font:inherit}button{cursor:pointer;border:1px solid #d7e2dc;border-radius:7px;background:#fff;color:var(--ink);padding:10px 17px;transition:background .15s,border-color .15s}button:hover{border-color:var(--green);background:#f0f8f4}button:focus-visible,a:focus-visible{outline:3px solid #8ccdb4;outline-offset:3px}button.primary{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}button.primary:hover{background:#106e52}button.compact{padding:6px 10px;font-size:12px}a{color:inherit;text-decoration:none}.shell{display:grid;grid-template-columns:224px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;padding:30px 20px 22px;border-right:1px solid var(--line);background:#fbfdfb;display:flex;flex-direction:column}.brand{display:flex;align-items:center;gap:12px;margin-bottom:43px}.brand-mark{width:37px;height:37px;border:1px solid #b7d9c9;border-radius:11px;display:grid;place-items:center;color:var(--green);font-size:23px;font-weight:650;background:#edf7f0}.brand strong{display:block;font-size:18px;letter-spacing:-.5px}.eyebrow{font-size:10px;letter-spacing:1.8px;font-weight:650;color:var(--muted);line-height:1.9}.nav-label{margin:0 12px 12px;font-size:10px;color:#95a49d;letter-spacing:2px}.nav{display:grid;gap:7px}.nav a{display:flex;align-items:center;gap:13px;padding:12px;border-radius:7px;font-size:13px;color:#687e73}.nav a:hover,.nav a.active{color:var(--green);background:#eaf4ee}.nav a.active{font-weight:600}.nav-symbol{font-size:17px;width:19px;text-align:center}.sidebar-foot{margin-top:auto;padding:20px 12px 0;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.9}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#a7b6ad;margin-right:7px}.dot.green{background:#24a777;box-shadow:0 0 0 3px #e8f5ee}.main{padding:0 34px 28px;min-width:0}.topbar{height:73px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);gap:18px;font-size:12px;color:var(--muted)}.topbar strong{color:#53695e;font-weight:500}.endpoint{font:11px ui-monospace,monospace;overflow-wrap:anywhere}.page-heading{display:flex;align-items:end;justify-content:space-between;gap:18px;margin:29px 0 23px}.page-heading h1{font-size:27px;letter-spacing:-.8px;font-weight:620;margin:6px 0 7px}.subtitle{font-size:12px;color:var(--muted);margin:0;line-height:1.8}.pill{display:inline-flex;align-items:center;gap:6px;border-radius:5px;background:#edf1ee;color:#728277;padding:6px 9px;font-size:10px;font-weight:600;white-space:nowrap;letter-spacing:.2px}.pill[data-state="ready"],.pill[data-state="connected"]{background:#e7f5ed;color:#147a55}.pill[data-state="stalled"],.pill[data-state="failed"]{background:#fff0eb;color:var(--red)}.pill[data-state="waiting_idr"],.pill[data-state="connecting"]{background:#fff5e4;color:var(--amber)}.metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:22px}.metric{padding:17px 17px 14px;background:#fff;border:1px solid var(--line);border-radius:9px;min-width:0}.metric-label{font-size:10px;color:var(--muted);margin-bottom:12px}.metric-value{font:600 21px ui-monospace,"SFMono-Regular",monospace;letter-spacing:-.9px;white-space:nowrap}.metric small{display:block;color:#a0aca5;font-size:9px;line-height:1.5;margin-top:8px}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:20px;align-items:start}.panel{background:#fff;border:1px solid var(--line);border-radius:10px;min-width:0;overflow:hidden}.panel-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:19px 21px;border-bottom:1px solid var(--line)}.panel-title{font-size:13px;font-weight:600}.panel-header .eyebrow{font-size:9px}.video-stage{position:relative;background:#131e19;aspect-ratio:16/9;display:grid;place-items:center}video{display:block;width:100%;height:100%;max-height:65vh;object-fit:contain;background:#101a15}.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none;color:#c0d1c6;gap:11px}.empty[hidden]{display:none}.camera-outline{width:43px;height:31px;border:1.5px solid #658073;border-radius:7px;position:relative;margin-bottom:7px}.camera-outline:before{content:"";position:absolute;width:13px;height:13px;border:1.5px solid #658073;border-radius:50%;left:13px;top:7px}.empty strong{font-size:14px;font-weight:500}.empty span{font-size:11px;color:#789283}.video-bottom{padding:17px 20px 18px}.controls{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.transport{margin-left:auto;font:10px ui-monospace,monospace;color:var(--muted)}#status{display:block;padding:13px 0 0;font-size:12px;line-height:1.8;color:#687b70;white-space:pre-wrap;overflow-wrap:anywhere;min-height:34px}.diagnostics{padding-bottom:4px}.diagnostic-body{padding:9px 20px 18px}.facts{margin:0}.facts>div{padding:13px 0;border-bottom:1px solid #edf1ee}.facts dt{font-size:10px;color:var(--muted);margin-bottom:7px}.facts dd{font:12px ui-monospace,monospace;margin:0;line-height:1.7;overflow-wrap:anywhere}.diagnostic-note{font-size:10px;color:#8c9d92;line-height:1.9;margin:16px 0 2px}.info-strip{margin-top:18px;display:flex;gap:10px;padding:13px 17px;background:#edf4ef;border:1px solid #dfeae2;border-radius:8px;color:#6f8376;font-size:11px;line-height:1.9}.info-strip b{color:#486951;font-weight:600}.footer{display:flex;justify-content:space-between;gap:15px;color:#97a49b;font-size:10px;margin-top:25px;padding-top:17px;border-top:1px solid var(--line)}[hidden]{display:none!important}
+@media(min-width:1550px){.main{padding-left:44px;padding-right:44px}.workspace{grid-template-columns:minmax(0,1fr) 310px}.metric-value{font-size:24px}}
+@media(max-width:1200px){.shell{grid-template-columns:190px minmax(0,1fr)}.main{padding:0 22px 24px}.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.workspace{grid-template-columns:minmax(0,1fr)}.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 18px}.diagnostic-note{margin-top:14px}.sidebar{padding-left:14px;padding-right:14px}}
+@media(max-width:720px){.shell{display:block}.sidebar{position:static;height:auto;padding:15px 18px;display:block;border-right:0;border-bottom:1px solid var(--line)}.brand{margin:0}.brand-mark{width:30px;height:30px;font-size:19px}.brand strong{font-size:16px}.brand .eyebrow{display:none}.nav-label,.sidebar-foot{display:none}.nav{display:flex;gap:7px;margin-top:16px}.nav a{font-size:11px;padding:8px 10px}.nav-symbol{display:none}.main{padding:0 16px 20px}.topbar{height:55px;font-size:10px}.endpoint{font-size:9px}.page-heading{margin-top:21px}.page-heading h1{font-size:23px}.page-heading>.pill{display:none}.metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:15px}.metric{padding:13px 10px}.metric-value{font-size:17px}.metric small{font-size:8px}.metric-label{font-size:9px}.panel-header{padding:15px}.video-bottom{padding:14px}.transport{display:none}.facts{grid-template-columns:repeat(2,minmax(0,1fr))}.diagnostic-body{padding:4px 15px 14px}.info-strip{font-size:10px}.footer{font-size:9px}.subtitle{font-size:11px}}
 </style>
-<h1>Cockpit 实时视频</h1>
-<video id="video" autoplay muted playsinline controls></video>
-<p><button id="connect">连接 / 重连</button><button id="disconnect">断开</button></p>
-<output id="status" role="status">未连接</output>
+</head>
+<body>
+<div class="shell">
+<aside class="sidebar" aria-label="主导航">
+  <a class="brand" href="#overview"><span class="brand-mark" aria-hidden="true">C</span><span><strong>Cockpit</strong><span class="eyebrow">MEDIA CONSOLE</span></span></a>
+  <p class="nav-label">WORKSPACE</p>
+  <nav class="nav"><a class="active" href="#overview"><span class="nav-symbol" aria-hidden="true">▦</span>运行概览</a><a href="#preview"><span class="nav-symbol" aria-hidden="true">▣</span>视频预览</a><a href="#diagnostics"><span class="nav-symbol" aria-hidden="true">≋</span>连接诊断</a></nav>
+  <div class="sidebar-foot"><span class="dot green"></span>LOCAL NETWORK<br>H.264 共享编码流<br>Native C++ · libdatachannel</div>
+</aside>
+<main class="main" id="overview">
+  <header class="topbar"><span>设备媒体 <span aria-hidden="true">/</span> <strong>实时视频</strong></span><span class="endpoint" id="endpoint">同源媒体服务</span></header>
+  <div class="page-heading"><div><div class="eyebrow">OBSERVE · CONNECT · RECOVER</div><h1>视频工作台</h1><p class="subtitle">一份编码，多路分发。直接观察真实视频与连接状态。</p></div><span class="pill" id="backend-pill">正在查询服务</span></div>
+  <section class="metrics" aria-label="实时媒体指标">
+    <div class="metric"><div class="metric-label">实际分辨率</div><div class="metric-value" id="metric-resolution">—</div><small>浏览器解码尺寸</small></div>
+    <div class="metric"><div class="metric-label">解码 FPS</div><div class="metric-value" id="metric-fps">—</div><small>framesDecoded / Δt</small></div>
+    <div class="metric"><div class="metric-label">接收码率</div><div class="metric-value" id="metric-bitrate">—</div><small>RTP 实时接收</small></div>
+    <div class="metric"><div class="metric-label">累计丢包</div><div class="metric-value" id="metric-loss">—</div><small>packetsLost</small></div>
+    <div class="metric"><div class="metric-label">累计丢帧</div><div class="metric-value" id="metric-dropped">—</div><small>framesDropped</small></div>
+    <div class="metric"><div class="metric-label">Stream Generation</div><div class="metric-value" id="metric-generation">—</div><small>编码流生命周期</small></div>
+  </section>
+  <div class="workspace">
+    <section class="panel" id="preview" aria-labelledby="preview-heading">
+      <div class="panel-header"><div><div class="eyebrow">LIVE CAMERA</div><div class="panel-title" id="preview-heading">WebRTC Preview</div></div><span class="pill" id="connection-label">未连接</span></div>
+      <div class="video-stage"><video id="video" autoplay muted playsinline controls aria-label="摄像头实时预览"></video><div class="empty" id="preview-empty"><div class="camera-outline" aria-hidden="true"></div><strong>等待实时视频</strong><span>确认编码流就绪后，点击连接</span></div></div>
+      <div class="video-bottom"><div class="controls"><button class="primary" id="connect">连接 / 重连</button><button id="disconnect">断开</button><span class="transport">H.264 / HOST ICE / LAN</span></div><output id="status" role="status" aria-live="polite">未连接</output></div>
+    </section>
+    <section class="panel diagnostics" id="diagnostics" aria-labelledby="diagnostic-heading">
+      <div class="panel-header"><span class="panel-title" id="diagnostic-heading">连接诊断</span><button class="compact" id="refresh-status" aria-label="刷新后端状态">刷新</button></div>
+      <div class="diagnostic-body"><dl class="facts">
+        <div><dt>编码流状态</dt><dd id="backend-state">正在查询</dd></div>
+        <div><dt>Peer / ICE</dt><dd><span id="peer-state">—</span> / <span id="ice-state">—</span></dd></div>
+        <div><dt>关键帧</dt><dd id="keyframe-state">—</dd></div>
+        <div><dt>输入距今</dt><dd id="input-age">—</dd></div>
+        <div><dt>码流 Profile / Level</dt><dd id="stream-profile">—</dd></div>
+        <div><dt>浏览器 H.264 声明</dt><dd id="receiver-profile">连接时读取</dd></div>
+        <div><dt>Session ID</dt><dd id="session-id">—</dd></div>
+        <div><dt>数据更新</dt><dd id="data-health">等待服务响应</dd></div>
+      </dl><p class="diagnostic-note">状态来自现有 Status API 与 getStats()。未连接或未提供的指标显示 —，不会用配置值代替实际观测。</p></div>
+    </section>
+  </div>
+  <div class="info-strip"><span aria-hidden="true">ⓘ</span><span><b>兼容性提示</b><br><span id="compatibility">保持真实 SPS 与接收能力匹配。不支持当前流时，请使用兼容客户端或将 Camera 切到 720P；本页面不改写 SDP Level，也不会新增编码或转码。</span></span></div>
+  <footer class="footer"><span>COCKPIT SYSTEM / MEDIA</span><span>可信局域网 · 无公网 TURN · 单路共享 H.264</span></footer>
+</main>
+</div>
 <script>
 'use strict';
 const video = document.getElementById('video');
 const status = document.getElementById('status');
 let current = null;
 const api = '/api/v1/webrtc';
-function report(message) { status.textContent = message; }
+
+const negotiation = { offer: null, answer: null };
+let backendBusy = false;
+function text(id, value) { const element = document.getElementById(id); if (element) element.textContent = value; }
+function badge(id, value, state) { text(id, value); document.getElementById(id)?.setAttribute?.('data-state', state); }
+function syncPeer() {
+  const pc = current && current.pc;
+  const state = pc ? pc.connectionState : 'closed';
+  const labels = { new: '准备连接', connecting: '正在连接', connected: '已连接', disconnected: '连接中断', failed: '连接失败', closed: '未连接' };
+  badge('connection-label', labels[state] || state, state);
+  text('peer-state', pc ? state : '—');
+  text('ice-state', pc ? pc.iceConnectionState || 'new' : '—');
+  text('session-id', current && current.id ? current.id : '—');
+}
+function renderPreview() {
+  const playing = !!current && video.videoWidth > 0 && video.srcObject;
+  const overlay = document.getElementById('preview-empty');
+  if (overlay) overlay.hidden = !!playing;
+  text('metric-resolution', playing ? `${video.videoWidth} × ${video.videoHeight}` : '—');
+}
+function clearMetrics() {
+  for (const id of ['metric-resolution', 'metric-fps', 'metric-bitrate', 'metric-loss', 'metric-dropped']) text(id, '—');
+  syncPeer(); renderPreview();
+}
+function h264Label(value) {
+  if (!/^(?:[0-9a-f]{6}|[0-9a-f]{4})$/i.test(value || '')) return value || '—';
+  const iop = parseInt(value.slice(-4, -2), 16), idc = parseInt(value.slice(-2), 16);
+  const level = (idc === 11 && (iop & 16)) || (idc === 9 && !(iop & 16)) ? '1b' : (idc / 10).toFixed(1);
+  return `${value} · L${level}`;
+}
+function renderBackend(state) {
+  const names = { no_input: '等待编码输入', waiting_parameter_sets: '等待 SPS / PPS', waiting_idr: '等待首个 IDR', ready: '视频流就绪', stalled: '视频输入已停流', stopped: '视频输入已停止' };
+  const stage = state.stream_state || (state.video_available ? 'ready' : 'no_input');
+  badge('backend-pill', names[stage] || stage, stage);
+  text('backend-state', names[stage] || stage);
+  text('metric-generation', state.generation ?? '—');
+  text('stream-profile', h264Label(state.profile_level_id));
+  text('input-age', Number.isFinite(state.input_age_ms) && state.input_age_ms >= 0 ? `${state.input_age_ms} ms` : '—');
+  const peer = current && (state.sessions || []).find(value => value.id === current.id);
+  text('keyframe-state', peer ? (peer.waiting_keyframe ? '请求 / 等待 IDR' : '已恢复发送') : (state.idr_received ? '当前流已观察到 IDR' : '等待 IDR'));
+  text('data-health', 'Status API 已更新');
+}
+async function refreshBackend() {
+  if (backendBusy) return;
+  backendBusy = true;
+  try { renderBackend(await request('/status')); }
+  catch (_) { badge('backend-pill', '状态接口不可用', 'failed'); text('data-health', 'Status API 暂不可达'); }
+  finally { backendBusy = false; }
+}
+function receiverCapabilities() {
+  const codecs = typeof RTCRtpReceiver === 'undefined' ? [] : RTCRtpReceiver.getCapabilities?.('video')?.codecs || [];
+  const h264 = codecs.filter(codec => codec.mimeType.toLowerCase() === 'video/h264');
+  const declarations = h264.map(codec => {
+    const fmtp = codec.sdpFmtpLine || '';
+    const profile = /(?:^|;)\s*profile-level-id=([0-9a-f]{6})/i.exec(fmtp);
+    const maximum = /(?:^|;)\s*max-recv-level=([0-9a-f]{4})/i.exec(fmtp);
+    return profile ? h264Label(profile[1]) + (maximum ? ` / max ${h264Label(maximum[1])}` : '') : '默认 Baseline Level 1';
+  });
+  text('receiver-profile', [...new Set(declarations)].join(' · ') || '未公布 H.264 能力');
+}
+async function updateStats(session) {
+  if (!session || current !== session || typeof session.pc.getStats !== 'function') return;
+  try {
+    const reports = await session.pc.getStats();
+    if (current !== session) return;
+    const inbound = [...reports.values()].find(value => value.type === 'inbound-rtp' && (value.kind === 'video' || value.mediaType === 'video') && Number.isFinite(value.framesDecoded));
+    if (!inbound) return;
+    const previous = session.lastStats;
+    if (previous && previous.id === inbound.id && inbound.timestamp <= previous.timestamp) return;
+    const delta = previous && previous.id === inbound.id ? (inbound.timestamp - previous.timestamp) / 1000 : 0;
+    const fps = delta > 0 && inbound.framesDecoded >= previous.framesDecoded ? (inbound.framesDecoded - previous.framesDecoded) / delta : inbound.framesPerSecond;
+    const bitrate = delta > 0 && inbound.bytesReceived >= previous.bytesReceived ? (inbound.bytesReceived - previous.bytesReceived) * 8 / delta : null;
+    text('metric-fps', Number.isFinite(fps) ? fps.toFixed(1) : '—');
+    text('metric-bitrate', Number.isFinite(bitrate) ? bitrate >= 1e6 ? `${(bitrate / 1e6).toFixed(2)} Mbps` : `${(bitrate / 1000).toFixed(0)} kbps` : '—');
+    text('metric-loss', Number.isFinite(inbound.packetsLost) ? String(inbound.packetsLost) : '—');
+    text('metric-dropped', Number.isFinite(inbound.framesDropped) ? String(inbound.framesDropped) : '—');
+    session.lastStats = { id: inbound.id, timestamp: inbound.timestamp, framesDecoded: inbound.framesDecoded, bytesReceived: inbound.bytesReceived };
+    syncPeer(); renderPreview();
+  } catch (_) { if (current === session) text('data-health', 'getStats 暂不可用'); }
+}
+
+function report(message) {
+  status.textContent = message; syncPeer();
+  if (message.startsWith('连接失败：')) badge('connection-label', '连接失败', 'failed');
+}
 async function request(path, options = {}) {
   const response = await fetch(api + path, options);
   if (!response.ok) {
@@ -57,6 +184,7 @@ async function disconnect(showStatus = true) {
     }
   }
   video.srcObject = null;
+  clearMetrics();
   if (showStatus) report('已断开');
 }
 async function connect() {
@@ -65,11 +193,14 @@ async function connect() {
   const session = { pc: new RTCPeerConnection({ iceServers: [] }), abort: new AbortController(), id: null };
   current = session;
   const pc = session.pc;
+  negotiation.offer = negotiation.answer = null;
+  receiverCapabilities();
   report('正在连接…');
   try {
     await previous;
     if (current !== session) return;
     const state = await request('/status', { signal: session.abort.signal });
+    renderBackend(state);
     if (!state.video_available) throw new Error(`视频尚未就绪（${state.stream_state || 'unknown'}），请启动 Camera 编码流后重连`);
     pc.addTransceiver('video', { direction: 'recvonly' });
     pc.ontrack = event => {
@@ -77,6 +208,7 @@ async function connect() {
       video.srcObject = event.streams[0] || new MediaStream([event.track]);
       video.play().catch(() => report('连接已建立，请点击播放器播放'));
     };
+    pc.oniceconnectionstatechange = () => { if (current === session) syncPeer(); };
     pc.onconnectionstatechange = () => {
       if (current !== session) return;
       report(`连接状态：${pc.connectionState}`);
@@ -87,6 +219,8 @@ async function connect() {
     };
     await pc.setLocalDescription(await pc.createOffer());
     await waitForIce(pc, session.abort.signal);
+    if (current !== session) return;
+    session.offerSdp = negotiation.offer = pc.localDescription.sdp;
     // Leave the in-flight POST alive on disconnect: if it succeeds we must DELETE
     // its returned id rather than orphan a server peer until the timeout.
     const answer = await request('/sessions', {
@@ -98,18 +232,23 @@ async function connect() {
       await fetch(`${api}/sessions/${encodeURIComponent(answer.id)}`, { method: 'DELETE', keepalive: true });
       return;
     }
+    negotiation.answer = answer.sdp;
     await pc.setRemoteDescription({ type: answer.type, sdp: answer.sdp });
+    syncPeer();
+    await updateStats(session);
     session.videoTimer = setTimeout(() => {
       if (current === session && !video.videoWidth) report('连接等待视频，请确认编码持续输出 IDR，或点击重连');
     }, 10000);
     session.poll = setInterval(async () => {
       try {
         const state = await request('/status', { signal: session.abort.signal });
+        renderBackend(state);
         if (current === session && !state.sessions.some(peer => peer.id === session.id)) {
           await disconnect(false);
           report('视频流或会话已结束，点击连接 / 重连恢复');
         }
       } catch (_) { /* Connection-state and ICE timeout handle transient errors. */ }
+      if (current === session) await updateStats(session);
     }, 1500);
   } catch (error) {
     if (current !== session) return;
@@ -118,10 +257,16 @@ async function connect() {
   }
 }
 video.addEventListener('resize', () => {
+  renderPreview();
   if (current && video.videoWidth) report(`正在播放 ${video.videoWidth} × ${video.videoHeight}`);
 });
 document.getElementById('connect').onclick = () => void connect();
 document.getElementById('disconnect').onclick = () => void disconnect();
-window.addEventListener('pagehide', () => { void disconnect(false); });
+document.getElementById('refresh-status').onclick = () => void refreshBackend();
+text('endpoint', window.location?.host || '同源媒体服务');
+const idleTimer = setInterval(() => { if (!current) void refreshBackend(); }, 1500);
+void refreshBackend();
+window.addEventListener('pagehide', () => { clearInterval(idleTimer); void disconnect(false); });
 </script>
+</body>
 </html>

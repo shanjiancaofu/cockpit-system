@@ -1,5 +1,10 @@
 # PR-10 设备验收记录与剩余浏览器验收
 
+> 当前验收范围（`eb46f7b` 后续）：**Qt / HMI = Out of Scope**。不再启动、测试或修改
+> Qt/HMI，也不把历史 Qt 未验收记录作为阻塞。当前状态以第 7 节为准；第 1～6 节保留历史证据。
+> 本轮收尾仅涉及 H.264 接收能力协商、RTSP/WebRTC/事件 MP4 和原生 Web 控制台。
+
+
 日期：2026-11-09（香港时间）。基线产品提交：`de506d3`。
 第 1 节记录基线的设备验收；第 5 节记录已提交到 `63fbe91` 的主动 IDR/验收补丁实测，
 不能将后者归于原始 `de506d3`。没有扩展产品模块或切换 WebRTC 技术栈。
@@ -25,7 +30,7 @@ Transfer HTTP 在本次设备 LAN 地址 `10.136.13.65:8080` 监听；此地址�
 | 真实 Camera 重启后新会话 | 通过 | generation 2 -> 3；新会话解码 125 帧，1920×1080，错误 0 |
 | Chrome / Edge 720P、1080P 实际播放 | **未执行** | 该次 Jetson 尚未安装 Chrome/Edge；后续 Chrome 实测见第 6 节，不能用 C++ 接收端代替 |
 | Chrome/Edge 刷新、断开重连 | **未执行** | 已准备下面的真实浏览器脚本，但本次未在目标浏览器运行 |
-| Qt 可见预览 + VLC + 浏览器 + 事件录像 | **未完成** | Qt 进程并行、RTSP 协议消费、MP4 解码有证据；缺可见画面及真实浏览器/VLC联合观察 |
+| Qt / HMI | **Out of Scope** | 已移出当前验收范围，不再测试或修改；三路视频验收见第 7 节 |
 
 本次 Camera 状态包含 `native_metrics_valid=true`、递增的 Native capture/VIC/encoder
 计数。视频来自真实 Native Camera，不是 `webrtc_session_test` 的生成测试图。
@@ -59,7 +64,7 @@ _output/pr10-device/regression.log
 ```bash
 cmake --build _output/build/pr10 --target \
   cockpit-navigator cockpit_module_transfer cockpit_module_camera_driver \
-  cockpit_module_recording camera-ctl recording-ctl cockpit-ui webrtc_live_probe -j4
+  cockpit_module_recording camera-ctl recording-ctl webrtc_live_probe -j4
 ```
 
 `webrtc_live_probe` 只接入**已运行**的 Transfer，不启动 Camera、不编码、不生成测试图。
@@ -157,10 +162,9 @@ Camera 参数同时包含：
 --h264-udp-host 127.0.0.1 --h264-udp-port 8556 --recording-udp-port 8557
 ```
 
-1. 启动 Qt，打开摄像头页，确认可见预览持续更新。
-2. VLC 打开 `rtsp://JETSON_IP:8554/camera`，确认可见连续画面。
-3. 浏览器打开 `http://JETSON_IP:8080/`，确认实际尺寸和连续画面；保持三者运行。
-4. 若 Recording session 尚未启动，先启动，再触发视频事件：
+1. VLC 打开 `rtsp://JETSON_IP:8554/camera`，确认可见连续画面。
+2. 浏览器打开 `http://JETSON_IP:8080/`，确认实际尺寸和连续画面；保持两者播放。
+3. 若 Recording session 尚未启动，先启动，再触发视频事件：
 
    ```bash
    _output/build/pr10/bin/recording-ctl --config YOUR_CONFIG --start --trigger pr10_acceptance
@@ -170,9 +174,9 @@ Camera 参数同时包含：
 
    等待事后录像窗口完成，或至少 25 秒，再停止 Recording session；期间浏览器画面不能中断。
    CLI 返回相对 session 目录的 MP4 路径，使用 VLC 等实际播放器打开录像。
-5. 保持浏览器连接时停止 Camera：确认 status 中旧 Session 消失。重新启动 Camera，
+4. 保持浏览器连接时停止 Camera：确认 status 中旧 Session 消失。重新启动 Camera，
    点击浏览器重连，确认新 Session 能播放；不要继续使用旧 Peer。
-6. 将浏览器证据、Qt/VLC/MP4 观察结果补入本文。全部基本功能通过后结束 PR-10；
+5. 将浏览器证据、VLC/MP4 观察结果补入本文。全部基本功能通过后结束 PR-10；
    不增加 PR-11，不做全天长稳和性能平台。
 
 **目前不能宣布 PR-10 全部验收完成；剩余阻塞是 Chrome/Edge 与可见联合画面的现场证据。**
@@ -342,7 +346,7 @@ Edge 本机未安装，**720P / 1080P 均未执行**；不能用 Chrome 结果�
 `camera-status.json`、`recording-trigger.log`、`recording-stop.log`、`rtsp.log`、
 `mp4-discover.log`、`mp4-decode.log` 及本地 session 中的 MP4。
 
-可见联合画面还有两项外部环境阻塞：
+当时记录的外部环境情况如下（Qt 现已 Out of Scope，不再作为阻塞）：
 
 1. Jetson 桌面处于锁屏状态。Qt 窗口存在且 Camera view RPC 成功，但桌面截图实际是锁屏，
    不能当成 Qt 相机画面通过；没有尝试解锁或规避锁屏。相关截图不进入版本控制。
@@ -359,8 +363,134 @@ VLC 诊断保存在 `_output/pr10-chrome-acceptance/vlc-rtsp.log`；不要把其
 ### 本轮结论与 UI 顺序
 
 - Chrome 720P 的真实浏览器解码、页面截图、断开重连、刷新已经补上证据。
-- Chrome 1080P、Edge、Qt/VLC 可见联合画面仍未关闭。
-- 按既定 **先 P0 验收、后 P1 UI** 的顺序，暂不改造 AIPC 风格控制台，不改动
+- 该阶段 Chrome 1080P、Edge、VLC 可见联合画面尚未关闭；Qt 现已 Out of Scope。
+- 当时按 **先 P0 验收、后 P1 UI** 的顺序暂缓 UI；本轮 UI 已实现，见第 7 节。保留
   `video` / `connect` / `disconnect` / `status` DOM ID 或页面 `current` 会话变量。
 - 后续 UI 仍使用现有原生 HTML/CSS/JS、getStats 和 status API；没有新增后台功能、PR-11
   或监控/调度平台。当前不能宣布 PR-10 全部验收完成。
+
+
+## 7. `eb46f7b` 后续：合法接收能力、Web 控制台与三路验收
+
+本节记录本轮工作区修改，**尚未提交**。Qt/HMI 已明确 Out of Scope，下面所有实际测试
+均没有启动 Qt；源代码和构建任务也不修改 HMI。
+
+### H.264 能力协商处理
+
+按 RFC 6184 §8.1、§8.2.2 与 Table 6 补齐 `SelectH264Video()`：
+
+- `max-recv-level` 按 **4 位十六进制 profile-iop + level_idc** 读取，不误当作三字节
+  profile-level-id 或十进制。若声明该参数，其最高接收 Level 必须高于默认 Level。
+- 处理 Level 1b 的特殊排序，不能只比较 level_idc 的整数大小。
+- 区分 recvonly 与 sendrecv：单向接收按声明的最高接收能力判断；Table 6 指定单向模式
+  忽略 level-asymmetry-allowed。双向模式才应用对称/非对称 Level 规则。
+- 按 payload type 分别检查 profile、packetization-mode、max-recv-level、max-fs、max-mbps；
+  非法/冲突参数只排除该 payload，仍可选择另一个兼容的 H264 payload。
+- max-fs/max-mbps 可以扩展部分能力，但不能凭它们假定更高完整 Level 的 DPB/CPB/码率能力。
+  当前 Transfer 没有足以证明所有其他 Level 条件的码流约束元数据，因此保守拒绝这种推断，
+  不把少量参数拼成一个虚假的 Level 4.0 接收能力。
+- 缺省 profile-level-id 按 RFC 的 Baseline Level 1 推断，不再假定为 720P Level 3.1。
+- Answer 描述真实 SPS 的 profile/Level，不改写 SPS；不将接收端能力参数复制成发送端属性。
+- 对不兼容客户端给出明确错误，提示使用兼容接收端或重新以 720P 启动 Camera；不自动
+  操作 Camera、不新增编码器、不做转码，原有 720P、IDR、Generation 和分发均保留。
+
+新增 `h264_negotiation_test` 覆盖上述规则。真实编码流集成测试中，受控 C++ 接收端明确
+声明“默认 Level 3.1 + max-recv-level Level 4.0”，随后实际解码 **1920×1080**。
+这验证合法扩展的路径，不代表普通浏览器已经声明或获得了这种能力。
+
+### Chrome / Firefox 的原始能力与实测限制
+
+现有 WebDriver 工具现在保存每轮**原始 Offer/Answer**，以及失败后的原始 Offer、source
+status 和 getCapabilities。它仅记录，不修改浏览器 SDP。修正了 HTTP 200 的页面自定义
+`{error: ...}` 被误当成 WebDriver 协议错误的问题，确保协商失败也能保存原始证据。
+SDP 包含局域网候选地址与临时 ICE 凭据，全部保存在被 git 忽略的 `_output/`，不要上传。
+
+| 接收端 | 默认 H264 声明 | 本轮结果 |
+| --- | --- | --- |
+| Chrome 157.0.8103.38 | H264 payload 的最高完整 Level 为 3.1，无 max-recv-level/max-fs/max-mbps 扩展 | 新 UI 的 720P 实播、重连、刷新通过；1080P 明确拒绝 |
+| Firefox 153.0.4 + OpenH264 2.6.0 | H264 payload 为 Level 3.1，无更高完整 Level 声明 | 新 UI 的 720P headless 实际解码、重连、刷新通过；1080P 明确拒绝 |
+| Edge | 当前设备没有 Edge 测试环境 | **未执行**，需要外部 Edge/EdgeDriver；不使用 Chrome 结果代替 |
+| 受控 libdatachannel/libavcodec 接收端 | 默认 3.1，并明确声明 max-recv-level 4.0 | 真正的 1080P RTP 接收/解码通过 |
+
+Firefox 的 VP8/VP9 payload 中即使出现 max-fs，也不能借给 H264 payload 使用。
+默认浏览器仍不支持本流程的 1080P 协商，不通过篡改 Level 或跳过检查强行通过。
+“1080P 问题已处理”在本轮表示规则与合法接收路径已修正、默认浏览器限制已明确记录，
+**不表示 Chrome/Firefox 1080P 实播已通过**。
+
+原始数据与汇总：
+
+```
+_output/pr10-final/device/chrome-720p.json
+_output/pr10-final/device/firefox-720p.json
+_output/pr10-final/device/*-initial-offer.sdp
+_output/pr10-final/device/*-initial-answer.sdp
+_output/pr10-final/1080-device/chrome.json
+_output/pr10-final/1080-device/chrome-failure-offer.sdp
+_output/pr10-final/1080-device/firefox.json
+_output/pr10-final/1080-device/firefox-failure-offer.sdp
+_output/pr10-final/offer-summary.json
+```
+
+### AIPC 风格原生 Web 控制台
+
+已完成浅色工业控制台：侧边导航、运行概览、视频主面板、连接诊断、兼容性提示。
+只使用原生 HTML/CSS/JavaScript 与原有接口，没有 Vue/React、外部 CDN、指标服务或新后台。
+保留 `video`、`connect`、`disconnect`、`status` 和页面 `current` 绑定。
+
+- 真实分辨率来自浏览器 videoWidth/videoHeight。
+- 解码 FPS 与接收码率来自 getStats 计数差与采样间隔；丢包/丢帧为实际累计计数。
+- Stream Generation、输入新鲜度、等待参数集/IDR/停流状态来自现有 status API。
+- Peer/ICE、Session ID、浏览器 H264 声明及流 Profile/Level 可分别查看。
+- 没有提供、尚未收到或已断开的指标显示 **—**，不使用配置 FPS/码率冒充观测。
+- 指标与请求结果检查 Session 身份，避免旧连接更新新连接页面；断开清理 Peer 采样，
+  空闲状态只保留后端状态更新，pagehide 清理全部计时器。
+
+新 UI 已通过真实 Chrome 720P 三轮实播回归、Firefox 720P 解码回归，以及桌面/窄屏测试。
+实际 viewport 宽度分别为 **1210 px / 500 px**，documentWidth 均不超过 viewport。
+检查到实际 1280×720、约 30 解码 FPS、约 1.6～1.8 Mbps 接收码率及真实丢包/丢帧计数；
+这些数字是该次现场样本，不是写入页面的固定值。
+
+证据：`_output/pr10-final/device/console-desktop.json`、`console-mobile.json` 及 PNG。
+可选 `--window-width/--window-height` 用于同一个验收脚本检查不同窗口尺寸，实际 viewport
+仍记录在报告中，不将请求窗口尺寸当作实测 viewport。
+
+### RTSP + WebRTC + 事件 MP4
+
+本轮没有启动 Qt。真实 Native Camera 使用一份 libx264 H264 编码，同时：
+
+1. Chrome 新控制台持续播放并执行三轮连接/重连/刷新；
+2. GStreamer RTSP 接收端接收 900 个 buffer；
+3. Recording 手动事件录像，完成 MP4 封装、发现和解码到 EOS。
+
+这部分通过，但仍只是“Chrome + RTSP 协议接收 + MP4”，**不冒充标准 VLC 实播**。
+另外用 Google Chrome 原生 MP4 播放器打开生成的事件录像：1280×720，时长约 29.83 秒，
+播放时间 **0.0267 -> 5.0397 秒**，显示帧数 **4 -> 148**，未暂停、无 video error；
+补上了实际播放器播放证据，而不是只有解码器测试。
+
+证据在 `_output/pr10-final/device/`：`chrome-parallel.json`、`recording-trigger.log`、
+`recording-stop.log`、`rtsp.log`、`mp4-discover.log`、`mp4-decode.log`、`mp4-player.json`
+和播放器截图。不要把 MP4 播放结果当作 VLC RTSP 成功。
+
+标准 VLC RTSP 与 720P/1080P 的完整三路可见联合验收仍需外部电脑提供证据。设备上的临时
+Ubuntu VLC 包明确禁用了 Live555；不为补证而重写服务端或换编码器。本轮查询的官方 VLC
+Snap arm64 渠道也没有可用构建，不能把 amd64 客户端冒充本机测试。
+
+### 当前收尾清单
+
+- [x] 1080P SDP 接收能力规则已处理，合法 max-recv-level 路径及浏览器限制有测试/记录。
+- [ ] Chrome / Edge 全部实际播放和重连完成：Chrome 720P 已通过，Edge 仍待外部环境。
+- [ ] 标准 VLC RTSP 实际播放通过。
+- [ ] 浏览器 + 标准 VLC RTSP + 事件 MP4 完整联合验收通过。
+- [x] AIPC 风格原生网页完成，旧通信流程与测试接口保留。
+- [x] 自动回归、文档和当前已知限制整理。
+
+**Qt / HMI：Out of Scope，不作为未完成项目。**
+不能因为 UI 和合法接收能力处理已完成就关闭剩余外部验收项；不新增 PR-11。
+
+
+本轮相关自动回归 **15/15 通过**（`_output/pr10-final/delivery-regression.log`）；
+验收脚本的 Python 单元测试 11 项通过，前端 Node 测试覆盖原有连接取消/清理与真实计数差指标。
+`git diff --check` 与模块边界检查通过。本轮没有开展长稳/性能压测。
+
+测试启动的 Camera、Transfer、Recording 与 WebDriver 均已停止。代码和文档尚未提交。
+截图、原始 SDP、JSON、MP4、下载的测试客户端/参考资料均留在 `_output/`，不进入提交。

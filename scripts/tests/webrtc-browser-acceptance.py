@@ -31,8 +31,8 @@ class Driver:
                 result = json.load(response).get('value')
         except urllib.error.HTTPError as error:
             raise RuntimeError(f'WebDriver HTTP {error.code}: {error.read().decode()}') from error
-        if isinstance(result, dict) and result.get('error'):
-            raise RuntimeError(f"WebDriver: {result['error']}: {result.get('message', '')}")
+        # A successful execute-script may legitimately return {error: ...}
+        # from the page. W3C protocol errors use non-2xx HTTP responses above.
         return result
 
     def start(self, browser, headless, openh264_dir=None, browser_binary=None):
@@ -124,6 +124,29 @@ const done = arguments[arguments.length - 1];
 """
 
 
+NEGOTIATION = r"""
+return window.eval(`(() => {
+  const s = typeof current === 'undefined' ? null : current;
+  const last = typeof negotiation === 'undefined' ? null : negotiation;
+  return { offer: (s && s.pc.localDescription && s.pc.localDescription.sdp) || (last && last.offer),
+           answer: (s && s.pc.remoteDescription && s.pc.remoteDescription.sdp) || (last && last.answer) };
+})()`);
+"""
+
+
+def save_negotiation(driver, args, phase):
+    values = driver.script(NEGOTIATION)
+    paths = {}
+    for kind in ('offer', 'answer'):
+        raw = values.get(kind) if isinstance(values, dict) else None
+        if raw:
+            destination = args.output.parent / f'{args.output.stem}-{phase}-{kind}.sdp'
+            with destination.open('w', encoding='utf-8', newline='') as output:
+                output.write(raw)
+            paths[kind] = str(destination)
+    return paths
+
+
 def wait_for(fetch, predicate, seconds, description):
     deadline = time.monotonic() + seconds
     last = None
@@ -178,6 +201,9 @@ def playback(driver, args, phase, report):
                      args.timeout, phase + ' first decoded frame')
     entry = {'phase': phase, 'result': 'running', 'first': first, 'samples': []}
     report['checks'].append(entry)
+    entry['raw_sdp'] = save_negotiation(driver, args, phase)
+    if 'offer' not in entry['raw_sdp'] or 'answer' not in entry['raw_sdp']:
+        raise RuntimeError('raw browser offer/answer evidence missing')
     deadline = time.monotonic() + args.seconds
     while time.monotonic() < deadline:
         time.sleep(min(1, max(0, deadline - time.monotonic())))
@@ -202,7 +228,7 @@ def run(args):
               'base_url': args.base_url, 'requested_browser': args.browser,
               'expected_size': [args.width, args.height], 'result': 'failed', 'checks': [],
               'not_covered': ['Native Camera authenticity', 'Camera stop/restart',
-                              'Qt visible preview', 'VLC viewing', 'MP4 playback']}
+                              'VLC viewing', 'MP4 playback']}
     report['rendering_check'] = 'headless_decode_only' if args.headless else 'visible_browser_frame_counter'
     if args.headless:
         report['not_covered'].append('visible browser rendering / screenshot content')
@@ -210,7 +236,13 @@ def run(args):
     args.output.parent.mkdir(parents=True, exist_ok=True)
     try:
         report['capabilities'] = driver.start(args.browser, args.headless, getattr(args, 'firefox_openh264_dir', None), getattr(args, 'browser_binary', None))
+        if getattr(args, 'window_width', None) and getattr(args, 'window_height', None):
+            report['window'] = driver.command('POST', '/window/rect', {
+                'width': args.window_width, 'height': args.window_height})
         driver.command('POST', '/url', {'url': args.base_url.rstrip('/') + '/'})
+        report['source_status'] = driver.script(
+            "const done=arguments[arguments.length-1]; fetch('/api/v1/webrtc/status', {cache:'no-store'})"
+            ".then(r=>r.json()).then(done,e=>done({error:String(e)}));", True)
         report['video_capabilities'] = driver.script(
             "return RTCRtpReceiver.getCapabilities('video')?.codecs || [];")
         if not any(codec.get('mimeType', '').lower() == 'video/h264' for codec in report['video_capabilities']):
@@ -230,6 +262,12 @@ def run(args):
         third_id = playback(driver, args, 'refresh', report)
         if not third_id or third_id in (first_id, second_id):
             raise RuntimeError('refresh did not create a fresh session')
+        report['console_ui'] = driver.script(
+            "return {viewportWidth:innerWidth, documentWidth:document.documentElement.scrollWidth,"
+            "metrics:Object.fromEntries(['metric-resolution','metric-fps','metric-bitrate','metric-loss',"
+            "'metric-dropped','metric-generation'].map(id=>[id,document.getElementById(id)?.textContent || null]))};")
+        if report['console_ui'].get('documentWidth', 0) > report['console_ui'].get('viewportWidth', 0) + 1:
+            raise RuntimeError('console has horizontal overflow')
         driver.click('disconnect')
         wait_retired(driver, third_id, args.timeout)
         report['result'] = 'passed'
@@ -239,6 +277,7 @@ def run(args):
         if driver.session:
             try:
                 report['failure_snapshot'] = driver.script(SNAPSHOT, True)
+                report['failure_raw_sdp'] = save_negotiation(driver, args, 'failure')
             except Exception as diagnostic_error:
                 report['snapshot_error'] = str(diagnostic_error)
     finally:
@@ -267,10 +306,14 @@ def main():
     parser.add_argument('--seconds', type=float, default=10, help='continuous playback seconds per phase')
     parser.add_argument('--timeout', type=float, default=20)
     parser.add_argument('--headless', action='store_true')
+    parser.add_argument('--window-width', type=int, help='optional WebDriver window width (actual viewport recorded)')
+    parser.add_argument('--window-height', type=int, help='optional WebDriver window height')
     parser.add_argument('--browser-binary', help='optional browser executable path as seen by the WebDriver host')
     parser.add_argument('--firefox-openh264-dir', type=Path, help='optional installed codec-version directory; seeds only codec assets into a clean profile')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
+    if bool(args.window_width) != bool(args.window_height) or (args.window_width is not None and min(args.window_width, args.window_height) < 320):
+        parser.error('--window-width and --window-height must both be supplied, at least 320')
     if args.firefox_openh264_dir and args.browser != 'firefox':
         parser.error('--firefox-openh264-dir only applies to Firefox')
     origin = urllib.parse.urlsplit(args.base_url)

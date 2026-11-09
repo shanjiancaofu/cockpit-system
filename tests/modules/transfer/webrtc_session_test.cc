@@ -203,8 +203,13 @@ void EncodedMedia(unsigned width, unsigned height) {
   client_config.disableAutoNegotiation = true;
   auto pc = std::make_shared<rtc::PeerConnection>(client_config);
   rtc::Description::Video video("0", rtc::Description::Direction::RecvOnly);
-  video.addH264Codec(
-      102, "packetization-mode=1;profile-level-id=" + H264ProfileLevelId(receiver.Status().sps));
+  const auto stream_profile = H264ProfileLevelId(receiver.Status().sps);
+  // This test receiver really decodes 1080P with libavcodec. Explicitly declare
+  // its full receive Level instead of modifying any browser SDP or SPS.
+  video.addH264Codec(102, width == 1920
+                              ? "packetization-mode=1;profile-level-id=42e01f;max-recv-level=" +
+                                    stream_profile.substr(2)
+                              : "packetization-mode=1;profile-level-id=" + stream_profile);
   auto track = pc->addTrack(video);
   auto depacketizer = std::make_shared<rtc::H264RtpDepacketizer>();
   depacketizer->addToChain(std::make_shared<rtc::RtcpReceivingSession>());

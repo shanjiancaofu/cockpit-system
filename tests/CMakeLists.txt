@@ -753,3 +753,9 @@ add_executable(camera_keyframe_client_test modules/transfer/camera_keyframe_clie
 target_link_libraries(camera_keyframe_client_test PRIVATE transfer_runtime)
 add_test(NAME camera_keyframe_client_test COMMAND camera_keyframe_client_test)
 set_tests_properties(camera_keyframe_client_test PROPERTIES TIMEOUT 10)
+
+if(COCKPIT_ENABLE_WEBRTC)
+    add_executable(h264_negotiation_test modules/transfer/h264_negotiation_test.cc)
+    target_link_libraries(h264_negotiation_test PRIVATE webrtc_server)
+    add_test(NAME h264_negotiation_test COMMAND h264_negotiation_test)
+endif()

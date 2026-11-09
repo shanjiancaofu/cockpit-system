@@ -10,11 +10,22 @@ const status = { textContent: '' };
 const requests = [], pcs = [], intervals = new Map();
 let next = 0, ready = true, delayPost = false, pendingPost, activeIds = [];
 class Peer {
-  constructor() { this.iceGatheringState = 'complete'; this.connectionState = 'new'; pcs.push(this); }
+  constructor() { this.iceGatheringState = 'complete'; this.connectionState = 'new'; this.tick = 0; pcs.push(this); }
   addTransceiver(kind, options) { assert.equal(kind, 'video'); assert.equal(options.direction, 'recvonly'); }
   async createOffer() { return { type: 'offer', sdp: 'test-offer' }; }
   async setLocalDescription(description) { this.localDescription = description; }
-  async setRemoteDescription(description) { this.remoteDescription = description; this.connectionState = 'connected'; this.onconnectionstatechange?.(); }
+  async setRemoteDescription(description) {
+    this.remoteDescription = description; this.connectionState = 'connected'; this.iceConnectionState = 'connected';
+    video.videoWidth = 1280; video.videoHeight = 720;
+    this.ontrack?.({ streams: [{ id: 'mock-stream' }], track: {} });
+    this.onconnectionstatechange?.();
+  }
+  async getStats() {
+    ++this.tick;
+    return new Map([['inbound', { id: 'inbound', type: 'inbound-rtp', kind: 'video',
+      timestamp: this.tick * 1000, framesDecoded: this.tick * 30, bytesReceived: this.tick * 125000,
+      packetsLost: 3, framesDropped: 2 }]]);
+  }
   addEventListener() {}
   removeEventListener() {}
   close() { this.closed = true; this.connectionState = 'closed'; this.onconnectionstatechange?.(); }
@@ -48,8 +59,16 @@ vm.runInContext(script + '\n globalThis.preview = { connect, disconnect };', con
   await preview.connect();
   assert.equal(pcs.at(-1).remoteDescription.sdp, 'test-answer');
   assert.equal(activeIds.length, 1);
+  for (const poll of [...intervals.values()]) await poll();
+  assert.equal(buttons['metric-resolution'].textContent, '1280 × 720');
+  assert.equal(buttons['metric-fps'].textContent, '30.0');
+  assert.equal(buttons['metric-bitrate'].textContent, '1.00 Mbps');
+  assert.equal(buttons['metric-loss'].textContent, '3');
+  assert.equal(buttons['metric-dropped'].textContent, '2');
   await preview.disconnect();
-  assert.equal(activeIds.length, 0); assert(pcs.at(-1).closed); assert.equal(intervals.size, 0);
+  assert.equal(buttons['metric-fps'].textContent, '—');
+  assert.equal(buttons['preview-empty'].hidden, false);
+  assert.equal(activeIds.length, 0); assert(pcs.at(-1).closed); assert.equal(intervals.size, 1);
   // Disconnect during POST: stale answer must be explicitly deleted, not applied.
   delayPost = true;
   const attempt = preview.connect();
@@ -63,10 +82,11 @@ vm.runInContext(script + '\n globalThis.preview = { connect, disconnect };', con
   // Stream restart / missing session: status poll releases the local peer.
   activeIds = [];
   for (const poll of [...intervals.values()]) await poll();
-  assert(pcs.at(-1).closed); assert.equal(intervals.size, 0);
+  assert(pcs.at(-1).closed); assert.equal(intervals.size, 1);
   ready = false;
   await preview.connect();
   assert(status.textContent.includes('视频尚未就绪')); assert(pcs.at(-1).closed);
+  assert.equal(buttons['connection-label'].textContent, '连接失败');
   ready = true;
   await preview.connect(); context.window.pagehide();
   await new Promise(resolve => setImmediate(resolve));

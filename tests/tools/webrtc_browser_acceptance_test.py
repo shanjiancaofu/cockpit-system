@@ -90,6 +90,22 @@ class EvidenceTest(unittest.TestCase):
         self.assertEqual(caps['goog:chromeOptions']['binary'], '/opt/test-chrome/chrome')
         self.assertNotIn('--no-sandbox', caps['goog:chromeOptions']['args'])
 
+    def test_raw_sdp_is_not_rewritten(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = types.SimpleNamespace(output=Path(directory) / 'result.json')
+            raw = 'v=0\r\na=fmtp:102 profile-level-id=42e01f;packetization-mode=1\r\n'
+            driver = mock.Mock()
+            driver.script.return_value = {'offer': raw, 'answer': raw}
+            paths = MODULE.save_negotiation(driver, args, 'initial')
+            self.assertEqual(Path(paths['offer']).read_bytes(), raw.encode())
+            self.assertEqual(Path(paths['answer']).read_bytes(), raw.encode())
+
+    def test_page_error_result_is_not_a_webdriver_protocol_error(self):
+        import io
+        driver = MODULE.Driver('http://unused')
+        with mock.patch.object(MODULE.urllib.request, 'urlopen', return_value=io.BytesIO(b'{"value":{"error":"codec incompatible"}}')):
+            self.assertEqual(driver.request('POST', '/execute/sync', {}), {'error': 'codec incompatible'})
+
     def test_failed_start_saves_failed_not_passed_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             args = types.SimpleNamespace(base_url='http://jetson:8080', browser='edge', width=1280,
