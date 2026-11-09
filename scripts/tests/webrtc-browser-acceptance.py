@@ -35,7 +35,7 @@ class Driver:
             raise RuntimeError(f"WebDriver: {result['error']}: {result.get('message', '')}")
         return result
 
-    def start(self, browser, headless, openh264_dir=None):
+    def start(self, browser, headless, openh264_dir=None, browser_binary=None):
         if browser == 'firefox':
             caps = {'browserName': 'firefox', 'moz:firefoxOptions': {
                 'args': ['-headless'] if headless else [],
@@ -63,6 +63,9 @@ class Driver:
                 options['args'].append('--headless=new')
             caps = {'browserName': 'chrome' if browser == 'chrome' else 'MicrosoftEdge',
                     'goog:chromeOptions' if browser == 'chrome' else 'ms:edgeOptions': options}
+        if browser_binary:
+            option_key = {'chrome': 'goog:chromeOptions', 'edge': 'ms:edgeOptions', 'firefox': 'moz:firefoxOptions'}[browser]
+            caps[option_key]['binary'] = str(browser_binary)
         result = self.request('POST', '/session', {'capabilities': {'alwaysMatch': caps}})
         self.session = result['sessionId']
         actual = result['capabilities'].get('browserName', '').lower()
@@ -206,7 +209,7 @@ def run(args):
     driver = Driver(args.webdriver_url)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     try:
-        report['capabilities'] = driver.start(args.browser, args.headless, getattr(args, 'firefox_openh264_dir', None))
+        report['capabilities'] = driver.start(args.browser, args.headless, getattr(args, 'firefox_openh264_dir', None), getattr(args, 'browser_binary', None))
         driver.command('POST', '/url', {'url': args.base_url.rstrip('/') + '/'})
         report['video_capabilities'] = driver.script(
             "return RTCRtpReceiver.getCapabilities('video')?.codecs || [];")
@@ -264,6 +267,7 @@ def main():
     parser.add_argument('--seconds', type=float, default=10, help='continuous playback seconds per phase')
     parser.add_argument('--timeout', type=float, default=20)
     parser.add_argument('--headless', action='store_true')
+    parser.add_argument('--browser-binary', help='optional browser executable path as seen by the WebDriver host')
     parser.add_argument('--firefox-openh264-dir', type=Path, help='optional installed codec-version directory; seeds only codec assets into a clean profile')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()

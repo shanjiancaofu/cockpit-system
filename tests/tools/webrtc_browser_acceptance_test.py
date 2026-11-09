@@ -82,6 +82,14 @@ class EvidenceTest(unittest.TestCase):
                     'gmp-gmpopenh264/2.6.0/gmpopenh264.info'})
             self.assertEqual(options['prefs']['media.gmp-gmpopenh264.version'], '2.6.0')
 
+    def test_explicit_chrome_binary_does_not_disable_sandbox(self):
+        driver = MODULE.Driver('http://unused')
+        driver.request = mock.Mock(return_value={'sessionId': 'chrome', 'capabilities': {'browserName': 'chrome'}})
+        driver.start('chrome', False, browser_binary='/opt/test-chrome/chrome')
+        caps = driver.request.call_args_list[0].args[2]['capabilities']['alwaysMatch']
+        self.assertEqual(caps['goog:chromeOptions']['binary'], '/opt/test-chrome/chrome')
+        self.assertNotIn('--no-sandbox', caps['goog:chromeOptions']['args'])
+
     def test_failed_start_saves_failed_not_passed_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             args = types.SimpleNamespace(base_url='http://jetson:8080', browser='edge', width=1280,

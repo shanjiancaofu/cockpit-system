@@ -1,7 +1,7 @@
 # PR-10 设备验收记录与剩余浏览器验收
 
 日期：2026-11-09（香港时间）。基线产品提交：`de506d3`。
-第 1 节记录基线的设备验收；第 5 节记录本轮尚未提交的主动 IDR/验收补丁实测，
+第 1 节记录基线的设备验收；第 5 节记录已提交到 `63fbe91` 的主动 IDR/验收补丁实测，
 不能将后者归于原始 `de506d3`。没有扩展产品模块或切换 WebRTC 技术栈。
 
 ## 1. 本次实际执行结果
@@ -23,7 +23,7 @@ Transfer HTTP 在本次设备 LAN 地址 `10.136.13.65:8080` 监听；此地址�
 | 事件 MP4 文件 | 解码通过 | 7,362,948 bytes，1280×720，30/1 FPS，时长 29.266666666 秒；`qtdemux ! h264parse ! nvv4l2decoder ! fakesink` 成功到 EOS，不等于播放器人工观看 |
 | 真实 Camera 停止后旧 Peer 清理 | 通过 | connected Peer 在停流后从 status 消失，video_available=false；正在解码的 probe 按预期失败，不误报通过 |
 | 真实 Camera 重启后新会话 | 通过 | generation 2 -> 3；新会话解码 125 帧，1920×1080，错误 0 |
-| Chrome / Edge 720P、1080P 实际播放 | **未执行** | 当前 Jetson 没有 Chrome/Edge；不能用 C++ 接收端代替 |
+| Chrome / Edge 720P、1080P 实际播放 | **未执行** | 该次 Jetson 尚未安装 Chrome/Edge；后续 Chrome 实测见第 6 节，不能用 C++ 接收端代替 |
 | Chrome/Edge 刷新、断开重连 | **未执行** | 已准备下面的真实浏览器脚本，但本次未在目标浏览器运行 |
 | Qt 可见预览 + VLC + 浏览器 + 事件录像 | **未完成** | Qt 进程并行、RTSP 协议消费、MP4 解码有证据；缺可见画面及真实浏览器/VLC联合观察 |
 
@@ -260,4 +260,107 @@ SPS 为 `42c028`（Level 4.0），当前服务端拒绝发送超过浏览器 off
 receiver 与 H264Encoder/主动 IDR 路径单独 ASan/UBSan 执行通过，见
 `_output/pr10-idr-sanitizers/`；第三方库并未全部插桩，不能当作全依赖 sanitizer 或长稳验收。
 WebRTC OFF 的 RTSP/stub 构建和无编码依赖的 encoder stub 编译也通过。
-本次启动的设备验收服务和 GeckoDriver 已停止；没有修改默认 development 配置，也未提交代码。
+该次设备验收服务和 GeckoDriver 已停止；默认 development 配置未修改。主动 IDR 与验收工具现已提交到 `63fbe91`。
+
+
+## 6. `63fbe91` 后续 Chrome 与联合验收（2026-11-09）
+
+本轮以 `63fbe91` 为产品基线，没有修改 Camera、H.264、RTSP、Recording、WebRTC 服务端
+或网页 UI；只给现有浏览器验收脚本增加可选 `--browser-binary`，支持非标准路径的真实浏览器，
+并补充对应单元测试与本节记录。第 5 节的“尚未提交”表述已更正为提交 `63fbe91`。
+
+### Chrome 720P：真实有界面浏览器通过
+
+设备上已安装原生 ARM64 **Google Chrome 157.0.8103.38**。本轮从官方 Chrome for Testing
+分发准备了完全匹配的 **ChromeDriver 157.0.8103.38 / linux-arm64**，只放在 `_output/`，
+没有在产品配置/构建/运行时加入自动下载依赖。来源、版本和下载 SHA-256 保存在
+`_output/pr10-chrome-acceptance/tools/toolchain.json`。
+
+实际使用 `--browser chrome`，**未启用 headless，也没有关闭浏览器 sandbox**。
+复用现有脚本，不创建另一套测试程序。独立 Native Camera / Transfer 配置仍启用
+`native_argus`，720P H.264 只编码一次。
+
+| 阶段 | framesDecoded | 实际尺寸 | 丢包 / 丢帧 | 结果 |
+| --- | --- | --- | --- | --- |
+| initial | 10 -> 310 | 1280×720 | 0 / 0 | 通过 |
+| reconnect | 10 -> 310 | 1280×720 | 0 / 0 | 通过，新 Session |
+| refresh | 10 -> 308 | 1280×720 | 0 / 0 | 通过，旧 Session 回收，新 Session |
+
+各轮连续采样 10 秒，浏览器播放时间、显示帧计数和 `framesDecoded` 持续增长。
+WebDriver 页面截图确认真实摄像头画面，不是仅验证 ICE connected。截图是浏览器自己的
+渲染结果；不把它等同于对物理显示器的人工观察，也不代替 Qt/VLC 的画面验收。
+
+证据：`_output/pr10-chrome-acceptance/chrome-720p.json` 与 `chrome-720p-*.png`。
+
+非标准安装路径的启动示例：
+
+```bash
+chromedriver --port=9515
+python3 scripts/tests/webrtc-browser-acceptance.py \
+  --base-url http://JETSON_IP:8080 --browser chrome \
+  --browser-binary /path/to/google-chrome \
+  --width 1280 --height 720 --seconds 10 \
+  --output _output/webrtc-acceptance/chrome-720p.json
+```
+
+`--browser-binary` 是 WebDriver 主机上的浏览器路径，标准安装可省略；此参数不会添加
+`--no-sandbox` 等降低安全性的启动选项。
+
+### Chrome 1080P：同样在 SDP Level 阶段失败
+
+Camera 实际切换到 1920×1080 / 30 FPS / 4 Mbps，Transfer status 为 ready，SPS 为
+`42c028`（Level 4.0）。该 Chrome 的默认 H264 接收 codec 列表都声明 Level 3.1，
+服务端拒绝超过 offer 接收 Level 的流，返回：
+
+```
+no compatible H264 packetization-mode=1/profile/level in offer; stream=42c028
+```
+
+证据：`_output/pr10-chrome-acceptance/chrome-1080p.json`，包括真实浏览器 capabilities
+和失败页面状态。**这不是仅 Firefox 的问题，当前不能宣称 Chrome 1080P 已支持/已验收。**
+也不能仅凭默认 offer 就断言 Chrome 的实际解码器绝对不能解码 1080P；当前确认的是该信令
+流程未协商成功。仍需解决符合实际接收能力与协议约束的协商方式，再执行解码/画面验收。
+本轮没有改写 SDP Level、伪造 SPS 或跳过 Profile/Level 检查来制造通过结果。
+
+Edge 本机未安装，**720P / 1080P 均未执行**；不能用 Chrome 结果代替 Edge。
+
+### 联合路径：后端与 Chrome 通过，可见 Qt/VLC 验收仍未完成
+
+在新的独立有界设备会话 `_output/pr10-chrome-parallel/` 中，同时运行：
+
+- 同一个 Native Camera 与现有 libx264。
+- Chrome 有界面 720P 实播，重复三轮连接/重连/刷新。
+- Qt `cockpit-ui`，通过现有 HMI 控制 RPC 切到 Camera view，进程持续运行。
+- GStreamer RTSP 接收端，完成 900 个 H.264 buffer 接收。
+- Recording session 和手动事件 MP4，结束后使用 Jetson 解码器解码到 EOS。
+
+该轮 Chrome 的 decoded 帧数分别为 **9 -> 310、11 -> 311、2 -> 303**，三轮均为
+1280×720，观测到的 packetsLost / framesDropped 为 0。MP4 被识别为 1280×720、30 FPS，
+可完成解码。这里仍然**不把 GStreamer RTSP 接收替代 VLC RTSP 播放验收**。
+
+证据：`_output/pr10-chrome-parallel/chrome-720p.json`、`chrome-720p-*.png`、
+`camera-status.json`、`recording-trigger.log`、`recording-stop.log`、`rtsp.log`、
+`mp4-discover.log`、`mp4-decode.log` 及本地 session 中的 MP4。
+
+可见联合画面还有两项外部环境阻塞：
+
+1. Jetson 桌面处于锁屏状态。Qt 窗口存在且 Camera view RPC 成功，但桌面截图实际是锁屏，
+   不能当成 Qt 相机画面通过；没有尝试解锁或规避锁屏。相关截图不进入版本控制。
+2. 本机原本未安装 VLC。本轮仅从 Ubuntu 22.04 官方包准备了用户目录临时测试运行环境，
+   其 3.0.16 构建参数明确为 `--disable-live555`。实际连接本服务 RTSP 失败，日志为
+   `no access modules matched` / `only real/helix rtsp servers supported`。
+   这说明该客户端测试环境不具备本次标准 RTSP 播放条件，不是证明 Transfer RTSP 失败。
+   没有为了测试重写 RTSP 或引入替代编码/服务；需要具有标准 RTSP 支持的 VLC 环境继续验收。
+
+VLC 诊断保存在 `_output/pr10-chrome-acceptance/vlc-rtsp.log`；不要把其客户端错误
+归为已通过的联合测试。另一次较早的联合脚本遭遇测试宿主自己的 10 分钟有界会话结束，
+不计为产品通过/失败证据；上面通过的后端/Chrome联合结果来自随后新建的完整会话。
+
+### 本轮结论与 UI 顺序
+
+- Chrome 720P 的真实浏览器解码、页面截图、断开重连、刷新已经补上证据。
+- Chrome 1080P、Edge、Qt/VLC 可见联合画面仍未关闭。
+- 按既定 **先 P0 验收、后 P1 UI** 的顺序，暂不改造 AIPC 风格控制台，不改动
+  `video` / `connect` / `disconnect` / `status` DOM ID 或页面 `current` 会话变量。
+- 后续 UI 仍使用现有原生 HTML/CSS/JS、getStats 和 status API；没有新增后台功能、PR-11
+  或监控/调度平台。当前不能宣布 PR-10 全部验收完成。

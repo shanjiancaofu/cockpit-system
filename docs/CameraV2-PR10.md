@@ -239,3 +239,11 @@ _output/build/pr10/bin/webrtc_live_probe \
 
 新增 `h264_idr_test`、`camera_keyframe_client_test`；现有 WebRTC 与队列测试补了 onOpen、
 PLI、溢出后的主动请求断言。均不把 RPC accepted 或计数增长单独当成解码成功。
+
+
+### `63fbe91` 后续验收补充
+
+Chrome 720P 的实际有界面浏览器解码、重连与刷新已验证；Chrome 1080P 也复现了默认
+H.264 offer Level 不匹配，不能再仅标为 Firefox 限制。Edge 和 Qt/VLC 可见联合画面仍待验收。
+具体结果、证据路径和 UI 暂缓原因见设备验收记录第 6 节。非标准浏览器安装路径可通过
+现有脚本的 `--browser-binary` 指定，标准安装不需要此参数。
