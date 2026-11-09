@@ -4,6 +4,8 @@
 #include <memory>
 #include <string>
 
+#include "cockpit/transfer/video/h264_receiver.h"
+
 namespace cockpit::transfer {
 
 struct RtspServerConfig {
@@ -21,7 +23,7 @@ class RtspServer final {
   RtspServer(const RtspServer&) = delete;
   RtspServer& operator=(const RtspServer&) = delete;
 
-  bool Start(const RtspServerConfig& config, std::string* error = nullptr);
+  bool Start(const RtspServerConfig& config, H264Receiver& receiver, std::string* error = nullptr);
   void Stop();
   bool running() const;
 

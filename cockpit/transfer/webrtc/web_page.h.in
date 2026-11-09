@@ -1,0 +1,4 @@
+#pragma once
+namespace cockpit::transfer {
+inline constexpr char kWebRtcPage[] = R"COCKPIT_PAGE(@COCKPIT_WEBRTC_PAGE@)COCKPIT_PAGE";
+}

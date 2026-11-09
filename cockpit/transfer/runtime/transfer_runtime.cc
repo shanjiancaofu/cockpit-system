@@ -17,7 +17,7 @@ TransferRuntime::~TransferRuntime() {
 }
 
 bool TransferRuntime::Start(const std::string& config_path, int samples, int max_hz) {
-  if (running_.load() || max_hz <= 0) {
+  if (running_.load() || worker_.joinable() || max_hz <= 0) {
     return false;
   }
 
@@ -33,6 +33,29 @@ bool TransferRuntime::Start(const std::string& config_path, int samples, int max
       return false;
     }
     const auto& rtsp_config = system_config.services().transfer;
+    if (rtsp_config.rtsp_enabled || rtsp_config.webrtc_enabled) {
+      std::string error;
+      if (!video_receiver_.Start(static_cast<std::uint16_t>(rtsp_config.rtsp_udp_port), &error)) {
+        LOG_ERROR(error);
+        Stop();
+        return false;
+      }
+    }
+    if (rtsp_config.webrtc_enabled) {
+      WebRtcServerConfig web;
+      web.address = rtsp_config.webrtc_address;
+      web.http_port = static_cast<std::uint16_t>(rtsp_config.webrtc_http_port);
+      web.udp_port_begin = static_cast<std::uint16_t>(rtsp_config.webrtc_udp_port_begin);
+      web.udp_port_end = static_cast<std::uint16_t>(rtsp_config.webrtc_udp_port_end);
+      web.fps = static_cast<unsigned>(rtsp_config.rtsp_fps);
+      web.max_clients = static_cast<unsigned>(rtsp_config.webrtc_max_clients);
+      std::string error;
+      if (!webrtc_server_.Start(web, video_receiver_, &error)) {
+        LOG_ERROR(error);
+        Stop();
+        return false;
+      }
+    }
     if (rtsp_config.rtsp_enabled) {
       RtspServerConfig server_config;
       server_config.address = rtsp_config.rtsp_address;
@@ -41,9 +64,9 @@ bool TransferRuntime::Start(const std::string& config_path, int samples, int max
       server_config.udp_port = static_cast<std::uint16_t>(rtsp_config.rtsp_udp_port);
       server_config.fps = static_cast<std::uint32_t>(rtsp_config.rtsp_fps);
       std::string rtsp_error;
-      if (!rtsp_server_.Start(server_config, &rtsp_error)) {
+      if (!rtsp_server_.Start(server_config, video_receiver_, &rtsp_error)) {
         LOG_ERROR(rtsp_error);
-        gateway_service_.Shutdown();
+        Stop();
         return false;
       }
     }
@@ -53,7 +76,7 @@ bool TransferRuntime::Start(const std::string& config_path, int samples, int max
     LOG_INFO("transfer runtime started grpc_address=" + gateway_config.grpc.listen_address);
   } catch (const std::exception& error) {
     LOG_ERROR("failed to configure transfer: " + std::string(error.what()));
-    gateway_service_.Shutdown();
+    Stop();
     return false;
   }
 
@@ -92,7 +115,9 @@ void TransferRuntime::Stop() {
     worker_.join();
   }
   gateway_service_.Shutdown();
+  webrtc_server_.Stop();
   rtsp_server_.Stop();
+  video_receiver_.Stop();
   vehicle_client_.reset();
   running_.store(false);
 }

@@ -42,6 +42,12 @@ struct GatewayConfig {
 };
 
 struct TransferServiceConfig {
+  bool webrtc_enabled = false;
+  std::string webrtc_address = "127.0.0.1";
+  int webrtc_http_port = 8080;
+  int webrtc_udp_port_begin = 50000;
+  int webrtc_udp_port_end = 50010;
+  int webrtc_max_clients = 1;
   bool rtsp_enabled = false;
   std::string rtsp_address = "0.0.0.0";
   int rtsp_port = 8554;

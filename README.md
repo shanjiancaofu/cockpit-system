@@ -361,3 +361,10 @@ Sherpa runtime 独立交付必须通过 `bash scripts/ai/prepare-sherpa-runtime.
 ```
 
 每批代码变更同步记录到 [变更记录](docs/变更记录.md)。
+
+### PR-10：H.264 WebRTC 浏览器预览
+
+可选使用固定版本 libdatachannel 0.23.3，将 Transfer 现有 H.264 UDP 输入共享给 RTSP 与
+WebRTC，不新增编码器，不改变 Native Camera 或 MP4 录像架构。默认关闭，构建时通过
+`-DCOCKPIT_ENABLE_WEBRTC=ON` 启用。依赖准备、配置、HTTP 接口与验收边界见
+[Camera V2 PR-10](docs/CameraV2-PR10.md)。

@@ -6,6 +6,8 @@
 #include <iterator>
 #include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace {
 
@@ -363,6 +365,28 @@ int main() {
       std::cerr << "legacy timeout error did not identify the field: " << error.what() << std::endl;
       return 1;
     }
+  }
+
+  for (const auto& entry :
+       std::vector<std::pair<std::string, std::string>>{{"webrtc_http_port", "0"},
+                                                        {"webrtc_udp_port_begin", "60000"},
+                                                        {"webrtc_udp_port_end", "65536"},
+                                                        {"webrtc_max_clients", "5"},
+                                                        {"rtsp_udp_port", "0"},
+                                                        {"rtsp_fps", "0"}}) {
+    auto content = ReadFile(VALID_CONFIG_PATH);
+    const auto position = content.find("  transfer:");
+    if (position == std::string::npos) return 1;
+    const auto end = content.find("\n  ", position + 12);
+    // Replace the complete transfer map so this works with fixture defaults too.
+    auto next_service = end;
+    while (next_service != std::string::npos && content.compare(next_service, 5, "\n    ") == 0)
+      next_service = content.find("\n  ", next_service + 1);
+    content.replace(
+        position,
+        next_service == std::string::npos ? content.size() - position : next_service - position,
+        "  transfer:\n    webrtc_enabled: true\n    " + entry.first + ": " + entry.second);
+    if (!ExpectRejectedConfig(content, "services.transfer")) return 1;
   }
 
   return 0;

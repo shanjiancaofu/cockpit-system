@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cockpit 实时视频</title>
+<style>
+body { margin: 2rem auto; padding: 0 1rem; max-width: 1080px; font: 16px system-ui; color: #e8edf3; background: #151b24; }
+video { width: 100%; background: #000; border-radius: 8px; }
+button { padding: .6rem 1.2rem; margin-right: .5rem; cursor: pointer; }
+#status { display: block; margin: 1rem 0; white-space: pre-wrap; }
+</style>
+<h1>Cockpit 实时视频</h1>
+<video id="video" autoplay muted playsinline controls></video>
+<p><button id="connect">连接 / 重连</button><button id="disconnect">断开</button></p>
+<output id="status" role="status">未连接</output>
+<script>
+'use strict';
+const video = document.getElementById('video');
+const status = document.getElementById('status');
+let current = null;
+const api = '/api/v1/webrtc';
+function report(message) { status.textContent = message; }
+async function request(path, options = {}) {
+  const response = await fetch(api + path, options);
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${response.status}`);
+  }
+  return response.status === 204 ? null : response.json();
+}
+function waitForIce(pc, signal) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => finish(new Error('ICE 收集超时')), 10000);
+    const changed = () => { if (pc.iceGatheringState === 'complete') finish(); };
+    const aborted = () => finish(new DOMException('已取消', 'AbortError'));
+    function finish(error) {
+      clearTimeout(timer);
+      pc.removeEventListener('icegatheringstatechange', changed);
+      signal.removeEventListener('abort', aborted);
+      error ? reject(error) : resolve();
+    }
+    pc.addEventListener('icegatheringstatechange', changed);
+    signal.addEventListener('abort', aborted, { once: true });
+    if (signal.aborted) aborted(); else changed();
+  });
+}
+async function disconnect(showStatus = true) {
+  const session = current;
+  current = null;
+  if (session) {
+    session.abort.abort();
+    clearTimeout(session.videoTimer);
+    clearInterval(session.poll);
+    session.pc.close();
+    if (session.id) {
+      await fetch(`${api}/sessions/${encodeURIComponent(session.id)}`, { method: 'DELETE', keepalive: true }).catch(() => {});
+    }
+  }
+  video.srcObject = null;
+  if (showStatus) report('已断开');
+}
+async function connect() {
+  // Claim the attempt before awaiting DELETE, so repeated clicks cannot create peers in parallel.
+  const previous = disconnect(false);
+  const session = { pc: new RTCPeerConnection({ iceServers: [] }), abort: new AbortController(), id: null };
+  current = session;
+  const pc = session.pc;
+  report('正在连接…');
+  try {
+    await previous;
+    if (current !== session) return;
+    const state = await request('/status', { signal: session.abort.signal });
+    if (!state.video_available) throw new Error('视频尚未就绪，请启动 Camera 编码流后重连');
+    pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.ontrack = event => {
+      if (current !== session) return;
+      video.srcObject = event.streams[0] || new MediaStream([event.track]);
+      video.play().catch(() => report('连接已建立，请点击播放器播放'));
+    };
+    pc.onconnectionstatechange = () => {
+      if (current !== session) return;
+      report(`连接状态：${pc.connectionState}`);
+      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        void disconnect(false);
+        report('连接已结束，点击连接 / 重连恢复');
+      }
+    };
+    await pc.setLocalDescription(await pc.createOffer());
+    await waitForIce(pc, session.abort.signal);
+    // Leave the in-flight POST alive on disconnect: if it succeeds we must DELETE
+    // its returned id rather than orphan a server peer until the timeout.
+    const answer = await request('/sessions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'offer', sdp: pc.localDescription.sdp })
+    });
+    session.id = answer.id;
+    if (current !== session) {
+      await fetch(`${api}/sessions/${encodeURIComponent(answer.id)}`, { method: 'DELETE', keepalive: true });
+      return;
+    }
+    await pc.setRemoteDescription({ type: answer.type, sdp: answer.sdp });
+    session.videoTimer = setTimeout(() => {
+      if (current === session && !video.videoWidth) report('连接等待视频，请确认编码持续输出 IDR，或点击重连');
+    }, 10000);
+    session.poll = setInterval(async () => {
+      try {
+        const state = await request('/status', { signal: session.abort.signal });
+        if (current === session && !state.sessions.some(peer => peer.id === session.id)) {
+          await disconnect(false);
+          report('视频流或会话已结束，点击连接 / 重连恢复');
+        }
+      } catch (_) { /* Connection-state and ICE timeout handle transient errors. */ }
+    }, 1500);
+  } catch (error) {
+    if (current !== session) return;
+    await disconnect(false);
+    report(`连接失败：${error.message}`);
+  }
+}
+video.addEventListener('resize', () => {
+  if (current && video.videoWidth) report(`正在播放 ${video.videoWidth} × ${video.videoHeight}`);
+});
+document.getElementById('connect').onclick = () => void connect();
+document.getElementById('disconnect').onclick = () => void disconnect();
+window.addEventListener('pagehide', () => { void disconnect(false); });
+</script>
+</html>

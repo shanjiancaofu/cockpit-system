@@ -93,3 +93,11 @@ install(FILES README.md
     DESTINATION ${CMAKE_INSTALL_DATADIR}/cockpit-system
     COMPONENT Runtime
 )
+
+if(COCKPIT_ENABLE_WEBRTC)
+    # Bundle the pinned shared library alongside the modules using its SONAME.
+    install(FILES "$<TARGET_FILE:LibDataChannel::LibDataChannel>"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RENAME "$<TARGET_SONAME_FILE_NAME:LibDataChannel::LibDataChannel>"
+        COMPONENT Runtime)
+endif()

@@ -5,7 +5,7 @@ struct RtspServer::Impl {};
 RtspServer::RtspServer() : impl_(std::make_unique<Impl>()) {
 }
 RtspServer::~RtspServer() = default;
-bool RtspServer::Start(const RtspServerConfig&, std::string* error) {
+bool RtspServer::Start(const RtspServerConfig&, H264Receiver&, std::string* error) {
   if (error) *error = "GStreamer RTSP Server dependency is unavailable";
   return false;
 }

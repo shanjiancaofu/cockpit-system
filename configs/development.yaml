@@ -27,6 +27,13 @@ services:
     grpc:
       listen_address: 127.0.0.1:50051
   transfer:
+    # Shared Camera CRP1 input remains rtsp_udp_port, even in WebRTC-only mode.
+    webrtc_enabled: false
+    webrtc_address: 127.0.0.1
+    webrtc_http_port: 8080
+    webrtc_udp_port_begin: 50000
+    webrtc_udp_port_end: 50010
+    webrtc_max_clients: 1
     rtsp_enabled: false
     rtsp_address: 0.0.0.0
     rtsp_port: 8554

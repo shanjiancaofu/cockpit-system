@@ -180,9 +180,10 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
       Read(gateway_grpc, "listen_address", config.services_.gateway.grpc.listen_address,
            "services.gateway.grpc.listen_address");
   const YAML::Node transfer = ChildMap(services, "transfer", "services.transfer");
-  ValidateKeys(
-      transfer, "services.transfer",
-      {"rtsp_enabled", "rtsp_address", "rtsp_port", "rtsp_path", "rtsp_udp_port", "rtsp_fps"});
+  ValidateKeys(transfer, "services.transfer",
+               {"rtsp_enabled", "rtsp_address", "rtsp_port", "rtsp_path", "rtsp_udp_port",
+                "rtsp_fps", "webrtc_enabled", "webrtc_address", "webrtc_http_port",
+                "webrtc_udp_port_begin", "webrtc_udp_port_end", "webrtc_max_clients"});
   config.services_.transfer.rtsp_enabled =
       Read(transfer, "rtsp_enabled", config.services_.transfer.rtsp_enabled,
            "services.transfer.rtsp_enabled");
@@ -198,6 +199,24 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
            "services.transfer.rtsp_udp_port");
   config.services_.transfer.rtsp_fps =
       Read(transfer, "rtsp_fps", config.services_.transfer.rtsp_fps, "services.transfer.rtsp_fps");
+  config.services_.transfer.webrtc_enabled =
+      Read(transfer, "webrtc_enabled", config.services_.transfer.webrtc_enabled,
+           "services.transfer.webrtc_enabled");
+  config.services_.transfer.webrtc_address =
+      Read(transfer, "webrtc_address", config.services_.transfer.webrtc_address,
+           "services.transfer.webrtc_address");
+  config.services_.transfer.webrtc_http_port =
+      Read(transfer, "webrtc_http_port", config.services_.transfer.webrtc_http_port,
+           "services.transfer.webrtc_http_port");
+  config.services_.transfer.webrtc_udp_port_begin =
+      Read(transfer, "webrtc_udp_port_begin", config.services_.transfer.webrtc_udp_port_begin,
+           "services.transfer.webrtc_udp_port_begin");
+  config.services_.transfer.webrtc_udp_port_end =
+      Read(transfer, "webrtc_udp_port_end", config.services_.transfer.webrtc_udp_port_end,
+           "services.transfer.webrtc_udp_port_end");
+  config.services_.transfer.webrtc_max_clients =
+      Read(transfer, "webrtc_max_clients", config.services_.transfer.webrtc_max_clients,
+           "services.transfer.webrtc_max_clients");
   const YAML::Node audio_service = ChildMap(services, "audio", "services.audio");
   ValidateKeys(audio_service, "services.audio", {"auto_start", "grpc"});
   config.services_.audio.auto_start = Read(
@@ -302,9 +321,9 @@ SystemConfig SystemConfig::LoadFromFile(const std::string& path) {
 
   const YAML::Node recording = ChildMap(services, "recording", "services.recording");
   ValidateKeys(recording, "services.recording",
-               {"auto_start", "directory", "vehicle_data_address", "h264_udp_port", "stream_timeout_ms",
-                "retry_delay_ms", "max_sessions", "max_total_bytes", "max_session_bytes",
-                "max_session_duration_seconds", "min_free_bytes", "grpc"});
+               {"auto_start", "directory", "vehicle_data_address", "h264_udp_port",
+                "stream_timeout_ms", "retry_delay_ms", "max_sessions", "max_total_bytes",
+                "max_session_bytes", "max_session_duration_seconds", "min_free_bytes", "grpc"});
   config.services_.recording.auto_start =
       Read(recording, "auto_start", config.services_.recording.auto_start,
            "services.recording.auto_start");
@@ -603,11 +622,25 @@ void SystemConfig::Validate() const {
   ValidateAddress(services_.gateway.grpc.listen_address, "services.gateway.grpc.listen_address");
   RequirePositive(services_.gateway.stream_timeout_ms, "services.gateway.stream_timeout_ms");
   RequirePositive(services_.gateway.retry_delay_ms, "services.gateway.retry_delay_ms");
+  const auto& transfer = services_.transfer;
+  if (transfer.rtsp_enabled || transfer.webrtc_enabled) {
+    if (transfer.rtsp_udp_port <= 0 || transfer.rtsp_udp_port > 65535 || transfer.rtsp_fps <= 0 ||
+        transfer.rtsp_fps > 240)
+      throw std::runtime_error("services.transfer shared H264 port/FPS invalid");
+  }
+  if (transfer.webrtc_enabled) {
+    if (transfer.webrtc_address.empty() || transfer.webrtc_http_port <= 0 ||
+        transfer.webrtc_http_port > 65535 || transfer.webrtc_udp_port_begin <= 0 ||
+        transfer.webrtc_udp_port_end > 65535 ||
+        transfer.webrtc_udp_port_end < transfer.webrtc_udp_port_begin ||
+        transfer.webrtc_max_clients <= 0 || transfer.webrtc_max_clients > 4)
+      throw std::runtime_error("services.transfer WebRTC configuration invalid");
+  }
   if (services_.transfer.rtsp_enabled) {
     if (services_.transfer.rtsp_address.empty() || services_.transfer.rtsp_port <= 0 ||
-        services_.transfer.rtsp_port > 65535 ||
-        services_.transfer.rtsp_udp_port <= 0 || services_.transfer.rtsp_udp_port > 65535 ||
-        services_.transfer.rtsp_fps <= 0 || services_.transfer.rtsp_path.empty()) {
+        services_.transfer.rtsp_port > 65535 || services_.transfer.rtsp_udp_port <= 0 ||
+        services_.transfer.rtsp_udp_port > 65535 || services_.transfer.rtsp_fps <= 0 ||
+        services_.transfer.rtsp_path.empty()) {
       throw std::runtime_error("services.transfer RTSP address, port, FPS and path are invalid");
     }
   }

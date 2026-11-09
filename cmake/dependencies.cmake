@@ -22,3 +22,9 @@ find_program(COCKPIT_GRPC_CPP_PLUGIN_EXECUTABLE
     NAMES grpc_cpp_plugin
     REQUIRED
 )
+
+option(COCKPIT_ENABLE_WEBRTC "Build libdatachannel H264 browser streaming" OFF)
+if(COCKPIT_ENABLE_WEBRTC)
+    find_package(LibDataChannel 0.23.3 EXACT CONFIG REQUIRED)
+    pkg_check_modules(WEBRTC_HTTP REQUIRED IMPORTED_TARGET libsoup-2.4 json-glib-1.0)
+endif()
