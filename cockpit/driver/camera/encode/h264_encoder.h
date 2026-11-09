@@ -33,6 +33,8 @@ struct H264EncoderStats {
   std::uint64_t packets_emitted = 0;
   std::uint64_t keyframes = 0;
   std::uint64_t bytes_emitted = 0;
+  std::uint64_t idr_requests = 0;
+  std::uint64_t forced_idr_frames = 0;
 };
 
 struct H264UdpPublisherConfig {
@@ -58,6 +60,9 @@ class H264Encoder final {
   bool Encode(const CpuVideoFrame& frame, std::vector<H264Packet>* packets,
               std::string* error = nullptr);
   bool Flush(std::vector<H264Packet>* packets, std::string* error = nullptr);
+  // Coalesced request: force a real IDR on an eligible future Encode, not merely
+  // an I-slice. At most one forced IDR per 250 ms; accepted does not mean emitted.
+  bool RequestIdr(std::string* error = nullptr);
   void Stop();
   bool running() const;
   H264EncoderStats stats() const;

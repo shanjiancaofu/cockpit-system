@@ -733,3 +733,23 @@ if(COCKPIT_NODE_EXECUTABLE)
         ${PROJECT_SOURCE_DIR}/cockpit/transfer/webrtc/web/index.html)
     set_tests_properties(webrtc_preview_test PROPERTIES TIMEOUT 15)
 endif()
+
+# Opt-in real-device probe: consumes the running Transfer stream, never encodes.
+# Not add_test(): hardware/browser acceptance must not silently use test fixtures.
+if(COCKPIT_ENABLE_WEBRTC AND FFMPEG_FOUND)
+    add_executable(webrtc_live_probe modules/transfer/webrtc_live_probe.cc)
+    target_link_libraries(webrtc_live_probe PRIVATE webrtc_server PkgConfig::FFMPEG)
+endif()
+
+add_test(NAME webrtc_browser_evidence_test COMMAND "${COCKPIT_ARCH_PYTHON}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tools/webrtc_browser_acceptance_test.py")
+set_tests_properties(webrtc_browser_evidence_test PROPERTIES TIMEOUT 15)
+
+add_executable(h264_idr_test modules/camera/h264_idr_test.cc)
+target_link_libraries(h264_idr_test PRIVATE camera_h264_encoder)
+add_test(NAME h264_idr_test COMMAND h264_idr_test)
+set_tests_properties(h264_idr_test PROPERTIES TIMEOUT 10 SKIP_RETURN_CODE 77)
+add_executable(camera_keyframe_client_test modules/transfer/camera_keyframe_client_test.cc)
+target_link_libraries(camera_keyframe_client_test PRIVATE transfer_runtime)
+add_test(NAME camera_keyframe_client_test COMMAND camera_keyframe_client_test)
+set_tests_properties(camera_keyframe_client_test PROPERTIES TIMEOUT 10)

@@ -42,6 +42,8 @@ bool TransferRuntime::Start(const std::string& config_path, int samples, int max
       }
     }
     if (rtsp_config.webrtc_enabled) {
+      keyframe_client_ = std::make_shared<CameraKeyframeClient>(
+          system_config.services().camera.grpc.listen_address);
       WebRtcServerConfig web;
       web.address = rtsp_config.webrtc_address;
       web.http_port = static_cast<std::uint16_t>(rtsp_config.webrtc_http_port);
@@ -50,7 +52,9 @@ bool TransferRuntime::Start(const std::string& config_path, int samples, int max
       web.fps = static_cast<unsigned>(rtsp_config.rtsp_fps);
       web.max_clients = static_cast<unsigned>(rtsp_config.webrtc_max_clients);
       std::string error;
-      if (!webrtc_server_.Start(web, video_receiver_, &error)) {
+      if (!webrtc_server_.Start(web, video_receiver_, &error, [client = keyframe_client_] {
+            client->Request();
+          })) {
         LOG_ERROR(error);
         Stop();
         return false;
@@ -115,9 +119,12 @@ void TransferRuntime::Stop() {
     worker_.join();
   }
   gateway_service_.Shutdown();
+  // Keep the callback target alive until all peer/subscription callbacks stop.
+  if (keyframe_client_) keyframe_client_->Stop();
   webrtc_server_.Stop();
   rtsp_server_.Stop();
   video_receiver_.Stop();
+  keyframe_client_.reset();
   vehicle_client_.reset();
   running_.store(false);
 }

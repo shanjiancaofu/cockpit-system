@@ -111,8 +111,10 @@ bool Crp1Assembler::TakeDiscontinuity() {
   return std::exchange(discontinuity_, false);
 }
 
-VideoSubscription::VideoSubscription(Consumer consumer, std::size_t capacity)
+VideoSubscription::VideoSubscription(Consumer consumer, std::size_t capacity,
+                                     std::function<void()> request_idr)
     : capacity_(std::max<std::size_t>(1, capacity)),
+      request_idr_(std::move(request_idr)),
       worker_([this, consumer = std::move(consumer)] {
         for (;;) {
           VideoFramePtr frame;
@@ -148,7 +150,7 @@ void VideoSubscription::Stop() {
   if (worker_.joinable()) worker_.join();
 }
 void VideoSubscription::Enqueue(VideoFramePtr frame) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   if (stopping_) return;
   const bool reset = generation_ != frame->generation || frame->discontinuity ||
                      queue_.size() >= capacity_ ||
@@ -160,7 +162,11 @@ void VideoSubscription::Enqueue(VideoFramePtr frame) {
     generation_ = frame->generation;
   }
   if (waiting_) {
-    if (!frame->packet.keyframe || frame->sps.size() < 4 || frame->pps.empty()) return;
+    if (!frame->packet.keyframe || frame->sps.size() < 4 || frame->pps.empty()) {
+      lock.unlock();
+      if (request_idr_) request_idr_();  // Callback must only enqueue a coalesced request.
+      return;
+    }
     // Propagate local queue loss so the downstream RTP/RTSP consumer also resets.
     auto resumed = std::make_shared<VideoFrame>(*frame);
     resumed->discontinuity = true;
@@ -206,10 +212,13 @@ void H264Receiver::Stop() {
   socket_ = -1;
   std::lock_guard<std::mutex> lock(mutex_);
   status_.available = false;
+  status_.has_idr = false;
   last_input_ = {};
 }
-std::shared_ptr<VideoSubscription> H264Receiver::Subscribe(VideoSubscription::Consumer consumer) {
-  auto subscription = std::make_shared<VideoSubscription>(std::move(consumer));
+std::shared_ptr<VideoSubscription> H264Receiver::Subscribe(VideoSubscription::Consumer consumer,
+                                                           std::function<void()> request_idr) {
+  auto subscription =
+      std::make_shared<VideoSubscription>(std::move(consumer), 8, std::move(request_idr));
   std::lock_guard<std::mutex> lock(mutex_);
   subscribers_.push_back(subscription);
   return subscription;
@@ -217,8 +226,11 @@ std::shared_ptr<VideoSubscription> H264Receiver::Subscribe(VideoSubscription::Co
 VideoStatus H264Receiver::Status() const {
   std::lock_guard<std::mutex> lock(mutex_);
   auto status = status_;
-  status.available =
-      status.available && std::chrono::steady_clock::now() - last_input_ < std::chrono::seconds(2);
+  if (last_input_ != std::chrono::steady_clock::time_point{})
+    status.input_age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                              std::chrono::steady_clock::now() - last_input_)
+                              .count();
+  status.available = status.available && status.input_age_ms >= 0 && status.input_age_ms < 2000;
   return status;
 }
 void H264Receiver::Publish(H264Packet packet, bool discontinuity) {
@@ -241,6 +253,7 @@ void H264Receiver::Publish(H264Packet packet, bool discontinuity) {
   if (!status_.pps.empty() && next_pps != status_.pps) restart = true;
   if (restart) {
     ++status_.generation;
+    status_.has_idr = false;
     // Parameter sets from a previous encoder generation must never be reused.
     status_.sps.clear();
     status_.pps.clear();
@@ -256,6 +269,7 @@ void H264Receiver::Publish(H264Packet packet, bool discontinuity) {
   last_input_ = now;
   status_.available = true;
   if (!vcl) return;
+  if (idr && status_.sps.size() >= 4 && !status_.pps.empty()) status_.has_idr = true;
   packet.keyframe = idr;  // Validate actual NAL type, never trust only the wire flag.
   packet.data.clear();
   if (idr && !status_.sps.empty() && !status_.pps.empty()) {

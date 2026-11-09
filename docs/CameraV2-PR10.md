@@ -134,7 +134,8 @@ _output/build/pr10/bin/camera-ctl --start --device nvargus://0 \
   WebRTC 清理旧 Peer，用户点击重连；第一版不做后台自动无限重试。
 - 90 kHz RTP 时间戳按 `PTS / FPS` 映射，每 Peer 第一帧建立独立原点；队列丢帧不重置
   该 RTP 原点。MTU 1200、NAL 分片上限 1000，SR/NACK 缓存上限 512 个 RTP 包。
-  PLI/FIR 只等待已有编码器下一个周期 IDR，不向 Camera 增加控制通道或新编码。
+  新 Track 打开、PLI/FIR、WebRTC 队列溢出和发送失败会异步请求 Camera IDR。
+  复用 CameraControl gRPC，不新增服务/编码器；请求合并且限频 250 ms，失败仍可等周期 IDR。
 
 ## 自动测试与人工验收边界
 
@@ -190,3 +191,51 @@ libavcodec 真正解码并检查尺寸。它不是 Chrome/Edge 验收，也不�
 
 开发日志在未入版本控制的 `_output/pr10-final-tests.log`、
 `_output/build/pr10/Testing/Temporary/LastTest.log` 和 `_output/pr10-sanitizers/`。
+
+
+## 设备端后续验收
+
+真实 Native Camera 的 720P/1080P 接收解码、停流/重启、RTSP/事件 MP4 并行记录，以及
+在 Chrome/Edge 工作站执行实播验收的命令，见 [PR-10 设备验收记录](CameraV2-PR10-acceptance.md)。
+该记录明确区分 C++ 解码、Qt 进程运行、播放器可见画面与真正浏览器播放，不替代人工验收。
+
+
+## 主动 IDR 与分阶段就绪（P2 补齐）
+
+- `CameraControl.RequestKeyframe(Empty)` 返回 `accepted/error`；accepted 仅表示请求入队或合并，
+  不等于已经产生关键帧。停止、未编码或非 Native 后端会明确拒绝。
+- 链路：Transfer 的异步 coalescing worker -> 现有 Camera gRPC -> CameraService ->
+  NativeArgusPreviewSource -> H264Encoder。不会重启 Camera、重建编码器或增加第二份编码。
+- 编码端用 FFmpeg libx264 的 `forced-idr=1` 配合下一次 Encode 的 I-picture 请求，
+  保证产生 IDR 而非只有普通 I-slice；实际 NAL type 5、SPS/PPS 由测试检查。
+- Transfer RPC 最多每 250 ms 一次，单次 deadline 150 ms；Stop 会取消正在等待的 RPC。
+  编码端也最多每 250 ms 强制一次，期间请求保留为一个 pending 标志。两层都按单编码流合并，
+  不随浏览器数增加而复制编码或积压请求。
+- 新 Track onOpen、PLI/FIR、WebRTC 订阅队列溢出、RTP 背压/发送异常会触发请求。
+  Camera 控制链不可用时记录错误并保留原有周期 IDR 恢复能力。
+- Camera status 增加 `native_encoder_idr_requests`、`native_encoder_forced_idr_frames`。
+  后者是强制提交的帧数；要证明码流真正输出 IDR，仍需检查 NAL/接收解码证据。
+- HTTP status 增加 `stream_state`、`input_age_ms`、`idr_received`。阶段为 `no_input`、
+  `waiting_parameter_sets`、`waiting_idr`、`ready`、`stalled`、`stopped`。
+  `video_available` 需要当前输入未超时、SPS/PPS 和当前 generation 的 IDR 已观察到；
+  不再仅凭收到参数集就报告就绪。这是诊断字段，不是新增调度状态机。
+- WebRTC connected 与浏览器实际 framesDecoded 仍是独立阶段，不能用 `stream_state=ready`
+  代替浏览器播放成功。
+
+手动验证（先使用新构建重启 Camera 与 Transfer）：
+
+```bash
+_output/build/pr10/bin/camera-ctl --config YOUR_CONFIG --request-idr --output json
+_output/build/pr10/bin/camera-ctl --config YOUR_CONFIG --status --output json
+```
+
+验证 PLI 的设备接收 probe（不要同时占用默认单 Peer 的浏览器）：
+
+```bash
+_output/build/pr10/bin/webrtc_live_probe \
+  --base-url http://JETSON_IP:8080 --width 1280 --height 720 \
+  --seconds 6 --pli-after-seconds 2 --output _output/webrtc-acceptance/pli.json
+```
+
+新增 `h264_idr_test`、`camera_keyframe_client_test`；现有 WebRTC 与队列测试补了 onOpen、
+PLI、溢出后的主动请求断言。均不把 RPC accepted 或计数增长单独当成解码成功。

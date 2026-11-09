@@ -11,7 +11,7 @@
 namespace {
 
 void PrintUsage() {
-  std::cout << "camera-ctl [--list|--status|--start|--stop|--photo] "
+  std::cout << "camera-ctl [--list|--status|--start|--stop|--photo|--request-idr] "
                "[--device /dev/video0|nvargus://0] [--width 640] [--height 480] [--fps 30] "
                "[--h264-output file.h264 --h264-width 1280 --h264-height 720] "
                "[--h264-udp-host 127.0.0.1 --h264-udp-port 8556] "
@@ -75,7 +75,9 @@ void PrintStatusText(const cockpit::proto::camera::CameraStatus& status) {
               << "native encoder frames: " << status.native_encoder_frames_submitted() << '\n'
               << "native encoder packets: " << status.native_encoder_packets() << '\n'
               << "native encoder keyframes: " << status.native_encoder_keyframes() << '\n'
-              << "native encoder bytes: " << status.native_encoder_bytes() << '\n';
+              << "native encoder bytes: " << status.native_encoder_bytes() << '\n'
+              << "native IDR requests: " << status.native_encoder_idr_requests() << '\n'
+              << "native forced IDR frames: " << status.native_encoder_forced_idr_frames() << '\n';
   }
   if (!status.last_error_kind().empty()) {
     std::cout << "last error kind: " << status.last_error_kind() << '\n';
@@ -135,10 +137,11 @@ int cockpit::camera_ctl::ControlCamera(const cockpit::runtime::ProcessRuntime& r
   const bool start = runtime.args().HasFlag("start");
   const bool stop = runtime.args().HasFlag("stop");
   const bool photo = runtime.args().HasFlag("photo");
+  const bool request_idr = runtime.args().HasFlag("request-idr");
   const bool status_command = runtime.args().HasFlag("status");
   const int command_count = static_cast<int>(list) + static_cast<int>(start) +
                             static_cast<int>(stop) + static_cast<int>(photo) +
-                            static_cast<int>(status_command);
+                            static_cast<int>(status_command) + static_cast<int>(request_idr);
   if (command_count > 1) {
     return PrintArgumentError(runtime, output_format, "select exactly one camera command");
   }
@@ -146,6 +149,18 @@ int cockpit::camera_ctl::ControlCamera(const cockpit::runtime::ProcessRuntime& r
   const auto& config = runtime.config().services().camera;
   cockpit::camera::CameraControlClient client(config.grpc.listen_address);
 
+  if (request_idr) {
+    cockpit::proto::camera::RequestKeyframeResponse response;
+    if (!client.RequestKeyframe(&response, &error) || !response.accepted()) {
+      return PrintError(runtime, output_format, error.empty() ? response.error() : error);
+    }
+    if (output_format == cockpit::diagnostics::OutputFormat::kJson)
+      return PrintMessage(response, output_format, &error)
+                 ? 0
+                 : PrintError(runtime, output_format, error);
+    std::cout << "IDR request accepted (queued/coalesced; not an emission acknowledgement)\n";
+    return 0;
+  }
   if (list) {
     cockpit::proto::camera::ListCameraDevicesResponse response;
     if (!client.ListDevices(&response, &error)) {
@@ -195,12 +210,14 @@ int cockpit::camera_ctl::ControlCamera(const cockpit::runtime::ProcessRuntime& r
     request.set_h264_udp_host(runtime.args().GetString("h264-udp-host", ""));
     const int h264_udp_port = runtime.args().GetInt("h264-udp-port", 0);
     if (h264_udp_port < 0 || h264_udp_port > 65535) {
-      return PrintArgumentError(runtime, output_format, "H264 UDP port must be between 0 and 65535");
+      return PrintArgumentError(runtime, output_format,
+                                "H264 UDP port must be between 0 and 65535");
     }
     request.set_h264_udp_port(static_cast<std::uint32_t>(h264_udp_port));
     const int recording_port = runtime.args().GetInt("recording-udp-port", 0);
     if (recording_port < 0 || recording_port > 65535) {
-      return PrintArgumentError(runtime, output_format, "Recording UDP port must be between 0 and 65535");
+      return PrintArgumentError(runtime, output_format,
+                                "Recording UDP port must be between 0 and 65535");
     }
     request.set_recording_udp_port(static_cast<std::uint32_t>(recording_port));
     cockpit::proto::camera::CameraStatus status;

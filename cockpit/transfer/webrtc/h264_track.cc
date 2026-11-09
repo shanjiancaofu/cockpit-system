@@ -42,8 +42,9 @@ int Profile(unsigned idc, unsigned constraints) {
 }
 class KeyframeFeedback final : public rtc::MediaHandler {
  public:
-  explicit KeyframeFeedback(std::shared_ptr<std::atomic_bool> waiting)
-      : waiting_(std::move(waiting)) {
+  explicit KeyframeFeedback(std::shared_ptr<std::atomic_bool> waiting,
+                            std::function<void()> request_idr)
+      : waiting_(std::move(waiting)), request_idr_(std::move(request_idr)) {
   }
   void incoming(rtc::message_vector& messages, const rtc::message_callback&) override {
     for (const auto& message : messages) {
@@ -52,8 +53,10 @@ class KeyframeFeedback final : public rtc::MediaHandler {
         const auto* p = data + offset;
         const auto length = (std::size_t(p[2]) * 256 + p[3] + 1) * 4;
         if (length < 4 || offset + length > message->size()) break;
-        if ((p[0] >> 6) == 2 && p[1] == 206 && ((p[0] & 31) == 1 || (p[0] & 31) == 4))
-          waiting_->store(true);  // PLI/FIR: wait for the encoder's next periodic IDR.
+        if ((p[0] >> 6) == 2 && p[1] == 206 && ((p[0] & 31) == 1 || (p[0] & 31) == 4)) {
+          waiting_->store(true);
+          if (request_idr_) request_idr_();
+        }
         offset += length;
       }
     }
@@ -61,6 +64,7 @@ class KeyframeFeedback final : public rtc::MediaHandler {
 
  private:
   std::shared_ptr<std::atomic_bool> waiting_;
+  std::function<void()> request_idr_;
 };
 }  // namespace
 
@@ -108,8 +112,8 @@ rtc::Description::Video SelectH264Video(const rtc::Description& offer,
       H264ProfileLevelId(sps));
 }
 H264Track::H264Track(std::shared_ptr<rtc::PeerConnection> pc, rtc::Description::Video video,
-                     std::uint64_t generation, unsigned fps)
-    : generation_(generation), fps_(fps) {
+                     std::uint64_t generation, unsigned fps, std::function<void()> request_idr)
+    : request_idr_(std::move(request_idr)), generation_(generation), fps_(fps) {
   const auto ssrc = std::random_device{}();
   const auto pt = static_cast<std::uint8_t>(video.payloadTypes().front());
   video.addSSRC(ssrc, "cockpit", "camera", "video");
@@ -119,14 +123,19 @@ H264Track::H264Track(std::shared_ptr<rtc::PeerConnection> pc, rtc::Description::
       std::make_shared<rtc::H264RtpPacketizer>(rtc::NalUnit::Separator::StartSequence, rtp_, 1000);
   packetizer->addToChain(std::make_shared<rtc::RtcpSrReporter>(rtp_));
   packetizer->addToChain(std::make_shared<rtc::RtcpNackResponder>(512));
-  packetizer->addToChain(std::make_shared<KeyframeFeedback>(waiting_));
+  packetizer->addToChain(std::make_shared<KeyframeFeedback>(waiting_, request_idr_));
   track_->setMediaHandler(packetizer);
+  track_->onOpen([waiting = waiting_, request = request_idr_] {
+    waiting->store(true);
+    if (request) request();
+  });
 }
 void H264Track::Send(VideoFramePtr frame) {
   if (frame->generation != generation_) return;
   if (frame->discontinuity) waiting_->store(true);
   if (!track_->isOpen() || track_->bufferedAmount() > 1024 * 1024) {
     waiting_->store(true);
+    if (track_->isOpen() && request_idr_) request_idr_();
     return;
   }
   if (waiting_->load()) {
@@ -149,6 +158,7 @@ void H264Track::Send(VideoFramePtr frame) {
                       frame->packet.data.size(), rtc::FrameInfo(timestamp));
   } catch (const std::exception&) {
     waiting_->store(true);
+    if (request_idr_) request_idr_();
   }
 }
 }  // namespace cockpit::transfer

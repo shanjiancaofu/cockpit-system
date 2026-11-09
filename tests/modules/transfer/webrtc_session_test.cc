@@ -290,15 +290,31 @@ int main() {
     WebRtcServerConfig config;
     config.http_port = FreePort();
     std::string error;
-    Check(server.Start(config, receiver, &error), error);
+    std::atomic_uint requested_idrs{0};
+    Check(server.Start(config, receiver, &error,
+                       [&] {
+                         ++requested_idrs;
+                       }),
+          error);
     const std::string api = "/api/v1/webrtc";
     Check(Http(config.http_port, "GET", "/").body.find("RTCPeerConnection") != std::string::npos,
           "page missing");
     Check(Http(config.http_port, "GET", api + "/status").body.find("\"video_available\":false") !=
               std::string::npos,
           "idle status wrong");
+    Check(
+        Http(config.http_port, "GET", api + "/status").body.find("\"stream_state\":\"no_input\"") !=
+            std::string::npos,
+        "initial stream stage wrong");
     Check(Http(config.http_port, "POST", api + "/sessions", "{}").code == 503,
           "unavailable stream accepted");
+    H264Packet parameters;
+    parameters.data = {0, 0, 0, 1, 0x67, 0x42, 0xe0, 0x1f, 0, 0, 0, 1, 0x68, 0xce, 0x3c, 0x80};
+    receiver.Publish(parameters, false);
+    const auto waiting = Http(config.http_port, "GET", api + "/status").body;
+    Check(waiting.find("\"stream_state\":\"waiting_idr\"") != std::string::npos &&
+              waiting.find("\"video_available\":false") != std::string::npos,
+          "SPS/PPS without IDR was advertised ready");
     std::atomic_bool stop{false};
     std::atomic<std::int64_t> pts{0};
     // std::thread is always joined, including assertion failures.
@@ -335,6 +351,7 @@ int main() {
 
     std::shared_ptr<rtc::PeerConnection> retained_pc;
     auto connect = [&](bool receive, bool keep = false) {
+      const auto before_create = requested_idrs.load();
       rtc::Configuration client_config;
       client_config.disableAutoNegotiation = true;
       auto pc = std::make_shared<rtc::PeerConnection>(client_config);
@@ -357,6 +374,13 @@ int main() {
                  "{\"type\":\"offer\",\"sdp\":" + Quote(incompatible) + "}")
                     .code == 400,
             "incompatible H264 profile accepted");
+      auto lower_level = offer;
+      lower_level.replace(profile_at, std::strlen("profile-level-id=42e01f"),
+                          "profile-level-id=42e00a");
+      Check(Http(config.http_port, "POST", api + "/sessions",
+                 "{\"type\":\"offer\",\"sdp\":" + Quote(lower_level) + "}")
+                    .code == 400,
+            "offer with insufficient receive Level was accepted");
       const auto response = Http(config.http_port, "POST", api + "/sessions",
                                  "{\"type\":\"offer\",\"sdp\":" + Quote(offer) + "}");
       Check(response.code == 201,
@@ -413,7 +437,13 @@ int main() {
           std::lock_guard<std::mutex> lock(metrics->mutex);
           Check(!metrics->oversized, "RTP exceeds configured MTU");
         }
+        Check(requested_idrs > before_create, "new peer did not request IDR on track open");
+        const auto before_pli = requested_idrs.load();
         Check(track->requestKeyframe(), "RTCP PLI failed");
+        Check(Wait([&] {
+                return requested_idrs > before_pli;
+              }),
+              "PLI did not actively request IDR");
         track->resetCallbacks();
         if (keep)
           retained_pc = pc;

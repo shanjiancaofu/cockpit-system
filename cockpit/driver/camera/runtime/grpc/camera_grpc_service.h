@@ -34,6 +34,8 @@ class CameraGrpcService final : public proto::camera::CameraControl::Service {
                             proto::camera::CameraStatus* response) override;
   grpc::Status StopPreview(grpc::ServerContext* context, const proto::common::Empty* request,
                            proto::camera::CameraStatus* response) override;
+  grpc::Status RequestKeyframe(grpc::ServerContext*, const proto::common::Empty*,
+                               proto::camera::RequestKeyframeResponse*) override;
   grpc::Status GetStatus(grpc::ServerContext* context, const proto::common::Empty* request,
                          proto::camera::CameraStatus* response) override;
   grpc::Status TakePhoto(grpc::ServerContext* context,

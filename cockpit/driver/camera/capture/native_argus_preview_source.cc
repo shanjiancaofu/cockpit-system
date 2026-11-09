@@ -125,7 +125,7 @@ struct Run {
         std::string error;
         if (config.h264_output_path.size()) Require(writer.Write(packet, &error), error);
         if (udp) Require(udp->Publish(packet, &error), error);
-          if (recording_udp) recording_udp->Publish(packet, nullptr);
+        if (recording_udp) recording_udp->Publish(packet, nullptr);
       }
       std::string error;
       Require(writer.Close(&error), error);
@@ -204,7 +204,8 @@ bool NativeArgusPreviewSource::Start(const CameraPreviewConfig& config, FrameCal
       Require(next->capture.ApplyTuningProfile(profile, nullptr, error),
               error ? *error : "native profile rejected");
     Require(next->capture.GetTuning(&state, error), error ? *error : "native state unavailable");
-    if (!config.h264_output_path.empty() || config.h264_udp_port != 0 || config.recording_udp_port != 0) {
+    if (!config.h264_output_path.empty() || config.h264_udp_port != 0 ||
+        config.recording_udp_port != 0) {
       Require(H264Encoder::IsSupported(), "H264 encoder dependencies unavailable");
       H264EncoderConfig encoder_config;
       encoder_config.width = config.h264_width;
@@ -288,6 +289,14 @@ bool NativeArgusPreviewSource::ApplyTuningProfile(std::uint64_t session, std::ui
   return impl_->Check(session, revision, error) &&
          impl_->run->capture.ApplyTuningProfile(profile, nullptr, error) &&
          impl_->run->capture.GetTuning(state, error);
+}
+bool NativeArgusPreviewSource::RequestIdr(std::string* error) {
+  std::lock_guard<std::mutex> lock(impl_->lifecycle);
+  if (!impl_->run || !impl_->run->running || !impl_->run->encoder) {
+    Error(error, "native H264 encoder is not running");
+    return false;
+  }
+  return impl_->run->encoder->RequestIdr(error);
 }
 bool NativeArgusPreviewSource::GetNativeStatus(NativePreviewStatus* status) const {
   if (!status) return false;

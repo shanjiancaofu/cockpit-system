@@ -1,4 +1,5 @@
 add_library(transfer_runtime STATIC
+    ${PROJECT_SOURCE_DIR}/cockpit/transfer/runtime/camera_keyframe_client.cc
     ${PROJECT_SOURCE_DIR}/cockpit/transfer/runtime/gateway_grpc_service.cc
     ${PROJECT_SOURCE_DIR}/cockpit/transfer/runtime/transfer_runtime.cc
     ${PROJECT_SOURCE_DIR}/cockpit/transfer/runtime/vehicle_state_client.cc

@@ -44,6 +44,9 @@ bool CameraPreviewModule::ApplyTuningProfile(std::uint64_t session, std::uint32_
   return preview_source_ &&
          preview_source_->ApplyTuningProfile(session, revision, profile, state, error);
 }
+bool CameraPreviewModule::RequestIdr(std::string* error) {
+  return preview_source_ && preview_source_->RequestIdr(error);
+}
 bool CameraPreviewModule::GetNativeStatus(NativePreviewStatus* status) const {
   return preview_source_ && preview_source_->GetNativeStatus(status);
 }

@@ -70,7 +70,7 @@ async function connect() {
     await previous;
     if (current !== session) return;
     const state = await request('/status', { signal: session.abort.signal });
-    if (!state.video_available) throw new Error('视频尚未就绪，请启动 Camera 编码流后重连');
+    if (!state.video_available) throw new Error(`视频尚未就绪（${state.stream_state || 'unknown'}），请启动 Camera 编码流后重连`);
     pc.addTransceiver('video', { direction: 'recvonly' });
     pc.ontrack = event => {
       if (current !== session) return;

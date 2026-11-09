@@ -79,6 +79,8 @@ message CameraStatus {
   uint64 native_encoder_packets = 41;
   uint64 native_encoder_keyframes = 42;
   uint64 native_encoder_bytes = 43;
+  uint64 native_encoder_idr_requests = 44;
+  uint64 native_encoder_forced_idr_frames = 45;
   cockpit.proto.common.ServiceHealth health = 100;
 }
 
@@ -128,7 +130,15 @@ message CameraTuningResponse {
   CameraTuningMetadata last_observed = 8;
 }
 
+message RequestKeyframeResponse {
+  // Request queued/coalesced only; observe forced-IDR counters or NAL type 5
+  // to confirm emission. No capture or encoder restart is performed.
+  bool accepted = 1;
+  string error = 2;
+}
+
 service CameraControl {
+  rpc RequestKeyframe(cockpit.proto.common.Empty) returns (RequestKeyframeResponse);
   rpc ListDevices(cockpit.proto.common.Empty)
       returns (ListCameraDevicesResponse);
   rpc StartPreview(StartPreviewRequest) returns (CameraStatus);

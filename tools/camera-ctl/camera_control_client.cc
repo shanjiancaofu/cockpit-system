@@ -47,6 +47,13 @@ bool CameraControlClient::StopPreview(proto::camera::CameraStatus* status, std::
   return FinishRpc(stub_->StopPreview(&context, request, status), error);
 }
 
+bool CameraControlClient::RequestKeyframe(proto::camera::RequestKeyframeResponse* response,
+                                          std::string* error) {
+  proto::common::Empty request;
+  grpc::ClientContext context;
+  SetDeadline(&context);
+  return FinishRpc(stub_->RequestKeyframe(&context, request, response), error);
+}
 bool CameraControlClient::GetStatus(proto::camera::CameraStatus* status, std::string* error) {
   proto::common::Empty request;
   grpc::ClientContext context;

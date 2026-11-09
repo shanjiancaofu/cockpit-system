@@ -66,6 +66,10 @@ class CameraPreviewSource {
                                   CameraTuningState*, std::string* error) {
     return Unsupported(error);
   }
+  virtual bool RequestIdr(std::string* error) {
+    if (error) *error = "IDR requests require an active native_argus H264 encoder";
+    return false;
+  }
   virtual bool GetNativeStatus(NativePreviewStatus*) const {
     return false;
   }

@@ -32,6 +32,7 @@ class CameraPreviewModule : public runtime::BasicModule {
   bool ApplyTuningProfile(std::uint64_t, std::uint32_t, const TuningProfile&, CameraTuningState*,
                           std::string*);
   bool GetNativeStatus(NativePreviewStatus*) const;
+  bool RequestIdr(std::string*);
 
   void Configure(CameraPreviewConfig config, FrameCallback callback);
 

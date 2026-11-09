@@ -76,6 +76,18 @@ int main() {
           "mixed Annex-B parsing failed");
     Check(H264Nals({0x65, 0x88}).empty(), "non Annex-B accepted");
 
+    H264Receiver waiting;
+    H264Packet parameter_sets;
+    parameter_sets.data = {0, 0, 0, 1, 0x67, 0x42, 0xe0, 0x1f, 0, 0, 0, 1, 0x68, 0x80};
+    waiting.Publish(parameter_sets, false);
+    Check(waiting.Status().available && !waiting.Status().has_idr,
+          "parameter sets alone incorrectly marked IDR ready");
+    waiting.Publish(Packet(1, false), false);
+    Check(!waiting.Status().has_idr, "P frame incorrectly marked IDR ready");
+    waiting.Publish(Packet(2, true), false);
+    Check(waiting.Status().has_idr, "valid IDR did not mark stream ready");
+    waiting.Publish(Packet(0, false), false);
+    Check(!waiting.Status().has_idr, "new generation retained old IDR readiness");
     H264Receiver receiver;
     std::promise<VideoFramePtr> delivered;
     auto subscription = receiver.Subscribe([&](VideoFramePtr frame) {
@@ -98,6 +110,7 @@ int main() {
     auto gate = release.get_future().share();
     std::promise<VideoFramePtr> resumed;
     std::atomic_int calls{0};
+    std::atomic_uint requested_idrs{0};
     VideoSubscription slow(
         [&](VideoFramePtr value) {
           if (++calls == 1) {
@@ -106,7 +119,10 @@ int main() {
           } else
             resumed.set_value(value);
         },
-        1);
+        1,
+        [&] {
+          ++requested_idrs;
+        });
     slow.Enqueue(frame);
     Check(entered.get_future().wait_for(1s) == std::future_status::ready, "consumer did not start");
     auto delta = std::make_shared<VideoFrame>(*frame);
@@ -115,6 +131,7 @@ int main() {
     delta->discontinuity = false;
     slow.Enqueue(delta);
     slow.Enqueue(delta);  // Overflow: queued P frames must be discarded.
+    Check(requested_idrs > 0, "queue overflow did not actively request IDR");
     auto idr = std::make_shared<VideoFrame>(*frame);
     idr->packet.pts = 4;
     idr->discontinuity = false;

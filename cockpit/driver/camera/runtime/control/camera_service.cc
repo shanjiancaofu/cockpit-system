@@ -386,12 +386,22 @@ CameraServiceStatus CameraService::status() const {
       result.native_encoder_packets = native.encoder.packets_emitted;
       result.native_encoder_keyframes = native.encoder.keyframes;
       result.native_encoder_bytes = native.encoder.bytes_emitted;
+      result.native_encoder_idr_requests = native.encoder.idr_requests;
+      result.native_encoder_forced_idr_frames = native.encoder.forced_idr_frames;
     }
   }
   result.modules = module_manager_.Status();
   return result;
 }
 
+bool CameraService::RequestIdr(std::string* error) {
+  std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+  if (!preview_module_) {
+    if (error) *error = "Camera preview is not running";
+    return false;
+  }
+  return preview_module_->RequestIdr(error);
+}
 bool CameraService::GetNativeTuning(CameraTuningState* state, std::string* error) const {
   std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
   if (options_.capture_pipeline != CameraCapturePipeline::kNativeArgus || !preview_module_)

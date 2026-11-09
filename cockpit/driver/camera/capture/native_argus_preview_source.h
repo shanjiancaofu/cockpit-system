@@ -43,6 +43,7 @@ class NativeArgusPreviewSource final : public CameraPreviewSource {
   bool ApplyTuningProfile(std::uint64_t, std::uint32_t, const TuningProfile&, CameraTuningState*,
                           std::string*) override;
   bool GetNativeStatus(NativePreviewStatus*) const override;
+  bool RequestIdr(std::string* error) override;
 
  private:
   struct Impl;

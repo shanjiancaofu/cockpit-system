@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -21,8 +22,8 @@ class WebRtcServer {
   ~WebRtcServer();
   WebRtcServer(const WebRtcServer&) = delete;
   WebRtcServer& operator=(const WebRtcServer&) = delete;
-  bool Start(const WebRtcServerConfig& config, H264Receiver& receiver,
-             std::string* error = nullptr);
+  bool Start(const WebRtcServerConfig& config, H264Receiver& receiver, std::string* error = nullptr,
+             std::function<void()> request_idr = {});
   void Stop();
 
  private:

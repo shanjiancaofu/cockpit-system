@@ -64,6 +64,7 @@ struct CameraServiceStatus {
   std::uint64_t native_encoder_packets = 0;
   std::uint64_t native_encoder_keyframes = 0;
   std::uint64_t native_encoder_bytes = 0;
+  std::uint64_t native_encoder_idr_requests = 0, native_encoder_forced_idr_frames = 0;
   std::vector<runtime::ModuleStatus> modules;
   std::string last_error;
 };
@@ -126,6 +127,7 @@ class CameraService {
   void StopPreview();
   void CheckPreviewHealth();
   CameraServiceStatus status() const;
+  bool RequestIdr(std::string* error);
   bool GetNativeTuning(CameraTuningState* state, std::string* error) const;
   bool SetNativeTuning(std::uint64_t session_id, std::uint32_t revision,
                        const CameraTuning& settings, CameraTuningState* state, std::string* error);

@@ -159,6 +159,14 @@ grpc::Status CameraGrpcService::StopPreview(grpc::ServerContext*, const proto::c
   return grpc::Status::OK;
 }
 
+grpc::Status CameraGrpcService::RequestKeyframe(grpc::ServerContext*, const proto::common::Empty*,
+                                                proto::camera::RequestKeyframeResponse* response) {
+  std::string error;
+  const bool accepted = camera_service_.RequestIdr(&error);
+  response->set_accepted(accepted);
+  response->set_error(error);
+  return accepted ? grpc::Status::OK : grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, error);
+}
 grpc::Status CameraGrpcService::GetStatus(grpc::ServerContext*, const proto::common::Empty*,
                                           proto::camera::CameraStatus* response) {
   FillStatus(camera_service_.status(), response);
@@ -242,6 +250,8 @@ void CameraGrpcService::FillStatus(const CameraServiceStatus& status,
   response->set_native_encoder_packets(status.native_encoder_packets);
   response->set_native_encoder_keyframes(status.native_encoder_keyframes);
   response->set_native_encoder_bytes(status.native_encoder_bytes);
+  response->set_native_encoder_idr_requests(status.native_encoder_idr_requests);
+  response->set_native_encoder_forced_idr_frames(status.native_encoder_forced_idr_frames);
   response->set_last_error(status.last_error);
   FillHealth(status, response->mutable_health());
   for (const auto& module : status.modules) {

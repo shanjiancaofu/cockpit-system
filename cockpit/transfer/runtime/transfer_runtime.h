@@ -6,6 +6,7 @@
 #include <thread>
 
 #include "cockpit/transfer/rtsp/rtsp_server.h"
+#include "cockpit/transfer/runtime/camera_keyframe_client.h"
 #include "cockpit/transfer/runtime/gateway_grpc_service.h"
 #include "cockpit/transfer/runtime/vehicle_state_client.h"
 #include "cockpit/transfer/webrtc/webrtc_server.h"
@@ -27,6 +28,7 @@ class TransferRuntime {
 
  private:
   gateway::GatewayGrpcService gateway_service_;
+  std::shared_ptr<CameraKeyframeClient> keyframe_client_;
   H264Receiver video_receiver_;
   RtspServer rtsp_server_;
   WebRtcServer webrtc_server_;

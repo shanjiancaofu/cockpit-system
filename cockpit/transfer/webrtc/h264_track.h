@@ -16,7 +16,7 @@ rtc::Description::Video SelectH264Video(const rtc::Description& offer,
 class H264Track {
  public:
   H264Track(std::shared_ptr<rtc::PeerConnection> pc, rtc::Description::Video video,
-            std::uint64_t generation, unsigned fps);
+            std::uint64_t generation, unsigned fps, std::function<void()> request_idr = {});
   void Send(VideoFramePtr frame);
   bool waiting_keyframe() const {
     return waiting_->load();
@@ -26,6 +26,7 @@ class H264Track {
   std::shared_ptr<rtc::Track> track_;
   std::shared_ptr<rtc::RtpPacketizationConfig> rtp_;
   std::shared_ptr<std::atomic_bool> waiting_ = std::make_shared<std::atomic_bool>(true);
+  std::function<void()> request_idr_;
   std::uint64_t generation_;
   unsigned fps_;
   std::int64_t origin_ = -1, last_pts_ = -1;

@@ -48,7 +48,8 @@ class Crp1Assembler {
 class VideoSubscription {
  public:
   using Consumer = std::function<void(VideoFramePtr)>;
-  explicit VideoSubscription(Consumer consumer, std::size_t capacity = 8);
+  explicit VideoSubscription(Consumer consumer, std::size_t capacity = 8,
+                             std::function<void()> request_idr = {});
   ~VideoSubscription();
   void Stop();
   void Enqueue(VideoFramePtr frame);
@@ -58,6 +59,7 @@ class VideoSubscription {
   std::condition_variable cv_;
   std::deque<VideoFramePtr> queue_;
   std::size_t capacity_, bytes_ = 0;
+  std::function<void()> request_idr_;
   bool stopping_ = false, waiting_ = true;
   std::uint64_t generation_ = 0;
   std::thread worker_;
@@ -66,6 +68,8 @@ class VideoSubscription {
 struct VideoStatus {
   std::uint64_t generation = 0;
   bool available = false;
+  bool has_idr = false;
+  std::int64_t input_age_ms = -1;
   std::vector<std::uint8_t> sps, pps;
 };
 class H264Receiver {
@@ -73,7 +77,8 @@ class H264Receiver {
   ~H264Receiver();
   bool Start(std::uint16_t port, std::string* error = nullptr);
   void Stop();
-  std::shared_ptr<VideoSubscription> Subscribe(VideoSubscription::Consumer consumer);
+  std::shared_ptr<VideoSubscription> Subscribe(VideoSubscription::Consumer consumer,
+                                               std::function<void()> request_idr = {});
   VideoStatus Status() const;
   // Also used by the protocol and media integration tests.
   void Publish(H264Packet packet, bool discontinuity);

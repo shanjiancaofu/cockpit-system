@@ -90,6 +90,14 @@ void RequestStarted(SoupServer*, SoupMessage* message, SoupClientContext*, gpoin
       }),
       nullptr);
 }
+std::string StreamState(const VideoStatus& status) {
+  if (status.generation == 0) return "no_input";
+  if (status.input_age_ms < 0) return "stopped";
+  if (!status.available) return "stalled";
+  if (status.sps.size() < 4 || status.pps.empty()) return "waiting_parameter_sets";
+  if (!status.has_idr) return "waiting_idr";
+  return "ready";
+}
 std::string State(rtc::PeerConnection::State state) {
   switch (state) {
     case rtc::PeerConnection::State::New:
@@ -128,6 +136,7 @@ struct WebRtcServer::Impl {
     }
   };
   WebRtcServerConfig config;
+  std::function<void()> request_idr;
   H264Receiver* receiver = nullptr;
   GMainContext* context = nullptr;
   GMainLoop* loop = nullptr;
@@ -215,9 +224,13 @@ struct WebRtcServer::Impl {
       sessions += ']';
       Reply(message, SOUP_STATUS_OK,
             "{\"enabled\":true,\"listening\":true,\"video_available\":" +
-                std::string(status.available && status.sps.size() >= 4 && !status.pps.empty()
+                std::string(status.available && status.has_idr && status.sps.size() >= 4 &&
+                                    !status.pps.empty()
                                 ? "true"
                                 : "false") +
+                ",\"stream_state\":" + JsonString(StreamState(status)) +
+                ",\"input_age_ms\":" + std::to_string(status.input_age_ms) +
+                ",\"idr_received\":" + (status.has_idr ? "true" : "false") +
                 ",\"generation\":" + std::to_string(status.generation) +
                 ",\"profile_level_id\":" + JsonString(H264ProfileLevelId(status.sps)) +
                 ",\"max_clients\":" + std::to_string(config.max_clients) +
@@ -230,7 +243,8 @@ struct WebRtcServer::Impl {
         return;
       }
       const auto status = receiver->Status();
-      if (!status.available || status.sps.size() < 4 || status.pps.empty()) {
+      if (!status.available || !status.has_idr || status.sps.size() < 4 || status.pps.empty()) {
+        if (request_idr) request_idr();
         Error(message, SOUP_STATUS_SERVICE_UNAVAILABLE, "H264 stream/SPS/PPS not ready");
         return;
       }
@@ -253,13 +267,15 @@ struct WebRtcServer::Impl {
       rtc_config.mtu = 1200;
       // No STUN/TURN: gather only host candidates on the trusted LAN.
       peer->pc = std::make_shared<rtc::PeerConnection>(rtc_config);
-      peer->track =
-          std::make_shared<H264Track>(peer->pc, std::move(video), status.generation, config.fps);
+      peer->track = std::make_shared<H264Track>(peer->pc, std::move(video), status.generation,
+                                                config.fps, request_idr);
       peer->pc->setRemoteDescription(std::move(offer));
       peer->pc->setLocalDescription(rtc::Description::Type::Answer);
-      peer->subscription = receiver->Subscribe([track = peer->track](VideoFramePtr frame) {
-        track->Send(std::move(frame));
-      });
+      peer->subscription = receiver->Subscribe(
+          [track = peer->track](VideoFramePtr frame) {
+            track->Send(std::move(frame));
+          },
+          request_idr);
       peer->pending = SOUP_MESSAGE(g_object_ref(message));
       soup_server_pause_message(http, message);
       peers.emplace(peer->id, std::move(peer));
@@ -346,7 +362,7 @@ WebRtcServer::~WebRtcServer() {
   Stop();
 }
 bool WebRtcServer::Start(const WebRtcServerConfig& config, H264Receiver& receiver,
-                         std::string* error) {
+                         std::string* error, std::function<void()> request_idr) {
   if (impl_->worker.joinable() || !config.http_port || !config.udp_port_begin ||
       config.udp_port_end < config.udp_port_begin || !config.fps || !config.max_clients ||
       config.max_clients > 4) {
@@ -354,6 +370,7 @@ bool WebRtcServer::Start(const WebRtcServerConfig& config, H264Receiver& receive
     return false;
   }
   impl_->config = config;
+  impl_->request_idr = std::move(request_idr);
   impl_->receiver = &receiver;
   impl_->context = g_main_context_new();
   impl_->loop = g_main_loop_new(impl_->context, FALSE);

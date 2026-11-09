@@ -6,17 +6,18 @@ extern "C" {
 #include <libavutil/opt.h>
 }
 
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <limits>
 #include <mutex>
 #include <stdexcept>
-
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <unistd.h>
 
 namespace cockpit::camera {
 namespace {
@@ -40,6 +41,8 @@ struct H264Encoder::Impl {
   AVCodecContext* context = nullptr;
   H264EncoderConfig config;
   H264EncoderStats counters;
+  bool idr_pending = false, supports_idr = false, draining = false;
+  std::chrono::steady_clock::time_point last_forced_idr{};
 
   ~Impl() {
     if (context) avcodec_free_context(&context);
@@ -120,6 +123,12 @@ bool H264Encoder::Start(const H264EncoderConfig& config, std::string* error) {
   av_opt_set(context->priv_data, "preset", config.preset.c_str(), 0);
   av_opt_set(context->priv_data, "tune", config.tune.c_str(), 0);
   av_opt_set(context->priv_data, "repeat-headers", "1", 0);
+  const bool supports_idr = std::strcmp(codec->name, "libx264") == 0;
+  if (supports_idr && av_opt_set_int(context->priv_data, "forced-idr", 1, 0) < 0) {
+    SetError(error, "libx264 forced-idr option unavailable");
+    avcodec_free_context(&context);
+    return false;
+  }
   const int result = avcodec_open2(context, codec, nullptr);
   if (result < 0) {
     SetError(error, "H264 encoder open failed: " + AvError(result));
@@ -128,6 +137,10 @@ bool H264Encoder::Start(const H264EncoderConfig& config, std::string* error) {
   }
   impl_->context = context;
   impl_->config = config;
+  impl_->supports_idr = supports_idr;
+  impl_->draining = false;
+  impl_->idr_pending = false;
+  impl_->last_forced_idr = {};
   impl_->counters = {};
   return true;
 }
@@ -135,8 +148,8 @@ bool H264Encoder::Start(const H264EncoderConfig& config, std::string* error) {
 bool H264Encoder::Encode(const CpuVideoFrame& input, std::vector<H264Packet>* packets,
                          std::string* error) {
   std::lock_guard<std::mutex> lock(impl_->mutex);
-  if (!impl_->context || !packets) {
-    SetError(error, "H264 encoder is not running or output is null");
+  if (!impl_->context || impl_->draining || !packets) {
+    SetError(error, "H264 encoder is not running, is draining, or output is null");
     return false;
   }
   if (input.format != VicOutputFormat::kI420 || input.width != impl_->config.width ||
@@ -153,6 +166,12 @@ bool H264Encoder::Encode(const CpuVideoFrame& input, std::vector<H264Packet>* pa
   frame->width = static_cast<int>(input.width);
   frame->height = static_cast<int>(input.height);
   frame->pts = input.capture_id;
+  const auto now = std::chrono::steady_clock::now();
+  const bool force_idr =
+      impl_->idr_pending && (impl_->last_forced_idr == std::chrono::steady_clock::time_point{} ||
+                             now - impl_->last_forced_idr >= std::chrono::milliseconds(250));
+  frame->pict_type = force_idr ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_NONE;
+
   bool valid = true;
   const std::uint32_t row_bytes[3] = {input.width, input.width / 2, input.width / 2};
   const std::uint32_t heights[3] = {input.height, input.height / 2, input.height / 2};
@@ -181,6 +200,11 @@ bool H264Encoder::Encode(const CpuVideoFrame& input, std::vector<H264Packet>* pa
     return false;
   }
   ++impl_->counters.frames_submitted;
+  if (force_idr) {
+    impl_->idr_pending = false;
+    impl_->last_forced_idr = now;
+    ++impl_->counters.forced_idr_frames;
+  }
   return impl_->Emit(packets, error);
 }
 
@@ -195,10 +219,24 @@ bool H264Encoder::Flush(std::vector<H264Packet>* packets, std::string* error) {
     SetError(error, "H264 flush submit failed: " + AvError(result));
     return false;
   }
+  impl_->draining = true;
+  impl_->idr_pending = false;
   return impl_->Emit(packets, error);
 }
 
+bool H264Encoder::RequestIdr(std::string* error) {
+  std::lock_guard<std::mutex> lock(impl_->mutex);
+  if (!impl_->context || impl_->draining || !impl_->supports_idr) {
+    SetError(error, "IDR requests require a running libx264 encoder");
+    return false;
+  }
+  ++impl_->counters.idr_requests;
+  impl_->idr_pending = true;
+  return true;
+}
 void H264Encoder::Stop() {
+  std::lock_guard<std::mutex> lock(impl_->mutex);
+  impl_->idr_pending = false;
   if (impl_->context) avcodec_free_context(&impl_->context);
 }
 bool H264Encoder::running() const {
@@ -294,11 +332,15 @@ void Put64(std::uint8_t* p, std::int64_t value) {
 }
 }  // namespace
 
-H264UdpPublisher::H264UdpPublisher() : impl_(std::make_unique<Impl>()) {}
-H264UdpPublisher::~H264UdpPublisher() { Close(); }
+H264UdpPublisher::H264UdpPublisher() : impl_(std::make_unique<Impl>()) {
+}
+H264UdpPublisher::~H264UdpPublisher() {
+  Close();
+}
 bool H264UdpPublisher::Open(const H264UdpPublisherConfig& config, std::string* error) {
   Close();
-  if (config.host.empty() || config.port == 0 || (config.mtu != 0 && config.mtu <= kUdpHeaderSize + 1)) {
+  if (config.host.empty() || config.port == 0 ||
+      (config.mtu != 0 && config.mtu <= kUdpHeaderSize + 1)) {
     SetError(error, "invalid H264 UDP publisher configuration");
     return false;
   }
@@ -333,9 +375,9 @@ bool H264UdpPublisher::Publish(const H264Packet& packet, std::string* error) {
     return false;
   }
   if (impl_->config.mtu == 0) {
-    const auto sent = sendto(impl_->socket, packet.data.data(), packet.data.size(), 0,
-                             reinterpret_cast<const sockaddr*>(&impl_->destination),
-                             impl_->destination_size);
+    const auto sent =
+        sendto(impl_->socket, packet.data.data(), packet.data.size(), 0,
+               reinterpret_cast<const sockaddr*>(&impl_->destination), impl_->destination_size);
     if (sent != static_cast<ssize_t>(packet.data.size())) {
       SetError(error, "send H264 UDP packet failed");
       return false;
@@ -363,9 +405,9 @@ bool H264UdpPublisher::Publish(const H264Packet& packet, std::string* error) {
     Put64(datagram.data() + 12, packet.pts);
     Put32(datagram.data() + 20, packet.keyframe ? 1U : 0U);
     std::memcpy(datagram.data() + kUdpHeaderSize, packet.data.data() + offset, size);
-    const auto sent = sendto(impl_->socket, datagram.data(), datagram.size(), 0,
-                             reinterpret_cast<const sockaddr*>(&impl_->destination),
-                             impl_->destination_size);
+    const auto sent =
+        sendto(impl_->socket, datagram.data(), datagram.size(), 0,
+               reinterpret_cast<const sockaddr*>(&impl_->destination), impl_->destination_size);
     if (sent != static_cast<ssize_t>(datagram.size())) {
       SetError(error, "send H264 UDP fragment failed");
       return false;
@@ -382,5 +424,7 @@ void H264UdpPublisher::Close() {
     impl_->socket = -1;
   }
 }
-H264UdpPublisherStats H264UdpPublisher::stats() const { return impl_->counters; }
+H264UdpPublisherStats H264UdpPublisher::stats() const {
+  return impl_->counters;
+}
 }  // namespace cockpit::camera
