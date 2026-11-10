@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* Include, do not fork, the exact NVIDIA R36.5.2 IMX219-A topology. */
+#include "tegra234-p3767-camera-p3768-imx219-A.dts"
+#include "cockpit-imx219-a.dtsi"

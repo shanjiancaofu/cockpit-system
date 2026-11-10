@@ -23,7 +23,7 @@
 </aside>
 <main class="main" id="overview">
   <header class="topbar"><span>设备媒体 <span aria-hidden="true">/</span> <strong>实时视频</strong></span><span class="endpoint" id="endpoint">同源媒体服务</span></header>
-  <div class="page-heading"><div><div class="eyebrow">OBSERVE · CONNECT · RECOVER</div><h1>视频工作台</h1><p class="subtitle">一份编码，多路分发。直接观察真实视频与连接状态。</p></div><span class="pill" id="backend-pill">正在查询服务</span></div>
+  <div class="page-heading"><div><div class="eyebrow">OBSERVE · CONNECT · RECOVER</div><h1>视频工作台</h1><p class="subtitle">默认 720P，一份编码、多路分发。观察真实视频与连接状态。</p></div><span class="pill" id="backend-pill">正在查询服务</span></div>
   <section class="metrics" aria-label="实时媒体指标">
     <div class="metric"><div class="metric-label">实际分辨率</div><div class="metric-value" id="metric-resolution">—</div><small>浏览器解码尺寸</small></div>
     <div class="metric"><div class="metric-label">解码 FPS</div><div class="metric-value" id="metric-fps">—</div><small>framesDecoded / Δt</small></div>
@@ -52,7 +52,7 @@
       </dl><p class="diagnostic-note">状态来自现有 Status API 与 getStats()。未连接或未提供的指标显示 —，不会用配置值代替实际观测。</p></div>
     </section>
   </div>
-  <div class="info-strip"><span aria-hidden="true">ⓘ</span><span><b>兼容性提示</b><br><span id="compatibility">保持真实 SPS 与接收能力匹配。不支持当前流时，请使用兼容客户端或将 Camera 切到 720P；本页面不改写 SDP Level，也不会新增编码或转码。</span></span></div>
+  <div class="info-strip"><span aria-hidden="true">ⓘ</span><span><b>兼容性提示</b><br><span id="compatibility">Chrome / Firefox 默认使用 1280 × 720；1080P 暂缓，不作为当前验收阻塞。请以 720P 启动 Camera 编码输出，本页面不会自动改分辨率、改写 SDP Level 或新增转码。</span></span></div>
   <footer class="footer"><span>COCKPIT SYSTEM / MEDIA</span><span>可信局域网 · 无公网 TURN · 单路共享 H.264</span></footer>
 </main>
 </div>

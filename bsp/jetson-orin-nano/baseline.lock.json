@@ -1,0 +1,29 @@
+{
+  "release": "36.5.2",
+  "kernel_release": "5.15.199-tegra",
+  "module_version": "bsp01-r36.5.2-1",
+  "oot_repository": "https://gitlab.com/nvidia/nv-tegra/linux-nv-oot.git",
+  "tag": "jetson_36.5.2",
+  "oot_commit": "4adf488f7eba09f84ca2c50ab2ad5aedfdca37f3",
+  "source_sha256": {
+    "drivers/media/i2c/nv_imx219.c": "7cf2799758a58f13fca764b88286d9dff2272371ddd71e95eece423db0a1caa7",
+    "drivers/media/i2c/imx219_mode_tbls.h": "403dc4be00416324b8715da0486225e183abcc6e9bec993446a9dd24565754fa",
+    "drivers/media/platform/tegra/camera/camera_gpio.h": "a25af0b9eb96c52fc77d16158f719653459d455134b6867ea55c667cd2f9c992",
+    "scripts/conftest/conftest.sh": "5dfdc14dfd134036dec6612bd6ddc2d310a5f26c1e0b0e3b047c4e912f7f7e45",
+    "scripts/conftest/Makefile": "7a262c8cbcab5d98ea45467a0b2cd8b28a8f0e8fe526489b45c05aaada988a0a",
+    "scripts/conftest/conftest.h": "e37891382ecfc2607cc87cda705849c2e722e3618907167211461327d24d5615"
+  },
+  "board_compatible": "nvidia,p3768-0000+p3767-0005-super",
+  "sensor_path": "/bus@0/cam_i2cmux/i2c@0/rbpcv2_imx219_a@10",
+  "sensor_i2c": "9-0010",
+  "base_dtb": "/boot/dtb/kernel_tegra234-p3768-0000+p3767-0005-nv-super.dtb",
+  "stock_overlay": "/boot/tegra234-p3767-camera-p3768-imx219-A.dtbo",
+  "dts_repository": "https://gitlab.com/nvidia/nv-tegra/device/hardware/nvidia/t23x-public-dts.git",
+  "dts_commit": "ed1b0f6b113bb050c8cda1ccb411a163f8e2799f",
+  "dts_sha256": {
+    "overlay/tegra234-p3767-camera-p3768-imx219-A.dts": "faf73b8e2dcc0057dfc79fabb49a255b6a25ae3c150b4b6d161e7c733811e01a",
+    "include/platforms/dt-bindings/tegra234-p3767-0000-common.h": "068cd581f9fa14d7c7e8a210f32a6143ec60f7f50d68bf7c3fcda0cdae7ec9b9",
+    "include/kernel/dt-bindings/gpio/tegra234-gpio.h": "e836a6e8d95fac26a2badaf27907d4ebdfd5288b82f7acb482053231c9c1b01a",
+    "include/kernel/dt-bindings/gpio/gpio.h": "5423b3866877ead0920ec978b5b072f06087443033a72445b39faed8f288ddc1"
+  }
+}

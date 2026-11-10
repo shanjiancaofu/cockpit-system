@@ -1,5 +1,10 @@
 # Camera V2 PR-10：原生 C++ H.264 WebRTC
 
+> 当前默认浏览器范围：**Chrome / Firefox，1280×720（720P）**。
+> 1080P 暂缓，不再作为本轮 PR-10 收尾阻塞；历史结果与合法协商能力保留。
+> 720P 指 H.264 编码输出，不要求修改 Native Camera 的采集分辨率或架构。
+
+
 ## 范围与数据路径
 
 ```
@@ -97,7 +102,7 @@ _output/build/pr10/bin/camera-ctl --start --device nvargus://0 \
 
 浏览器打开 `http://<jetson-lan-ip>:8080/`，点击“连接 / 重连”。同时可在 VLC 打开
 `rtsp://<jetson-lan-ip>:8554/camera`。页面会显示实际解码分辨率，而不是仅显示配置值。
-1080P 验收时将 Camera H.264 宽高改为 1920×1080，并重新建立会话。
+本轮浏览器验收固定使用 `--h264-width 1280 --h264-height 720`；1080P 暂不执行。
 
 开发服务没有认证或 HTTPS，只可监听受信局域网/本机，不直接暴露公网；防火墙仅允许
 受信客户端访问 TCP HTTP 端口与 UDP 媒体范围。媒体采用 Host ICE，无 STUN/TURN；
@@ -151,8 +156,9 @@ libavcodec 真正解码并检查尺寸。它不是 Chrome/Edge 验收，也不�
 
 人工验收仍须记录以下结果，不能用自动协议测试代替：
 
-- [ ] Chrome 与 Edge 实际播放 720P（页面实际尺寸、可见连续画面）。
-- [ ] Chrome/Edge 实际播放 1080P。
+- [x] Chrome / Firefox 默认 720P 播放、重连、刷新：已有实测记录（Firefox 自动回归为 headless）。
+- Edge 720P：补充兼容性结果仍未验证，不以 Chrome/Firefox 的结果替代。
+- 1080P：**Deferred / 暂缓**，不作为本轮关闭条件。
 - Qt / HMI：**Out of Scope**。不再测试或修改，不作为验收阻塞。
 - [ ] VLC RTSP 与浏览器并行、编码器仍只有一份。
 - [ ] 手动事件 MP4 录像期间浏览器持续播放；录像文件可播放。
@@ -256,3 +262,11 @@ H.264 offer Level 不匹配，不能再仅标为 Firefox 限制。Edge 和标准
 - 原生 Web 控制台已改版，包含真实 getStats 指标与分阶段状态，保留全部约定 DOM/Session 接口。
 - 原始 Offer/Answer、默认浏览器限制、UI 和实际 MP4 播放证据见设备验收记录第 7 节。
 - Qt/HMI Out of Scope；标准 VLC RTSP、外部 Edge 及完整三路可见联合验收尚不能宣布通过。
+
+
+### 默认分辨率范围确认
+
+Chrome / Firefox 当前均按 **720P（1280×720）** 使用与验收。编码器和启动示例原本即默认
+720P，因此不改 Camera、配置结构或通信逻辑，也不在浏览器里自动降级/转码。
+1080P 保留为已知兼容性记录，不再要求先解决才能收尾；后续重点是 720P 的标准 VLC RTSP、
+WebRTC 与事件 MP4 联合验收。Qt/HMI 仍为 Out of Scope。

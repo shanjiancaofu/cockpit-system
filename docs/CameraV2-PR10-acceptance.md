@@ -1,5 +1,10 @@
 # PR-10 设备验收记录与剩余浏览器验收
 
+> **当前分辨率范围：Chrome / Firefox 默认 720P（1280×720）。1080P = Deferred / 暂缓，
+> 不再作为本轮 PR-10 的收尾阻塞。** 既有 1080P 测试/失败记录仅作历史兼容性参考。
+> 720P 指共享 H.264 编码流的输出尺寸；Native Camera 采集和一份编码器架构不变。
+
+
 > 当前验收范围（`eb46f7b` 后续）：**Qt / HMI = Out of Scope**。不再启动、测试或修改
 > Qt/HMI，也不把历史 Qt 未验收记录作为阻塞。当前状态以第 7 节为准；第 1～6 节保留历史证据。
 > 本轮收尾仅涉及 H.264 接收能力协商、RTSP/WebRTC/事件 MP4 和原生 Web 控制台。
@@ -83,7 +88,7 @@ _output/build/pr10/bin/webrtc_live_probe \
   --output _output/webrtc-acceptance/native-720p.json
 ```
 
-切换 1080P 时先停止 Camera、以 1920×1080 H.264 输出重新启动，再执行：
+以下 1080P probe 命令仅保留为历史/可选参考，**本轮不执行、不作为验收要求**：
 
 ```bash
 _output/build/pr10/bin/webrtc_live_probe \
@@ -150,8 +155,8 @@ Windows 可把 `python3` 改为 `py -3`，命令写为一行或使用 PowerShell
 尺寸/帧进度证据不能证明画面内容正确，仍须查看截图和实际画面确认没有花屏/黑屏。
 该脚本不自动操作 Camera、Qt 或 Recording，不会把这些项误记为已验收。
 
-将 Camera H.264 输出切换为 1920×1080 后，分别用 `--width 1920 --height 1080`
-运行 Chrome 和 Edge，保存各自 1080P JSON/截图。不要在默认单 Peer 下同时运行两台浏览器。
+本轮 Chrome / Firefox 固定使用 `--width 1280 --height 720`，1080P 暂不执行。
+不要在默认单 Peer 下同时运行两台浏览器；历史 1080P 结果不作为当前未完成项。
 
 ## 4. 最后一轮人工联合验收
 
@@ -249,7 +254,7 @@ python3 scripts/tests/webrtc-browser-acceptance.py \
 自动原始证据：`_output/pr10-idr-device/firefox-720p-verified.json` 与各阶段 PNG；
 失败诊断也保留在 `firefox-clean-profile.json` 和 `firefox-720p-codec.json`，不改写为通过。
 
-### 新发现的未关闭问题：Firefox 1080P SDP Level
+### 历史兼容性记录：Firefox 1080P SDP Level（现暂缓）
 
 同一 Firefox profile 的 1080P 自动实测**未通过**，失败发生在 SDP 协商，不是 ICE 后黑屏：
 浏览器 H264 接收能力公布 `profile-level-id=42e01f`（Level 3.1），Native 1080P 码流的
@@ -471,14 +476,15 @@ _output/pr10-final/offer-summary.json
 `recording-stop.log`、`rtsp.log`、`mp4-discover.log`、`mp4-decode.log`、`mp4-player.json`
 和播放器截图。不要把 MP4 播放结果当作 VLC RTSP 成功。
 
-标准 VLC RTSP 与 720P/1080P 的完整三路可见联合验收仍需外部电脑提供证据。设备上的临时
+标准 VLC RTSP 与 **720P** 的完整三路可见联合验收仍需外部电脑提供证据；1080P 暂缓。设备上的临时
 Ubuntu VLC 包明确禁用了 Live555；不为补证而重写服务端或换编码器。本轮查询的官方 VLC
 Snap arm64 渠道也没有可用构建，不能把 amd64 客户端冒充本机测试。
 
 ### 当前收尾清单
 
-- [x] 1080P SDP 接收能力规则已处理，合法 max-recv-level 路径及浏览器限制有测试/记录。
-- [ ] Chrome / Edge 全部实际播放和重连完成：Chrome 720P 已通过，Edge 仍待外部环境。
+- [x] 当前浏览器范围确定为 Chrome / Firefox 默认 720P；已有播放、重连和刷新记录。
+- 1080P：**Deferred / 暂缓**，保留已有合法接收能力和兼容性记录，不再阻塞本轮收尾。
+- [ ] Edge 720P 补充兼容测试：仍待外部环境，不把 Chrome/Firefox 的结论代替 Edge。
 - [ ] 标准 VLC RTSP 实际播放通过。
 - [ ] 浏览器 + 标准 VLC RTSP + 事件 MP4 完整联合验收通过。
 - [x] AIPC 风格原生网页完成，旧通信流程与测试接口保留。
@@ -494,3 +500,17 @@ Snap arm64 渠道也没有可用构建，不能把 amd64 客户端冒充本机�
 
 测试启动的 Camera、Transfer、Recording 与 WebDriver 均已停止。代码和文档尚未提交。
 截图、原始 SDP、JSON、MP4、下载的测试客户端/参考资料均留在 `_output/`，不进入提交。
+
+
+## 8. 当前范围调整：默认 720P，1080P 暂缓
+
+按最新范围确认，Chrome / Firefox 的默认和当前验收输出均为 **1280×720、30 FPS**。
+推荐启动参数保持 `--h264-width 1280 --h264-height 720 --h264-bitrate 2000000 --h264-gop 30`。
+Native Camera 本身可以仍以 1920×1080 采集；这不代表浏览器收到 1080P，也不需要为此改采集。
+
+本次只同步文档和页面说明，不增加第二个编码器，不前端自动降级，不更改 SDP 或编解码能力。
+现有合法协商检查、720P、主动 IDR、Generation、CRP1 分发与 RTSP/MP4 实现全部保留。
+
+1080P 默认浏览器协商受限的旧记录不改写为“通过”，但也**不再作为当前 PR-10 关闭阻塞**。
+后续按 720P 补齐标准 VLC RTSP 与浏览器/事件 MP4 联合证据即可；Edge 保留为未验证的补充
+兼容性项，Qt/HMI 仍 Out of Scope。

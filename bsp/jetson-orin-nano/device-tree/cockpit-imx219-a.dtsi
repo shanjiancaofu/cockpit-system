@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* P3768-0000 + P3767-0005 Super, 22-pin CSI connector A / cam1.
+ * Confirmed live: I2C mux channel 0, sensor 0x10, CSI/VI port 1,
+ * serial_b, 2 lanes, polarity 6. Other carriers require a new reviewed profile.
+ */
+/ {
+	overlay-name = "Cockpit BSP01 IMX219-A R36.5.2";
+	compatible = "nvidia,p3768-0000+p3767-0005-super";
+	fragment@0 {
+		__overlay__ {
+			bus@0 {
+				cam_i2cmux {
+					i2c@0 {
+						rbpcv2_imx219_a@10 {
+							cockpit,bsp-id = "imx219-a-r36.5.2-v1";
+							mode2 {
+								num_lanes = "2";
+								tegra_sinterface = "serial_b";
+								lane_polarity = "6";
+								mclk_khz = "24000";
+								pix_clk_hz = "182400000";
+								line_length = "3448";
+							};
+							mode4 {
+								num_lanes = "2";
+								tegra_sinterface = "serial_b";
+								lane_polarity = "6";
+								mclk_khz = "24000";
+								pix_clk_hz = "182400000";
+								line_length = "3448";
+							};
+						};
+					};
+				};
+			};
+		};
+	};
+};
