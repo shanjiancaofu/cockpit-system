@@ -17,6 +17,7 @@ Json CaptureStress(const Options& options, bool* passed, std::vector<std::string
     config.width = options.width;
     config.height = options.height;
     config.fps = options.fps;
+    config.tegra_sensor_mode = options.sensor_mode;
     std::string error;
     const auto start = std::chrono::steady_clock::now();
     const bool started = capture.Start(config, &error);
@@ -96,6 +97,7 @@ Json CaptureStress(const Options& options, bool* passed, std::vector<std::string
   }
   return Object({{"backend", Quote("v4l2_mmap_raw10")},
                  {"passed", Boolean(*passed)},
+                 {"requested_sensor_mode", Number(options.sensor_mode)},
                  {"requested_width", Number(options.width)},
                  {"requested_height", Number(options.height)},
                  {"requested_fps", Number(options.fps)},

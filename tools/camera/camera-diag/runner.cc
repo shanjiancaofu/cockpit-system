@@ -33,12 +33,16 @@ bool ParseOptions(int argc, char** argv, Options* options, std::string* error) {
       try {
         std::size_t end = 0;
         number = std::stoi(value, &end);
-        if (end != value.size() || number <= 0) throw std::invalid_argument("range");
+        const bool sensor_mode = arg == "--sensor-mode";
+        if (end != value.size() || number < 0 || (!sensor_mode && number == 0))
+          throw std::invalid_argument("range");
       } catch (...) {
-        *error = "invalid positive integer for " + arg;
+        *error = "invalid numeric value for " + arg;
         return false;
       }
-      if (arg == "--width")
+      if (arg == "--sensor-mode")
+        options->sensor_mode = number;
+      else if (arg == "--width")
         options->width = number;
       else if (arg == "--height")
         options->height = number;
@@ -76,7 +80,7 @@ int RunDiagnostics(int argc, char** argv, bool stress_only) {
   }
   if (options.help) {
     std::cout << (stress_only ? "camera-stress" : "camera-diag")
-              << " [--device /dev/video0] [--width 1920] [--height 1080] [--fps 30]"
+              << " [--device /dev/video0] [--sensor-mode 2] [--width 1920] [--height 1080] [--fps 30]"
                  " [--frames 300] [--cycles 1] [--timeout-ms 5000] [--output report.json] "
                  "[--inspect-only]\n";
     return 0;

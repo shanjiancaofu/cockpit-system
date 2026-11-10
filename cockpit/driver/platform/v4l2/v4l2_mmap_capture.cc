@@ -18,8 +18,12 @@
 namespace cockpit::camera {
 namespace {
 
-// NVIDIA Jetson tegra-video private control exposed by v4l2-ctl as bypass_mode.
+// NVIDIA Jetson tegra-video private controls exposed by v4l2-ctl.
+constexpr std::uint32_t kTegraCameraSensorModeControl = 0x009a2008U;
+constexpr std::uint32_t kTegraCameraFrameRateControl = 0x009a200bU;
 constexpr std::uint32_t kTegraCameraBypassControl = 0x009a2064U;
+constexpr std::uint32_t kTegraCameraOverrideControl = 0x009a2065U;
+constexpr std::uint32_t kTegraFrameRateFactor = 1000000U;
 
 void SetError(std::string* error, std::string message) {
   if (error != nullptr) *error = std::move(message);
@@ -128,12 +132,36 @@ bool V4l2MmapCapture::Start(const V4l2MmapConfig& config, std::string* error) {
   driver_ = reinterpret_cast<const char*>(capability.driver);
   card_ = reinterpret_cast<const char*>(capability.card);
 
-  if (config.set_tegra_bypass_mode) {
-    v4l2_control bypass{};
-    bypass.id = kTegraCameraBypassControl;
-    bypass.value = 0;
-    if (Xioctl(fd_, VIDIOC_S_CTRL, &bypass) < 0 && errno != EINVAL && errno != ENOTTY) {
-      SetError(error, ErrorMessage("set tegra bypass_mode=0"));
+  if (config.configure_tegra_camera_controls) {
+    const auto set_optional_tegra_control = [this, error](std::uint32_t id, int value,
+                                                          const char* name) {
+      v4l2_control control{};
+      control.id = id;
+      control.value = value;
+      if (Xioctl(fd_, VIDIOC_S_CTRL, &control) == 0 || errno == EINVAL || errno == ENOTTY)
+        return true;
+      SetError(error, ErrorMessage(std::string("set tegra ") + name));
+      return false;
+    };
+    const auto set_optional_tegra_int64 = [this, error](std::uint32_t id, std::int64_t value,
+                                                        const char* name) {
+      v4l2_ext_control control{};
+      control.id = id;
+      control.value64 = value;
+      v4l2_ext_controls controls{};
+      controls.which = V4L2_CTRL_WHICH_CUR_VAL;
+      controls.count = 1;
+      controls.controls = &control;
+      if (Xioctl(fd_, VIDIOC_S_EXT_CTRLS, &controls) == 0 || errno == EINVAL || errno == ENOTTY)
+        return true;
+      SetError(error, ErrorMessage(std::string("set tegra ") + name));
+      return false;
+    };
+    if ((config.tegra_sensor_mode >= 0 &&
+         !set_optional_tegra_int64(kTegraCameraSensorModeControl, config.tegra_sensor_mode,
+                                  "sensor_mode")) ||
+        !set_optional_tegra_control(kTegraCameraBypassControl, 0, "bypass_mode=0") ||
+        !set_optional_tegra_control(kTegraCameraOverrideControl, 1, "override_enable=1")) {
       Stop();
       return false;
     }
@@ -168,6 +196,23 @@ bool V4l2MmapCapture::Start(const V4l2MmapConfig& config, std::string* error) {
     SetError(error, ErrorMessage("VIDIOC_S_PARM"));
     Stop();
     return false;
+  }
+  // Tegra's camera sensor frame-rate control uses frames/second multiplied by
+  // 1,000,000. VIDIOC_S_PARM may leave this control at a previous/default
+  // value, so apply it after S_PARM when the private controls are available.
+  if (config.configure_tegra_camera_controls) {
+    v4l2_ext_control frame_rate{};
+    frame_rate.id = kTegraCameraFrameRateControl;
+    frame_rate.value64 = static_cast<std::int64_t>(config.fps) * kTegraFrameRateFactor;
+    v4l2_ext_controls controls{};
+    controls.which = V4L2_CTRL_WHICH_CUR_VAL;
+    controls.count = 1;
+    controls.controls = &frame_rate;
+    if (Xioctl(fd_, VIDIOC_S_EXT_CTRLS, &controls) < 0 && errno != EINVAL && errno != ENOTTY) {
+      SetError(error, ErrorMessage("set tegra frame_rate"));
+      Stop();
+      return false;
+    }
   }
 
   v4l2_requestbuffers request{};

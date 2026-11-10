@@ -13,6 +13,10 @@ from bsp import DEFAULT_OUT, LOCK, modinfo, run, sha, snapshot, strings, target_
 from deployment import idle
 
 
+def progress(message):
+    print(f'[verify] {message}', file=sys.stderr, flush=True)
+
+
 def command(argv, log, timeout=30):
     try:
         result = subprocess.run([str(a) for a in argv], capture_output=True, text=True, timeout=timeout)
@@ -39,6 +43,14 @@ def raw_frame(path, width, height, stride):
     return pixels
 
 
+def preview_bytes(pixels, maximum):
+    # Avoid recomputing max(pixels) for every pixel (quadratic time) and avoid
+    # an integer multiply/divide for every full-resolution preview sample.
+    denominator = max(1, maximum)
+    lut = bytes(min(255, value * 255 // denominator) for value in range(1 << 16))
+    return bytes(lut[value] for value in pixels)
+
+
 def analyse(black, white, bars, width, height, output):
     # Tegra RG10 is a 16-bit little-endian Bayer container. Preserve raw data;
     # normalize only the preview, not the acceptance measurements.
@@ -57,7 +69,8 @@ def analyse(black, white, bars, width, height, output):
             matches += abs(bars[y * width + x] - bars[(y + 2) * width + x]) <= scale * 2
     if not total or matches / total < 0.95 or (max(bars) - min(bars)) / scale < 128:
         raise RuntimeError('RAW color bars lack expected row-invariant spatial pattern')
-    preview = bytes(min(255, value * 255 // max(1, max(bars))) for value in bars)
+    bars_max = max(bars)
+    preview = preview_bytes(bars, bars_max)
     Path(output).write_bytes(f'P5\n{width} {height}\n255\n'.encode() + preview)
     return {'black_mean': black_mean, 'white_mean': white_mean, 'container_scale': scale,
             'bars_row_invariance': matches / total, 'raw_pixels_changed': True,
@@ -67,22 +80,33 @@ def analyse(black, white, bars, width, height, output):
 def capture(args, report):
     # idle() also requires Argus stopped and scans all camera FDs. No automatic
     # service stop/start and no simultaneous V4L2/Argus ownership.
+    progress('checking exclusive camera ownership')
     idle()
     capture_started = str(int(time.time()))
     device = '/dev/video0'
     controls = command(['v4l2-ctl', '-d', device, '--list-ctrls-menus'], args.out / 'controls-before.txt')
-    required = ['test_pattern', 'test_pattern_red', 'test_pattern_greenr', 'test_pattern_blue', 'test_pattern_greenb']
-    if any(name not in controls for name in required):
-        raise RuntimeError('required BSP V4L2 Test Pattern controls are not exposed')
+    subdev = '/dev/v4l-subdev1'
+    subdev_controls = command(['v4l2-ctl', '-d', subdev, '--list-ctrls-menus'],
+                              args.out / 'subdev-controls-before.txt')
+    if 'test_pattern' not in controls:
+        raise RuntimeError('video node did not import the Test Pattern menu')
+    required = ['test_pattern', 'red_pixel_value', 'green_red_pixel_value',
+                'blue_pixel_value', 'green_blue_pixel_value']
+    if any(name not in subdev_controls for name in required):
+        raise RuntimeError('required Sensor subdev Test Pattern controls are not exposed')
     report['raw'] = []
     try:
         for mode, width, height, fps in [(4, 1280, 720, 60000000), (2, 1920, 1080, 30000000)]:
+            progress(f'capturing RAW10 test patterns at {width}x{height}')
             images = {}
             for pattern, menu, colour in [('black', 2, 0), ('white', 2, 1023), ('bars', 1, 0), ('disabled', 0, 0)]:
                 destination = args.out / f'{width}x{height}-{pattern}.raw'
+                colour_settings = (f'red_pixel_value={colour},green_red_pixel_value={colour},'
+                                   f'blue_pixel_value={colour},green_blue_pixel_value={colour}')
+                command(['v4l2-ctl', '-d', subdev, '--set-ctrl=' + colour_settings],
+                        args.out / f'{width}-{pattern}-subdev.txt')
                 settings = (f'sensor_mode={mode},bypass_mode=0,override_enable=1,gain=16,exposure=1000,'
-                            f'frame_rate={fps},test_pattern={menu},test_pattern_red={colour},'
-                            f'test_pattern_greenr={colour},test_pattern_blue={colour},test_pattern_greenb={colour}')
+                            f'frame_rate={fps},test_pattern={menu}')
                 command(['v4l2-ctl', '-d', device, f'--set-fmt-video=width={width},height={height},pixelformat=RG10',
                          '--set-ctrl=' + settings, '--stream-mmap=4', '--stream-skip=3', '--stream-count=1',
                          '--stream-to=' + str(destination)], args.out / f'{width}-{pattern}.txt')
@@ -91,29 +115,50 @@ def capture(args, report):
                 if not stride_match or "'RG10'" not in actual:
                     raise RuntimeError('cannot confirm unpacked RG10 bytesperline')
                 images[pattern] = raw_frame(destination, width, height, int(stride_match[1]))
+            progress(f'analysing RAW10 test patterns at {width}x{height}')
             result = analyse(images['black'], images['white'], images['bars'], width, height,
                              args.out / f'{width}x{height}-bars.pgm')
             result.update(width=width, height=height, sensor_mode=mode,
-                          controls_roundtrip=command(['v4l2-ctl', '-d', device, '--get-ctrl=gain,exposure,frame_rate,test_pattern'],
-                                                     args.out / f'{width}-readback.txt'))
+                          controls_roundtrip={
+                              'video': command(['v4l2-ctl', '-d', device,
+                                  '--get-ctrl=gain,exposure,frame_rate,test_pattern'],
+                                  args.out / f'{width}-readback.txt'),
+                              'subdev': command(['v4l2-ctl', '-d', subdev,
+                                  '--get-ctrl=red_pixel_value,green_red_pixel_value,blue_pixel_value,green_blue_pixel_value'],
+                                  args.out / f'{width}-subdev-readback.txt')})
             report['raw'].append(result)
         if args.stress:
-            for width, height, fps in [(1280, 720, 60), (1920, 1080, 30)]:
+            for mode, width, height, fps in [(4, 1280, 720, 60), (2, 1920, 1080, 30)]:
+                progress(f'running RAW stress at {width}x{height}@{fps}')
+                # camera-stress deliberately uses the reusable V4L2 capture class,
+                # which cannot infer NVIDIA's sensor_mode ID from a generic format.
+                # Pin the known BSP mode before each multi-cycle stress run.
+                command(['v4l2-ctl', '-d', device,
+                         f'--set-ctrl=sensor_mode={mode},bypass_mode=0,override_enable=1'],
+                        args.out / f'stress-{width}-mode.txt')
+                stress_settings = (f'gain=16,exposure=1000,'
+                                   f'frame_rate={fps * 1000000},test_pattern=0')
+                command(['v4l2-ctl', '-d', device,
+                         f'--set-fmt-video=width={width},height={height},pixelformat=RG10',
+                         '--set-ctrl=' + stress_settings],
+                        args.out / f'stress-{width}-setup.txt')
                 destination = args.out / f'stress-{width}.json'
-                command([args.stress, '--device', device, '--width', str(width), '--height', str(height),
-                         '--fps', str(fps), '--frames', '120', '--cycles', '3', '--output', destination],
+                command([args.stress, '--device', device, '--sensor-mode', str(mode),
+                         '--width', str(width), '--height', str(height), '--fps', str(fps),
+                         '--frames', '120', '--cycles', '3', '--output', destination],
                         args.out / f'stress-{width}.txt', timeout=90)
                 result = json.loads(destination.read_text())
                 if not result.get('passed', result.get('healthy', False)):
                     raise RuntimeError('existing RAW stress tool did not report success')
         report['capture_passed'] = True
     finally:
-        result = run(['v4l2-ctl', '-d', device, '--set-ctrl=test_pattern=0'], check=False)
+        result = run(['v4l2-ctl', '-d', '/dev/video0', '--set-ctrl=test_pattern=0'], check=False)
         (args.out / 'pattern-reset.txt').write_text(result.stdout + result.stderr)
         if result.returncode:
             report['pattern_reset_failed'] = True
             report['capture_passed'] = False
     # Health requires available logs. Do not treat permission-denied as clean.
+    progress('checking kernel journal for camera anomalies')
     journal = run(['journalctl', '-k', '-b', '--since', '@' + capture_started, '--no-pager'], check=False)
     (args.out / 'kernel-after.txt').write_text(journal.stdout + journal.stderr)
     if journal.returncode or re.search('permission denied|not seeing messages|No journal files', journal.stderr, re.I):
@@ -157,6 +202,7 @@ def main():
             raise RuntimeError('Test Pattern control absent on video node')
         report['hardware_load_verified'] = True
         if args.capture:
+            progress('hardware load verified; starting destructive RAW capture')
             capture(args, report)
         if args.argus_probe:
             if run(['systemctl', 'is-active', '--quiet', 'nvargus-daemon'], check=False).returncode:
@@ -170,6 +216,11 @@ def main():
             if not report['argus_passed']:
                 raise RuntimeError('Native libargus report did not pass')
         report['passed'] = not args.capture or report['capture_passed']
+    except KeyboardInterrupt:
+        report['error'] = 'verification interrupted by operator'
+        write_json(args.out / 'verify.json', report)
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 130
     except (OSError, RuntimeError, ValueError) as error:
         report['error'] = str(error)
     write_json(args.out / 'verify.json', report)

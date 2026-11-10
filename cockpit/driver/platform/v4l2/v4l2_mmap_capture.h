@@ -19,7 +19,8 @@ struct V4l2MmapConfig {
   std::uint32_t height = 1080;
   std::uint32_t fps = 30;
   std::uint32_t buffer_count = 4;
-  bool set_tegra_bypass_mode = true;
+  bool configure_tegra_camera_controls = true;
+  int tegra_sensor_mode = -1;
 };
 
 struct V4l2RawFrame {

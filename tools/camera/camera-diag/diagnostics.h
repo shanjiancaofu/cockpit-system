@@ -58,7 +58,7 @@ Json InspectEnvironment();
 struct Options {
   std::string device = "/dev/video0";
   std::string output = "camera_diagnostics.json";
-  int width = 1920, height = 1080, fps = 30;
+  int width = 1920, height = 1080, fps = 30, sensor_mode = -1;
   int frames = 300, cycles = 1, timeout_ms = 5000;
   bool inspect_only = false, help = false;
 };

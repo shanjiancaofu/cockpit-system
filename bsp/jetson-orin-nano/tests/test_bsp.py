@@ -160,6 +160,14 @@ class SafetyTests(unittest.TestCase):
             state=json.loads(next(backup.glob('*/backup.json')).read_text())
             self.assertEqual(state['status'],'deploy_failed_restored')
 
+    def test_verify_uses_kernel_standard_pixel_control_names(self):
+        source=(BSP/'scripts/verify.py').read_text()
+        for name in ['red_pixel_value','green_red_pixel_value','blue_pixel_value','green_blue_pixel_value']:
+            self.assertIn(name,source)
+        for wrong in ['test_pattern_red','test_pattern_greenr','test_pattern_blue','test_pattern_greenb']:
+            self.assertNotIn(wrong,source)
+        self.assertIn("subdev = '/dev/v4l-subdev1'",source)
+
     def test_pattern_pixel_analysis_and_false_positive_rejection(self):
         width,height=64,64
         black=array.array('H',[0])*(width*height)
@@ -171,6 +179,29 @@ class SafetyTests(unittest.TestCase):
             self.assertTrue(result['raw_pixels_changed']);self.assertTrue(output.read_bytes().startswith(b'P5'))
             with self.assertRaisesRegex(RuntimeError,'did not change'):
                 verify.analyse(black,black,bars,width,height,output)
+
+    def test_preview_analysis_is_linear_not_repeated_max(self):
+        class CountedPixels:
+            def __init__(self, values):
+                self.values = values
+                self.iterations = 0
+            def __len__(self):
+                return len(self.values)
+            def __getitem__(self, index):
+                return self.values[index]
+            def __iter__(self):
+                self.iterations += 1
+                if self.iterations > 8:
+                    raise AssertionError('pixel array was rescanned once per output pixel')
+                return iter(self.values)
+
+        width,height=64,64
+        black=CountedPixels([0]*(width*height))
+        white=CountedPixels([1023]*(width*height))
+        bars=CountedPixels([(x//8)*128 for y in range(height) for x in range(width)])
+        with tempfile.TemporaryDirectory() as tmp:
+            verify.analyse(black,white,bars,width,height,Path(tmp)/'bars.pgm')
+        self.assertLessEqual(bars.iterations,8)
 
     def test_raw_bad_stride_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

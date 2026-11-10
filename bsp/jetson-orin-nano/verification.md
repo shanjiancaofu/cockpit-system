@@ -26,7 +26,7 @@
 | base DTB + DTBO | fdtoverlay 离线合并，模式/marker/双向 Sensor-CSI-VI graph 检查通过 | 不等于 live DT 已变化 |
 | deploy dry run | 真实目标计划通过，没有写入 | 不等于 root apply/rollback 已在真机执行 |
 | 未部署时 verify | 正确返回失败：enhanced module not loaded | 不把磁盘产物当作加载证明 |
-| Python + C mock 测试 | 17 项主机测试通过，含 I2C fault injection/部署中途失败恢复 | 不是硬件 Test Pattern 验收 |
+| Python + C mock 测试 | 19 项主机测试通过，含 I2C fault injection/部署中途失败恢复 | 不是硬件 Test Pattern 验收 |
 
 构建工具有 compiler version-string 警告：kernel headers 记录 GCC 11.4.0，当前为同系列 Ubuntu
 11.4.0 修订包；编译未忽略 ABI 错误，I2C conftest、vermagic 与实际导入 CRC 均核验。
@@ -77,3 +77,28 @@ Sensor-local C fault-injection harness 另以 ASan/UBSan 执行通过；这不�
 相对 include；这一改动同样包含在补丁内，不改 Sensor 控制行为。
 新一轮构建日志：`_output/bsp/r36.5.2/bsp01-complete-source-build.log`。
 这仅完善源码交付组织，不代表模块已加载或 Test Pattern 已完成硬件验收。
+
+
+## 重启后只读 / Argus 进展（2026-11-10）
+
+- 已加载模块 `/sys/module/nv_imx219/version = bsp01-r36.5.2-1`。
+- live DT marker、mode2/mode4 的 serial_b / port1 / 2 lanes / polarity6 均匹配。
+- `/dev/video0` 已枚举 Test Pattern 菜单；四个标准颜色分量位于 `/dev/v4l-subdev1`，名称为
+  `red_pixel_value`、`green_red_pixel_value`、`blue_pixel_value`、`green_blue_pixel_value`。
+  verify 脚本已按实际标准名称和 subdev 位置修正；此前错误名称没有用于硬件写入。
+- boot journal 记录 enhanced module 注册成功；未签名开发模块导致 kernel taint，符合 README
+  记录，不当作产品签名通过。
+- 新 BSP 下 Native libargus 1080P30，120 帧 × 2 cycles 通过，正常销毁 Provider，
+  `argus_passed=true`。这不替代待执行的 RAW/Test Pattern 图像验证。
+- 首次 RAW/Test Pattern 验证已写出 720P 的 black/white/bars/disabled 原始帧，但预览生成在每个像素上重复执行
+  `max(bars)`，形成二次复杂度并被操作员中断；该次不计为通过。脚本现已缓存最大值、使用查找表生成预览、
+  输出阶段进度并在中断时写入失败报告，完整 720P/1080P RAW 验收仍需重新执行。
+
+- 完整 RAW 重跑中，720P/1080P 的 black/white/bars/disabled 均通过像素变化与 Bayer 行相位检查；
+  随后的旧 `camera-stress` 首轮失败不是 Sensor 随机丢帧：工具请求 1280×720@60，实际打开成
+  3280×2464@30，120/120 帧均带 `V4L2_BUF_FLAG_ERROR`，并触发对应 VI `corr_err err_data 512`。
+  根因是通用 MMAP 采集类只设置 `bypass_mode`，没有保持 Tegra `override_enable` 和百万倍率
+  `frame_rate`，同时 stress 前没有显式钉住 BSP sensor_mode。现已在 stress 前分步设置 mode/format，
+  并通过 `VIDIOC_S_EXT_CTRLS` 在同一采集 FD 上设置 int64 sensor_mode/frame_rate（frame_rate 位于 `VIDIOC_S_PARM` 后）。修复后二者已分别以 120 帧 × 3 cycles
+  通过：720P 约 60.048 FPS、1080P 约 30.007 FPS，零 buffer error、零 sequence gap。仍需通过
+  root verify 完整重跑，生成统一的 kernel-journal/`verify.json` 验收报告。
