@@ -4,8 +4,14 @@
 不替换 NVIDIA Tegracam 为上游通用 IMX219 驱动。仓库保存完整的 IMX219 驱动、模式表、功能扩展与对应补丁、Overlay 差异及脚本，
 便于直接阅读和维护；不复制整份 Linux/NVIDIA BSP，也不提交构建产物。
 
-**当前状态：真实 `.ko` / `.dtbo` 已构建，ABI/CRC 与离线 DT 合并通过；尚未部署/加载新模块。
-Test Pattern 真机图像、重启后拓扑、RAW/Argus/视频回归均未验收，不得当作已交付真机 BSP。**
+**当前状态（2026-11-10）：增强版 `.ko` / `.dtbo` 已部署并在目标 Jetson 重启加载，
+live DT marker、CSI/VI 拓扑和 Test Pattern 控件已确认。最终 root RAW 报告已通过：
+720P60/1080P30 Test Pattern 自动像素检查、PGM 人工看图及两种模式各 120 帧 × 3 cycles
+stress 均正常；随后独立重启 Argus，Native libargus 1080P30 120 帧 × 2 cycles 再次通过。
+Sensor BSP 的加载、RAW 与基础 Hardware ISP 验收已有可复现证据。真机原版回滚、原版 RAW/Argus
+验证与增强版再部署后的加载/Argus 复验均已通过，不再重复部署或重启。AE/AWB Metadata、
+RTSP/WebRTC/事件 MP4 回归和 SIGKILL 恢复仍待单独执行，因此尚不标记为
+完整产品交付验收。**
 详细记录见 [验收记录](verification.md)。
 
 ## 1. 固定目标与来源
@@ -264,7 +270,9 @@ sudo bsp/jetson-orin-nano/scripts/verify.sh --capture \
 mode2 1080P30；设置/读取增益、曝光、帧率及菜单，采集 Solid Black、Solid White、Color Bars
 与 Disabled。按实际 RG10 bytesperline 解析 RAW，检查白黑像素变化和彩条同 Bayer 行相位的
 空间规律，保存 RAW/PGM、控制 readback 与日志；只设置控件返回成功不算图像通过。
-PGM 为 Bayer mosaic 辅助预览，不是 ISP RGB。仍需现场查看图案、确认实际内容正确。
+PGM 为 Bayer mosaic 辅助预览，不是 ISP RGB。2026-11-10 最终验收已人工查看 720P/1080P
+预览：亮暗垂直区域完整、两种分辨率规律一致，无截断或撕裂；自动报告中的 Bayer 行相位
+一致率均为 1.0。
 
 失败时尽力设回 `test_pattern=0`，**不会自动重启 daemon 或隐藏设备异常**。
 verify 可能保留大量 RAW 数据，提前检查可用空间。这里仅做短时基本功能，不是长稳测试。
@@ -280,9 +288,11 @@ bsp/jetson-orin-nano/scripts/verify.sh \
   --out "$PWD/_output/bsp/r36.5.2/argus-verify"
 ```
 
-复用现有 native probe 验证 NV12 输出与短时启停。AE/AWB 的显式切换、曝光/增益 metadata
-验证仍复用现有 Camera tuning CLI/硬件测试，单独保存结果；probe 的亮度或图像变化不能
-自动证明每个 AE/AWB 控制都生效。**不同时启动 V4L2 RAW 和 Argus Sensor Session。**
+复用现有 native probe 验证 NV12 输出与短时启停。2026-11-10 最终独立 Argus 报告为
+1080P30、120 帧 × 2 cycles，240 个 FrameLease 全部归还，零 Capture ID gap/timeout，
+资源分配与 EGL/CPU mapping 全部平衡。AE/AWB 的显式切换、曝光/增益 metadata 验证仍复用
+现有 Camera tuning CLI/硬件测试，单独保存结果；probe 的亮度或图像变化不能自动证明每个
+AE/AWB 控制都生效。**不同时启动 V4L2 RAW 和 Argus Sensor Session。**
 
 ### D. 用户态回归与异常恢复
 
@@ -308,4 +318,4 @@ python3 bsp/jetson-orin-nano/tests/test_bsp.py
 产物篡改、默认启动 stanza、原子写入、symlink 拒绝、daemon 占用、事务失败恢复和 RAW 像素
 判定。不需要 root，不写 /boot，不构造“已通过硬件”的结果。
 
-仓库的三个未提交 PR-10 720P 页面/文档改动与本 BSP 目录独立，不要混进同一个提交。
+BSP 验收文档与后续 PR-10 用户态回归证据分开提交，避免把驱动验收和页面功能改动混为一项。

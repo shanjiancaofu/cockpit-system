@@ -1,8 +1,9 @@
 # BSP-01 当前验证记录
 
-记录日期：2026-11-10（香港时间）。产品代码基线：`5f6765c`；BSP 工作区尚未提交。
+记录日期：2026-11-10（Asia/Shanghai）。当前已提交代码基线：`90b1750`。本文件按时间保留部署前
+基线和失败证据；顶部状态与末尾“重启后”章节代表当前结论。
 
-## 实机只读基线
+## 部署前实机只读基线（历史记录）
 
 - Jetson Linux R36.5.2，OOT kernel，`5.15.199-tegra`，P3768-0000/P3767-0005 Super。
 - `nv_imx219` 来自 `/lib/modules/5.15.199-tegra/updates/drivers/media/i2c/nv_imx219.ko`，
@@ -33,19 +34,23 @@
 `include/generated/compile.h` 还保留 vendor buildbrain 工具链记录，构建报告保存两者，不将
 本地开发构建伪装成 NVIDIA 官方签名产物。
 
-## 尚未执行的硬件验收（必须保留）
+## 当前硬件验收清单
 
-- [ ] 有权限维护窗口 apply、重启，确认新 `.ko` 加载与 Sensor Probe。
-- [ ] live DT marker、CSI/VI 拓扑和实物接线一致。
-- [ ] Test Pattern 可枚举、可设置，RAW 图案实际变化/正确。
-- [ ] 新模块 RAW10 720P/1080P 连续采集和正常启停。
-- [ ] 新模块曝光/增益/帧率控制，Native libargus NV12 与 AE/AWB metadata 验证。
-- [ ] 新模块后 RTSP/WebRTC/事件 MP4 原链路回归；Qt Out of Scope。
-- [ ] 真机安装失败/加载失败的回滚演练。
+- [x] 维护窗口 apply、重启，新 `.ko` 加载并完成 Sensor Probe。
+- [x] live DT marker、CSI/VI 拓扑和目标接线配置一致。
+- [x] Test Pattern 自动 RAW 像素/Bayer 相位检查通过；720P/1080P PGM 已人工确认。
+- [x] 新模块 RAW10 720P60/1080P30 各 120 帧 × 3 cycles，正常 STREAMON/OFF。
+- [x] 修复后的 root `verify.sh` 完整重跑，最终 RAW `verify.json` 为 `passed=true`、`capture_passed=true`，无 Camera kernel anomaly。
+- [ ] 增益、曝光、帧率已有基础设置/读回；AE/AWB 显式切换和 Metadata 验证待完成。
+- [x] RAW 验收后独立重启 Argus，Native libargus NV12 1080P30、120 帧 × 2 cycles 再次通过。
+- [ ] 新模块后的 RTSP/WebRTC/事件 MP4 原链路回归；Qt Out of Scope。
+- [x] 真机原版回滚、原版 RAW/Argus 验证及 BSP-01 再部署后的加载/Argus 复验。
 - [ ] SIGKILL/Argus outstanding-buffer 重新定位与独立恢复记录。
 
-**BSP-01 目前是“代码、构建与离线验证已推进；设备部署/硬件验收待执行”，不是完整验收通过。**
-没有把原版本曾成功采集的记录归到新驱动，也没有假定修改 Sensor 就修复闭源 daemon。
+**BSP-01 当前已有可复现的 Sensor 驱动、RAW/Test Pattern 与基础 Hardware ISP 成对最终报告；
+真机原版回滚/再部署闭环已通过；AE/AWB Metadata、用户态媒体链路和 SIGKILL 恢复仍待完成，因此不是完整
+产品验收通过。** 初次 stress 的 VI 错误已由请求模式与实际模式不匹配解释，不能归为已证实的
+Sensor/CSI 缺陷；也没有假定 Sensor 修改修复闭源 daemon。
 
 ## 本地原始证据（不入 git）
 
@@ -60,10 +65,16 @@ _output/bsp/r36.5.2/bsp01/merged.dtb
 _output/bsp/r36.5.2/deploy-dry-run.json
 _output/bsp/r36.5.2/postboot-not-deployed.json
 _output/bsp/r36.5.2/host-tests.log
+_output/bsp/r36.5.2/bsp01-final-raw/verify.json
+_output/bsp/r36.5.2/bsp01-final-raw/stress-1280.json
+_output/bsp/r36.5.2/bsp01-final-raw/stress-1920.json
+_output/bsp/r36.5.2/bsp01-final-raw/{1280x720,1920x1080}-bars.pgm
+_output/bsp/r36.5.2/bsp01-final-argus/verify.json
+_output/bsp/r36.5.2/bsp01-final-argus/native-argus.json
 ```
 
-新驱动加载前不要执行 `verify.sh --capture` 并将原模块结果记到本验收表。
-后续从 README 的第 6、7 节开始执行，保留 root apply 输出的确切 backup 路径。
+上述“未部署时 verify”证据仅记录部署前拒绝行为，不代表当前模块状态。后续最终验收继续从
+README 第 7 节执行，并保留 deploy 已输出的确切 backup 路径用于真机回滚。
 
 Sensor-local C fault-injection harness 另以 ASan/UBSan 执行通过；这不是运行内核/实际 I2C 的插桩测试。
 
@@ -76,10 +87,10 @@ Sensor-local C fault-injection harness 另以 ASan/UBSan 执行通过；这不�
 驱动中移除了没有使用的 vendor sibling `camera_gpio.h` include，避免本地目录出现断开的
 相对 include；这一改动同样包含在补丁内，不改 Sensor 控制行为。
 新一轮构建日志：`_output/bsp/r36.5.2/bsp01-complete-source-build.log`。
-这仅完善源码交付组织，不代表模块已加载或 Test Pattern 已完成硬件验收。
+这段是当时的源码交付结论；后续章节已经记录模块加载和 Test Pattern 分项硬件结果。
 
 
-## 重启后只读 / Argus 进展（2026-11-10）
+## 重启后硬件验收进展（2026-11-10）
 
 - 已加载模块 `/sys/module/nv_imx219/version = bsp01-r36.5.2-1`。
 - live DT marker、mode2/mode4 的 serial_b / port1 / 2 lanes / polarity6 均匹配。
@@ -88,8 +99,8 @@ Sensor-local C fault-injection harness 另以 ASan/UBSan 执行通过；这不�
   verify 脚本已按实际标准名称和 subdev 位置修正；此前错误名称没有用于硬件写入。
 - boot journal 记录 enhanced module 注册成功；未签名开发模块导致 kernel taint，符合 README
   记录，不当作产品签名通过。
-- 新 BSP 下 Native libargus 1080P30，120 帧 × 2 cycles 通过，正常销毁 Provider，
-  `argus_passed=true`。这不替代待执行的 RAW/Test Pattern 图像验证。
+- 新 BSP 下首次 Native libargus 1080P30，120 帧 × 2 cycles 通过，正常销毁 Provider，
+  `argus_passed=true`。最终 RAW 验收后又独立执行一次同规格 Argus 验证，结果仍通过。
 - 首次 RAW/Test Pattern 验证已写出 720P 的 black/white/bars/disabled 原始帧，但预览生成在每个像素上重复执行
   `max(bars)`，形成二次复杂度并被操作员中断；该次不计为通过。脚本现已缓存最大值、使用查找表生成预览、
   输出阶段进度并在中断时写入失败报告，完整 720P/1080P RAW 验收仍需重新执行。
@@ -100,5 +111,39 @@ Sensor-local C fault-injection harness 另以 ASan/UBSan 执行通过；这不�
   根因是通用 MMAP 采集类只设置 `bypass_mode`，没有保持 Tegra `override_enable` 和百万倍率
   `frame_rate`，同时 stress 前没有显式钉住 BSP sensor_mode。现已在 stress 前分步设置 mode/format，
   并通过 `VIDIOC_S_EXT_CTRLS` 在同一采集 FD 上设置 int64 sensor_mode/frame_rate（frame_rate 位于 `VIDIOC_S_PARM` 后）。修复后二者已分别以 120 帧 × 3 cycles
-  通过：720P 约 60.048 FPS、1080P 约 30.007 FPS，零 buffer error、零 sequence gap。仍需通过
-  root verify 完整重跑，生成统一的 kernel-journal/`verify.json` 验收报告。
+  通过：720P 约 60.048 FPS、1080P 约 30.007 FPS，零 buffer error、零 sequence gap。
+- 最终 root RAW 验收输出 `_output/bsp/r36.5.2/bsp01-final-raw/verify.json`：
+  `verification_scope=raw_test_pattern`、`passed=true`、`hardware_load_verified=true`、
+  `capture_passed=true`、`kernel_anomalies=[]`。两种分辨率的 black/white 平均值分别为 0/65535，
+  Color Bars 的 Bayer 行相位一致率均为 1.0；控制读回为 mode4 60,000,000 与 mode2 30,000,000，
+  测试结束后 `test_pattern=0 (Disabled)`。人工查看两张 PGM，垂直亮暗区域完整且两种分辨率规律一致。
+- 随后启动 `nvargus-daemon` 并生成 `_output/bsp/r36.5.2/bsp01-final-argus/verify.json`：
+  `passed=true`、`argus_passed=true`。probe 共获取 240 帧，两个 cycle 的 Capture ID gap、重复、
+  回退、timestamp error 和 timeout 均为 0；240 个 lease/buffer 全部归还，12/12 allocation、
+  EGL mapping 与 CPU mapping 均平衡，结束后 daemon 保持 active。
+
+
+## 真机回滚与再部署闭环（2026-11-10）
+
+- 已执行增强版 → 原版回滚并重启；原版模块的 NVIDIA 构建签名恢复，磁盘模块 SHA-256 为
+  `3bbf5fd8991fef091b8ce0488fe76244466e6e49e5bebeb1a3299e6d64bef2b3`，原 DTBO SHA-256 为
+  `2b9325fac4fe5654e87dbd90c9ccb9824ec3660888e1ed19b91ce8ffc20bd446`。
+  原版没有 BSP version/DT marker/Test Pattern 控件，Sensor-CSI-VI 拓扑正常。
+- 原版 Native Argus 1080P30、120 帧 × 2 cycles 通过，240 帧/lease/buffer 全部归还。
+- 原版 RAW 720P60 和 1080P30 各 120 帧 × 3 cycles 全部通过，约 60.048/30.007 FPS，
+  零 sequence gap、buffer error、timeout 和 I/O error。
+- 已重新部署增强版并重启；`verify.sh` 确认 `hardware_load_verified=true`，加载版本为
+  `bsp01-r36.5.2-1`，Test Pattern 为 Disabled。再部署后独立 Argus 复验
+  1080P30、120 帧 × 2 cycles 通过，`passed=true`、`argus_passed=true`。
+- 本次证明正常备份回滚与再部署路径可用，不代表断电/无法启动等故障场景均已验证。
+  不再重复驱动部署、重启或原版测试；后续直接进入不需重启的用户态验收。
+
+证据（不入 git）：
+
+```
+_output/bsp/r36.5.2/rollback-stock-argus/native-argus.json
+_output/bsp/r36.5.2/rollback-stock-raw/stress-1280.json
+_output/bsp/r36.5.2/rollback-stock-raw/stress-1920.json
+_output/bsp/r36.5.2/redeploy-final-argus/verify.json
+_output/bsp/r36.5.2/redeploy-final-argus/native-argus.json
+```
