@@ -1,6 +1,6 @@
 # BSP-01 当前验证记录
 
-记录日期：2026-11-10（Asia/Shanghai）。当前已提交代码基线：`90b1750`。本文件按时间保留部署前
+记录日期：2026-11-10（Asia/Hong_Kong）。当前验收代码基线：`0f4fccf`。本文件按时间保留部署前
 基线和失败证据；顶部状态与末尾“重启后”章节代表当前结论。
 
 ## 部署前实机只读基线（历史记录）
@@ -41,15 +41,15 @@
 - [x] Test Pattern 自动 RAW 像素/Bayer 相位检查通过；720P/1080P PGM 已人工确认。
 - [x] 新模块 RAW10 720P60/1080P30 各 120 帧 × 3 cycles，正常 STREAMON/OFF。
 - [x] 修复后的 root `verify.sh` 完整重跑，最终 RAW `verify.json` 为 `passed=true`、`capture_passed=true`，无 Camera kernel anomaly。
-- [ ] 增益、曝光、帧率已有基础设置/读回；AE/AWB 显式切换和 Metadata 验证待完成。
+- [x] 新 BSP 下 AE/AWB 自动/手动、锁定、Reset 与逐帧 Metadata 通过；Profile 十轮及 70 次非法配置拒绝通过。
 - [x] RAW 验收后独立重启 Argus，Native libargus NV12 1080P30、120 帧 × 2 cycles 再次通过。
-- [ ] 新模块后的 RTSP/WebRTC/事件 MP4 原链路回归；Qt Out of Scope。
+- [x] 新模块下 Chrome 720P、Firefox headless 解码、RTSP 协议接收、事件 MP4 解码回归通过；标准 VLC/MP4 人工实播及 Camera 停止重启后的新会话恢复仍待验收；Qt Out of Scope。
 - [x] 真机原版回滚、原版 RAW/Argus 验证及 BSP-01 再部署后的加载/Argus 复验。
 - [ ] SIGKILL/Argus outstanding-buffer 重新定位与独立恢复记录。
 
 **BSP-01 当前已有可复现的 Sensor 驱动、RAW/Test Pattern 与基础 Hardware ISP 成对最终报告；
-真机原版回滚/再部署闭环已通过；AE/AWB Metadata、用户态媒体链路和 SIGKILL 恢复仍待完成，因此不是完整
-产品验收通过。** 初次 stress 的 VI 错误已由请求模式与实际模式不匹配解释，不能归为已证实的
+真机原版回滚/再部署闭环、AE/AWB Metadata/Profile 与媒体自动回归已通过；标准 VLC/MP4 人工实播、
+Camera 停止重启后的新会话恢复和 SIGKILL 恢复仍待完成，因此不是完整产品验收通过。** 初次 stress 的 VI 错误已由请求模式与实际模式不匹配解释，不能归为已证实的
 Sensor/CSI 缺陷；也没有假定 Sensor 修改修复闭源 daemon。
 
 ## 本地原始证据（不入 git）
@@ -147,3 +147,73 @@ _output/bsp/r36.5.2/rollback-stock-raw/stress-1920.json
 _output/bsp/r36.5.2/redeploy-final-argus/verify.json
 _output/bsp/r36.5.2/redeploy-final-argus/native-argus.json
 ```
+
+
+## 增强版 BSP 下 Hardware ISP 调参回归（2026-11-10）
+
+本轮不修改内核、DTBO 或 Camera 架构，不重新部署/重启，不执行 RAW/SIGKILL。使用
+`arm64-debug-auto`，先按当前源码重新构建 `camera-ctl`、
+`native_camera_tuning_hardware_test`、`native_tuning_profile_hardware_test`，然后顺序独占 Sensor。
+未运行包含重复 RAW 测试的完整 Hardware Gate；以下是定向硬件结果，不冒充完整 Gate 通过。
+
+- `camera-ctl tuning verify --native --frames 30 --warmup 30 --cycles 10`：通过。
+  十轮共 70 个阶段、2,400 帧逐帧 Metadata，覆盖手动 AE/AWB、恢复自动、EV/50Hz/60Hz、
+  AE/AWB 锁定、Reset 与非法增益拒绝。手动阶段每轮匹配 30 帧，实际 Metadata 为曝光
+  8,000,000 ns、Sensor Gain 2.0、ISP Gain 1.0、WB [1.5, 1.0, 1.0, 1.25]，
+  对应已提交 Session/Revision；2,400 lease/buffer 全部归还，60/60 allocation 平衡。
+- 并发控制硬件测试：通过。Acquire 与 SetTuning 并发正常，旧 lease Metadata 不被后续
+  revision 改写；持有 lease 时 Stop 延后，释放后正常停止，新 Session 的 revision 从 1 开始。
+- Profile 硬件测试：十轮全部通过，覆盖持久化保存、加载、Reset 后重载和非法配置拒绝，
+  共 70 次拒绝、1,080 帧 Metadata；lease/buffer 全部归还，60/60 allocation 平衡。
+- 加载版本始终为 `bsp01-r36.5.2-1`；调参验收期间 daemon InvocationID/PID/NRestarts 未变化。
+
+证据（不入 git）：
+
+```
+_output/runtime/bsp01-tuning/build.log
+_output/runtime/bsp01-tuning/environment.json
+_output/runtime/bsp01-tuning/verify-current.json
+_output/runtime/bsp01-tuning/concurrent.json
+_output/runtime/bsp01-tuning/profiles.json
+_output/runtime/bsp01-tuning/acceptance.json
+```
+
+
+## 增强版 BSP 下 720P 媒体并行回归（2026-11-10）
+
+使用重新构建的 `pr10` Native Camera/Transfer/Recording 模块，Camera Session 为
+1280×720@30，单个 libx264 输出到 Transfer 8556 和独立 Recording 8557。
+未启动 Qt/HMI、未改内核/设备树、未重启 daemon/system。
+
+- Chrome 有界面浏览器实测：720P initial/reconnect/refresh 各连续采样 10 秒，解码帧
+  分别 24→325、10→311、15→316；各阶段 packetsLost/framesDropped 为 0。
+  截图可见实际相机拍摄的室内画面，不只是 ICE Connected。
+- 随后 Firefox headless：720P 三阶段分别 6→307、8→309、7→307 个解码帧，
+  packetsLost/framesDropped 为 0；该结果只证明实际解码，不冒充有界面 Firefox 人工观看。
+- RTSP 接收与 Chrome/Firefox 验证期间并行：GStreamer 经 RTSP/TCP、H264 depay/parse
+  收到 2,400 个 buffer 后正常退出。该证据不是标准 VLC 实播。
+- Chrome 播放期间触发事件录像：生成 H.264 Constrained Baseline MP4，1280×720@30，
+  时长 20.8 秒，gst-discoverer 检查和硬件解码到 EOS 通过。新 BSP 下该文件的人工播放器
+  实播仍待确认，不将历史 BSP 的播放器结果挪用到本轮。
+- 运行中 Camera 状态记录 2,840 个 encoder packet、11 次主动 IDR/11 次 forced IDR，
+  `frames_dropped=0`，但 `source_frames_skipped=3`，因此不声称整个采集链路绝对零跳帧。
+  运行中保留的一个 lease 属于在途帧，不以该运行中快照证明停止后的资源计数平衡。
+- 测试正常 Stop 并退出所有自建模块/Driver；Argus PID=986、NRestarts=0，InvocationID
+  未变化。测试窗无 Camera kernel error；daemon 在初始 mode4 切换期间有 3 条 acquireBuffer
+  Timeout，随后持续播放正常，原始日志保留，不宣称日志完全无错误，也未据此改动 VI/NVCSI。
+- 本轮未验证 Camera 停止后保持同一浏览器连接、再启动时旧 Peer 清理/新会话恢复，
+  也没有执行 SIGKILL；两项与标准 VLC 人工观看继续保留，不能因自动回归通过而关闭。
+
+证据（不入 git）：
+
+```
+_output/runtime/bsp01-media/{build,modules-build}.log
+_output/runtime/bsp01-media/regression.json
+_output/runtime/bsp01-media/{chrome,firefox}.json
+_output/runtime/bsp01-media/chrome-{initial,reconnect,refresh}.png
+_output/runtime/bsp01-media/{rtsp,camera-status,recording-trigger,recording-stop}.log
+_output/runtime/bsp01-media/{mp4-discover-0,mp4-decode-0}.log
+_output/runtime/bsp01-media/{kernel-journal,argus-journal}.txt
+```
+
+本轮软件回归：BSP 主机测试 19/19、tuning/profile/CLI CTest 4/4 通过。

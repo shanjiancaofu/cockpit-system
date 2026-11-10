@@ -514,3 +514,30 @@ Native Camera 本身可以仍以 1920×1080 采集；这不代表浏览器收到
 1080P 默认浏览器协商受限的旧记录不改写为“通过”，但也**不再作为当前 PR-10 关闭阻塞**。
 后续按 720P 补齐标准 VLC RTSP 与浏览器/事件 MP4 联合证据即可；Edge 保留为未验证的补充
 兼容性项，Qt/HMI 仍 Out of Scope。
+
+
+## 9. 增强版 IMX219 BSP 下的 720P 回归（2026-11-10）
+
+验收基线 `0f4fccf`，已加载 `bsp01-r36.5.2-1`，沿用既有 Native Camera → VIC →
+单实例 libx264 → RTSP/WebRTC/Event MP4，无 Qt/HMI、无驱动重新部署或系统重启。
+
+| 检查 | 本轮结果 | 边界 |
+| --- | --- | --- |
+| Chrome 720P 有界面浏览器 | initial/reconnect/refresh 各 10 秒通过，解码 24→325 / 10→311 / 15→316 帧 | 截图确认真实室内画面 |
+| Firefox 720P headless | 三阶段 6→307 / 8→309 / 7→307 帧解码通过 | 不代替有界面人工观看 |
+| RTSP 并行接收 | GStreamer RTSP/TCP 收到 2,400 个 H264 buffer | 不代替标准 VLC 实播 |
+| 事件 MP4 | Chrome 播放期间触发，720P30、20.8 秒，硬件解码到 EOS | 新 BSP 下人工播放器实播仍待确认 |
+| Camera/Argus 正常结束 | Camera Stop、模块退出后 daemon PID/InvocationID 不变、NRestarts=0 | 未覆盖 Camera 重启时的旧 Peer 清理和 SIGKILL |
+
+浏览器各阶段 packetsLost/framesDropped 均为 0；Camera 运行快照仍记录
+`source_frames_skipped=3`，不把浏览器零丢包扩大为采集链路绝对零跳帧。初始 mode4 切换时
+Argus 日志有 3 条 acquireBuffer Timeout，之后播放正常、daemon 无重启；保留原始证据，
+不声称完全无日志异常。完整 BSP 与调参结果见 `bsp/jetson-orin-nano/verification.md`。
+
+本轮证据位于 `_output/runtime/bsp01-media/`：`regression.json`、`chrome.json`、
+`firefox.json`、三阶段 PNG、`rtsp.log`、`camera-status.log`、`mp4-discover-0.log`、
+`mp4-decode-0.log` 与 kernel/Argus journal。产物不入 git。
+
+标准 VLC 实际播放、完整人工三路联合观看、当前 BSP 下 Camera 停止重启会话恢复以及
+SIGKILL 故障边界仍待独立验证。浏览器仍按 Chrome/Firefox 720P，1080P 暂缓，
+Edge 为补充兼容项，不新增 PR-11。

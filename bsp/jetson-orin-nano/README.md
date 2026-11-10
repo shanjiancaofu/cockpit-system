@@ -9,8 +9,10 @@ live DT marker、CSI/VI 拓扑和 Test Pattern 控件已确认。最终 root RAW
 720P60/1080P30 Test Pattern 自动像素检查、PGM 人工看图及两种模式各 120 帧 × 3 cycles
 stress 均正常；随后独立重启 Argus，Native libargus 1080P30 120 帧 × 2 cycles 再次通过。
 Sensor BSP 的加载、RAW 与基础 Hardware ISP 验收已有可复现证据。真机原版回滚、原版 RAW/Argus
-验证与增强版再部署后的加载/Argus 复验均已通过，不再重复部署或重启。AE/AWB Metadata、
-RTSP/WebRTC/事件 MP4 回归和 SIGKILL 恢复仍待单独执行，因此尚不标记为
+验证与增强版再部署后的加载/Argus 复验均已通过，不再重复部署或重启。新 BSP 下十轮
+AE/AWB Metadata、并发控制和 Profile 回归亦已通过。720P Chrome 有界面实播、Firefox headless
+解码/重连/刷新、RTSP 协议接收与事件 MP4 解码回归已通过；标准 VLC/MP4 人工实播、
+Camera 停止重启后的新会话恢复及 SIGKILL 诊断仍待执行，因此尚不标记为
 完整产品交付验收。**
 详细记录见 [验收记录](verification.md)。
 
