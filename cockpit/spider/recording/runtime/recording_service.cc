@@ -371,7 +371,7 @@ bool RecordingService::FinishVideoLocked(const std::string& reason, std::string*
     return false;
   }
   // This file is already inside artifacts; its relative path survives session rename.
-  if (!session_.AppendDataFile(file, error)) return false;
+  if (!session_.AppendGeneratedDataFile(file, error)) return false;
   std::ostringstream payload;
   payload << "{\"event_id\":\"" << json::EscapeString(pending_video_.event_id)
           << "\",\"event_type\":\"" << json::EscapeString(pending_video_.event_type)

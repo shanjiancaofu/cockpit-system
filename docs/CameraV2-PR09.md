@@ -78,3 +78,24 @@ GOP 测试覆盖完整 GOP 淘汰、单包超预算、无 IDR 时长上限、下
 计数/预算/解码起点一致性；另以 ASan/UBSan 执行该测试。
 这些测试不占用 Sensor，不需要 sudo/reboot，不代替 Camera 全链路真机回归、真实磁盘满/
 掉电测试或标准 VLC 人工观看。RTSP push 返回值、消费者异常统计及 SIGKILL 定位另行处理。
+
+
+### 2026-11-11 真机补充：生成产物索引修复
+
+真实连续录像/Camera 重启回归中，三段 MP4 均可解码，但首次 `--verify-all` 报告损坏。
+原因是 `artifacts/event_video_N.mp4` 已在 Session 内生成，索引却仍使用外部路径语义。
+失败证据保留在 `_output/runtime/media-recovery-20261111/normal-chrome/`，没有改写为通过。
+
+新增仅供本地可信 producer 使用的 `RecordingSession::AppendGeneratedDataFile`：
+验证路径位于当前 Session 的 artifacts/、拒绝非规范路径/逃逸/符号链接、核验大小，
+同步文件及 artifacts 目录，将 payload 纳入既有 Session 容量计数，以既有索引字段
+`copied_into_session=true` 标记相对存储位置，但不再实际复制一遍视频。外部导入仍走原有
+AppendDataFile/CopyDataFile，不新增 RPC 或存储框架。
+
+修复后的最终真机结果：连续两次事件及 Camera 重启后的第三次事件全部完成；录制期间
+均观察到 `.mp4.incomplete`，最终无残留；三段均发现/解码到 EOS。Chrome 原生播放器
+实测第三段 1280×720、9.133 秒，播放 0.0515→2.0661 秒、显示帧 9→71，无 video error。
+`recording-ctl --verify-all`：1 个健康 Session、3 个文件、0 个 issue。
+
+单元测试补充生成路径拒绝、大小不匹配拒绝以及 Session 目录重命名后 MP4 checksum 校验。
+最终真机证据位于 `_output/runtime/media-recovery-20261111/final-normal/`，不入 git。

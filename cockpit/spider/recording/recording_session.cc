@@ -198,6 +198,16 @@ bool RecordingSession::AppendEvent(const RecordingEvent& event, std::string* err
 
 bool RecordingSession::AppendDataFile(const RecordingDataFile& file, std::string* error) {
   std::lock_guard<std::mutex> lock(mutex_);
+  return AppendDataFileLocked(file, false, error);
+}
+
+bool RecordingSession::AppendGeneratedDataFile(const RecordingDataFile& file, std::string* error) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return AppendDataFileLocked(file, true, error);
+}
+
+bool RecordingSession::AppendDataFileLocked(const RecordingDataFile& file, bool generated,
+                                           std::string* error) {
   if (status_.state != RecordingState::kRecording || !data_file_index_.is_open()) {
     AssignError(error, "recording session is not active");
     return false;
@@ -207,11 +217,43 @@ bool RecordingSession::AppendDataFile(const RecordingDataFile& file, std::string
     return false;
   }
   RecordingDataFile recorded_file = file;
-  if (recorded_file.copy_into_session && !CopyDataFile(&recorded_file, error)) {
+  std::uint64_t generated_bytes = 0;
+  if (generated) {
+    const std::filesystem::path relative(file.path);
+    if (relative.empty() || relative.is_absolute() || *relative.begin() != "artifacts" ||
+        relative.lexically_normal() != relative || relative.filename().empty()) {
+      AssignError(error, "generated artifact must be a normalized session artifacts/ path");
+      return false;
+    }
+    for (const auto& part : relative) {
+      if (part == "..") {
+        AssignError(error, "generated artifact escapes session");
+        return false;
+      }
+    }
+    const auto path = temporary_directory_ / relative;
+    const int fd = OpenAllowedDataFile(path, &generated_bytes, error);
+    if (fd < 0) return false;
+    const bool synced = fsync(fd) == 0;
+    const int sync_error = errno;
+    close(fd);
+    if (!synced) {
+      AssignError(error, "sync generated artifact failed: " + std::string(std::strerror(sync_error)));
+      return false;
+    }
+    if (generated_bytes != recorded_file.size_bytes) {
+      AssignError(error, "generated artifact size does not match index");
+      return false;
+    }
+    if (!SyncPath(path.parent_path(), O_RDONLY | O_DIRECTORY, error)) return false;
+    // Existing schema uses copied_into_session to identify session-relative storage.
+    // This producer already owns the file: mark its location without making a second copy.
+    recorded_file.copy_into_session = true;
+  } else if (recorded_file.copy_into_session && !CopyDataFile(&recorded_file, error)) {
     return false;
   }
   const std::string line = recorded_file.ToJson();
-  if (!EnsureCapacity(line.size() + 1U, error)) {
+  if (!EnsureCapacity(generated_bytes + line.size() + 1U, error)) {
     return false;
   }
   data_file_index_ << line << '\n';
@@ -220,7 +262,7 @@ bool RecordingSession::AppendDataFile(const RecordingDataFile& file, std::string
     AssignError(error, status_.last_error);
     return false;
   }
-  active_bytes_ += line.size() + 1U;
+  active_bytes_ += generated_bytes + line.size() + 1U;
   ++status_.messages_written;
   ++status_.data_files_indexed;
   ++data_messages_since_flush_;

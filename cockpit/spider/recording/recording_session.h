@@ -69,6 +69,9 @@ class RecordingSession {
   bool Append(const vehicle::VehicleState& state, std::string* error);
   bool AppendEvent(const RecordingEvent& event, std::string* error);
   bool AppendDataFile(const RecordingDataFile& file, std::string* error);
+  // For trusted producers which already wrote a file below this session's artifacts/.
+  // Validates/syncs/accounts the file and indexes a session-relative path without copying.
+  bool AppendGeneratedDataFile(const RecordingDataFile& file, std::string* error);
   bool Stop(std::string* error);
   RecordingStatus status() const;
   void SetExistingBytes(std::uint64_t existing_bytes);
@@ -77,6 +80,7 @@ class RecordingSession {
                                         std::string* error);
 
  private:
+  bool AppendDataFileLocked(const RecordingDataFile& file, bool generated, std::string* error);
   bool EnsureCapacity(std::uint64_t additional_bytes, std::string* error);
   int OpenAllowedDataFile(const std::filesystem::path& source, std::uint64_t* size,
                           std::string* error) const;

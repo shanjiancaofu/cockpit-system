@@ -189,6 +189,49 @@ int main() {
     packet.keyframe = true;
     packet.pts = packet.dts = 0;
 
+    {
+      RecordingSession session(directory / "generated-validation", "test");
+      Require(session.Start("test", &why), "start generated validation");
+      const auto artifacts = std::filesystem::path(session.status().directory) / "artifacts";
+      std::filesystem::create_directories(artifacts);
+      std::ofstream(artifacts / "owned.bin") << "data";
+      std::ofstream(directory / "outside.bin") << "data";
+      std::filesystem::create_symlink(directory / "outside.bin", artifacts / "link.bin");
+      RecordingDataFile file;
+      file.timestamp_ms = 1;
+      file.source = "test";
+      file.kind = "application/octet-stream";
+      file.size_bytes = 4;
+      for (const std::string path : {"../escape", "artifacts/../escape", "artifacts/link.bin"}) {
+        file.path = path;
+        Require(!session.AppendGeneratedDataFile(file, &why), "unsafe generated path accepted");
+      }
+      file.path = "artifacts/owned.bin";
+      file.size_bytes = 5;
+      Require(!session.AppendGeneratedDataFile(file, &why), "generated size mismatch accepted");
+      file.size_bytes = 4;
+      Require(session.AppendGeneratedDataFile(file, &why), "valid generated file rejected");
+      Require(session.Stop(&why), "generated session stop failed");
+    }
+
+    // Generated event artifacts must remain verifiable after the session rename.
+    {
+      RecordingService good_service(directory / "good-sessions", "test", {}, {}, {}, config);
+      Require(good_service.Initialize(&why) && good_service.Start("test", &why),
+              "start good service");
+      Require(good_service.HandleVideoPacket(packet, false, &why), "good service pre-roll");
+      Require(good_service.TriggerEventVideo("good", 1, "manual", nullptr, &why),
+              "good service trigger");
+      Require(good_service.Stop(&why), "good service stop");
+      const auto sessions = good_service.List(10);
+      Require(sessions.size() == 1, "completed session not listed");
+      RecordingIntegrityResult integrity;
+      Require(good_service.Verify(sessions.front().session_id, &integrity, &why),
+              "verify good service");
+      Require(integrity.healthy && integrity.files_checked == 1 && integrity.checksums_checked == 1,
+              "generated MP4 index did not survive session rename");
+    }
+
     // Service must retire a failed pending video, never index it on Poll/Stop.
     for (auto injected : {Fault::Write, Fault::Timeout, Fault::Pipeline, Fault::EndStream}) {
       const auto sessions = directory / ("sessions-" + std::to_string(static_cast<int>(injected)));
