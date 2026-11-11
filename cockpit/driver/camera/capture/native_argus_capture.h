@@ -21,6 +21,7 @@ enum class NativeStopStatus { kStopped, kLeasesOutstanding, kError };
 struct NativeCaptureStats {
   std::uint64_t starts = 0, frames_acquired = 0, leases_returned = 0, buffers_released = 0;
   std::uint64_t drained = 0, timeouts = 0, no_buffer = 0, release_errors = 0;
+  std::uint64_t surface_copy_frames = 0, surface_copy_total_ns = 0;
   std::uint64_t allocated = 0, destroyed = 0, imported_fds = 0;
   std::uint64_t egl_mapped = 0, egl_unmapped = 0, cpu_mapped = 0, cpu_unmapped = 0;
   std::uint64_t outstanding_leases = 0, pending_returns = 0, peak_leases = 0;
@@ -34,7 +35,10 @@ struct NativeCaptureStats {
   }
 };
 
-// Synchronous capture building block; no worker, broker or supervisor is created.
+// Synchronous native EGLStream capture; no worker, broker or supervisor is created.
+// Argus owns producer buffers. Each acquired image is synchronously copied into a
+// bounded NvBufSurface pool before publishing its FrameLease/metadata. Client
+// surfaces are never registered as daemon-owned BufferOutputStream resources.
 // Control calls are serialized. A FrameLease may be returned on another thread;
 // returns are queued and flushed by Acquire/Stop while the runtime is alive.
 // Stop returns kLeasesOutstanding until all consumers have relinquished their frames.

@@ -8,9 +8,10 @@
 live DT/Probe、720P60/1080P30 RAW Test Pattern、重复启停、Native Argus 及真实回滚/再部署
 均已通过，驱动基线冻结，不再重复部署或重启。AE/AWB/Profile、720P Chrome/RTSP/事件 MP4
 与 Camera 停止/启动后的会话恢复均已通过，Session 校验正常；本轮 VLC/Qt 人工观看排除。
-独立 SIGKILL 仍复现 Native BufferStream 客户端异常退出后 daemon 清理时 SIGSEGV，
-systemd 自动重启后可恢复；Core 生成但尚未解析，不能将正常验收写成异常恢复已修复。**
-详细记录见 [验收记录](verification.md)。
+旧 BufferStream 的 SIGKILL 崩溃已通过用户态缓冲所有权调整消除当前触发路径：Native EGLStream
+复制到独立有界池后，5 次 probe 及真实 Camera 进程 SIGKILL 均即时恢复，daemon 不重启。
+增加一次 surface copy，非原来的直接注册零复制；旧闭源库故障/未解析 Core 保留为历史记录。**
+详细记录见 [验收记录](verification.md) 与 [Native SIGKILL 修复及成本](../../docs/CameraV2-Argus-SIGKILL.md)。
 
 ## 1. 固定目标与来源
 

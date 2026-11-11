@@ -1,5 +1,9 @@
 # PR-10 设备验收记录与剩余浏览器验收
 
+> **2026-11-11 后续：Native SIGKILL 修复后又完成真实 camera_driver SIGKILL 联合回归，
+> Argus 无重启，WebRTC/原 RTSP 连接/三个事件 MP4 均恢复。正常结束与故障恢复分开保存证据；
+> 新 Native 入口增加一次 surface copy，详见 `CameraV2-Argus-SIGKILL.md`，不再宣称原路径零复制。**
+
 > **2026-11-11 本轮范围更新：标准 VLC 人工实播按用户要求 Out of Scope，不作为本轮阻塞，
 > 不是已通过。Camera 停止/启动、慢 TCP 客户端隔离、连续事件录像与 MP4 播放器复验见第 10 节。**
 
@@ -610,3 +614,15 @@ GOP、Receiver、RTSP push fault、WebRTC Session 和 H264 协商；Receiver 另
 
 **当前：本轮正常媒体与恢复范围已通过；VLC 排除、1080P 暂缓、Qt/HMI 排除。**
 Argus SIGKILL 仍复现 daemon 崩溃，独立诊断结果见 `CameraV2底层验证.md`，不能声称已修复。
+
+
+## 11. Native SIGKILL 修复后的真实服务回归（2026-11-11）
+
+在相同 720P 单编码链路下显式开启 native-media-recovery.py --kill-camera-child，
+杀死的是真正 camera_driver 子进程而非仅 Capture probe。旧 Peer 清理，Camera 子进程
+重建后 Generation 1→2，新 Peer 5 秒解码 2→153 帧，原 RTSP 连接观察计数 32→343。
+连续两次事件及恢复后的第三次事件均解码到 EOS，播放器实播与 Session 3 文件/0 issue
+检查通过，daemon PID=17696/NRestarts=1/InvocationID 均不变，Kernel 无新增条目。
+证据在 `_output/runtime/argus-kill-fix/media-camera-sigkill/`；与之前旧 BufferStream
+失败结果分开保存。实现改变、额外复制成本及 5 次 Native probe SIGKILL 见
+`CameraV2-Argus-SIGKILL.md`。VLC/Qt/HMI 本轮仍排除，1080P 浏览器暂缓。

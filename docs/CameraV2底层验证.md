@@ -1,5 +1,10 @@
 # Camera V2 底层验证
 
+> **2026-11-11 后续修复：默认 NativeArgusCapture 改为 Argus-owned EGLStream + 同步复制到
+> 有界 DMA-BUF 池，5 次 probe SIGKILL 和真正 Camera 进程 SIGKILL 均即时恢复、daemon 不重启。
+> 详见 [修复与成本/验收](CameraV2-Argus-SIGKILL.md)。下文 BufferStream 崩溃记录保留为旧路径历史，
+> 不代表当前默认实现仍复现，也不宣称已修补 NVIDIA 的旧 BufferStream 库。**
+
 > PR-00/01/02 描述为历史验证范围；2026-11-11 增强版 BSP 的异常退出对照结果见文末，
 > 不用早期“生产仍使用原链路”的描述覆盖当前 Native Camera 实现。
 

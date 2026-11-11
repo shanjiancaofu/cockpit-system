@@ -48,11 +48,13 @@
 - [x] 连续两次事件及 Camera 重启后第三次事件均完成，Session 完整性校验 3 文件/0 issue。
 - [x] 真机原版回滚、原版 RAW/Argus 验证及 BSP-01 再部署后的加载/Argus 复验。
 - [x] 独立 SIGKILL 对照诊断及恢复记录已保存：Native 仍导致 daemon SEGV，自动重启后可恢复；GStreamer 本轮未触发 daemon 重启。
-- [ ] Native SIGKILL 即时恢复/具体根因修复未通过；Apport Core root-only，尚未解析。
+- [x] 默认 Native 入口改用 Argus-owned EGLStream + 独立池复制后，5 次 probe 和真实 camera_driver SIGKILL 均即时恢复，daemon 无新增重启。
+- 旧 NVIDIA BufferStream 二进制及 root-only Core 未解析/未修补；新路径不再注册客户端缓冲，成本为一次 surface copy。
 
 **Sensor BSP 基础功能及真实回滚已通过并冻结；正常调参与媒体/Camera 重启范围也已通过。**
-本轮按用户要求排除标准 VLC，不将其标成成功。Native SIGKILL 仍在 daemon 清理
-outstanding buffers 时复现崩溃，不能宣布异常恢复已修复或以无证据的 Kernel Patch 处理。
+本轮按用户要求排除标准 VLC，不将其标成成功。旧 BufferStream SIGKILL 失败保留为历史证据；
+新 Native EGLStream + 独立池复制入口已通过 5 次 probe 及真实 Camera 进程 SIGKILL 恢复，
+daemon 不重启。没有修改内核或宣称已修补旧闭源 BufferStream；额外复制成本见文末。
 历史测试和失败记录保留；最新结论见文末。
 
 ## 本地原始证据（不入 git）
@@ -236,3 +238,16 @@ _output/runtime/bsp01-media/{kernel-journal,argus-journal}.txt
   目前 daemon active。详情见 `docs/CameraV2底层验证.md` 文末。
 - 相关 CTest 11/11 通过，Receiver ASan/UBSan 通过。VLC 人工观看本轮排除，
   1080P 浏览器仍暂缓，Qt/HMI 不纳入；不再要求重复刷驱动或重启。
+
+
+## Native SIGKILL 后续修复（2026-11-11）
+
+保持 BSP 不变，仅调整 NativeArgusCapture 内部输出流与所有权：Argus-owned EGLStream
+经同步 copyToNvBuffer 写入原有有界 NvBufSurface 池，FrameLease/调参/Frame Broker/编码及
+传输接口不变。5 轮正式 probe 和真实 Camera 子进程 SIGKILL 后立即重建均通过，daemon
+PID=17696/NRestarts=1/InvocationID 不变，NRestarts=1 是旧失败历史值。
+
+六项硬件回归（生命周期/并发调参/Profile/AE-AWB/720P/1080P）均通过，软件 CTest 18/18
+通过。额外 surface copy 短时均值约 5.087 ms/720P 帧、7.757 ms/1080P 帧，不再宣称原入口
+零复制；并未把 SDK 原始 BufferStream 崩溃说成已修补。详情与复现见
+`docs/CameraV2-Argus-SIGKILL.md`；原始证据位于 `_output/runtime/argus-kill-fix/`。

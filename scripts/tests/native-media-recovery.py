@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Opt-in Jetson 720P media/restart acceptance. No VLC, sudo, downloads or SIGKILL of Camera.
+"""Opt-in Jetson 720P media/restart acceptance. No VLC, sudo or downloads. Camera SIGKILL requires --kill-camera-child.
 
 Requires PyYAML, a WebRTC-enabled build and explicitly supplied browser drivers.
 Creates isolated config/evidence; controls only services/clients spawned by this script.
@@ -71,6 +71,8 @@ def main():
     parser.add_argument('--base-url', required=True, help='Trusted LAN Jetson origin, e.g. http://192.168.0.30:8080')
     parser.add_argument('--chromedriver', type=Path, required=True)
     parser.add_argument('--chrome-binary', type=Path, required=True)
+    parser.add_argument('--kill-camera-child', action='store_true',
+                        help='Explicit fault injection: SIGKILL only the Camera module spawned by this script')
     parser.add_argument('--geckodriver', type=Path)
     parser.add_argument('--firefox-openh264-dir', type=Path)
     args = parser.parse_args()
@@ -97,7 +99,7 @@ def main():
                   base_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                   git_dirty=bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, text=True).strip()),
                   loaded_module=Path('/sys/module/nv_imx219/version').read_text().strip(),
-                  standard_vlc='out_of_scope_by_request', firefox='requested' if args.geckodriver else 'not_requested', sigkill='not_part_of_normal_acceptance', passed=False)
+                  standard_vlc='out_of_scope_by_request', firefox='requested' if args.geckodriver else 'not_requested', sigkill='owned_camera_child' if args.kill_camera_child else 'not_part_of_normal_acceptance', passed=False)
     children = []
     observer_stop = threading.Event()
     staging = {}
@@ -175,10 +177,13 @@ def main():
                                   for p in [binaries / 'camera-ctl', binaries / 'cockpit-navigator',
                                             *(build / 'lib/cockpit/modules' / ('lib' + m + '.so')
                                               for m in ['camera_driver', 'recording', 'transfer'])]}
+        camera_child = None
         for module in ['transfer', 'camera_driver', 'recording']:
-            start(module, [binaries / 'cockpit-navigator', '--module-child', '--module', module,
+            process = start(module, [binaries / 'cockpit-navigator', '--module-child', '--module', module,
                            '--library', build / 'lib/cockpit/modules' / ('lib' + module + '.so'),
                            '--module-config', path])
+            if module == 'camera_driver':
+                camera_child = process
         time.sleep(2)
         camera_start('camera-start')
         observer.start()
@@ -224,11 +229,25 @@ def main():
         before = status()
         persistent = rtsp('rtsp-persistent')
         wait(lambda: count_buffers('rtsp-persistent') >= 30, 20, 'persistent RTSP initial frames')
-        run('camera-stop', ctl('--stop'))
+        if args.kill_camera_child:
+            if camera_child.poll() is not None:
+                raise RuntimeError('Camera child exited before fault injection')
+            os.killpg(camera_child.pid, signal.SIGKILL)
+            if camera_child.wait(timeout=5) != -signal.SIGKILL:
+                raise RuntimeError('Camera SIGKILL was not confirmed')
+            report['tests'].append(dict(name='owned-camera-child-sigkill', passed=True,
+                                        pid=camera_child.pid, returncode=-signal.SIGKILL))
+        else:
+            run('camera-stop', ctl('--stop'))
         wait(lambda: not status()['video_available'] and not status()['sessions'], 15,
              'stalled input and old Peer retirement')
         save('stopped-status', status())
         before_restart_buffers = count_buffers('rtsp-persistent')
+        if args.kill_camera_child:
+            camera_child = start('camera_driver-restarted', [binaries / 'cockpit-navigator',
+                '--module-child', '--module', 'camera_driver', '--library',
+                build / 'lib/cockpit/modules/libcamera_driver.so', '--module-config', path])
+            time.sleep(2)
         camera_start('camera-restart')
         after = status()
         if after['generation'] <= before['generation']:

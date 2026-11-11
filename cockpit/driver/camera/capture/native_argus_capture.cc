@@ -3,6 +3,8 @@
 #include <Argus/Argus.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <EGLStream/EGLStream.h>
+#include <EGLStream/NV/ImageNativeBuffer.h>
 #include <nvbufsurface.h>
 
 #include <algorithm>
@@ -62,15 +64,14 @@ struct EglDisplay {
     if (value != EGL_NO_DISPLAY) eglTerminate(value);
   }
 };
-enum class SlotState { kInArgus, kLeased, kPendingReturn, kReleaseFailed };
+enum class SlotState { kAvailable, kLeased, kPendingReturn, kReleaseFailed };
 struct Slot {
   explicit Slot(std::shared_ptr<Counters> counters) : counters(std::move(counters)) {
   }
   std::shared_ptr<Counters> counters;
   NvBufSurface* surface = nullptr;
-  UniqueObj<Buffer> buffer;
   bool egl_mapped = false, cpu_mapped = false;
-  SlotState state = SlotState::kInArgus;
+  SlotState state = SlotState::kAvailable;
   bool UnmapCpu() {
     if (!cpu_mapped) return true;
     if (NvBufSurfaceUnMap(surface, 0, -1) != 0) {
@@ -84,7 +85,6 @@ struct Slot {
     return true;
   }
   ~Slot() {
-    buffer.reset();
     // Do not free a possible DMA target after an unsuccessful driver shutdown.
     if (counters->Snapshot().native_resources_retained_until_exit) return;
     UnmapCpu();
@@ -162,10 +162,11 @@ struct Session : std::enable_shared_from_this<Session> {
   UniqueObj<CameraProvider> provider;
   UniqueObj<CaptureSession> session;
   UniqueObj<OutputStream> stream;
+  UniqueObj<EGLStream::FrameConsumer> consumer;
   std::vector<std::unique_ptr<Slot>> slots;
   UniqueObj<Request> request;
   ICaptureSession* capture = nullptr;
-  IBufferOutputStream* output = nullptr;
+  EGLStream::IFrameConsumer* output = nullptr;
   bool active = false, stopping = false, closed = false;
   int mode_index = -1;
   std::string version;
@@ -223,20 +224,25 @@ struct Session : std::enable_shared_from_this<Session> {
     session.reset(camera->createCaptureSession(device));
     capture = interface_cast<ICaptureSession>(session);
     Require(capture, "createCaptureSession");
-    UniqueObj<OutputStreamSettings> settings(
-        capture->createOutputStreamSettings(STREAM_TYPE_BUFFER));
-    auto* buffer_settings = interface_cast<IBufferOutputStreamSettings>(settings);
-    Require(buffer_settings, "STREAM_TYPE_BUFFER unsupported");
-    Check(buffer_settings->setBufferType(BUFFER_TYPE_EGL_IMAGE), "setBufferType EGL_IMAGE");
-    Check(buffer_settings->setSyncType(SYNC_TYPE_NONE), "setSyncType NONE");
-    buffer_settings->setMetadataEnable(true);
+    // Keep producer buffers owned by Argus. Registering client-owned EGLImages
+    // with BufferOutputStream makes daemon cleanup unsafe when this process is
+    // SIGKILLed (R36.5.2: six outstanding buffers -> daemon SIGSEGV). Native EGL
+    // consumption + a synchronous copy decouples the pool exported by FrameLease.
+    UniqueObj<OutputStreamSettings> settings(capture->createOutputStreamSettings(STREAM_TYPE_EGL));
+    auto* egl_settings = interface_cast<IEGLOutputStreamSettings>(settings);
+    Require(egl_settings, "STREAM_TYPE_EGL unsupported");
+    Check(egl_settings->setEGLDisplay(display.value), "setEGLDisplay");
+    Check(egl_settings->setPixelFormat(PIXEL_FMT_YCbCr_420_888), "setPixelFormat NV12");
+    Check(egl_settings->setResolution(Size2D<uint32_t>(config.width, config.height)),
+          "setResolution");
+    Check(egl_settings->setMode(EGL_STREAM_MODE_FIFO), "setMode FIFO");
+    Check(egl_settings->setFifoLength(config.buffer_count), "setFifoLength");
+    Check(egl_settings->setMetadataEnable(true), "setMetadataEnable");
     stream.reset(capture->createOutputStream(settings.get()));
-    output = interface_cast<IBufferOutputStream>(stream);
-    Require(output, "create BufferOutputStream");
-    UniqueObj<BufferSettings> native_settings(output->createBufferSettings());
-    auto* image_settings = interface_cast<IEGLImageBufferSettings>(native_settings);
-    Require(image_settings, "IEGLImageBufferSettings");
-    Check(image_settings->setEGLDisplay(display.value), "setEGLDisplay");
+    Require(stream, "create EGLOutputStream");
+    consumer.reset(EGLStream::FrameConsumer::create(stream.get()));
+    output = interface_cast<EGLStream::IFrameConsumer>(consumer);
+    Require(output, "create native EGL FrameConsumer");
     for (std::uint32_t i = 0; i < config.buffer_count; ++i) {
       slots.push_back(std::make_unique<Slot>(counters));
       auto& slot = *slots.back();
@@ -266,12 +272,6 @@ struct Session : std::enable_shared_from_this<Session> {
       counters->Update([](auto& stats) {
         ++stats.egl_mapped;
       });
-      const auto image = static_cast<EGLImageKHR>(slot.surface->surfaceList[0].mappedAddr.eglImage);
-      Require(image != EGL_NO_IMAGE_KHR, "NvBufSurface returned no EGLImage");
-      Check(image_settings->setEGLImage(image), "setEGLImage");
-      slot.buffer.reset(output->createBuffer(native_settings.get()));
-      Require(interface_cast<IBuffer>(slot.buffer), "createBuffer");
-      Check(output->releaseBuffer(slot.buffer.get()), "release initial buffer");
     }
     request.reset(capture->createRequest(CAPTURE_INTENT_VIDEO_RECORD));
     auto* req = interface_cast<IRequest>(request);
@@ -415,8 +415,7 @@ struct Session : std::enable_shared_from_this<Session> {
     for (std::size_t i = 0; i < count; ++i) {
       auto& slot = *slots[ready[i]];
       const bool unmapped = slot.UnmapCpu();
-      const auto status =
-          unmapped ? output->releaseBuffer(slot.buffer.get()) : STATUS_INVALID_PARAMS;
+      const auto status = unmapped ? STATUS_OK : STATUS_INVALID_PARAMS;
       counters->Update([&](auto& stats) {
         --stats.pending_returns;
         if (status == STATUS_OK)
@@ -425,10 +424,10 @@ struct Session : std::enable_shared_from_this<Session> {
           ++stats.release_errors;
       });
       if (status == STATUS_OK)
-        slot.state = SlotState::kInArgus;
+        slot.state = SlotState::kAvailable;
       else {
         slot.state = SlotState::kReleaseFailed;
-        counters->Error("release returned buffer status=" + std::to_string(status));
+        counters->Error("return native pool slot status=" + std::to_string(status));
         ok = false;
       }
     }
@@ -461,21 +460,36 @@ struct Session : std::enable_shared_from_this<Session> {
       const uint64_t wait = static_cast<uint64_t>(std::max<std::int64_t>(
           1, held ? std::min<std::int64_t>(remaining, 100000000) : remaining));
       Status status = STATUS_OK;
-      Buffer* acquired = output->acquireBuffer(wait, &status);
-      if (status == STATUS_TIMEOUT) continue;  // Flush asynchronous returns before retry.
-      if (status == STATUS_END_OF_STREAM) return NativeAcquireStatus::kStopped;
+      UniqueObj<EGLStream::Frame> acquired(output->acquireFrame(wait, &status));
+      if (status == STATUS_TIMEOUT) continue;
+      if (status == STATUS_DISCONNECTED || status == STATUS_END_OF_STREAM)
+        return NativeAcquireStatus::kStopped;
       if (status != STATUS_OK || !acquired) {
-        SetError(error, "acquireBuffer status=" + std::to_string(status));
+        SetError(error, "acquireFrame status=" + std::to_string(status));
         return NativeAcquireStatus::kError;
       }
       try {
         std::uint32_t index = 0;
-        while (index < slots.size() && slots[index]->buffer.get() != acquired) ++index;
-        Require(index < slots.size(), "acquired buffer is not in this session's pool");
-        auto* buffer = interface_cast<IBuffer>(acquired);
+        while (index < slots.size() && slots[index]->state != SlotState::kAvailable) ++index;
+        Require(index < slots.size(), "native copy pool is exhausted");
+        auto* egl_frame = interface_cast<EGLStream::IFrame>(acquired);
+        auto* embedded = interface_cast<EGLStream::IArgusCaptureMetadata>(acquired);
         const auto* metadata =
-            buffer ? interface_cast<const ICaptureMetadata>(buffer->getMetadata()) : nullptr;
-        Require(metadata, "missing frame metadata");
+            embedded ? interface_cast<const ICaptureMetadata>(embedded->getMetadata()) : nullptr;
+        Require(egl_frame && metadata, "missing EGL frame metadata");
+        auto* image = interface_cast<EGLStream::NV::IImageNativeBuffer>(egl_frame->getImage());
+        Require(image, "IImageNativeBuffer unavailable");
+        const auto copy_started = std::chrono::steady_clock::now();
+        Check(image->copyToNvBuffer(
+                  static_cast<int>(slots[index]->surface->surfaceList[0].bufferDesc)),
+              "copy Argus image to native pool");
+        const auto copy_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                 std::chrono::steady_clock::now() - copy_started)
+                                 .count();
+        counters->Update([&](auto& stats) {
+          ++stats.surface_copy_frames;
+          stats.surface_copy_total_ns += copy_ns;
+        });
         NativeFrame frame;
         frame.session_id = id;
         frame.buffer_index = index;
@@ -515,8 +529,6 @@ struct Session : std::enable_shared_from_this<Session> {
         *lease = std::move(next);
         return NativeAcquireStatus::kFrame;
       } catch (const std::exception& exception) {
-        const auto released = output->releaseBuffer(acquired);
-        if (released != STATUS_OK) counters->Error("release buffer after acquire error");
         SetError(error, exception.what());
         return NativeAcquireStatus::kError;
       }
@@ -536,8 +548,8 @@ struct Session : std::enable_shared_from_this<Session> {
       stopping = true;
       if (active) {
         capture->stopRepeat();
-        const auto eos = output->endOfStream();
-        if (eos != STATUS_OK) counters->Error("endOfStream status=" + std::to_string(eos));
+        // stopRepeat lets in-flight requests finish; drain FIFO while waiting
+        // instead of disconnecting resources which an active capture may use.
       }
     }
     FlushReturns();
@@ -554,16 +566,13 @@ struct Session : std::enable_shared_from_this<Session> {
       bool drained = false;
       while (std::chrono::steady_clock::now() < deadline) {
         Status status = STATUS_OK;
-        Buffer* buffer = output->acquireBuffer(200000000ULL, &status);
-        if (status == STATUS_END_OF_STREAM) {
+        UniqueObj<EGLStream::Frame> buffer(output->acquireFrame(200000000ULL, &status));
+        if (status == STATUS_DISCONNECTED || status == STATUS_END_OF_STREAM ||
+            status == STATUS_TIMEOUT) {
           drained = true;
           break;
         }
         if (buffer) {
-          if (output->releaseBuffer(buffer) != STATUS_OK) {
-            counters->Error("releaseBuffer during drain");
-            break;
-          }
           counters->Update([](auto& stats) {
             ++stats.drained;
           });
@@ -590,6 +599,8 @@ struct Session : std::enable_shared_from_this<Session> {
     }
     active = false;
     request.reset();
+    if (auto* egl_stream = interface_cast<IEGLOutputStream>(stream)) egl_stream->disconnect();
+    consumer.reset();
     slots.clear();
     stream.reset();
     session.reset();

@@ -33,7 +33,8 @@ int main(int argc, char** argv) {
   camera::NativeCaptureConfig config;
   config.buffer_count = 3;
   bool held_stop = false, starvation = false, threaded_return = false;
-  bool timeout_recovery = false, destructor_lifetime = false, restart = false;
+  bool timeout_recovery = false, destructor_lifetime = false, restart = false,
+       held_copy_stable = false;
   try {
     Require(capture.Start(config, &error), "Start: " + error);
     std::vector<camera::FrameLease> held;
@@ -80,6 +81,25 @@ int main(int argc, char** argv) {
                 capture.stats().ResourcesBalanced(),
             "final Stop: " + error);
     Require(capture.Stop(&error) == camera::NativeStopStatus::kStopped, "Stop not idempotent");
+
+    Require(capture.Start(config, &error), "copy lifetime Start: " + error);
+    camera::FrameLease anchor;
+    Acquire(capture, &anchor);
+    std::uint64_t original = 0, unchanged = 0;
+    Require(capture.SampleLuma(anchor, 64, &original, &error), "anchor sample failed");
+    for (int i = 0; i < 12; ++i) {
+      camera::FrameLease transient;
+      Acquire(capture, &transient);
+      Require(transient.frame().dmabuf_fd != anchor.frame().dmabuf_fd,
+              "copy overwrote a leased pool slot");
+    }
+    Require(capture.SampleLuma(anchor, 64, &unchanged, &error), "anchor resample failed");
+    held_copy_stable = original == unchanged;
+    Require(held_copy_stable, "producer changed a held copy while other captures continued");
+    anchor.Reset();
+    Require(capture.Stop(&error) == camera::NativeStopStatus::kStopped &&
+                capture.stats().ResourcesBalanced(),
+            "copy lifetime Stop failed");
 
     Require(capture.Start(config, &error), "restart: " + error);
     camera::FrameLease recovered;
@@ -129,12 +149,15 @@ int main(int argc, char** argv) {
   capture.Stop(&stop_error);
   const auto stats = capture.stats();
   const bool passed = error.empty() && held_stop && starvation && threaded_return &&
-                      timeout_recovery && restart && destructor_lifetime &&
+                      timeout_recovery && restart && destructor_lifetime && held_copy_stable &&
+                      stats.surface_copy_frames == stats.frames_acquired &&
                       stats.ResourcesBalanced();
   const auto report =
       diag::Object({{"schema_version", "1"},
                     {"passed", diag::Boolean(passed)},
                     {"held_lease_stop", diag::Boolean(held_stop)},
+                    {"held_copy_stable", diag::Boolean(held_copy_stable)},
+                    {"surface_copy_frames", diag::Number(stats.surface_copy_frames)},
                     {"pool_starvation", diag::Boolean(starvation)},
                     {"cross_thread_return", diag::Boolean(threaded_return)},
                     {"same_session_timeout_recovery", diag::Boolean(timeout_recovery)},
