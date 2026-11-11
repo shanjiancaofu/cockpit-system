@@ -129,9 +129,25 @@ VideoSubscription::VideoSubscription(Consumer consumer, std::size_t capacity,
             bytes_ -= frame->packet.data.size();
           }
           // A transport failure must not terminate the receiver or other consumers.
+          std::string failure;
           try {
             consumer(std::move(frame));
-          } catch (const std::exception&) {
+          } catch (const std::exception& error) {
+            failure = error.what();
+            if (failure.empty()) failure = "consumer threw std::exception";
+          } catch (...) {
+            failure = "consumer threw a non-standard exception";
+          }
+          std::lock_guard<std::mutex> lock(mutex_);
+          if (failure.empty()) {
+            ++stats_.delivered;
+          } else {
+            ++stats_.failures;
+            stats_.last_error = std::move(failure);
+            stats_.dropped += queue_.size();
+            queue_.clear();
+            bytes_ = 0;
+            waiting_ = true;  // A failed transport must resume at IDR, never a P frame.
           }
         }
       }) {
@@ -156,6 +172,7 @@ void VideoSubscription::Enqueue(VideoFramePtr frame) {
                      queue_.size() >= capacity_ ||
                      bytes_ + frame->packet.data.size() > 16 * 1024 * 1024;
   if (reset) {
+    stats_.dropped += queue_.size();
     queue_.clear();
     bytes_ = 0;
     waiting_ = true;
@@ -163,6 +180,7 @@ void VideoSubscription::Enqueue(VideoFramePtr frame) {
   }
   if (waiting_) {
     if (!frame->packet.keyframe || frame->sps.size() < 4 || frame->pps.empty()) {
+      ++stats_.dropped;
       lock.unlock();
       if (request_idr_) request_idr_();  // Callback must only enqueue a coalesced request.
       return;
@@ -176,6 +194,14 @@ void VideoSubscription::Enqueue(VideoFramePtr frame) {
   bytes_ += frame->packet.data.size();
   queue_.push_back(std::move(frame));
   cv_.notify_one();
+}
+
+VideoConsumerStats VideoSubscription::Stats() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  auto stats = stats_;
+  stats.queued = queue_.size();
+  stats.queued_bytes = bytes_;
+  return stats;
 }
 
 H264Receiver::~H264Receiver() {
@@ -226,6 +252,14 @@ std::shared_ptr<VideoSubscription> H264Receiver::Subscribe(VideoSubscription::Co
 VideoStatus H264Receiver::Status() const {
   std::lock_guard<std::mutex> lock(mutex_);
   auto status = status_;
+  // Active subscriptions only; expired consumers do not retain resources.
+  for (const auto& weak : subscribers_) {
+    if (const auto subscriber = weak.lock()) {
+      const auto consumer = subscriber->Stats();
+      status.consumer_failures += consumer.failures;
+      status.consumer_dropped += consumer.dropped;
+    }
+  }
   if (last_input_ != std::chrono::steady_clock::time_point{})
     status.input_age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                               std::chrono::steady_clock::now() - last_input_)

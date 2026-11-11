@@ -231,6 +231,8 @@ struct WebRtcServer::Impl {
                 ",\"stream_state\":" + JsonString(StreamState(status)) +
                 ",\"input_age_ms\":" + std::to_string(status.input_age_ms) +
                 ",\"idr_received\":" + (status.has_idr ? "true" : "false") +
+                ",\"consumer_failures\":" + std::to_string(status.consumer_failures) +
+                ",\"consumer_dropped\":" + std::to_string(status.consumer_dropped) +
                 ",\"generation\":" + std::to_string(status.generation) +
                 ",\"profile_level_id\":" + JsonString(H264ProfileLevelId(status.sps)) +
                 ",\"max_clients\":" + std::to_string(config.max_clients) +

@@ -16,6 +16,11 @@ struct RtspServerConfig {
   std::uint32_t fps = 30;
 };
 
+struct RtspPushStats {
+  std::uint64_t pushed = 0, failures = 0, backlog_drops = 0;
+  int last_flow_return = 0;
+};
+
 class RtspServer final {
  public:
   RtspServer();
@@ -26,6 +31,7 @@ class RtspServer final {
   bool Start(const RtspServerConfig& config, H264Receiver& receiver, std::string* error = nullptr);
   void Stop();
   bool running() const;
+  RtspPushStats Stats() const;
 
  private:
   struct Impl;

@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+#include "cockpit/exchange/foundation/logging/logger.h"
+
 namespace cockpit::transfer {
 struct RtspServer::Impl {
   RtspServerConfig config;
@@ -27,6 +29,7 @@ struct RtspServer::Impl {
   GstAppSrc* appsrc = nullptr;
   std::thread main_thread;
   std::mutex mutex;
+  RtspPushStats stats;
   std::vector<std::uint8_t> pending_packet;
   std::int64_t pending_pts = 0;
   bool pending_keyframe = false;
@@ -165,6 +168,25 @@ struct RtspServer::Impl {
       context = nullptr;
     }
   }
+  // Caller holds mutex. gst_app_src_push_buffer takes ownership even on error.
+  bool PushBuffer(GstBuffer* buffer) {
+    const auto flow = buffer ? gst_app_src_push_buffer(appsrc, buffer) : GST_FLOW_ERROR;
+    stats.last_flow_return = flow;
+    if (flow == GST_FLOW_OK) {
+      ++stats.pushed;
+      return true;
+    }
+    ++stats.failures;
+    if (stats.failures == 1 || stats.failures % 100 == 0)
+      LOG_WARN("RTSP H264 push failed: " + std::string(gst_flow_get_name(flow)) +
+               "; failures=" + std::to_string(stats.failures));
+    waiting_keyframe = true;
+    need_output_origin = true;
+    pending_packet.clear();
+    pending_keyframe = false;
+    return false;
+  }
+
   static void MediaConfigure(GstRTSPMediaFactory*, GstRTSPMedia* media, gpointer user_data) {
     auto* self = static_cast<Impl*>(user_data);
     g_signal_connect(media, "unprepared", G_CALLBACK(Impl::MediaUnprepared), user_data);
@@ -184,11 +206,15 @@ struct RtspServer::Impl {
       if (!self->pending_packet.empty() && self->pending_keyframe) {
         const auto avcc = Avcc(self->pending_packet);
         auto* buffer = gst_buffer_new_allocate(nullptr, avcc.size(), nullptr);
+        if (!buffer) {
+          self->PushBuffer(nullptr);
+          return;
+        }
         gst_buffer_fill(buffer, 0, avcc.data(), avcc.size());
         GST_BUFFER_PTS(buffer) = 0;
         GST_BUFFER_DTS(buffer) = GST_BUFFER_PTS(buffer);
         GST_BUFFER_DURATION(buffer) = gst_util_uint64_scale(GST_SECOND, 1, self->config.fps);
-        gst_app_src_push_buffer(self->appsrc, buffer);
+        self->PushBuffer(buffer);
         self->pending_packet.clear();
         self->pending_keyframe = false;
         self->waiting_keyframe = true;  // Cached IDR is for preroll; resume at a fresh IDR.
@@ -213,6 +239,7 @@ struct RtspServer::Impl {
     if (!have_input_pts || (keyframe && packet_pts < last_input_pts)) {
       input_pts_origin = packet_pts;
       have_input_pts = true;
+      need_output_origin = true;  // Encoder restart must not rewind an existing RTSP clock.
     }
     last_input_pts = packet_pts;
     if (appsrc && need_output_origin && keyframe) {
@@ -235,6 +262,7 @@ struct RtspServer::Impl {
       return;
     }
     if (gst_app_src_get_current_level_bytes(appsrc) > 2 * 1024 * 1024) {
+      ++stats.backlog_drops;
       waiting_keyframe = true;
       return;
     }
@@ -242,12 +270,16 @@ struct RtspServer::Impl {
     waiting_keyframe = false;
     const auto avcc = Avcc(data);
     auto* buffer = gst_buffer_new_allocate(nullptr, avcc.size(), nullptr);
+    if (!buffer) {
+      PushBuffer(nullptr);
+      return;
+    }
     gst_buffer_fill(buffer, 0, avcc.data(), avcc.size());
     GST_BUFFER_PTS(buffer) =
         output_origin + gst_util_uint64_scale(packet_pts, GST_SECOND, config.fps);
     GST_BUFFER_DTS(buffer) = GST_BUFFER_PTS(buffer);
     GST_BUFFER_DURATION(buffer) = gst_util_uint64_scale(GST_SECOND, 1, config.fps);
-    gst_app_src_push_buffer(appsrc, buffer);
+    PushBuffer(buffer);
   }
 };
 
@@ -262,6 +294,7 @@ bool RtspServer::Start(const RtspServerConfig& config, H264Receiver& receiver, s
   }
   gst_init(nullptr, nullptr);
   impl_->config = config;
+  impl_->stats = {};
   impl_->have_input_pts = false;
   impl_->input_pts_origin = 0;
   impl_->last_input_pts = 0;
@@ -328,6 +361,7 @@ bool RtspServer::Start(const RtspServerConfig& config, H264Receiver& receiver, s
     if (frame->discontinuity) {
       std::lock_guard<std::mutex> lock(impl_->mutex);
       impl_->waiting_keyframe = true;
+      impl_->need_output_origin = true;
       impl_->pending_packet.clear();
     }
     impl_->Push(frame->packet.data, frame->packet.pts, frame->packet.keyframe);
@@ -336,6 +370,10 @@ bool RtspServer::Start(const RtspServerConfig& config, H264Receiver& receiver, s
 }
 void RtspServer::Stop() {
   impl_->Stop();
+}
+RtspPushStats RtspServer::Stats() const {
+  std::lock_guard<std::mutex> lock(impl_->mutex);
+  return impl_->stats;
 }
 bool RtspServer::running() const {
   return impl_->active;

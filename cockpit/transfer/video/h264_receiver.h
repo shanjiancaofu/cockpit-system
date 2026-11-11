@@ -3,11 +3,13 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -45,6 +47,12 @@ class Crp1Assembler {
 
 // One worker and bounded queue per consumer. Overflow discards the entire queued
 // GOP and resumes only at a complete IDR with the current SPS/PPS.
+struct VideoConsumerStats {
+  std::uint64_t delivered = 0, failures = 0, dropped = 0;
+  std::size_t queued = 0, queued_bytes = 0;
+  std::string last_error;
+};
+
 class VideoSubscription {
  public:
   using Consumer = std::function<void(VideoFramePtr)>;
@@ -53,20 +61,23 @@ class VideoSubscription {
   ~VideoSubscription();
   void Stop();
   void Enqueue(VideoFramePtr frame);
+  VideoConsumerStats Stats() const;
 
  private:
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::condition_variable cv_;
   std::deque<VideoFramePtr> queue_;
   std::size_t capacity_, bytes_ = 0;
   std::function<void()> request_idr_;
   bool stopping_ = false, waiting_ = true;
   std::uint64_t generation_ = 0;
+  VideoConsumerStats stats_;
   std::thread worker_;
 };
 
 struct VideoStatus {
   std::uint64_t generation = 0;
+  std::uint64_t consumer_failures = 0, consumer_dropped = 0;
   bool available = false;
   bool has_idr = false;
   std::int64_t input_age_ms = -1;

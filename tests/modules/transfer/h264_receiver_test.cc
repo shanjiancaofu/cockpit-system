@@ -141,6 +141,67 @@ int main() {
     Check(recovered.wait_for(1s) == std::future_status::ready && recovered.get()->discontinuity,
           "overflow did not recover at IDR");
     slow.Stop();
+    // One blocked transport must not block Publish or a healthy subscription.
+    H264Receiver isolation;
+    std::promise<void> blocked, unblock, healthy_last;
+    auto unblock_gate = unblock.get_future().share();
+    std::atomic_int slow_calls{0};
+    auto slow_peer = isolation.Subscribe([&](VideoFramePtr) {
+      if (++slow_calls == 1) {
+        blocked.set_value();
+        unblock_gate.wait();
+      }
+    });
+    auto fast_peer = isolation.Subscribe([&](VideoFramePtr value) {
+      if (value->packet.pts == 300) healthy_last.set_value();
+    });
+    isolation.Publish(Packet(0, true), false);
+    const bool slow_started = blocked.get_future().wait_for(1s) == std::future_status::ready;
+    for (int pts = 1; pts <= 300; ++pts) isolation.Publish(Packet(pts, pts % 10 == 0), false);
+    const bool healthy_progress =
+        healthy_last.get_future().wait_for(2s) == std::future_status::ready;
+    const auto slow_stats = slow_peer->Stats();
+    unblock.set_value();  // Release even when an assertion would fail; destructor joins.
+    Check(slow_started && healthy_progress, "blocked client stalled a healthy transport");
+    Check(slow_stats.dropped > 0 && slow_stats.queued <= 8 &&
+              slow_stats.queued_bytes <= 16 * 1024 * 1024,
+          "slow-client queue was not bounded/accounted");
+    slow_peer->Stop();
+    fast_peer->Stop();
+
+    std::atomic_int attempts{0};
+    auto faulty = isolation.Subscribe([&](VideoFramePtr) {
+      const auto attempt = ++attempts;
+      if (attempt == 1) throw std::runtime_error("injected transport failure");
+      if (attempt == 2) throw 42;
+    });
+    auto await = [&](const auto& predicate) {
+      const auto deadline = std::chrono::steady_clock::now() + 2s;
+      while (!predicate() && std::chrono::steady_clock::now() < deadline)
+        std::this_thread::sleep_for(1ms);
+      return predicate();
+    };
+    isolation.Publish(Packet(310, true), false);
+    Check(await([&] {
+            return faulty->Stats().failures == 1;
+          }),
+          "consumer exception not counted");
+    Check(faulty->Stats().last_error == "injected transport failure", "consumer diagnostic lost");
+    isolation.Publish(Packet(311, false), false);
+    isolation.Publish(Packet(320, true), false);
+    Check(await([&] {
+            return faulty->Stats().failures == 2;
+          }),
+          "non-standard exception escaped");
+    isolation.Publish(Packet(321, false), false);
+    isolation.Publish(Packet(330, true), false);
+    Check(await([&] {
+            return faulty->Stats().delivered == 1;
+          }),
+          "consumer did not recover at IDR");
+    Check(isolation.Status().consumer_failures == 2 && isolation.Status().consumer_dropped > 0,
+          "receiver status does not expose active consumer failures/loss");
+    faulty->Stop();
     receiver.Stop();
     Check(!receiver.Status().available, "stop leaves stream available");
     std::cout << "CRP1, Annex-B, generation and bounded-queue tests passed\n";

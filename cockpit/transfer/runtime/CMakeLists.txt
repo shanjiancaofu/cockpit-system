@@ -28,7 +28,7 @@ target_link_libraries(transfer_runtime PUBLIC rtsp_server)
 add_library(transfer_video STATIC ../video/h264_receiver.cc)
 target_include_directories(transfer_video PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(transfer_video PUBLIC Threads::Threads)
-target_link_libraries(rtsp_server PUBLIC transfer_video)
+target_link_libraries(rtsp_server PUBLIC transfer_video logging)
 if(COCKPIT_ENABLE_WEBRTC)
     file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../webrtc/web/index.html" COCKPIT_WEBRTC_PAGE)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS

@@ -11,6 +11,9 @@ bool RtspServer::Start(const RtspServerConfig&, H264Receiver&, std::string* erro
 }
 void RtspServer::Stop() {
 }
+RtspPushStats RtspServer::Stats() const {
+  return {};
+}
 bool RtspServer::running() const {
   return false;
 }
