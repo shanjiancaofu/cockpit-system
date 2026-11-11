@@ -16,6 +16,7 @@ struct EventVideoRecorderConfig {
   std::int64_t pre_event_ms = 10'000;
   std::int64_t post_event_ms = 20'000;
   std::uint32_t fps = 30;
+  std::size_t max_history_bytes = 64 * 1024 * 1024;
 };
 
 class EventVideoRecorder final {
@@ -33,9 +34,11 @@ class EventVideoRecorder final {
   bool active() const;
   void ClearHistory();
   std::int64_t HistoryStartPts() const;
+  std::uint64_t HistoryDroppedGops() const;
 
  private:
   bool FinishLocked(std::string* error);
+  bool FailLocked(const std::string& failure, std::string* error);
 
   const EventVideoRecorderConfig config_;
   mutable std::mutex mutex_;
@@ -43,7 +46,8 @@ class EventVideoRecorder final {
   Mp4Muxer muxer_;
   bool active_ = false;
   std::int64_t finish_pts_ = 0;
-  std::filesystem::path output_path_;
+  std::filesystem::path output_path_, temporary_path_;
+  std::string failure_;
 };
 
 }  // namespace cockpit::recording

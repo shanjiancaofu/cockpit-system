@@ -275,8 +275,13 @@ bool RecordingService::TriggerEventVideo(const std::string& event_id, std::int64
   pending.trigger_pts = pending.last_pts = latest_video_pts_;
   // Filenames are independent of user supplied event IDs, including repeated IDs.
   const auto name = "event_video_" + std::to_string(++video_sequence_);
-  if (!video_.Trigger(name, latest_video_pts_, &pending.path, error,
-                      std::filesystem::path(current.directory) / "artifacts")) return false;
+  std::string trigger_error;
+  if (!video_.Trigger(name, latest_video_pts_, &pending.path, &trigger_error,
+                      std::filesystem::path(current.directory) / "artifacts")) {
+    video_error_ = trigger_error;
+    if (error) *error = trigger_error;
+    return false;
+  }
   pending_video_ = std::move(pending);
   video_deadline_ = now + std::chrono::milliseconds(video_config_.post_event_ms);
   const RecordingEvent event{timestamp_ms, "/recording/video/trigger",
@@ -311,10 +316,18 @@ bool RecordingService::HandleVideoPacket(const EncodedVideoPacket& packet, bool 
   latest_video_pts_ = packet.pts;
   last_video_at_ = now;
   if (!pending_video_.path.empty()) pending_video_.last_pts = packet.pts;
-  if (!video_.Append(packet, error)) {
-    video_error_ = error ? *error : "append event video failed";
+  const auto dropped_gops = video_.HistoryDroppedGops();
+  std::string video_failure;
+  if (!video_.Append(packet, &video_failure)) {
+    video_error_ = video_failure;
+    // Retire the pending failed artifact now, so a later Poll/Stop cannot
+    // reclassify it as a successful file after the muxer was already closed.
+    if (!pending_video_.path.empty()) FinishVideoLocked("write_error", nullptr);
+    if (error) *error = video_error_;
     return false;
   }
+  if (video_.HistoryDroppedGops() != dropped_gops)
+    video_error_ = "H264 pre-event GOP exceeded byte/duration limit; history reset, waiting for IDR";
   if (!pending_video_.path.empty() && !video_.active()) return FinishVideoLocked("post_event", error);
   return true;
 }
@@ -332,7 +345,19 @@ void RecordingService::PollVideo() {
 
 bool RecordingService::FinishVideoLocked(const std::string& reason, std::string* error) {
   if (pending_video_.path.empty()) return true;
-  if (!video_.Finish(error)) return false;
+  std::string failure;
+  if (!video_.Finish(&failure)) {
+    video_error_ = failure;
+    const RecordingEvent failed{pending_video_.timestamp_ms, "/recording/video/failed",
+        "{\"event_id\":\"" + json::EscapeString(pending_video_.event_id) +
+        "\",\"error\":\"" + json::EscapeString(failure) + "\"}"};
+    // Best effort diagnostic event; never index the .incomplete as video/mp4.
+    std::string event_error;
+    if (!session_.AppendEvent(failed, &event_error)) video_error_ += "; " + event_error;
+    pending_video_ = {};
+    if (error) *error = video_error_;
+    return false;
+  }
   const auto current = session_.status();
   RecordingDataFile file;
   file.timestamp_ms = pending_video_.timestamp_ms;

@@ -243,6 +243,17 @@ add_executable(h264_gop_ring_test modules/recording/h264_gop_ring_test.cc)
 target_link_libraries(h264_gop_ring_test PRIVATE recording)
 add_test(NAME h264_gop_ring_test COMMAND h264_gop_ring_test)
 
+if(GSTREAMER_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_executable(mp4_failure_test modules/recording/mp4_failure_test.cc)
+    target_link_libraries(mp4_failure_test PRIVATE recording_service)
+    target_link_options(mp4_failure_test PRIVATE
+        "-Wl,--wrap=gst_bus_timed_pop_filtered"
+        "-Wl,--wrap=gst_app_src_end_of_stream"
+        "-Wl,--wrap=gst_app_src_push_buffer")
+    add_test(NAME mp4_failure_test COMMAND mp4_failure_test)
+    set_tests_properties(mp4_failure_test PROPERTIES TIMEOUT 45 SKIP_RETURN_CODE 77)
+endif()
+
 add_executable(recording_service_test library/recording/recording_service_test.cc)
 target_link_libraries(recording_service_test PRIVATE recording_service)
 add_test(NAME recording_service_test COMMAND recording_service_test)
