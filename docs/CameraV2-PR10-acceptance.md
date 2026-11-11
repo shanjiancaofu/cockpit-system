@@ -1,5 +1,8 @@
 # PR-10 设备验收记录与剩余浏览器验收
 
+> **2026-11-11 本轮范围更新：标准 VLC 人工实播按用户要求 Out of Scope，不作为本轮阻塞，
+> 不是已通过。Camera 停止/启动、慢 TCP 客户端隔离、连续事件录像与 MP4 播放器复验见第 10 节。**
+
 > **当前分辨率范围：Chrome / Firefox 默认 720P（1280×720）。1080P = Deferred / 暂缓，
 > 不再作为本轮 PR-10 的收尾阻塞。** 既有 1080P 测试/失败记录仅作历史兼容性参考。
 > 720P 指共享 H.264 编码流的输出尺寸；Native Camera 采集和一份编码器架构不变。
@@ -541,3 +544,69 @@ Argus 日志有 3 条 acquireBuffer Timeout，之后播放正常、daemon 无重
 标准 VLC 实际播放、完整人工三路联合观看、当前 BSP 下 Camera 停止重启会话恢复以及
 SIGKILL 故障边界仍待独立验证。浏览器仍按 Chrome/Firefox 720P，1080P 暂缓，
 Edge 为补充兼容项，不新增 PR-11。
+
+
+## 10. 录像正确性、Camera 重启与客户端隔离（2026-11-11）
+
+本轮排除标准 VLC 人工观看，不将协议测试写成 VLC 成功。保持 Native Argus → VIC →
+单实例 libx264，不部署驱动、不重启系统。只启动本轮拥有的 Camera/Transfer/Recording 与
+浏览器/RTSP 测试进程，正常验收与 SIGKILL 故障诊断严格分开。
+
+### 已通过的正常验收
+
+- Chrome 有界面 720P initial/reconnect/refresh：各 10 秒解码 10→311 帧，
+  packetsLost/framesDropped 均为 0，截图可见真实画面。
+- 实际暂停一个 RTSP/TCP 接收进程（先收到至少 15 个 buffer，再 SIGSTOP 使其停止读 socket），
+  同时健康 RTSP 客户端收到 1,200 个 buffer 正常结束，Chrome 三阶段正常推进。
+  结束后 SIGCONT/退出这个自建客户端；未向 Camera/Argus 发送故障信号。
+- 连续两次事件录像与 Camera 重启后的第三次录像，均观察到临时 `.mp4.incomplete`；最终
+  正式 MP4 三个，无临时文件残留。时长分别约 20.267、29.333、9.133 秒，均为 720P30，
+  均通过发现和完整硬件解码到 EOS。
+- Camera Session 停止后，状态变为 video unavailable，旧 Peer 从服务端清理。再次启动后
+  Generation 1→2，旧 Peer `0c3ab0f8-c913-43d0-bd40-83efdc3f2b06` 被新 Peer
+  `d0be022e-7387-4c41-8a4a-9c0a9ffc1392` 替代并实际解码；原有 RTSP TCP 连接恢复产帧，
+  观察计数 33→213。没有要求 RTSP 客户端重建连接，也没有重启 Transfer。
+- 第三段录像在 Chrome 原生 MP4 播放器中显示 1280×720、9.133 秒；时间
+  0.0515→2.0661 秒，显示帧 9→71，video error=null；截图确认真实录制画面。
+- 修复生成文件索引后，`recording-ctl --verify-all` 为 HEALTHY：1 Session、3 文件、0 issue。
+  首次失败报告（相对路径被标记为外部文件）留在 `normal-chrome/`，不改写为通过。
+- 正常测试全过程 Argus PID=1007、NRestarts=0、InvocationID 不变；Camera kernel journal
+  无新增条目。另行开展的故障测试发生在该报告结束之后，不能混算为正常测试的重启。
+
+### 本轮小范围代码修复
+
+- 消费者 std::exception 与非标准异常均被统计，保留诊断；失败后丢弃已排队引用帧并等待
+  IDR 恢复。单消费者的 queued bytes/packets、delivered/failures/dropped 可查询；现有
+  status API 追加 active subscriptions 的 consumer_failures/consumer_dropped，非历史全局累计。
+- RTSP cached-preroll 与 live 两个 appsrc push 路径都检查返回值，记录失败计数及限频日志，
+  恢复为等待 IDR。编码 PTS 回退/输入 discontinuity 时重新映射到当前 RTSP running time，
+  防止 Camera 重启让既有 RTP 时间轴倒退。
+- 新 `rtsp_push_failure_test` 仅在测试可执行文件内注入 GST_FLOW_FLUSHING，证明两个 push
+  路径都计数并可恢复；消费者测试覆盖阻塞隔离、队列上限及 std/非标准异常恢复。
+
+### 证据和复现
+
+正常报告：`_output/runtime/media-recovery-20261111/final-normal/acceptance.json`，以及同目录
+`chrome.json`、`restart-browser.json`、`stopped-status.json`、`mp4-player.json`、PNG、
+`recording-verify.log`、三段 discover/decode 日志与 journal。
+
+```bash
+python3 scripts/tests/native-media-recovery.py \
+  --build-dir _output/build/pr10 \
+  --output-dir _output/runtime/YOUR_FRESH_DIRECTORY \
+  --base-url http://JETSON_LAN_IP:8080 \
+  --chromedriver /absolute/path/to/chromedriver \
+  --chrome-binary /absolute/path/to/google-chrome
+```
+
+该脚本需要 PyYAML、现有 GStreamer/浏览器安装和 WebRTC-enabled 构建，不下载依赖。
+会短暂暂停自建 RTSP 测试进程，并停止/启动自建 Camera Session，不停止系统 daemon 或重启机器。
+可选 Firefox 参数见 `--help`。本轮 Firefox 重测因执行环境的 Snap 启动权限失败，
+`normal/`、`normal-2/` 保留失败证据，未把它计为通过；此前 Firefox 720P 的通过记录仍是历史证据。
+
+最终软件回归 11/11 通过，包含 MP4、Recording Session/Catalog/Timeline/Integrity/Service、
+GOP、Receiver、RTSP push fault、WebRTC Session 和 H264 协商；Receiver 另通过 ASan/UBSan。
+日志位于 `_output/runtime/media-recovery-20261111/final-ctest.log`。
+
+**当前：本轮正常媒体与恢复范围已通过；VLC 排除、1080P 暂缓、Qt/HMI 排除。**
+Argus SIGKILL 仍复现 daemon 崩溃，独立诊断结果见 `CameraV2底层验证.md`，不能声称已修复。

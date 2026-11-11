@@ -4,16 +4,12 @@
 不替换 NVIDIA Tegracam 为上游通用 IMX219 驱动。仓库保存完整的 IMX219 驱动、模式表、功能扩展与对应补丁、Overlay 差异及脚本，
 便于直接阅读和维护；不复制整份 Linux/NVIDIA BSP，也不提交构建产物。
 
-**当前状态（2026-11-10）：增强版 `.ko` / `.dtbo` 已部署并在目标 Jetson 重启加载，
-live DT marker、CSI/VI 拓扑和 Test Pattern 控件已确认。最终 root RAW 报告已通过：
-720P60/1080P30 Test Pattern 自动像素检查、PGM 人工看图及两种模式各 120 帧 × 3 cycles
-stress 均正常；随后独立重启 Argus，Native libargus 1080P30 120 帧 × 2 cycles 再次通过。
-Sensor BSP 的加载、RAW 与基础 Hardware ISP 验收已有可复现证据。真机原版回滚、原版 RAW/Argus
-验证与增强版再部署后的加载/Argus 复验均已通过，不再重复部署或重启。新 BSP 下十轮
-AE/AWB Metadata、并发控制和 Profile 回归亦已通过。720P Chrome 有界面实播、Firefox headless
-解码/重连/刷新、RTSP 协议接收与事件 MP4 解码回归已通过；标准 VLC/MP4 人工实播、
-Camera 停止重启后的新会话恢复及 SIGKILL 诊断仍待执行，因此尚不标记为
-完整产品交付验收。**
+**当前状态（2026-11-11）：增强版 `.ko` / `.dtbo` 已在目标 Jetson 加载，
+live DT/Probe、720P60/1080P30 RAW Test Pattern、重复启停、Native Argus 及真实回滚/再部署
+均已通过，驱动基线冻结，不再重复部署或重启。AE/AWB/Profile、720P Chrome/RTSP/事件 MP4
+与 Camera 停止/启动后的会话恢复均已通过，Session 校验正常；本轮 VLC/Qt 人工观看排除。
+独立 SIGKILL 仍复现 Native BufferStream 客户端异常退出后 daemon 清理时 SIGSEGV，
+systemd 自动重启后可恢复；Core 生成但尚未解析，不能将正常验收写成异常恢复已修复。**
 详细记录见 [验收记录](verification.md)。
 
 ## 1. 固定目标与来源

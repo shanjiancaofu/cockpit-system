@@ -43,14 +43,17 @@
 - [x] 修复后的 root `verify.sh` 完整重跑，最终 RAW `verify.json` 为 `passed=true`、`capture_passed=true`，无 Camera kernel anomaly。
 - [x] 新 BSP 下 AE/AWB 自动/手动、锁定、Reset 与逐帧 Metadata 通过；Profile 十轮及 70 次非法配置拒绝通过。
 - [x] RAW 验收后独立重启 Argus，Native libargus NV12 1080P30、120 帧 × 2 cycles 再次通过。
-- [x] 新模块下 Chrome 720P、Firefox headless 解码、RTSP 协议接收、事件 MP4 解码回归通过；标准 VLC/MP4 人工实播及 Camera 停止重启后的新会话恢复仍待验收；Qt Out of Scope。
+- [x] 新模块下 Chrome 720P、RTSP 慢客户端隔离、连续事件录像及 MP4 播放器复验通过；此前 Firefox headless 通过，本轮 Snap 环境失败未重计；VLC/Qt Out of Scope。
+- [x] Camera Session 停止后旧 Peer 清理，启动后 Generation 1→2、新 Peer 解码、原 RTSP 连接恢复。
+- [x] 连续两次事件及 Camera 重启后第三次事件均完成，Session 完整性校验 3 文件/0 issue。
 - [x] 真机原版回滚、原版 RAW/Argus 验证及 BSP-01 再部署后的加载/Argus 复验。
-- [ ] SIGKILL/Argus outstanding-buffer 重新定位与独立恢复记录。
+- [x] 独立 SIGKILL 对照诊断及恢复记录已保存：Native 仍导致 daemon SEGV，自动重启后可恢复；GStreamer 本轮未触发 daemon 重启。
+- [ ] Native SIGKILL 即时恢复/具体根因修复未通过；Apport Core root-only，尚未解析。
 
-**BSP-01 当前已有可复现的 Sensor 驱动、RAW/Test Pattern 与基础 Hardware ISP 成对最终报告；
-真机原版回滚/再部署闭环、AE/AWB Metadata/Profile 与媒体自动回归已通过；标准 VLC/MP4 人工实播、
-Camera 停止重启后的新会话恢复和 SIGKILL 恢复仍待完成，因此不是完整产品验收通过。** 初次 stress 的 VI 错误已由请求模式与实际模式不匹配解释，不能归为已证实的
-Sensor/CSI 缺陷；也没有假定 Sensor 修改修复闭源 daemon。
+**Sensor BSP 基础功能及真实回滚已通过并冻结；正常调参与媒体/Camera 重启范围也已通过。**
+本轮按用户要求排除标准 VLC，不将其标成成功。Native SIGKILL 仍在 daemon 清理
+outstanding buffers 时复现崩溃，不能宣布异常恢复已修复或以无证据的 Kernel Patch 处理。
+历史测试和失败记录保留；最新结论见文末。
 
 ## 本地原始证据（不入 git）
 
@@ -217,3 +220,19 @@ _output/runtime/bsp01-media/{kernel-journal,argus-journal}.txt
 ```
 
 本轮软件回归：BSP 主机测试 19/19、tuning/profile/CLI CTest 4/4 通过。
+
+
+## 2026-11-11 收尾：正常媒体通过，异常恢复保留已知限制
+
+- 本轮未修改/安装驱动、未重跑 RAW 或回滚，也没有重启系统。
+- 正常媒体报告 `_output/runtime/media-recovery-20261111/final-normal/acceptance.json`
+  为 passed=true、daemon_stable=true；Chrome、RTSP 慢 TCP 客户端隔离、三个事件 MP4、
+  MP4 播放器与 Session 校验均通过。Camera 停止后旧 Peer 清理，新 Session Generation
+  1→2，原 RTSP 连接继续产帧。详情见 `docs/CameraV2-PR10-acceptance.md` 第 10 节。
+- 随后独立 SIGKILL：Native 组仍复现 6 outstanding buffers 清理后的 daemon SIGSEGV，
+  PID 1007→17696，NRestarts 0→1，systemd 自动重启后 follow-up 成功；GStreamer 对照本轮
+  即时恢复且 daemon 不再重启。Core 生成但 root-only，具体崩溃栈未解析，不宣称根因已修复。
+- 故障结束后再次 Native 720P30、120×2 帧通过，240 lease/buffer 全部归还，资源平衡；
+  目前 daemon active。详情见 `docs/CameraV2底层验证.md` 文末。
+- 相关 CTest 11/11 通过，Receiver ASan/UBSan 通过。VLC 人工观看本轮排除，
+  1080P 浏览器仍暂缓，Qt/HMI 不纳入；不再要求重复刷驱动或重启。

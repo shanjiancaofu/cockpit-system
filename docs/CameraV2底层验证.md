@@ -1,5 +1,8 @@
 # Camera V2 底层验证
 
+> PR-00/01/02 描述为历史验证范围；2026-11-11 增强版 BSP 的异常退出对照结果见文末，
+> 不用早期“生产仍使用原链路”的描述覆盖当前 Native Camera 实现。
+
 本轮交付 PR-00、PR-01 和隔离的 PR-02 最小验证程序。生产服务仍使用原有采集链路。
 验收依据为本机 Jetson / IMX219 实测，源码、构建和报告均位于 cockpit-system 仓库。
 
@@ -147,3 +150,56 @@ outstanding buffers 清理、SIGSEGV、systemd 自动重启及后续重新采集
 物理断流/拔插恢复尚未测试，24h 稳定性也未验收。PR-00/01 可独立评审，PR-02 保持隔离验证，
 在异常退出恢复问题解决前不替换生产主链路。H.264、WebRTC、RTSP、云端、事件录像、模型、ALSA 和 OTA 不在本轮范围；
 Software ISP 保留现有独立 RAW/NEON 测试用途。
+
+
+## 2026-11-11：增强版 BSP 的 Argus SIGKILL 对照诊断
+
+加载模块仍为 `bsp01-r36.5.2-1`，R36.5.2 / `5.15.199-tegra`。先完成正常媒体回归并
+正常停止全部自建服务，再显式执行既有 `jetson-camera-exit-compare.py`，只 SIGKILL 该脚本
+创建的客户端进程组。未杀 daemon、未手动 restart 服务、未改 systemd Restart 策略、
+未部署驱动或重启系统；GStreamer 仅用于故障对照，不替换生产 Native Camera。
+
+| 对照 | SIGKILL 前已观察帧 | 即时恢复 | daemon 是否重启 | 后续采集 |
+| --- | ---: | --- | --- | --- |
+| Native BufferStream | 232 | 失败，CameraProvider socket connection reset | 是，systemd 自动重启 | 通过 |
+| nvarguscamerasrc | 207 | 本轮通过 | 否 | 通过 |
+
+Native 组时间线（Asia/Shanghai）：
+
+- 18:04:43：客户端建立连接并进入 mode2 采集。
+- 18:04:52：自建客户端被 SIGKILL，daemon 报告 provider 未销毁，清理 1 request、
+  1 session、1 stream 与 **6 outstanding buffers**，随后有 Broken pipe 错误。
+- 18:05:03：systemd 记录 daemon `status=11/SEGV`，自动重启。
+  PID **1007→17696**、NRestarts **0→1**、InvocationID 改变。
+- 自动重启后的 Native follow-up 成功。GStreamer 组随后即时/后续采集均成功，PID/NRestarts
+  不再变化。该单次对照不能证明 GStreamer 所有异常场景都安全，也不能把 Native 标为已修复。
+- 全部故障诊断结束后，又单独执行 Native 720P30、120 帧 × 2 cycles：240 帧全部归还、
+  resources_balanced=true，确认当前设备可正常采集；daemon 保持 active，NRestarts=1。
+
+### 已定位的边界与未解决部分
+
+当前最强证据是 **Native BufferStream 客户端异常消失后，Argus daemon 的清理路径崩溃**；
+两组对应 kernel journal 均无新增条目，没有证据支持修改 IMX219/VI/NVCSI。
+正常 Stop/Start 已通过，但 SIGKILL 下客户端析构不可能运行；保持 FrameLease 正常归还的
+代码不能被解释为可保证该异常场景的闭源服务安全。
+
+这还不是带符号 Core 调试结论，不能断言某个函数或寄存器是根因。本机采用 Apport，
+实际产生 `/var/crash/_usr_sbin_nvargus-daemon.0.crash`，大小 **33,642,492 bytes**，
+权限 `0640 root:root`；当前非 root 开发进程无法读取，未解析其中 Core Dump/Backtrace。
+保留原文件，没有改变 core_pattern、放宽全局权限或把内存转储加入仓库。
+
+当前可依赖的恢复行为是既有 systemd `Restart=on-failure` 自动重启后恢复；这不是无中断
+恢复，不新增自动提权/无限重试来掩盖失败。`camera_exit_comparison.json` 明确保留
+`comparison_completed=true`、`production_switch_ready=false`，脚本 exit=1 是本次异常
+恢复不通过的真实结果，而非正常媒体验收失败。精确根因/闭源组件修复仍未完成。
+
+### 本地证据（不入 git）
+
+```
+_output/runtime/media-recovery-20261111/argus-exit/camera_exit_comparison.json
+_output/runtime/media-recovery-20261111/argus-exit/{native-buffer,gstreamer}.exit.json
+_output/runtime/media-recovery-20261111/argus-exit/{native-buffer,gstreamer}.argus.journal.txt
+_output/runtime/media-recovery-20261111/argus-exit/{native-buffer,gstreamer}.kernel.journal.txt
+_output/runtime/media-recovery-20261111/argus-exit/native-buffer-abrupt.json.frames.tsv
+_output/runtime/media-recovery-20261111/post-fault-native.json
+```
